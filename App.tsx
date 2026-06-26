@@ -19,13 +19,15 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 const colors = {
   background: "#fbfbfd",
   surface: "rgba(255,255,255,0.78)",
+  surfaceStrong: "#ffffff",
   ink: "#1d1d1f",
   muted: "#86868b",
   primary: "#ff2d55",
   primaryDeep: "#ba0034",
   primarySoft: "#ffdada",
   line: "rgba(145,110,111,0.18)",
-  green: "#34c759"
+  green: "#34c759",
+  gold: "#b87a00"
 };
 
 const profileImages = [
@@ -37,25 +39,126 @@ const profileImages = [
   require("./assets/profiles/profile-6.jpg")
 ];
 
-type Tab = "discover" | "matches" | "messages" | "profile" | "safety";
+type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type Mode = "classic" | "premium";
+type AuthMode = "login" | "register";
 
-const profiles = {
-  classic: {
-    image: profileImages[0],
-    name: "Aisha, 24",
-    badge: "Zweryfikowana",
-    tags: ["Kawa", "Indie pop", "2 km"],
-    bio: "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu."
-  },
-  premium: {
-    image: profileImages[5],
-    name: "Nika, 26",
-    badge: "Premium match",
-    tags: ["Sztuka", "Dziś online", "Superlike"],
-    bio: "Kuratorka wystaw, fanka nocnych spacerów i dobrego matcha latte. Odpowiada szybko."
-  }
+type MatchProfile = {
+  name: string;
+  surname: string;
+  age: number;
+  city: string;
+  bio: string;
+  distance: string;
+  image: any;
+  interests: string[];
+  socials: { label: string; value: string }[];
+  premium?: boolean;
 };
+
+const interestOptions = [
+  "Filmy",
+  "Natura",
+  "Muzyka",
+  "Kawa",
+  "Sport",
+  "Sztuka",
+  "Podróże",
+  "Gaming",
+  "Książki",
+  "Kuchnia",
+  "Fotografia",
+  "Tech",
+  "Joga",
+  "Koncerty",
+  "Planszówki",
+  "LGBT+"
+];
+
+const matchProfiles: MatchProfile[] = [
+  {
+    name: "Aisha",
+    surname: "Nowak",
+    age: 24,
+    city: "Warszawa",
+    bio: "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu.",
+    distance: "2 km",
+    image: profileImages[0],
+    interests: ["Kawa", "Sztuka", "Filmy", "Natura"],
+    socials: [
+      { label: "Instagram", value: "@aisha.design" },
+      { label: "Spotify", value: "Indie evenings" }
+    ],
+    premium: true
+  },
+  {
+    name: "Lena",
+    surname: "Kowalska",
+    age: 27,
+    city: "Kraków",
+    bio: "Fotografia analogowa, góry i niedzielne brunche. Najbardziej lubi ludzi, którzy pytają drugi raz.",
+    distance: "5 km",
+    image: profileImages[1],
+    interests: ["Fotografia", "Natura", "Kuchnia", "Podróże"],
+    socials: [
+      { label: "Instagram", value: "@lenak.frames" },
+      { label: "TikTok", value: "@lenak.moves" }
+    ]
+  },
+  {
+    name: "Kuba",
+    surname: "Zieliński",
+    age: 29,
+    city: "Gdańsk",
+    bio: "Koncerty, rower i dokumenty muzyczne. Zawsze zna mały lokal z dobrą sceną.",
+    distance: "8 km",
+    image: profileImages[2],
+    interests: ["Muzyka", "Koncerty", "Sport", "Filmy"],
+    socials: [
+      { label: "Spotify", value: "Kuba live set" },
+      { label: "LinkedIn", value: "kuba-zielinski" }
+    ]
+  },
+  {
+    name: "Mia",
+    surname: "Wiśniewska",
+    age: 25,
+    city: "Poznań",
+    bio: "Ceramika, książki i wypady za miasto. Ceni ciepły humor i jasne intencje.",
+    distance: "3 km",
+    image: profileImages[3],
+    interests: ["Książki", "Sztuka", "Natura", "Joga"],
+    socials: [
+      { label: "Instagram", value: "@mia.studio" },
+      { label: "Pinterest", value: "mia moodboard" }
+    ],
+    premium: true
+  }
+];
+
+const premiumPlans = [
+  {
+    id: "plus",
+    title: "Spark Plus",
+    price: "29,99 zł / mies.",
+    accent: "Więcej kontroli",
+    features: ["Nielimitowane polubienia", "Cofnij ostatnie pominięcie", "Filtry po intencjach"]
+  },
+  {
+    id: "bloom",
+    title: "Bloom Premium",
+    price: "59,99 zł / mies.",
+    accent: "Najlepszy start",
+    features: ["Zobacz kto Cię polubił", "1 Superlike dziennie", "Priorytet profilu w odkrywaniu"]
+  },
+  {
+    id: "vip",
+    title: "Sakura VIP",
+    price: "199,99 zł / rok",
+    accent: "Najlepsza wartość",
+    features: ["Wszystko z Bloom", "Tryb incognito", "Wyróżnione wiadomości"]
+  }
+];
 
 function tap() {
   if (process.env.EXPO_OS === "ios") {
@@ -63,96 +166,86 @@ function tap() {
   }
 }
 
+function toggleListItem(items: string[], item: string) {
+  return items.includes(item) ? items.filter((value) => value !== item) : [...items, item];
+}
+
 function AppContent() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const [authDone, setAuthDone] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [firstName, setFirstName] = useState("Alex");
+  const [lastName, setLastName] = useState("Mercer");
+  const [email, setEmail] = useState("alex@spark.app");
+  const [password, setPassword] = useState("sparkdemo");
   const [onboarded, setOnboarded] = useState(false);
   const [intent, setIntent] = useState("Randki");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [selectedInterests, setSelectedInterests] = useState(["Filmy", "Natura", "Kawa", "Sztuka"]);
   const [tab, setTab] = useState<Tab>("discover");
   const [mode, setMode] = useState<Mode>("classic");
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [privateProfile, setPrivateProfile] = useState(false);
+  const [premiumPlan, setPremiumPlan] = useState("bloom");
 
   const isCompact = width < 380;
-  const activeProfile = profiles[mode];
+  const profileName = `${firstName.trim() || "Alex"} ${lastName.trim() || "Mercer"}`;
+  const activeProfile = mode === "premium" ? matchProfiles[3] : matchProfiles[0];
+  const canContinue = ageConfirmed && selectedInterests.length >= 3;
 
   const contentPadding = useMemo(
     () => ({
-      paddingTop: onboarded ? Math.max(insets.top + 16, 28) : Math.max(insets.top + 34, 54),
-      paddingBottom: onboarded ? insets.bottom + 108 : insets.bottom + 28,
+      paddingTop: authDone && onboarded ? Math.max(insets.top + 16, 28) : Math.max(insets.top + 34, 54),
+      paddingBottom: authDone && onboarded ? insets.bottom + 108 : insets.bottom + 28,
       paddingHorizontal: isCompact ? 16 : 20
     }),
-    [insets.bottom, insets.top, isCompact, onboarded]
+    [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
+
+  if (!authDone) {
+    return (
+      <ScreenFrame contentPadding={contentPadding}>
+        <AuthScreen
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          firstName={firstName}
+          setFirstName={setFirstName}
+          lastName={lastName}
+          setLastName={setLastName}
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          onContinue={() => {
+            tap();
+            setAuthDone(true);
+          }}
+        />
+      </ScreenFrame>
+    );
+  }
 
   if (!onboarded) {
     return (
-      <LinearGradient colors={["#fbfbfd", "#fff5f7"]} style={styles.root}>
-        <StatusBar style="dark" />
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
-          <View style={styles.brand}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoText} selectable>S</Text>
-            </View>
-            <Text style={styles.eyebrow} selectable>Cherry Blossom Connect</Text>
-            <Text style={styles.title} selectable>Spark</Text>
-            <Text style={styles.lead} selectable>
-              Poznawaj ludzi blisko Ciebie: na randkę, kawę, koncert albo spokojny spacer po mieście.
-            </Text>
-          </View>
-
-          <View style={styles.intentList}>
-            {[
-              ["Randki", "Chemia, rozmowy, spotkania", "♡"],
-              ["Znajomi", "Kawa, planszówki, miasto", "✦"],
-              ["Społeczność", "LGBT+, grupy, wydarzenia", "⌁"]
-            ].map(([label, description, icon]) => (
-              <Pressable
-                key={label}
-                accessibilityRole="button"
-                onPress={() => {
-                  tap();
-                  setIntent(label);
-                }}
-                style={[styles.intentCard, intent === label && styles.intentCardActive]}
-              >
-                <View style={styles.intentIcon}>
-                  <Text style={styles.intentIconText}>{icon}</Text>
-                </View>
-                <View style={styles.fill}>
-                  <Text style={styles.intentTitle} selectable>{label}</Text>
-                  <Text style={styles.intentDescription} selectable>{description}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.noticeCard}>
-            <View style={styles.fill}>
-              <Text style={styles.noticeTitle} selectable>Potwierdzam 18+</Text>
-              <Text style={styles.noticeText} selectable>
-                Spark jest dla dorosłych. Akceptuję zasady społeczności: szacunek, zgłaszanie nadużyć i zero podszywania się.
-              </Text>
-            </View>
-            <Switch value={ageConfirmed} onValueChange={setAgeConfirmed} trackColor={{ true: colors.green }} />
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            disabled={!ageConfirmed}
-            onPress={() => {
-              if (!ageConfirmed) {
-                return;
-              }
-              tap();
-              setOnboarded(true);
-            }}
-            style={[styles.primaryButton, !ageConfirmed && styles.primaryButtonDisabled]}
-          >
-            <Text style={styles.primaryButtonText}>{ageConfirmed ? "Kontynuuj" : "Potwierdź 18+, aby kontynuować"}</Text>
-          </Pressable>
-        </ScrollView>
-      </LinearGradient>
+      <ScreenFrame contentPadding={contentPadding}>
+        <OnboardingScreen
+          intent={intent}
+          setIntent={setIntent}
+          ageConfirmed={ageConfirmed}
+          setAgeConfirmed={setAgeConfirmed}
+          selectedInterests={selectedInterests}
+          setSelectedInterests={setSelectedInterests}
+          canContinue={canContinue}
+          onContinue={() => {
+            if (!canContinue) {
+              return;
+            }
+            tap();
+            setOnboarded(true);
+          }}
+        />
+      </ScreenFrame>
     );
   }
 
@@ -160,146 +253,29 @@ function AppContent() {
     <LinearGradient colors={["#fbfbfd", "#fff4f7"]} style={styles.root}>
       <StatusBar style="dark" />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
-        {tab === "discover" && (
-          <View style={styles.gapLg}>
-            <TopBar eyebrow="Odkrywaj" title="Spark" left="≡" right="⌘" />
-            <View style={styles.segmented}>
-              {(["classic", "premium"] as Mode[]).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => {
-                    tap();
-                    setMode(item);
-                  }}
-                  style={[styles.segmentButton, mode === item && styles.segmentButtonActive]}
-                >
-                  <Text style={[styles.segmentText, mode === item && styles.segmentTextActive]}>
-                    {item === "classic" ? "Klasycznie" : "Premium"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.profileCard}>
-              <Image source={activeProfile.image} style={styles.profileImage} contentFit="cover" />
-              <LinearGradient colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.cardShade} />
-              <View style={styles.badgeRow}>
-                {activeProfile.tags.map((tag) => (
-                  <Text key={tag} style={styles.badge} selectable>{tag}</Text>
-                ))}
-              </View>
-              <View style={styles.profileCopy}>
-                <Text style={styles.verified} selectable>{activeProfile.badge}</Text>
-                <Text style={styles.cardTitle} selectable>{activeProfile.name}</Text>
-                <Text style={styles.cardBio} selectable>{activeProfile.bio}</Text>
-              </View>
-            </View>
-
-            <View style={styles.actionRow}>
-              <RoundAction label="×" tone="light" />
-              <RoundAction label="♡" tone="primary" large />
-              <RoundAction label="+" tone="light" />
-            </View>
-
-            {mode === "premium" && (
-              <View style={styles.premiumGrid}>
-                {["Superlike", "Napisz", "Zapisz"].map((label) => (
-                  <Pressable key={label} style={styles.premiumAction}>
-                    <Text style={styles.premiumIcon}>{label === "Superlike" ? "✧" : label === "Napisz" ? "↗" : "⌘"}</Text>
-                    <Text style={styles.premiumText}>{label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {tab === "matches" && (
-          <View style={styles.gapLg}>
-            <TopBar eyebrow="Match" title="Nowe iskry" left="‹" right="⌕" />
-            <View style={styles.matchGrid}>
-              {[
-                ["Lena, 27", "98% wspólne vibe", profileImages[1]],
-                ["Kuba, 29", "Koncert dziś", profileImages[2]],
-                ["Mia, 25", "2 km od Ciebie", profileImages[3]],
-                ["Alex, 31", "Sztuka i design", profileImages[4]]
-              ].map(([name, subtitle, image]) => (
-                <View key={String(name)} style={styles.matchCard}>
-                  <Image source={image} style={styles.matchImage} contentFit="cover" />
-                  <Text style={styles.matchName} selectable>{name}</Text>
-                  <Text style={styles.matchSubtitle} selectable>{subtitle}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {tab === "messages" && (
-          <View style={styles.gapLg}>
-            <TopBar eyebrow="Social" title="Wiadomości" left="≡" right="+" />
-            <View style={styles.searchField}>
-              <Text style={styles.searchIcon}>⌕</Text>
-              <TextInput placeholder="Szukaj rozmów" placeholderTextColor={colors.muted} style={styles.searchInput} />
-            </View>
-            <View style={styles.chatList}>
-              {[
-                ["Zuzanna K.", "Hej! Idziemy dzisiaj na kawę?", "12:04", profileImages[1]],
-                ["Michał R.", "Brzmi super, do zobaczenia później.", "Wczoraj", profileImages[2]],
-                ["Kasia M.", "Prześlę Ci te zdjęcia wieczorem.", "Wtorek", profileImages[3]],
-                ["Weekend Trip", "Jan: Kto bierze namiot?", "Pon.", profileImages[5]]
-              ].map(([name, message, time, image]) => (
-                <Pressable key={String(name)} style={styles.chatItem}>
-                  <Image source={image} style={styles.chatAvatar} contentFit="cover" />
-                  <View style={styles.fill}>
-                    <Text style={styles.chatName} selectable>{name}</Text>
-                    <Text style={styles.chatMessage} numberOfLines={1} selectable>{message}</Text>
-                  </View>
-                  <Text style={styles.chatTime} selectable>{time}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-
+        {tab === "discover" && <DiscoverScreen mode={mode} setMode={setMode} profile={activeProfile} />}
+        {tab === "matches" && <MatchesScreen />}
+        {tab === "messages" && <MessagesScreen />}
+        {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} />}
         {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} />}
-
         {tab === "profile" && (
-          <View style={styles.gapLg}>
-            <View style={styles.profileHero}>
-              <Image source={profileImages[4]} style={styles.profileHeroImage} contentFit="cover" />
-              <Pressable style={styles.editButton}>
-                <Text style={styles.editButtonText}>✎</Text>
-              </Pressable>
-            </View>
-            <View style={styles.profilePanel}>
-              <Text style={styles.eyebrow} selectable>Profil</Text>
-              <Text style={styles.profileName} selectable>Alex Mercer</Text>
-              <Text style={styles.profileDescription} selectable>
-                Digital creator, fan estetyki sakury i spokojnych rozmów. Szukam ludzi do kawy, sztuki i spontanicznych mikroprzygód.
-              </Text>
-              <View style={styles.statsRow}>
-                {[
-                  ["126", "polubień"],
-                  ["18", "matchy"],
-                  ["4.9", "vibe"]
-                ].map(([value, label]) => (
-                  <View key={label} style={styles.statBox}>
-                    <Text style={styles.statValue} selectable>{value}</Text>
-                    <Text style={styles.statLabel} selectable>{label}</Text>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.settingsList}>
-                <View style={styles.settingRow}>
-                  <Text style={styles.settingLabel} selectable>Powiadomienia push</Text>
-                  <Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: colors.green }} />
-                </View>
-                <SettingRow label="Centrum bezpieczeństwa" value="Otwórz" onPress={() => setTab("safety")} />
-                <SettingRow label="Widoczność profilu" value="Publiczny" />
-                <SettingRow label="Preferencje motywu" value="Sakura" />
-              </View>
-            </View>
-          </View>
+          <ProfileScreen
+            firstName={firstName}
+            setFirstName={setFirstName}
+            lastName={lastName}
+            setLastName={setLastName}
+            email={email}
+            selectedInterests={selectedInterests}
+            setSelectedInterests={setSelectedInterests}
+            pushEnabled={pushEnabled}
+            setPushEnabled={setPushEnabled}
+            privateProfile={privateProfile}
+            setPrivateProfile={setPrivateProfile}
+            profileName={profileName}
+            premiumPlan={premiumPlan}
+            openPremium={() => setTab("premium")}
+            openSafety={() => setTab("safety")}
+          />
         )}
       </ScrollView>
 
@@ -308,6 +284,7 @@ function AppContent() {
           ["discover", "Discover", "✦"],
           ["matches", "Match", "♡"],
           ["messages", "Social", "⌁"],
+          ["premium", "Premium", "✧"],
           ["profile", "Profile", "◦"]
         ].map(([key, label, icon]) => (
           <Pressable
@@ -326,6 +303,377 @@ function AppContent() {
         ))}
       </BlurView>
     </LinearGradient>
+  );
+}
+
+function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; contentPadding: object }) {
+  return (
+    <LinearGradient colors={["#fbfbfd", "#fff5f7"]} style={styles.root}>
+      <StatusBar style="dark" />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
+        {children}
+      </ScrollView>
+    </LinearGradient>
+  );
+}
+
+function AuthScreen({
+  authMode,
+  setAuthMode,
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  onContinue
+}: {
+  authMode: AuthMode;
+  setAuthMode: (value: AuthMode) => void;
+  firstName: string;
+  setFirstName: (value: string) => void;
+  lastName: string;
+  setLastName: (value: string) => void;
+  email: string;
+  setEmail: (value: string) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  onContinue: () => void;
+}) {
+  return (
+    <View style={styles.gapLg}>
+      <View style={styles.brandCompact}>
+        <View style={styles.logoMark}>
+          <Text style={styles.logoText} selectable>S</Text>
+        </View>
+        <Text style={styles.eyebrow} selectable>Cherry Blossom Connect</Text>
+        <Text style={styles.title} selectable>Spark</Text>
+        <Text style={styles.lead} selectable>Logowanie, profile i odkrywanie ludzi w jednym miękkim, mobilnym flow.</Text>
+      </View>
+
+      <View style={styles.segmented}>
+        {(["login", "register"] as AuthMode[]).map((item) => (
+          <Pressable key={item} onPress={() => setAuthMode(item)} style={[styles.segmentButton, authMode === item && styles.segmentButtonActive]}>
+            <Text style={[styles.segmentText, authMode === item && styles.segmentTextActive]}>{item === "login" ? "Logowanie" : "Rejestracja"}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.formCard}>
+        {authMode === "register" && (
+          <View style={styles.nameRow}>
+            <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
+            <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
+          </View>
+        )}
+        <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
+        <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
+        <Pressable accessibilityRole="button" onPress={onContinue} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>{authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.socialLoginGrid}>
+        {["Apple", "Google", "Instagram"].map((label) => (
+          <Pressable key={label} style={styles.socialLoginButton}>
+            <Text style={styles.socialLoginText}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function OnboardingScreen({
+  intent,
+  setIntent,
+  ageConfirmed,
+  setAgeConfirmed,
+  selectedInterests,
+  setSelectedInterests,
+  canContinue,
+  onContinue
+}: {
+  intent: string;
+  setIntent: (value: string) => void;
+  ageConfirmed: boolean;
+  setAgeConfirmed: (value: boolean) => void;
+  selectedInterests: string[];
+  setSelectedInterests: (value: string[]) => void;
+  canContinue: boolean;
+  onContinue: () => void;
+}) {
+  return (
+    <View style={styles.gapLg}>
+      <View style={styles.brand}>
+        <View style={styles.logoMark}>
+          <Text style={styles.logoText} selectable>S</Text>
+        </View>
+        <Text style={styles.eyebrow} selectable>Start profilu</Text>
+        <Text style={styles.screenHeroTitle} selectable>Znajdź to, czego szukasz</Text>
+        <Text style={styles.lead} selectable>Wybierz cel, potwierdź wiek i zaznacz minimum trzy zainteresowania.</Text>
+      </View>
+
+      <View style={styles.intentList}>
+        {[
+          ["Randki", "Chemia, rozmowy, spotkania", "♡"],
+          ["Znajomi", "Kawa, planszówki, miasto", "✦"],
+          ["Społeczność", "LGBT+, grupy, wydarzenia", "⌁"]
+        ].map(([label, description, icon]) => (
+          <Pressable key={label} accessibilityRole="button" onPress={() => setIntent(label)} style={[styles.intentCard, intent === label && styles.intentCardActive]}>
+            <View style={styles.intentIcon}>
+              <Text style={styles.intentIconText}>{icon}</Text>
+            </View>
+            <View style={styles.fill}>
+              <Text style={styles.intentTitle} selectable>{label}</Text>
+              <Text style={styles.intentDescription} selectable>{description}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
+        <Text style={styles.panelText} selectable>Te badge pomagają dopasować profile i rozmowy.</Text>
+        <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
+      </View>
+
+      <View style={styles.noticeCard}>
+        <View style={styles.fill}>
+          <Text style={styles.noticeTitle} selectable>Potwierdzam 18+</Text>
+          <Text style={styles.noticeText} selectable>Spark jest dla dorosłych. Akceptuję zasady społeczności i moderację zgłoszeń.</Text>
+        </View>
+        <Switch value={ageConfirmed} onValueChange={setAgeConfirmed} trackColor={{ true: colors.green }} />
+      </View>
+
+      <Pressable accessibilityRole="button" disabled={!canContinue} onPress={onContinue} style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}>
+        <Text style={styles.primaryButtonText}>{canContinue ? "Kontynuuj" : "Wybierz 3 badge i potwierdź 18+"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function DiscoverScreen({ mode, setMode, profile }: { mode: Mode; setMode: (value: Mode) => void; profile: MatchProfile }) {
+  return (
+    <View style={styles.gapLg}>
+      <TopBar eyebrow="Odkrywaj" title="Spark" left="≡" right="⌘" />
+      <View style={styles.segmented}>
+        {(["classic", "premium"] as Mode[]).map((item) => (
+          <Pressable key={item} onPress={() => setMode(item)} style={[styles.segmentButton, mode === item && styles.segmentButtonActive]}>
+            <Text style={[styles.segmentText, mode === item && styles.segmentTextActive]}>{item === "classic" ? "Klasycznie" : "Premium"}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <ProfileCard profile={profile} />
+      <View style={styles.actionRow}>
+        <RoundAction label="×" tone="light" />
+        <RoundAction label="♡" tone="primary" large />
+        <RoundAction label="+" tone="light" />
+      </View>
+      {mode === "premium" && (
+        <View style={styles.premiumGrid}>
+          {[["Superlike", "✧"], ["Napisz", "↗"], ["Zapisz", "⌘"]].map(([label, icon]) => (
+            <Pressable key={label} style={styles.premiumAction}>
+              <Text style={styles.premiumIcon}>{icon}</Text>
+              <Text style={styles.premiumText}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function ProfileCard({ profile }: { profile: MatchProfile }) {
+  return (
+    <View style={styles.profileCard}>
+      <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
+      <LinearGradient colors={["transparent", "rgba(0,0,0,0.76)"]} style={styles.cardShade} />
+      <View style={styles.badgeRow}>
+        {[profile.distance, ...profile.interests.slice(0, 3)].map((tag) => (
+          <Text key={tag} style={styles.badge} selectable>{tag}</Text>
+        ))}
+      </View>
+      <View style={styles.profileCopy}>
+        <Text style={styles.verified} selectable>{profile.premium ? "Premium verified" : "Zweryfikowana"}</Text>
+        <Text style={styles.cardTitle} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+        <Text style={styles.cardBio} selectable>{profile.bio}</Text>
+        <View style={styles.socialRow}>
+          {profile.socials.map((social) => (
+            <Text key={social.label} style={styles.socialPill} selectable>{social.label}: {social.value}</Text>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function MatchesScreen() {
+  return (
+    <View style={styles.gapLg}>
+      <TopBar eyebrow="Match" title="Nowe iskry" left="‹" right="⌕" />
+      <View style={styles.matchGrid}>
+        {matchProfiles.map((profile) => (
+          <View key={`${profile.name}-${profile.surname}`} style={styles.matchCard}>
+            <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
+            <Text style={styles.matchName} selectable>{profile.name}, {profile.age}</Text>
+            <Text style={styles.matchSubtitle} selectable>{profile.interests.slice(0, 2).join(" • ")}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function MessagesScreen() {
+  return (
+    <View style={styles.gapLg}>
+      <TopBar eyebrow="Social" title="Wiadomości" left="≡" right="+" />
+      <View style={styles.searchField}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput placeholder="Szukaj rozmów" placeholderTextColor={colors.muted} style={styles.searchInput} />
+      </View>
+      <View style={styles.chatList}>
+        {[["Zuzanna K.", "Hej! Idziemy dzisiaj na kawę?", "12:04", profileImages[1]], ["Michał R.", "Brzmi super, do zobaczenia później.", "Wczoraj", profileImages[2]], ["Kasia M.", "Prześlę Ci te zdjęcia wieczorem.", "Wtorek", profileImages[3]], ["Weekend Trip", "Jan: Kto bierze namiot?", "Pon.", profileImages[5]]].map(([name, message, time, image]) => (
+          <Pressable key={String(name)} style={styles.chatItem}>
+            <Image source={image} style={styles.chatAvatar} contentFit="cover" />
+            <View style={styles.fill}>
+              <Text style={styles.chatName} selectable>{name}</Text>
+              <Text style={styles.chatMessage} numberOfLines={1} selectable>{message}</Text>
+            </View>
+            <Text style={styles.chatTime} selectable>{time}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PremiumScreen({ premiumPlan, setPremiumPlan }: { premiumPlan: string; setPremiumPlan: (value: string) => void }) {
+  return (
+    <View style={styles.gapLg}>
+      <TopBar eyebrow="Premium" title="Więcej możliwości" left="✧" right="?" />
+      <View style={styles.premiumHero}>
+        <Text style={styles.premiumHeroKicker} selectable>Bloom Premium</Text>
+        <Text style={styles.premiumHeroTitle} selectable>Zobacz więcej ludzi, pisz szybciej, decyduj spokojniej.</Text>
+        <Text style={styles.premiumHeroText} selectable>Ten ekran jest frontem pod subskrypcje StoreKit i Play Billing.</Text>
+      </View>
+      <View style={styles.planList}>
+        {premiumPlans.map((plan) => (
+          <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[styles.planCard, premiumPlan === plan.id && styles.planCardActive]}>
+            <View style={styles.planHeader}>
+              <View style={styles.fill}>
+                <Text style={styles.planTitle} selectable>{plan.title}</Text>
+                <Text style={styles.planAccent} selectable>{plan.accent}</Text>
+              </View>
+              <Text style={styles.planPrice} selectable>{plan.price}</Text>
+            </View>
+            <View style={styles.planFeatures}>
+              {plan.features.map((feature) => <Text key={feature} style={styles.planFeature} selectable>• {feature}</Text>)}
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ProfileScreen({
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
+  email,
+  selectedInterests,
+  setSelectedInterests,
+  pushEnabled,
+  setPushEnabled,
+  privateProfile,
+  setPrivateProfile,
+  profileName,
+  premiumPlan,
+  openPremium,
+  openSafety
+}: {
+  firstName: string;
+  setFirstName: (value: string) => void;
+  lastName: string;
+  setLastName: (value: string) => void;
+  email: string;
+  selectedInterests: string[];
+  setSelectedInterests: (value: string[]) => void;
+  pushEnabled: boolean;
+  setPushEnabled: (value: boolean) => void;
+  privateProfile: boolean;
+  setPrivateProfile: (value: boolean) => void;
+  profileName: string;
+  premiumPlan: string;
+  openPremium: () => void;
+  openSafety: () => void;
+}) {
+  const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Cherry walks"], ["LinkedIn", "alex-mercer"]];
+
+  return (
+    <View style={styles.gapLg}>
+      <View style={styles.profileHero}>
+        <Image source={profileImages[4]} style={styles.profileHeroImage} contentFit="cover" />
+        <Pressable style={styles.editButton}><Text style={styles.editButtonText}>✎</Text></Pressable>
+      </View>
+      <View style={styles.profilePanel}>
+        <Text style={styles.eyebrow} selectable>Profil</Text>
+        <Text style={styles.profileName} selectable>{profileName}</Text>
+        <Text style={styles.profileDescription} selectable>{email} • plan: {premiumPlan}</Text>
+        <View style={styles.nameRow}>
+          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
+          <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
+        </View>
+        <View style={styles.statsRow}>
+          {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
+            <View key={label} style={styles.statBox}><Text style={styles.statValue} selectable>{value}</Text><Text style={styles.statLabel} selectable>{label}</Text></View>
+          ))}
+        </View>
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
+          <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
+        </View>
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle} selectable>Social links</Text>
+          <View style={styles.socialList}>
+            {socialLinks.map(([label, value]) => <View key={label} style={styles.socialLinkRow}><Text style={styles.settingLabel} selectable>{label}</Text><Text style={styles.settingValue} selectable>{value}</Text></View>)}
+          </View>
+        </View>
+        <View style={styles.settingsList}>
+          <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Powiadomienia push</Text><Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: colors.green }} /></View>
+          <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
+          <SettingRow label="Opcje premium" value="Zobacz" onPress={openPremium} />
+          <SettingRow label="Centrum bezpieczeństwa" value="Otwórz" onPress={openSafety} />
+          <SettingRow label="Widoczność profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function InterestChips({ selected, onToggle }: { selected: string[]; onToggle: (item: string) => void }) {
+  return (
+    <View style={styles.chipWrap}>
+      {interestOptions.map((item) => (
+        <Pressable key={item} onPress={() => onToggle(item)} style={[styles.chip, selected.includes(item) && styles.chipActive]}>
+          <Text style={[styles.chipText, selected.includes(item) && styles.chipTextActive]}>{item}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" }) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel} selectable>{label}</Text>
+      <TextInput value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry} keyboardType={keyboardType} autoCapitalize="none" placeholderTextColor={colors.muted} style={styles.fieldInput} />
+    </View>
   );
 }
 
@@ -479,6 +827,113 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 26,
     textAlign: "center"
+  },
+  brandCompact: {
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 4
+  },
+  screenHeroTitle: {
+    color: colors.ink,
+    fontSize: 34,
+    fontWeight: "900",
+    lineHeight: 39,
+    textAlign: "center",
+    letterSpacing: 0
+  },
+  formCard: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  nameRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  fieldGroup: {
+    flex: 1,
+    gap: 7
+  },
+  fieldLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  fieldInput: {
+    minHeight: 52,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.78)",
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  socialLoginGrid: {
+    flexDirection: "row",
+    gap: 10
+  },
+  socialLoginButton: {
+    flex: 1,
+    minHeight: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.72)"
+  },
+  socialLoginText: {
+    color: colors.ink,
+    fontWeight: "900"
+  },
+  panel: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 26,
+    borderCurve: "continuous",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  panelTitle: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  panelText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19
+  },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.74)",
+    borderWidth: 1,
+    borderColor: "rgba(145,110,111,0.12)"
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  chipText: {
+    color: "#5d3f40",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  chipTextActive: {
+    color: "#fff"
   },
   intentList: {
     gap: 12
@@ -688,6 +1143,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22
   },
+  socialRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 12
+  },
+  socialPill: {
+    color: colors.ink,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    overflow: "hidden",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 11,
+    fontWeight: "800"
+  },
   actionRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -744,6 +1215,78 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep,
     fontSize: 12,
     fontWeight: "900"
+  },
+  premiumHero: {
+    gap: 10,
+    padding: 22,
+    borderRadius: 30,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)",
+    boxShadow: "0 18px 42px rgba(99,51,61,0.1)"
+  },
+  premiumHeroKicker: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  premiumHeroTitle: {
+    color: colors.ink,
+    fontSize: 27,
+    lineHeight: 32,
+    fontWeight: "900",
+    letterSpacing: 0
+  },
+  premiumHeroText: {
+    color: "#5d3f40",
+    fontSize: 14,
+    lineHeight: 21
+  },
+  planList: {
+    gap: 12
+  },
+  planCard: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 26,
+    borderCurve: "continuous",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  planCardActive: {
+    borderColor: "rgba(255,45,85,0.38)",
+    backgroundColor: "rgba(255,255,255,0.94)"
+  },
+  planHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  planTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  planAccent: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  planPrice: {
+    color: colors.primaryDeep,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  planFeatures: {
+    gap: 6
+  },
+  planFeature: {
+    color: "#5d3f40",
+    fontSize: 13,
+    lineHeight: 19
   },
   matchGrid: {
     flexDirection: "row",
@@ -892,6 +1435,19 @@ const styles = StyleSheet.create({
   statLabel: {
     color: colors.muted,
     fontSize: 12
+  },
+  socialList: {
+    gap: 8
+  },
+  socialLinkRow: {
+    minHeight: 48,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255,255,255,0.72)"
   },
   settingsList: {
     gap: 10
