@@ -1,4 +1,4 @@
-﻿# Spark - Cherry Blossom Connect
+# Spark - Cherry Blossom Connect
 
 Expo / React Native prototype for an App Store and Google Play ready dating and friend-discovery app.
 
@@ -19,7 +19,16 @@ Current front-end coverage:
 
 ## Firebase Status
 
-Firebase code is prepared for project number `271339297035`, but the current Firebase CLI account does not have permission to access that project. Registering the iOS app currently fails with `403 The caller does not have permission`.
+Firebase is wired to project `spark-70b03` / number `271339297035`.
+
+- iOS app registered: `com.spark.cherryblossomconnect`
+- Android app registered: `com.spark.cherryblossomconnect`
+- Web app registered for Expo/Firebase JS SDK config
+- Firestore database created in `eur3`
+- Firestore rules and indexes are deployable from this repo
+- Firebase Auth providers enabled: Email/password and Google
+
+Before production Android Google Sign-In, add the final debug/release SHA-1 or SHA-256 certificate fingerprints to the Firebase Android app and refresh `google-services.json`.
 
 ## Run
 

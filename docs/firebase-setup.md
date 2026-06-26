@@ -2,54 +2,47 @@
 
 Firebase project requested by the user: `271339297035`.
 
-Current CLI status: the local Firebase account can authenticate, but does not have access to this project number. The command below currently fails with `403 The caller does not have permission`.
+Resolved project ID: `spark-70b03`.
 
-## Required Firebase Console Setup
+## Completed
 
-1. Grant this Firebase CLI account access to project `271339297035`, or provide the real Firebase project ID for that project number.
-2. In Firebase Console, enable Authentication providers:
-   - Email/password
-   - Google
-3. Register an iOS app:
+- Firebase CLI access confirmed for `spark-70b03`.
+- Firestore database created: `projects/spark-70b03/databases/(default)`.
+- Firestore location: `eur3`.
+- Firestore rules and indexes deployed from this repo.
+- iOS app registered:
+  - Bundle ID: `com.spark.cherryblossomconnect`
+  - App ID: `1:271339297035:ios:36ed0edfb102515b272a0e`
+  - Config file: `GoogleService-Info.plist`
+- Android app registered:
+  - Package: `com.spark.cherryblossomconnect`
+  - App ID: `1:271339297035:android:3adc1df993132323272a0e`
+  - Config file: `google-services.json`
+- Web app registered for Expo/Firebase JS SDK:
+  - App ID: `1:271339297035:web:cdb95d58b3e84a44272a0e`
+- `.firebaserc`, `app.json`, `.env.example`, Firebase SDK config, and Firestore helpers are wired to the project.
+- Firebase Auth providers enabled through Firebase CLI deploy:
+  - Email/password
+  - Google Sign-In
+
+## Google OAuth Client IDs
+
+Current client IDs:
 
 ```powershell
-npx firebase-tools apps:create IOS "Spark iOS" --bundle-id com.spark.cherryblossomconnect --project 271339297035
+EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID=271339297035-q7oggbponrnmb8fakreca7nk8p33lg8q.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=271339297035-dpvst0c6k6aj3voh0h2avn05lsneiivo.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=271339297035-q7oggbponrnmb8fakreca7nk8p33lg8q.apps.googleusercontent.com
 ```
 
-4. Get the iOS SDK config:
-
-```powershell
-npx firebase-tools apps:list --project 271339297035
-npx firebase-tools apps:sdkconfig IOS <IOS_APP_ID> --project 271339297035
-```
-
-5. Register Android app too before Google Play builds:
-
-```powershell
-npx firebase-tools apps:create ANDROID "Spark Android" --package-name com.spark.cherryblossomconnect --project 271339297035
-```
+`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` is intentionally blank until the Android debug/release SHA-1 or SHA-256 certificate fingerprint is added to the Firebase Android app. After adding the SHA fingerprint, refresh `google-services.json` and copy the generated Android OAuth client ID here.
 
 ## App Environment
 
-Copy `.env.example` to `.env` and fill:
+The repo includes `.env.example` with public Firebase client config for `spark-70b03`. The local `.env` file is ignored by Git and should contain the same Firebase values plus Google OAuth client IDs.
 
-```powershell
-Copy-Item .env.example .env
-```
-
-Required client-side values:
-
-- `EXPO_PUBLIC_FIREBASE_API_KEY`
-- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
-- `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
-- `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-- `EXPO_PUBLIC_FIREBASE_APP_ID`
-- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
-
-Firebase web/mobile API keys are public identifiers, not server secrets. Still, Firestore security depends on rules, not hidden API keys.
+Firebase web/mobile API keys are public client identifiers, not server secrets. Firestore access is protected by `firestore.rules`, not by hiding these keys.
 
 ## Firestore
 
@@ -60,10 +53,11 @@ This repo includes:
 - `firebase.json`
 - `.firebaserc`
 
-After replacing `.firebaserc` with the real project ID:
+Deploy rules, indexes, and Auth providers:
 
 ```powershell
-npx firebase-tools deploy --only firestore:rules,firestore:indexes
+npx firebase-tools deploy --only auth --project spark-70b03
+npx firebase-tools deploy --only firestore:rules,firestore:indexes --project spark-70b03
 ```
 
 ## Collections
@@ -80,4 +74,4 @@ npx firebase-tools deploy --only firestore:rules,firestore:indexes
 - `src/auth.ts`: email/password signup, email/password login, Google Firebase credential login.
 - `src/firestore.ts`: profile upsert, interest search, report, block helpers.
 - `src/google-sign-in.ts`: Google client ID config.
-- `App.tsx`: Auth UI now calls Firebase helpers and saves profile data to Firestore after onboarding.
+- `App.tsx`: Auth UI calls Firebase helpers and saves profile data to Firestore after onboarding.
