@@ -13,6 +13,7 @@
     "build:android": "eas build -p android --profile production"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~56.0.15",
     "expo": "~56.0.0",
     "expo-auth-session": "~56.0.14",
     "expo-blur": "*",
@@ -25,11 +26,13 @@
     "expo-web-browser": "~56.0.5",
     "firebase": "^12.15.0",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-google-mobile-ads": "^16.4.0",
     "react-native-purchases": "^10.4.0",
     "react-native-purchases-ui": "^10.4.0",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
