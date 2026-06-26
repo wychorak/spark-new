@@ -68,10 +68,21 @@ npx firebase-tools deploy --only firestore:rules,firestore:indexes --project spa
 - `matches/{matchId}`: match metadata.
 - `messages/{threadId}/items/{messageId}`: messages scoped to match members.
 
+## Test Account
+
+The login screen includes a test account button:
+
+```powershell
+Email: tester@spark.app
+Password: sparkdemo
+```
+
+Pressing it signs in with Firebase Auth or creates the account if it does not exist yet. The app also seeds a local demo match and a pending premium chat request so the Matches and Messages tabs can be tested immediately.
+
 ## Current Code Integration
 
 - `src/firebase.ts`: Firebase app, Auth, Firestore initialization from `EXPO_PUBLIC_*`.
 - `src/auth.ts`: email/password signup, email/password login, Google Firebase credential login.
-- `src/firestore.ts`: profile upsert, interest search, report, block helpers.
+- `src/firestore.ts`: login recording, profile upsert, interest search, report, block helpers.
 - `src/google-sign-in.ts`: Google client ID config.
-- `App.tsx`: Auth UI calls Firebase helpers and saves profile data to Firestore after onboarding.
+- `App.tsx`: Auth UI calls Firebase helpers, records every email/Google/demo login in `users/{uid}`, and saves full profile data to Firestore after onboarding.

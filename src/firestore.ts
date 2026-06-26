@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   limit,
   orderBy,
   query,
@@ -17,8 +18,12 @@ export type UserProfileDocument = {
   firstName: string;
   lastName: string;
   email: string | null;
+  displayName?: string | null;
   intent: string;
   interests: string[];
+  authProvider?: string;
+  loginCount?: number;
+  lastLoginAt?: unknown;
   city?: string;
   socials?: Record<string, string>;
   premiumPlan?: string;
@@ -46,6 +51,47 @@ export async function upsertUserProfile(profile: UserProfileDocument) {
       ...profile,
       createdAt: existing.exists() ? existing.data().createdAt : serverTimestamp(),
       updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
+export async function recordUserLogin(params: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  authProvider: "email" | "google" | "demo";
+  fallbackFirstName?: string;
+  fallbackLastName?: string;
+}) {
+  const currentDb = requireDb();
+  const profileRef = doc(currentDb, "users", params.uid);
+  const existing = await getDoc(profileRef);
+  const nameParts = (params.displayName ?? "").trim().split(/\s+/).filter(Boolean);
+  const firstName = params.fallbackFirstName || nameParts[0] || "Tester";
+  const lastName = params.fallbackLastName || nameParts.slice(1).join(" ") || "Spark";
+
+  await setDoc(
+    profileRef,
+    {
+      uid: params.uid,
+      email: params.email,
+      displayName: params.displayName,
+      authProvider: params.authProvider,
+      loginCount: increment(1),
+      lastLoginAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      ...(existing.exists()
+        ? {}
+        : {
+            firstName,
+            lastName,
+            intent: "Randki",
+            interests: ["Filmy", "Natura", "Kawa", "Sztuka"],
+            premiumPlan: "free",
+            privateProfile: false,
+            createdAt: serverTimestamp()
+          })
     },
     { merge: true }
   );

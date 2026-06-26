@@ -21,7 +21,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
-import { upsertUserProfile } from "./src/firestore";
+import { recordUserLogin, upsertUserProfile } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { SparkAdBanner, useSwipeInterstitialAds } from "./src/ads";
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
@@ -50,6 +50,13 @@ const profileImages = [
   require("./assets/profiles/profile-5.jpg"),
   require("./assets/profiles/profile-6.jpg")
 ];
+
+const demoAccount = {
+  email: "tester@spark.app",
+  password: "sparkdemo",
+  firstName: "Tester",
+  lastName: "Spark"
+};
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type Mode = "classic" | "premium";
@@ -296,14 +303,22 @@ function AppContent() {
     setAuthBusy(true);
     setAuthError(null);
     signInWithGoogleIdToken(idToken)
-      .then((user) => {
+      .then(async (user) => {
+        await recordUserLogin({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          authProvider: "google",
+          fallbackFirstName: firstName,
+          fallbackLastName: lastName
+        });
         setAppUser(user);
         setEmail(user.email ?? email);
         setAuthDone(true);
       })
       .catch((error: Error) => setAuthError(error.message))
       .finally(() => setAuthBusy(false));
-  }, [email, googleResponse]);
+  }, [email, firstName, googleResponse, lastName]);
 
   useEffect(() => {
     if (!authDone || !onboarded || userLocation || locationStatus === "denied") {
@@ -350,6 +365,18 @@ function AppContent() {
     };
   }, [authDone, locationStatus, onboarded, userLocation]);
 
+  function seedDemoMatchState() {
+    const matchedKey = getProfileKey(matchProfiles[0]);
+    const requestKey = getProfileKey(matchProfiles[3]);
+
+    setMatchedProfileKeys((keys) => (keys.includes(matchedKey) ? keys : [...keys, matchedKey]));
+    setChatRequestKeys((keys) => (keys.includes(requestKey) ? keys : [...keys, requestKey]));
+    setSelectedInterests(["Filmy", "Natura", "Kawa", "Sztuka"]);
+    setAgeConfirmed(true);
+    setOnboarded(true);
+    setTab("messages");
+  }
+
   async function handleEmailAuth() {
     setAuthBusy(true);
     setAuthError(null);
@@ -360,6 +387,14 @@ function AppContent() {
           ? await signUpWithEmail({ email, password, firstName, lastName })
           : await signInWithEmail(email, password);
 
+      await recordUserLogin({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        authProvider: "email",
+        fallbackFirstName: firstName,
+        fallbackLastName: lastName
+      });
       setAppUser(user);
       setAuthDone(true);
     } catch (error) {
@@ -393,6 +428,44 @@ function AppContent() {
       });
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
+    }
+  }
+
+  async function handleDemoAccount() {
+    setAuthBusy(true);
+    setAuthError(null);
+    setAuthMode("login");
+    setFirstName(demoAccount.firstName);
+    setLastName(demoAccount.lastName);
+    setEmail(demoAccount.email);
+    setPassword(demoAccount.password);
+
+    try {
+      let user: AppAuthUser;
+
+      try {
+        user = await signInWithEmail(demoAccount.email, demoAccount.password);
+      } catch {
+        user = await signUpWithEmail(demoAccount);
+      }
+
+      await recordUserLogin({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        authProvider: "demo",
+        fallbackFirstName: demoAccount.firstName,
+        fallbackLastName: demoAccount.lastName
+      });
+
+      setAppUser(user);
+      setAuthDone(true);
+      seedDemoMatchState();
+      Alert.alert("Konto testowe", "Zalogowano demo i dodano gotowy match oraz prosbe o chat.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Could not open demo account.");
+    } finally {
+      setAuthBusy(false);
     }
   }
 
@@ -472,6 +545,10 @@ function AppContent() {
             tap();
             setAuthError(null);
             promptGoogleSignIn();
+          }}
+          onDemoAccount={() => {
+            tap();
+            handleDemoAccount();
           }}
         />
       </ScreenFrame>
@@ -603,7 +680,8 @@ function AuthScreen({
   firebaseMissingConfig,
   googleReady,
   onContinue,
-  onGoogle
+  onGoogle,
+  onDemoAccount
 }: {
   authMode: AuthMode;
   setAuthMode: (value: AuthMode) => void;
@@ -622,6 +700,7 @@ function AuthScreen({
   googleReady: boolean;
   onContinue: () => void;
   onGoogle: () => void;
+  onDemoAccount: () => void;
 }) {
   return (
     <View style={styles.gapLg}>
@@ -683,6 +762,15 @@ function AuthScreen({
           <Text style={styles.socialLoginText}>Instagram</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        disabled={!firebaseReady || authBusy}
+        onPress={onDemoAccount}
+        style={[styles.secondaryButtonWide, (!firebaseReady || authBusy) && styles.socialLoginButtonDisabled]}
+      >
+        <Text style={styles.secondaryButtonText}>Konto testowe: tester@spark.app</Text>
+      </Pressable>
     </View>
   );
 }
