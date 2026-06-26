@@ -1,9 +1,11 @@
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -15,6 +17,12 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
+import { upsertUserProfile } from "./src/firestore";
+import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
+
+WebBrowser.maybeCompleteAuthSession();
 
 const colors = {
   background: "#fbfbfd",
@@ -188,6 +196,17 @@ function AppContent() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState("bloom");
+  const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+
+  const [, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
+    clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
+    iosClientId: googleClientIds.iosClientId,
+    androidClientId: googleClientIds.androidClientId,
+    webClientId: googleClientIds.webClientId,
+    responseType: "id_token"
+  });
 
   const isCompact = width < 380;
   const profileName = `${firstName.trim() || "Alex"} ${lastName.trim() || "Mercer"}`;
@@ -203,6 +222,71 @@ function AppContent() {
     [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
 
+  useEffect(() => {
+    const idToken = googleResponse?.type === "success" ? googleResponse.params.id_token : undefined;
+
+    if (!idToken) {
+      return;
+    }
+
+    setAuthBusy(true);
+    setAuthError(null);
+    signInWithGoogleIdToken(idToken)
+      .then((user) => {
+        setAppUser(user);
+        setEmail(user.email ?? email);
+        setAuthDone(true);
+      })
+      .catch((error: Error) => setAuthError(error.message))
+      .finally(() => setAuthBusy(false));
+  }, [email, googleResponse]);
+
+  async function handleEmailAuth() {
+    setAuthBusy(true);
+    setAuthError(null);
+
+    try {
+      const user =
+        authMode === "register"
+          ? await signUpWithEmail({ email, password, firstName, lastName })
+          : await signInWithEmail(email, password);
+
+      setAppUser(user);
+      setAuthDone(true);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Firebase authentication failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function saveProfileToFirestore() {
+    if (!appUser) {
+      return;
+    }
+
+    try {
+      await upsertUserProfile({
+        uid: appUser.uid,
+        firstName,
+        lastName,
+        email: appUser.email ?? email,
+        intent,
+        interests: selectedInterests,
+        premiumPlan,
+        privateProfile,
+        socials: {
+          instagram: "@alex.spark",
+          tiktok: "@alexconnects",
+          spotify: "Cherry walks",
+          linkedin: "alex-mercer"
+        }
+      });
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
+    }
+  }
+
   if (!authDone) {
     return (
       <ScreenFrame contentPadding={contentPadding}>
@@ -217,9 +301,19 @@ function AppContent() {
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
+          authBusy={authBusy}
+          authError={authError}
+          firebaseReady={isFirebaseConfigured}
+          firebaseMissingConfig={firebaseConfigStatus.missingConfig}
+          googleReady={isGoogleSignInConfigured}
           onContinue={() => {
             tap();
-            setAuthDone(true);
+            handleEmailAuth();
+          }}
+          onGoogle={() => {
+            tap();
+            setAuthError(null);
+            promptGoogleSignIn();
           }}
         />
       </ScreenFrame>
@@ -237,11 +331,12 @@ function AppContent() {
           selectedInterests={selectedInterests}
           setSelectedInterests={setSelectedInterests}
           canContinue={canContinue}
-          onContinue={() => {
+          onContinue={async () => {
             if (!canContinue) {
               return;
             }
             tap();
+            await saveProfileToFirestore();
             setOnboarded(true);
           }}
         />
@@ -328,7 +423,13 @@ function AuthScreen({
   setEmail,
   password,
   setPassword,
-  onContinue
+  authBusy,
+  authError,
+  firebaseReady,
+  firebaseMissingConfig,
+  googleReady,
+  onContinue,
+  onGoogle
 }: {
   authMode: AuthMode;
   setAuthMode: (value: AuthMode) => void;
@@ -340,7 +441,13 @@ function AuthScreen({
   setEmail: (value: string) => void;
   password: string;
   setPassword: (value: string) => void;
+  authBusy: boolean;
+  authError: string | null;
+  firebaseReady: boolean;
+  firebaseMissingConfig: string[];
+  googleReady: boolean;
   onContinue: () => void;
+  onGoogle: () => void;
 }) {
   return (
     <View style={styles.gapLg}>
@@ -352,6 +459,22 @@ function AuthScreen({
         <Text style={styles.title} selectable>Spark</Text>
         <Text style={styles.lead} selectable>Logowanie, profile i odkrywanie ludzi w jednym miękkim, mobilnym flow.</Text>
       </View>
+
+      {!firebaseReady && (
+        <View style={styles.configWarning}>
+          <Text style={styles.configWarningTitle} selectable>Firebase config required</Text>
+          <Text style={styles.configWarningText} selectable>
+            Uzupełnij .env wartościami EXPO_PUBLIC_FIREBASE_*. Brakuje: {firebaseMissingConfig.join(", ")}.
+          </Text>
+        </View>
+      )}
+
+      {authError && (
+        <View style={styles.configWarning}>
+          <Text style={styles.configWarningTitle} selectable>Auth error</Text>
+          <Text style={styles.configWarningText} selectable>{authError}</Text>
+        </View>
+      )}
 
       <View style={styles.segmented}>
         {(["login", "register"] as AuthMode[]).map((item) => (
@@ -370,17 +493,21 @@ function AuthScreen({
         )}
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
         <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
-        <Pressable accessibilityRole="button" onPress={onContinue} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>{authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
+        <Pressable accessibilityRole="button" disabled={!firebaseReady || authBusy} onPress={onContinue} style={[styles.primaryButton, (!firebaseReady || authBusy) && styles.primaryButtonDisabled]}>
+          <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
         </Pressable>
       </View>
 
       <View style={styles.socialLoginGrid}>
-        {["Apple", "Google", "Instagram"].map((label) => (
-          <Pressable key={label} style={styles.socialLoginButton}>
-            <Text style={styles.socialLoginText}>{label}</Text>
-          </Pressable>
-        ))}
+        <Pressable style={styles.socialLoginButton}>
+          <Text style={styles.socialLoginText}>Apple</Text>
+        </Pressable>
+        <Pressable disabled={!firebaseReady || !googleReady || authBusy} onPress={onGoogle} style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}>
+          <Text style={styles.socialLoginText}>Google</Text>
+        </Pressable>
+        <Pressable style={styles.socialLoginButton}>
+          <Text style={styles.socialLoginText}>Instagram</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -890,6 +1017,28 @@ const styles = StyleSheet.create({
   socialLoginText: {
     color: colors.ink,
     fontWeight: "900"
+  },
+  socialLoginButtonDisabled: {
+    opacity: 0.48
+  },
+  configWarning: {
+    gap: 6,
+    padding: 14,
+    borderRadius: 22,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,218,218,0.56)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.18)"
+  },
+  configWarningTitle: {
+    color: colors.primaryDeep,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  configWarningText: {
+    color: "#5d3f40",
+    fontSize: 12,
+    lineHeight: 18
   },
   panel: {
     gap: 12,
