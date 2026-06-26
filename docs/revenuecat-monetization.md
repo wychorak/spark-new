@@ -1,6 +1,6 @@
 # RevenueCat and Ads Setup
 
-Sparknew uses RevenueCat for premium access and AdMob banners for free users.
+Sparknew uses RevenueCat for premium access and AdMob ads for free users.
 
 ## Installed npm Packages
 
@@ -27,9 +27,13 @@ EXPO_PUBLIC_ADMOB_ANDROID_APP_ID=ca-app-pub-3940256099942544~3347511713
 EXPO_PUBLIC_ADMOB_IOS_APP_ID=ca-app-pub-3940256099942544~1458002511
 EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID=ca-app-pub-3940256099942544/6300978111
 EXPO_PUBLIC_ADMOB_IOS_BANNER_ID=ca-app-pub-3940256099942544/2934735716
+EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID=ca-app-pub-3940256099942544/1033173712
+EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID=ca-app-pub-3940256099942544/4411468910
 ```
 
 The AdMob IDs above are Google test IDs. Replace them with production IDs only after AdMob approval and before store release.
+
+Free users see a lightweight banner and a skippable interstitial/video-style ad after a randomized 5-10 profile swipes. `Sparknew Pro` hides all ads.
 
 ## RevenueCat Dashboard
 
@@ -67,8 +71,8 @@ If the user has no purchase history, Customer Center may show only restore/suppo
 ## App Code
 
 - `src/revenuecat.ts`: SDK configure, user identity sync, customer info listener, entitlement checking, package purchases, restore, paywall, Customer Center.
-- `src/ads.tsx`: AdMob banner for free users and RevenueCat ad lifecycle tracking.
-- `App.tsx`: Premium tab, gated Premium discovery mode, Profile subscription management row, ads hidden for `Sparknew Pro`.
+- `src/ads.tsx`: AdMob banner, swipe interstitial ads for free users, and RevenueCat ad lifecycle tracking.
+- `App.tsx`: Premium tab, gated Premium discovery mode, Profile subscription management row, ads hidden for `Sparknew Pro`, match-to-chat, and premium chat requests.
 
 Core entitlement check:
 
@@ -97,6 +101,7 @@ const result = await revenueCat.restorePurchases();
 - Keep `restorePurchases()` as a visible user action.
 - Do not show purchase errors when `userCancelled` is true.
 - Disable purchase buttons while a purchase is in progress.
+- Keep interstitial frequency randomized and capped by swipe actions so ads monetize without interrupting every profile.
 - Keep using AdMob test IDs until the production AdMob app and ad units are approved.
 - Replace the single test RevenueCat key with platform-specific public SDK keys when the real App Store and Google Play apps are configured in RevenueCat.
 - Never put RevenueCat secret API keys in the mobile app.

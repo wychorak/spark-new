@@ -2,6 +2,7 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as Google from "expo-auth-session/providers/google";
+import * as Location from "expo-location";
 import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -22,7 +23,7 @@ import { signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuth
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import { upsertUserProfile } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
-import { SparkAdBanner } from "./src/ads";
+import { SparkAdBanner, useSwipeInterstitialAds } from "./src/ads";
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -53,6 +54,7 @@ const profileImages = [
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type Mode = "classic" | "premium";
 type AuthMode = "login" | "register";
+type SwipeAction = "pass" | "like" | "superlike";
 
 type MatchProfile = {
   name: string;
@@ -61,10 +63,17 @@ type MatchProfile = {
   city: string;
   bio: string;
   distance: string;
+  latitude: number;
+  longitude: number;
   image: any;
   interests: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
+};
+
+type UserLocation = {
+  latitude: number;
+  longitude: number;
 };
 
 const interestOptions = [
@@ -94,6 +103,8 @@ const matchProfiles: MatchProfile[] = [
     city: "Warszawa",
     bio: "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu.",
     distance: "2 km",
+    latitude: 52.2297,
+    longitude: 21.0122,
     image: profileImages[0],
     interests: ["Kawa", "Sztuka", "Filmy", "Natura"],
     socials: [
@@ -109,6 +120,8 @@ const matchProfiles: MatchProfile[] = [
     city: "Kraków",
     bio: "Fotografia analogowa, góry i niedzielne brunche. Najbardziej lubi ludzi, którzy pytają drugi raz.",
     distance: "5 km",
+    latitude: 50.0647,
+    longitude: 19.945,
     image: profileImages[1],
     interests: ["Fotografia", "Natura", "Kuchnia", "Podróże"],
     socials: [
@@ -123,6 +136,8 @@ const matchProfiles: MatchProfile[] = [
     city: "Gdańsk",
     bio: "Koncerty, rower i dokumenty muzyczne. Zawsze zna mały lokal z dobrą sceną.",
     distance: "8 km",
+    latitude: 54.352,
+    longitude: 18.6466,
     image: profileImages[2],
     interests: ["Muzyka", "Koncerty", "Sport", "Filmy"],
     socials: [
@@ -137,6 +152,8 @@ const matchProfiles: MatchProfile[] = [
     city: "Poznań",
     bio: "Ceramika, książki i wypady za miasto. Ceni ciepły humor i jasne intencje.",
     distance: "3 km",
+    latitude: 52.4064,
+    longitude: 16.9252,
     image: profileImages[3],
     interests: ["Książki", "Sztuka", "Natura", "Joga"],
     socials: [
@@ -153,21 +170,21 @@ const premiumPlans = [
     title: "Sparknew Pro Weekly",
     price: "Subskrypcja tygodniowa",
     accent: "Dobry test",
-    features: ["Bez reklam", "Nielimitowane polubienia", "Szybsze odkrywanie profili"]
+    features: ["Zero reklam", "10 zjawiskowych Superlike miesiecznie", "Korona Pro na profilu"]
   },
   {
     id: "monthly",
     title: "Sparknew Pro Monthly",
     price: "Subskrypcja miesieczna",
     accent: "Najlepszy rytm",
-    features: ["Wszystko z Weekly", "Zobacz kto Cie polubil", "Priorytet profilu w odkrywaniu"]
+    features: ["Wszystko z Weekly", "Lepsze motywy profilu", "Czestsze wyskakiwanie u innych"]
   },
   {
     id: "lifetime",
     title: "Sparknew Pro Lifetime",
     price: "Jednorazowy zakup",
     accent: "Na stale",
-    features: ["Wszystko z Monthly", "Tryb incognito", "Zero reklam na zawsze"]
+    features: ["Wszystko z Monthly", "Lifetime bez reklam", "Premium prosba o chat przed matchem"]
   }
 ] satisfies Array<{ id: SparkPlanId; title: string; price: string; accent: string; features: string[] }>;
 
@@ -179,6 +196,32 @@ function tap() {
 
 function toggleListItem(items: string[], item: string) {
   return items.includes(item) ? items.filter((value) => value !== item) : [...items, item];
+}
+
+function getProfileKey(profile: MatchProfile) {
+  return `${profile.name}-${profile.surname}`;
+}
+
+function degreesToRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function getApproxDistanceLabel(userLocation: UserLocation | null, profile: MatchProfile) {
+  if (!userLocation) {
+    return profile.distance;
+  }
+
+  const earthRadiusKm = 6371;
+  const latitudeDelta = degreesToRadians(profile.latitude - userLocation.latitude);
+  const longitudeDelta = degreesToRadians(profile.longitude - userLocation.longitude);
+  const startLatitude = degreesToRadians(userLocation.latitude);
+  const endLatitude = degreesToRadians(profile.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+  const distanceKm = 2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+
+  return `${Math.max(1, Math.round(distanceKm))} km`;
 }
 
 function AppContent() {
@@ -203,6 +246,13 @@ function AppContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
+  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro);
+  const [profileIndex, setProfileIndex] = useState(0);
+  const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
+  const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
+  const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "granted" | "denied">("idle");
 
   const [, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
     clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
@@ -214,7 +264,17 @@ function AppContent() {
 
   const isCompact = width < 380;
   const profileName = `${firstName.trim() || "Alex"} ${lastName.trim() || "Mercer"}`;
-  const activeProfile = mode === "premium" ? matchProfiles[3] : matchProfiles[0];
+  const activeProfile = matchProfiles[profileIndex % matchProfiles.length];
+  const activeProfileWithDistance = useMemo(
+    () => ({
+      ...activeProfile,
+      distance: getApproxDistanceLabel(userLocation, activeProfile)
+    }),
+    [activeProfile, userLocation]
+  );
+  const activeProfileKey = getProfileKey(activeProfile);
+  const hasMatchedActiveProfile = matchedProfileKeys.includes(activeProfileKey);
+  const hasRequestedActiveProfile = chatRequestKeys.includes(activeProfileKey);
   const canContinue = ageConfirmed && selectedInterests.length >= 3;
 
   const contentPadding = useMemo(
@@ -244,6 +304,51 @@ function AppContent() {
       .catch((error: Error) => setAuthError(error.message))
       .finally(() => setAuthBusy(false));
   }, [email, googleResponse]);
+
+  useEffect(() => {
+    if (!authDone || !onboarded || userLocation || locationStatus === "denied") {
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadLocation() {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (permission.status !== Location.PermissionStatus.GRANTED) {
+          setLocationStatus("denied");
+          return;
+        }
+
+        setLocationStatus("granted");
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+
+        if (mounted) {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        }
+      } catch {
+        if (mounted) {
+          setLocationStatus("denied");
+        }
+      }
+    }
+
+    loadLocation();
+
+    return () => {
+      mounted = false;
+    };
+  }, [authDone, locationStatus, onboarded, userLocation]);
 
   async function handleEmailAuth() {
     setAuthBusy(true);
@@ -289,6 +394,55 @@ function AppContent() {
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
     }
+  }
+
+  async function handleSwipe(action: SwipeAction) {
+    tap();
+
+    if (action === "superlike") {
+      if (!revenueCat.isPro) {
+        await revenueCat.presentPaywallIfNeeded();
+        return;
+      }
+
+      if (superlikesRemaining <= 0) {
+        Alert.alert("Superlike", "Limit 10 zjawiskowych Superlike w tym miesiacu jest juz wykorzystany.");
+        return;
+      }
+
+      setSuperlikesRemaining((value) => Math.max(0, value - 1));
+    }
+
+    if (action === "like" || action === "superlike") {
+      setMatchedProfileKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
+      Alert.alert("Match", `Ty i ${activeProfile.name} polubiliscie sie. Mozecie teraz pisac.`);
+    }
+
+    trackSwipeAd();
+    setProfileIndex((value) => value + 1);
+  }
+
+  async function sendPremiumChatRequest() {
+    tap();
+
+    if (!revenueCat.isPro) {
+      await revenueCat.presentPaywallIfNeeded();
+      return;
+    }
+
+    if (hasMatchedActiveProfile) {
+      Alert.alert("Chat", `Masz juz match z ${activeProfile.name}. Rozmowa jest odblokowana.`);
+      setTab("messages");
+      return;
+    }
+
+    if (hasRequestedActiveProfile) {
+      Alert.alert("Prosba wyslana", `Jedna prosba o chat do ${activeProfile.name} juz czeka na akceptacje.`);
+      return;
+    }
+
+    setChatRequestKeys((keys) => [...keys, activeProfileKey]);
+    Alert.alert("Prosba o chat", `Wyslano jedna premium prosbe do ${activeProfile.name}.`);
   }
 
   if (!authDone) {
@@ -356,13 +510,18 @@ function AppContent() {
           <DiscoverScreen
             mode={mode}
             setMode={setMode}
-            profile={activeProfile}
+            profile={activeProfileWithDistance}
             hasPro={revenueCat.isPro}
             requestProAccess={revenueCat.presentPaywallIfNeeded}
+            onSwipe={handleSwipe}
+            onPremiumChatRequest={sendPremiumChatRequest}
+            hasMatchedProfile={hasMatchedActiveProfile}
+            hasRequestedProfile={hasRequestedActiveProfile}
+            superlikesRemaining={superlikesRemaining}
           />
         )}
-        {tab === "matches" && <MatchesScreen />}
-        {tab === "messages" && <MessagesScreen />}
+        {tab === "matches" && <MatchesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
+        {tab === "messages" && <MessagesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} />}
         {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} />}
         {tab === "profile" && (
@@ -602,17 +761,34 @@ function DiscoverScreen({
   setMode,
   profile,
   hasPro,
-  requestProAccess
+  requestProAccess,
+  onSwipe,
+  onPremiumChatRequest,
+  hasMatchedProfile,
+  hasRequestedProfile,
+  superlikesRemaining
 }: {
   mode: Mode;
   setMode: (value: Mode) => void;
   profile: MatchProfile;
   hasPro: boolean;
   requestProAccess: () => Promise<boolean>;
+  onSwipe: (action: SwipeAction) => void;
+  onPremiumChatRequest: () => void;
+  hasMatchedProfile: boolean;
+  hasRequestedProfile: boolean;
+  superlikesRemaining: number;
 }) {
+  const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Prosba";
+  const premiumActions: Array<{ label: string; icon: string; onPress: () => void }> = [
+    { label: "Superlike", icon: "pro", onPress: () => onSwipe("superlike") },
+    { label: premiumChatLabel, icon: "msg", onPress: onPremiumChatRequest },
+    { label: "Zapisz", icon: "save", onPress: () => undefined }
+  ];
+
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Odkrywaj" title="Spark" left="≡" right="⌘" />
+      <TopBar eyebrow="Odkrywaj" title="Spark" left="=" right="km" />
       <View style={styles.segmented}>
         {(["classic", "premium"] as Mode[]).map((item) => (
           <Pressable
@@ -635,15 +811,22 @@ function DiscoverScreen({
         ))}
       </View>
       <ProfileCard profile={profile} />
+      <View style={styles.monetizationStatus}>
+        <Text style={styles.monetizationStatusText} selectable>
+          {hasPro
+            ? `Pro: bez reklam, ${superlikesRemaining}/10 Superlike, korona i boost profilu`
+            : "Free: reklama video co ok. 5-10 swipe'ow, latwa do pominiecia"}
+        </Text>
+      </View>
       <View style={styles.actionRow}>
-        <RoundAction label="×" tone="light" />
-        <RoundAction label="♡" tone="primary" large />
-        <RoundAction label="+" tone="light" />
+        <RoundAction label="x" tone="light" onPress={() => onSwipe("pass")} />
+        <RoundAction label="♡" tone="primary" large onPress={() => onSwipe("like")} />
+        <RoundAction label="+" tone="light" onPress={() => onSwipe("superlike")} />
       </View>
       {mode === "premium" && (
         <View style={styles.premiumGrid}>
-          {[["Superlike", "✧"], ["Napisz", "↗"], ["Zapisz", "⌘"]].map(([label, icon]) => (
-            <Pressable key={label} style={styles.premiumAction}>
+          {premiumActions.map(({ label, icon, onPress }) => (
+            <Pressable key={label} onPress={onPress} style={styles.premiumAction}>
               <Text style={styles.premiumIcon}>{icon}</Text>
               <Text style={styles.premiumText}>{label}</Text>
             </Pressable>
@@ -677,47 +860,106 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
   );
 }
 
-function MatchesScreen() {
+function MatchesScreen({
+  matchedProfileKeys,
+  chatRequestKeys
+}: {
+  matchedProfileKeys: string[];
+  chatRequestKeys: string[];
+}) {
+  const visibleProfiles = matchProfiles.filter((profile) => {
+    const key = getProfileKey(profile);
+    return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key);
+  });
+
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Match" title="Nowe iskry" left="‹" right="⌕" />
-      <View style={styles.matchGrid}>
-        {matchProfiles.map((profile) => (
-          <View key={`${profile.name}-${profile.surname}`} style={styles.matchCard}>
-            <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
-            <Text style={styles.matchName} selectable>{profile.name}, {profile.age}</Text>
-            <Text style={styles.matchSubtitle} selectable>{profile.interests.slice(0, 2).join(" • ")}</Text>
-          </View>
-        ))}
-      </View>
+      <TopBar eyebrow="Match" title="Nowe iskry" left="<" right="+" />
+      {visibleProfiles.length === 0 ? (
+        <View style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateTitle} selectable>Jeszcze bez matchy</Text>
+          <Text style={styles.emptyStateText} selectable>
+            Polub profil, a gdy druga osoba tez polubi Ciebie, rozmowa pojawi sie w wiadomosciach.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.matchGrid}>
+          {visibleProfiles.map((profile) => {
+            const key = getProfileKey(profile);
+            const isRequest = chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
+
+            return (
+              <View key={key} style={styles.matchCard}>
+                <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
+                <Text style={styles.matchName} selectable>{profile.name}, {profile.age}</Text>
+                <Text style={styles.matchSubtitle} selectable>
+                  {isRequest ? "Prosba o chat wyslana" : profile.interests.slice(0, 2).join(" - ")}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
 
-function MessagesScreen() {
+function MessagesScreen({
+  matchedProfileKeys,
+  chatRequestKeys
+}: {
+  matchedProfileKeys: string[];
+  chatRequestKeys: string[];
+}) {
+  const conversations = matchProfiles
+    .filter((profile) => {
+      const key = getProfileKey(profile);
+      return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key);
+    })
+    .map((profile) => {
+      const key = getProfileKey(profile);
+      const isMatched = matchedProfileKeys.includes(key);
+
+      return {
+        key,
+        name: `${profile.name} ${profile.surname[0]}.`,
+        message: isMatched ? "Match aktywny - mozecie pisac." : "Premium prosba o chat czeka na akceptacje.",
+        time: isMatched ? "teraz" : "oczekuje",
+        image: profile.image
+      };
+    });
+
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Social" title="Wiadomości" left="≡" right="+" />
+      <TopBar eyebrow="Social" title="Wiadomosci" left="=" right="+" />
       <View style={styles.searchField}>
-        <Text style={styles.searchIcon}>⌕</Text>
-        <TextInput placeholder="Szukaj rozmów" placeholderTextColor={colors.muted} style={styles.searchInput} />
+        <Text style={styles.searchIcon}>+</Text>
+        <TextInput placeholder="Szukaj rozmow" placeholderTextColor={colors.muted} style={styles.searchInput} />
       </View>
-      <View style={styles.chatList}>
-        {[["Zuzanna K.", "Hej! Idziemy dzisiaj na kawę?", "12:04", profileImages[1]], ["Michał R.", "Brzmi super, do zobaczenia później.", "Wczoraj", profileImages[2]], ["Kasia M.", "Prześlę Ci te zdjęcia wieczorem.", "Wtorek", profileImages[3]], ["Weekend Trip", "Jan: Kto bierze namiot?", "Pon.", profileImages[5]]].map(([name, message, time, image]) => (
-          <Pressable key={String(name)} style={styles.chatItem}>
-            <Image source={image} style={styles.chatAvatar} contentFit="cover" />
-            <View style={styles.fill}>
-              <Text style={styles.chatName} selectable>{name}</Text>
-              <Text style={styles.chatMessage} numberOfLines={1} selectable>{message}</Text>
-            </View>
-            <Text style={styles.chatTime} selectable>{time}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {conversations.length === 0 ? (
+        <View style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateTitle} selectable>Brak aktywnych rozmow</Text>
+          <Text style={styles.emptyStateText} selectable>
+            Chat odblokuje sie po matchu. Premium moze wyslac jedna prosbe o rozmowe przed matchem.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.chatList}>
+          {conversations.map((conversation) => (
+            <Pressable key={conversation.key} style={styles.chatItem}>
+              <Image source={conversation.image} style={styles.chatAvatar} contentFit="cover" />
+              <View style={styles.fill}>
+                <Text style={styles.chatName} selectable>{conversation.name}</Text>
+                <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
+              </View>
+              <Text style={styles.chatTime} selectable>{conversation.time}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
-
 function PremiumScreen({
   premiumPlan,
   setPremiumPlan,
@@ -1014,9 +1256,23 @@ function IconButton({ label }: { label: string }) {
   );
 }
 
-function RoundAction({ label, tone, large = false }: { label: string; tone: "light" | "primary"; large?: boolean }) {
+function RoundAction({
+  label,
+  tone,
+  large = false,
+  onPress
+}: {
+  label: string;
+  tone: "light" | "primary";
+  large?: boolean;
+  onPress?: () => void;
+}) {
   return (
-    <Pressable style={[styles.roundAction, large && styles.roundActionLarge, tone === "primary" && styles.roundActionPrimary]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.roundAction, large && styles.roundActionLarge, tone === "primary" && styles.roundActionPrimary]}
+    >
       <Text style={[styles.roundActionText, tone === "primary" && styles.roundActionPrimaryText]}>{label}</Text>
     </Pressable>
   );
@@ -1350,6 +1606,22 @@ const styles = StyleSheet.create({
   },
   revenueCatError: {
     color: colors.primaryDeep,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800"
+  },
+  monetizationStatus: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.12)"
+  },
+  monetizationStatusText: {
+    color: "#5d3f40",
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "800"
@@ -1707,6 +1979,28 @@ const styles = StyleSheet.create({
   chatTime: {
     color: colors.muted,
     fontSize: 12
+  },
+  emptyStateCard: {
+    minHeight: 150,
+    justifyContent: "center",
+    gap: 8,
+    padding: 18,
+    borderRadius: 26,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.76)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)",
+    boxShadow: "0 16px 34px rgba(99,51,61,0.08)"
+  },
+  emptyStateTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  emptyStateText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 20
   },
   profileHero: {
     height: 340,

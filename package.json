@@ -19,6 +19,7 @@
     "expo-haptics": "*",
     "expo-image": "*",
     "expo-linear-gradient": "*",
+    "expo-location": "~56.0.18",
     "expo-status-bar": "*",
     "expo-web-browser": "~56.0.5",
     "firebase": "^12.15.0",

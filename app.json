@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.spark.cherryblossomconnect",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Spark uses your location to show approximate distance to nearby profiles."
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
@@ -39,6 +40,12 @@
     },
     "plugins": [
       "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Spark uses your location to show approximate distance to nearby profiles."
+        }
+      ],
       [
         "react-native-google-mobile-ads",
         {
