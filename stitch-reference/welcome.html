@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html lang="pl"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Spark - Splash Screen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#6b3743",
+                    "tertiary-fixed": "#e2e2e2",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#ffd9df",
+                    "surface-dim": "#dadada",
+                    "surface-container-highest": "#e2e2e2",
+                    "secondary": "#864e5a",
+                    "background": "#fbfbfd",
+                    "primary-fixed": "#ffdada",
+                    "on-surface-variant": "#86868b",
+                    "surface-container-low": "#f3f3f3",
+                    "on-primary-fixed": "#40000c",
+                    "error-container": "#ffdad6",
+                    "secondary-container": "#feb6c4",
+                    "on-primary-fixed-variant": "#920027",
+                    "on-tertiary-container": "#fcfcfc",
+                    "primary": "#ff2d55",
+                    "tertiary-container": "#737575",
+                    "inverse-surface": "#303030",
+                    "surface": "#ffffff",
+                    "surface-container": "#eeeeee",
+                    "on-secondary-container": "#7a4450",
+                    "primary-fixed-dim": "#ffb3b5",
+                    "on-error": "#ffffff",
+                    "outline-variant": "#e6bcbd",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "primary-container": "#ff2d55",
+                    "outline": "#d2d2d7",
+                    "on-background": "#1d1d1f",
+                    "surface-variant": "#e2e2e2",
+                    "secondary-fixed-dim": "#fbb3c1",
+                    "on-secondary-fixed": "#360c19",
+                    "on-primary": "#ffffff",
+                    "on-surface": "#1d1d1f",
+                    "surface-bright": "#f9f9f9",
+                    "tertiary": "#5a5c5c",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-primary-container": "#ffffff",
+                    "inverse-primary": "#ffb3b5",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-high": "#e8e8e8",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "surface-tint": "#be0036"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "1rem",
+                    "2xl": "1.5rem",
+                    "3xl": "2rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "8px",
+                    "lg": "40px",
+                    "margin-mobile": "24px",
+                    "md": "24px",
+                    "margin-desktop": "auto",
+                    "sm": "16px",
+                    "xl": "64px",
+                    "gutter": "16px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "display-lg-mobile": [
+                            "Inter", "sans-serif"
+                    ],
+                    "body-md": [
+                            "Inter", "sans-serif"
+                    ],
+                    "headline-md": [
+                            "Inter", "sans-serif"
+                    ],
+                    "body-lg": [
+                            "Inter", "sans-serif"
+                    ],
+                    "label-sm": [
+                            "Inter", "sans-serif"
+                    ],
+                    "display-lg": [
+                            "Inter", "sans-serif"
+                    ]
+            },
+            "fontSize": {
+                    "display-lg-mobile": [
+                            "36px",
+                            {
+                                    "lineHeight": "1.1",
+                                    "letterSpacing": "-0.03em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-md": [
+                            "15px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "19px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-lg": [
+                            "17px",
+                            {
+                                    "lineHeight": "1.5",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-sm": [
+                            "12px",
+                            {
+                                    "lineHeight": "1.33333",
+                                    "letterSpacing": "0.02em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "display-lg": [
+                            "48px",
+                            {
+                                    "lineHeight": "1.08349",
+                                    "letterSpacing": "-0.03em",
+                                    "fontWeight": "700"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #fbfbfd;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(255, 45, 85, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(255, 45, 85, 0.03) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(255, 45, 85, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(255, 45, 85, 0.03) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 
+                0 4px 24px -6px rgba(0, 0, 0, 0.02),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+        .glossy-btn {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 0.5px solid rgba(255, 255, 255, 0.5);
+            color: #ff2d55;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 8px 32px -8px rgba(255, 45, 85, 0.15);
+        }
+        .glossy-btn:not(:disabled) {
+            background: var(--tw-colors-primary);
+            color: white;
+            box-shadow: 0 12px 32px -8px rgba(255, 45, 85, 0.4);
+        }
+        .glossy-btn:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+        .option-card {
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .option-card:hover {
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 
+                0 20px 40px -12px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 1);
+            background: rgba(255, 255, 255, 0.8);
+        }
+        .option-card.selected {
+            border: 0.5px solid rgba(255, 45, 85, 0.3);
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 
+                0 0 0 1px rgba(255, 45, 85, 0.1),
+                0 16px 40px -12px rgba(255, 45, 85, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 1);
+        }
+        .icon-container {
+            transition: all 0.4s ease;
+        }
+        .option-card.selected .icon-container {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen relative overflow-hidden font-body-md text-body-md flex flex-col items-center justify-center">
+<!-- Main Content Canvas -->
+<main class="w-full max-w-[1200px] mx-margin-desktop px-margin-mobile md:px-lg py-xl flex flex-col items-center relative z-10 min-h-screen justify-center">
+<!-- Header Section -->
+<header class="flex flex-col items-center text-center mb-xl">
+<div class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] overflow-hidden mb-6 shadow-[0_16px_40px_-12px_rgba(255,45,85,0.2)] bg-white p-1">
+<img alt="Spark Logo" class="w-full h-full object-cover rounded-[1.75rem]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA4RsDm9SMFaI0y0jY5X9hoCCCv6pXlM4y_l3LNtD8nBA_in2x-79inZTl45KfFBmM9qb2sRyOScAAbTq7qZ3rWKFX4RzD4l9c5ZQTNi-g3ut7s9gYef4OVppI4pyjVd4jzk3bIt_sLGeFZvWIFwRYSGOiLGUPB3ogGfbyMUzx6-SYLeVcNE9dLT3FgaAnHySCPDMrpE0pa76qfECCwkBzqbSw6gNh_ZEa7RMaX3O8lT1XAzXljquUzAfcsb_eL-8-6pW0MEvICiY"/>
+</div>
+<h1 class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg text-[#1d1d1f] mb-3 max-w-[300px] md:max-w-none">Znajdź to, czego szukasz</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-[280px] md:max-w-md">Wybierz, czego dzisiaj potrzebujesz. Zawsze możesz to zmienić.</p>
+</header>
+<!-- Selection Grid -->
+<div class="grid grid-cols-2 gap-4 md:gap-6 w-full max-w-lg mb-xl">
+<!-- Option 1: Partner -->
+<button class="option-card glass-panel rounded-3xl p-6 flex flex-col items-center justify-center gap-4 aspect-[4/3] cursor-pointer relative overflow-hidden group">
+<div class="icon-container w-14 h-14 rounded-full bg-[#ffe8ed] flex items-center justify-center text-primary mb-1">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<span class="font-headline-md text-[15px] md:text-[17px] text-on-surface text-center font-medium leading-tight">Szukam<br/>Partnera/Partnerki</span>
+</button>
+<!-- Option 2: FWB -->
+<button class="option-card glass-panel rounded-3xl p-6 flex flex-col items-center justify-center gap-4 aspect-[4/3] cursor-pointer relative overflow-hidden group">
+<div class="icon-container w-14 h-14 rounded-full bg-[#fff4e6] flex items-center justify-center mb-1 text-[#ff9500]">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+<span class="font-headline-md text-[15px] md:text-[17px] text-on-surface text-center font-medium leading-tight">Friends with<br/>Benefits</span>
+</button>
+<!-- Option 3: Friends -->
+<button class="option-card glass-panel rounded-3xl p-6 flex flex-col items-center justify-center gap-4 aspect-[4/3] cursor-pointer relative overflow-hidden group">
+<div class="icon-container w-14 h-14 rounded-full bg-[#e8f4f8] flex items-center justify-center mb-1 text-[#00c7be]">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">forum</span>
+</div>
+<span class="font-headline-md text-[15px] md:text-[17px] text-on-surface text-center font-medium leading-tight">Znajomych/<br/>Przyjaciół</span>
+</button>
+<!-- Option 4: LGBT+ -->
+<button class="option-card glass-panel rounded-3xl p-6 flex flex-col items-center justify-center gap-4 aspect-[4/3] cursor-pointer relative overflow-hidden group">
+<div class="icon-container w-14 h-14 rounded-full bg-[#f4e6f8] flex items-center justify-center mb-1 text-[#af52de]">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">diversity_3</span>
+</div>
+<span class="font-headline-md text-[15px] md:text-[17px] text-on-surface text-center font-medium leading-tight">LGBT+</span>
+</button>
+</div>
+<!-- Action Button -->
+<div class="w-full max-w-sm flex flex-col items-center gap-4 mt-8">
+<button class="glossy-btn w-full rounded-full py-4 px-8 font-headline-md text-[17px] text-center opacity-50 cursor-not-allowed" disabled="" id="continueBtn">
+        Kontynuuj
+    </button>
+<p class="font-label-sm text-label-sm text-[#86868b] uppercase tracking-[0.1em]">Wybierz jedną z opcji</p>
+</div>
+</main>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cards = document.querySelectorAll('.option-card');
+            const continueBtn = document.getElementById('continueBtn');
+            
+            cards.forEach(card => {
+                card.addEventListener('click', () => {
+                    // Remove selected class from all
+                    cards.forEach(c => c.classList.remove('selected'));
+                    
+                    // Add to clicked
+                    card.classList.add('selected');
+                    
+                    // Enable button
+                    continueBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    continueBtn.disabled = false;
+                });
+            });
+        });
+    </script>
+</body></html>

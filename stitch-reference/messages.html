@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pl"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Wiadomości - Bloom</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-tint": "#be0036",
+                      "primary-container": "#e51245",
+                      "inverse-on-surface": "#f1f1f1",
+                      "error": "#ba1a1a",
+                      "on-primary-container": "#fffbff",
+                      "background": "#f9f9f9",
+                      "secondary": "#864e5a",
+                      "on-primary-fixed": "#40000c",
+                      "surface-variant": "#e2e2e2",
+                      "on-secondary-container": "#7a4450",
+                      "on-surface": "#1b1b1b",
+                      "primary-fixed-dim": "#ffb3b5",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "on-error-container": "#93000a",
+                      "tertiary": "#5a5c5c",
+                      "surface-dim": "#dadada",
+                      "tertiary-container": "#737575",
+                      "inverse-primary": "#ffb3b5",
+                      "on-secondary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-container-highest": "#e2e2e2",
+                      "on-primary-fixed-variant": "#920027",
+                      "on-surface-variant": "#5d3f40",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary-fixed-variant": "#6b3743",
+                      "on-background": "#1b1b1b",
+                      "surface-container-lowest": "#ffffff",
+                      "tertiary-fixed": "#e2e2e2",
+                      "surface": "#f9f9f9",
+                      "outline-variant": "#e6bcbd",
+                      "outline": "#916e6f",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "surface-container-high": "#e8e8e8",
+                      "secondary-fixed": "#ffd9df",
+                      "primary": "#ba0034",
+                      "on-error": "#ffffff",
+                      "surface-container": "#eeeeee",
+                      "on-tertiary-container": "#fcfcfc",
+                      "surface-container-low": "#f3f3f3",
+                      "secondary-container": "#feb6c4",
+                      "primary-fixed": "#ffdada",
+                      "on-secondary-fixed": "#360c19",
+                      "surface-bright": "#f9f9f9",
+                      "secondary-fixed-dim": "#fbb3c1",
+                      "on-primary": "#ffffff",
+                      "inverse-surface": "#303030"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "lg": "40px",
+                      "md": "24px",
+                      "xl": "64px",
+                      "xs": "8px",
+                      "gutter": "16px",
+                      "base": "4px",
+                      "margin-desktop": "auto",
+                      "sm": "16px",
+                      "margin-mobile": "20px"
+              },
+              "fontFamily": {
+                      "display-lg-mobile": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "display-lg-mobile": [
+                              "36px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "52px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Subtle Cherry Blossom decorative background */
+        .cherry-blossom-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: -1;
+            background-image: radial-gradient(circle at 100% 0%, rgba(254, 182, 196, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 0% 100%, rgba(254, 182, 196, 0.1) 0%, transparent 50%);
+        }
+
+        .glass-panel {
+            background: transparent;
+        }
+
+        .chat-list-item {
+            transition: background-color 0.2s ease;
+        }
+        .chat-list-item:active {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Hide scrollbar for clean look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col no-scrollbar">
+<div class="cherry-blossom-bg"></div>
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/60 dark:bg-black/60 backdrop-blur-2xl border-b border-white/20 shadow-sm">
+<div class="flex items-center justify-between px-margin-mobile md:px-lg h-16 w-full max-w-[1200px] mx-auto">
+<button class="text-primary dark:text-primary-fixed-dim hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200 flex items-center justify-center"><img alt="Spark Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA4RsDm9SMFaI0y0jY5X9hoCCCv6pXlM4y_l3LNtD8nBA_in2x-79inZTl45KfFBmM9qb2sRyOScAAbTq7qZ3rWKFX4RzD4l9c5ZQTNi-g3ut7s9gYef4OVppI4pyjVd4jzk3bIt_sLGeFZvWIFwRYSGOiLGUPB3ogGfbyMUzx6-SYLeVcNE9dLT3FgaAnHySCPDMrpE0pa76qfECCwkBzqbSw6gNh_ZEa7RMaX3O8lT1XAzXljquUzAfcsb_eL-8-6pW0MEvICiY"/></button>
+<h1 class="font-headline-md text-headline-md-mobile md:text-headline-md text-primary dark:text-primary-fixed-dim font-bold tracking-tight">Spark</h1>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-variant border border-white/50 hover:opacity-80 transition-opacity cursor-pointer shadow-sm">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A close-up, highly detailed portrait of a modern Gen-Z user, well-lit with soft natural light, smiling subtly. The background is slightly blurred with soft warm tones. The overall aesthetic is clean, premium, and optimistic, fitting a high-end social app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsxFhwPAu2TYIzpu37caM6whYpBx_DkoYbVKwYk49HLu7hZcR2prKWoAE85m6Q2pZbtZEcruFsq_KW5LBMJaaWc20DS5eGee6mGwMcxbMSY6hfhMvzlYYxhkYZnp1Ryc2Po7lJ1rCB5IvVP6w9qXgxXWOKUUQ96-JjG_0kw0PMQzdOJMvHCSOtEfQf8LpJPSfW29v_NKqI9u8UeOCkV275r5_pwSjo7ZSNtPhTABawXRWCrhgKjHr2NttL8VcDYxbTRlwjCphNV1o"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow pt-[80px] pb-[100px] px-margin-mobile md:px-margin-desktop w-full max-w-[800px] mx-auto">
+<!-- Search Bar (Optional but good for chat lists) -->
+<div class="mb-6 px-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant opacity-60 text-[20px]">search</span>
+<input class="w-full bg-surface-variant/50 backdrop-blur-md border-0 rounded-full py-2.5 pl-10 pr-4 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/60 focus:ring-0 focus:bg-surface-variant/70 transition-all" placeholder="Szukaj..." type="text"/>
+</div>
+</div>
+<!-- Chat List -->
+<div class="flex flex-col gap-2">
+<!-- Chat Item 1 (Unread) -->
+<div class="chat-list-item glass-panel rounded-2xl p-4 flex items-center gap-4 cursor-pointer relative overflow-hidden group">
+<div class="relative flex-shrink-0">
+<img class="w-[60px] h-[60px] rounded-full object-cover border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.08)]" data-alt="A portrait of an attractive young woman with colorful hair, smiling brightly in a sunlit cafe. The aesthetic is Gen-Z, high-gloss, and vibrant, with soft lighting and a modern digital romance feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAj-6fPuaYSmMyfiF6tuVSExHhUshEPvbiZQlCETQXIxQacephFRAcrLXcspRjx7csVgyLiIk9Mw8aJNcDRzWS9CKBpz45NJJePBYpgmoClzIEPcsDOrxAJpqqZz0om_kFdK_9h4DVnzG51XoUaJcSDkARMoFd1FQgNjCL7zEDFdhOYu9n1Aln0CWtSfe0AF6-GYL6ziSaMFd_k1UHvao46xnNldTHy5IiasHGek6R_bTBMrDhThVbJ-EFXirr6VQ4PW9dDo1-aQ9g"/>
+<div class="absolute bottom-0 right-0 w-4 h-4 bg-primary rounded-full border-2 border-white"></div>
+</div>
+<div class="flex-grow min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold truncate">Zuzanna K.</h3>
+<span class="font-label-sm text-label-sm text-primary flex-shrink-0 ml-2">12:04</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface truncate font-medium">Hej! Idziemy dzisiaj na kawę? ☕️</p>
+</div>
+<!-- Unread Badge -->
+<div class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm text-label-sm flex-shrink-0 shadow-[0_2px_8px_rgba(186,0,52,0.4)]">
+                    2
+                </div>
+</div>
+<!-- Chat Item 2 (Read) -->
+<div class="chat-list-item glass-panel rounded-2xl p-4 flex items-center gap-4 cursor-pointer">
+<div class="relative flex-shrink-0">
+<img class="w-[60px] h-[60px] rounded-full object-cover border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.08)]" data-alt="A portrait of a stylish young man wearing a casual streetwear outfit, standing against a clean minimal architectural background. The lighting is soft and bright, creating a premium modern look suitable for a sleek app interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJIT4UP0lXsZ_YKwlBFU3pJtwHKS8MBo7zSexK8D3DUgh2RZ0O_F4Lj2JX1tYewFIMk09NYnyR7UOQqhJxBUqlCoUvQbcYfIFLwVPsIfz298oUEii2UT83D5pICI8fhm9QX00Ab2fiESTAKOpYeq2pewrh9ncUDMN7QG2BpwHh-l1C6YafmsIlGiRI76_ozLHDtKKMoLMPNhZpKg1Fbp5ov5P1XrIRZ3SiLk0Ukt36vuGiWYRpk7RrMxGoZohiVzPhz6W913EjS6w"/>
+</div>
+<div class="flex-grow min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-body-lg text-body-lg text-on-surface truncate font-medium">Michał R.</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant flex-shrink-0 ml-2">Wczoraj</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">Brzmi super, do zobaczenia później!</p>
+</div>
+</div>
+<!-- Chat Item 3 (Read) -->
+<div class="chat-list-item glass-panel rounded-2xl p-4 flex items-center gap-4 cursor-pointer">
+<div class="relative flex-shrink-0">
+<img class="w-[60px] h-[60px] rounded-full object-cover border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.08)]" data-alt="A portrait of a cheerful person with glasses, sitting in a park with soft green foliage in the background. The mood is relaxed, bright, and airy, utilizing a high-key light mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKjfZ9fprbgUB7CMDfreEgHMHDkzZisYm_ikMbv8asFQ0r9a7dRgYXktnxSKo27TxzpZuu2WK6u-jLWAcm6phI9DONQEmpd74o4vJu0TyJ8r-F-nzOsgQ4EhE1_u5Ia0Exz7wjaelhKJRdOikjJhmooVls25AQKRbIb-0CHizAJ5rHgEtbI5s2AwP8NHoa7gJlyNwzWUwQUeMiYDsAEaiE8r8Ol35sGwSD0tNKKyIDeRDFIjq33H-hiNbBH5c7zP9D7sos5jvtWng"/>
+</div>
+<div class="flex-grow min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-body-lg text-body-lg text-on-surface truncate font-medium">Kasia M.</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant flex-shrink-0 ml-2">Wtorek</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">Prześlę Ci te zdjęcia wieczorem.</p>
+</div>
+</div>
+<!-- Chat Item 4 (Read) -->
+<div class="chat-list-item glass-panel rounded-2xl p-4 flex items-center gap-4 cursor-pointer">
+<div class="relative flex-shrink-0">
+<div class="w-[60px] h-[60px] rounded-full bg-secondary-fixed flex items-center justify-center border-2 border-white shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
+<span class="material-symbols-outlined text-on-secondary-fixed text-[24px]">group</span>
+</div>
+</div>
+<div class="flex-grow min-w-0">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-body-lg text-body-lg text-on-surface truncate font-medium">Weekend Trip 🏔️</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant flex-shrink-0 ml-2">Poniedziałek</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">Jan: Kto bierze namiot?</p>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-2xl bg-white/60 dark:bg-black/60 backdrop-blur-2xl border-t border-white/20 shadow-[0_-4px_24px_rgba(0,0,0,0.04)] md:hidden">
+<div class="flex justify-around items-center w-full h-20 pb-safe px-4 max-w-[600px] mx-auto">
+<!-- Discover -->
+<button class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 p-2 hover:bg-white/10 active:scale-90 transition-all duration-300 ease-out group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 0;">explore</span>
+<span class="font-label-sm text-label-sm mt-1">Discover</span>
+</button>
+<!-- Match -->
+<button class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 p-2 hover:bg-white/10 active:scale-90 transition-all duration-300 ease-out group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 0;">favorite</span>
+<span class="font-label-sm text-label-sm mt-1">Match</span>
+</button>
+<!-- Social (Active) -->
+<button class="flex flex-col items-center justify-center bg-gradient-to-b from-white/20 to-transparent text-primary dark:text-primary-fixed-dim p-2 rounded-xl active:scale-90 transition-all duration-300 ease-out">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">forum</span>
+<span class="font-label-sm text-label-sm text-primary font-bold mt-1">Social</span>
+</button>
+<!-- Profile -->
+<button class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 p-2 hover:bg-white/10 active:scale-90 transition-all duration-300 ease-out group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 0;">person</span>
+<span class="font-label-sm text-label-sm mt-1">Profile</span>
+</button>
+</div>
+</nav>
+</body></html>

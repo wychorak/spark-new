@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Spark - Discover</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#6b3743",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#ffd9df",
+                        "surface-dim": "#dadada",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary": "#864e5a",
+                        "background": "#f9f9f9",
+                        "primary-fixed": "#ffdada",
+                        "on-surface-variant": "#5d3f40",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed": "#40000c",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#feb6c4",
+                        "on-primary-fixed-variant": "#920027",
+                        "on-tertiary-container": "#fcfcfc",
+                        "primary": "#ba0034",
+                        "tertiary-container": "#737575",
+                        "inverse-surface": "#303030",
+                        "surface": "#f9f9f9",
+                        "surface-container": "#eeeeee",
+                        "on-secondary-container": "#7a4450",
+                        "primary-fixed-dim": "#ffb3b5",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#e6bcbd",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "primary-container": "#e51245",
+                        "outline": "#916e6f",
+                        "on-background": "#1b1b1b",
+                        "surface-variant": "#e2e2e2",
+                        "secondary-fixed-dim": "#fbb3c1",
+                        "on-secondary-fixed": "#360c19",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#1b1b1b",
+                        "surface-bright": "#f9f9f9",
+                        "tertiary": "#5a5c5c",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-primary-container": "#fffbff",
+                        "inverse-primary": "#ffb3b5",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-high": "#e8e8e8",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "surface-tint": "#be0036"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "lg": "40px",
+                        "margin-mobile": "20px",
+                        "md": "24px",
+                        "margin-desktop": "auto",
+                        "sm": "16px",
+                        "xl": "64px",
+                        "gutter": "16px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg-mobile": ["36px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Base styles */
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Material Symbols Thin */
+        .material-symbols-outlined {
+            font-variation-settings: 'wght' 200, 'FILL' 0;
+        }
+
+        /* Mesh Gradient Animations */
+        @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob {
+            animation: blob 10s infinite alternate;
+        }
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+
+        /* Custom Scrollbar hide */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen relative overflow-x-hidden antialiased">
+<!-- Soft Mesh Gradient Background -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden z-[-1] bg-surface">
+<div class="absolute inset-0 opacity-40 mix-blend-multiply dark:mix-blend-screen filter blur-[100px]">
+<div class="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-primary-fixed-dim/40 rounded-full animate-blob"></div>
+<div class="absolute top-[20%] right-[-10%] w-[60%] h-[60%] bg-secondary-fixed/40 rounded-full animate-blob animation-delay-2000"></div>
+<div class="absolute bottom-[-20%] left-[20%] w-[80%] h-[80%] bg-error-container/30 rounded-full animate-blob animation-delay-4000"></div>
+</div>
+</div>
+<!-- Minimalist TopAppBar Component -->
+<header class="fixed top-0 w-full z-50 bg-white/10 dark:bg-black/10 backdrop-blur-md border-b border-white/20 dark:border-white/5 flex flex-col items-center justify-between px-margin-mobile md:px-lg h-16 w-full transition-all">
+<div class="flex items-center justify-between w-full h-full max-w-[1200px] mx-margin-desktop">
+<!-- Leading Icon -->
+<button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200 w-10 h-10 flex items-center justify-center rounded-full">
+<span class="material-symbols-outlined text-3xl">menu</span>
+</button>
+<!-- Headline / Brand -->
+<div class="font-display-lg-mobile text-[24px] italic tracking-tighter text-on-surface"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-md overflow-hidden grayscale opacity-80">https://lh3.googleusercontent.com/aida-public/AB6AXuBA4RsDm9SMFaI0y0jY5X9hoCCCv6pXlM4y_l3LNtD8nBA_in2x-79inZTl45KfFBmM9qb2sRyOScAAbTq7qZ3rWKFX4RzD4l9c5ZQTNi-g3ut7s9gYef4OVppI4pyjVd4jzk3bIt_sLGeFZvWIFwRYSGOiLGUPB3ogGfbyMUzx6-SYLeVcNE9dLT3FgaAnHySCPDMrpE0pa76qfECCwkBzqbSw6gNh_ZEa7RMaX3O8lT1XAzXljquUzAfcsb_eL-8-6pW0MEvICiY</div><span class="italic tracking-tighter font-medium">Spark</span></div></div>
+<!-- Trailing Avatar -->
+<button class="w-8 h-8 rounded-full overflow-hidden hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200 shadow-sm border border-white/30">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A close up, highly detailed portrait of an attractive young individual with soft, natural lighting against a neutral background. The style is modern, bright, and premium, fitting a high-end social networking application. The color palette emphasizes clean whites and soft skin tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhEdhidcWbm-ZP9MI4riIr6N7qdiX0lubTbqN0pIG3QliT2q5hZN4d22BUI01CkKQ6NBNPo4iQyMSpmxHYaFyFlv2gHN63LX8L58ByjNYZL1H7No-8AAeBsVhhn9GONdvf-3IsyEST0lEXGTuMPCygae1krKDEDscx8ynxbK09xaZdfdePd0z3b6zsig8SvCJ_5ntu9jF60kKfyYImPjAVF7gTcnk5M6HeXUwSwS1mUdYIxKXy2EF1d5Htmz0iHuORzVcv6LJUdjM"/>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-grow pt-[80px] pb-[100px] px-4 md:px-lg w-full max-w-[1200px] mx-auto flex flex-col items-center justify-start h-full min-h-[calc(100vh-160px)]">
+<!-- Discovery Card Container -->
+<div class="relative w-full max-w-[420px] aspect-[4/5] sm:aspect-[3/4] mt-2 rounded-3xl overflow-hidden shadow-2xl touch-pan-y group border border-white/20 dark:border-white/10 bg-black/5">
+<!-- Main Image -->
+<img alt="Profile Image" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" data-alt="A full-body or half-body shot of a stylish, attractive person in their 20s, standing in a vibrant, sunlit urban setting or a lush park. The lighting is golden hour, soft and cinematic. The aesthetic is Gen-Z, high-fashion, and optimistic, characterized by bright, glossy minimalism." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDPjIZDwFnjwuq7lkl-68RxrO_ad9YaXit08Bmhrp6AXvEPoFlgG-Pz5xQdOBpp1CMYeue52CNaHxELZ-gBlJIgAC26e5tJtG-u4QRq6K-ouZviM9IW_SbfQm_q0rQlRU1Yy2WHcuwgkrsRDJmPBuOPAYQoU7jCW-EgV2GR-39vt6w1cFtIbfRpaWJB6Apw8jwTzjOfjpzxR2cO0aUJLceiZauUQRKFInnWMnpPVat0c3wFA2GW0y6_5ESLPLS92OeMmdTtG6uO5s"/>
+<!-- Image Gradient Overlay for text readability -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/10"></div>
+<!-- Tags/Chips Area (Top Left) -->
+<div class="absolute top-4 left-4 flex flex-wrap gap-2 z-10">
+<span class="px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-xl text-white font-label-sm text-[11px] font-medium tracking-wide border border-white/30 shadow-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">local_cafe</span> Coffee Addict
+                </span>
+<span class="px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-xl text-white font-label-sm text-[11px] font-medium tracking-wide border border-white/30 shadow-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">music_note</span> Indie Pop
+                </span>
+</div>
+<!-- Distance Tag (Top Right) -->
+<div class="absolute top-4 right-4 z-10">
+<span class="px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-xl text-white font-label-sm text-[11px] font-medium tracking-wide border border-white/30 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">location_on</span> 2 miles
+                </span>
+</div>
+<!-- Floating Profile Info Glass Panel (Bottom) -->
+<div class="absolute bottom-4 left-4 right-4 p-5 bg-white/10 dark:bg-black/20 backdrop-blur-2xl border border-white/30 dark:border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] transform translate-y-0 transition-transform duration-300">
+<div class="flex justify-between items-start gap-4">
+<div>
+<h2 class="font-headline-md text-[22px] text-white mb-1.5 flex items-center gap-2 font-semibold">
+                            Aisha, 24
+                            <span class="material-symbols-outlined text-primary-fixed-dim text-[18px]" style="font-variation-settings: 'FILL' 1;" title="Verified">verified</span>
+</h2>
+<p class="font-body-md text-[14px] leading-relaxed text-white/80 line-clamp-2 font-light">
+                            Looking for someone to explore hidden coffee shops and art galleries with. Designer by day, amateur chef by night. ✨
+                        </p>
+</div>
+<!-- Info Button -->
+<button class="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center text-white shrink-0 hover:bg-white/30 transition-colors">
+<span class="material-symbols-outlined text-[18px]">info</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Premium Action Buttons -->
+<div class="flex justify-center items-center gap-6 mt-8 w-full max-w-[420px] px-4">
+<!-- Skip Button -->
+<button class="w-16 h-16 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex items-center justify-center text-on-surface hover:bg-white/50 active:scale-95 transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-white/50 dark:border-white/10">
+<span class="material-symbols-outlined text-4xl">close</span>
+</button>
+<!-- Super Bloom Button -->
+<button class="w-14 h-14 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex items-center justify-center text-primary-container hover:bg-white/50 active:scale-95 transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-white/50 dark:border-white/10" title="Super Spark">
+<span class="material-symbols-outlined text-3xl">local_florist</span>
+</button>
+<!-- Like Button -->
+<button class="w-16 h-16 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex items-center justify-center text-primary hover:bg-white/50 active:scale-95 transition-all duration-300 shadow-[0_8px_32px_rgba(186,0,52,0.15)] border border-white/50 dark:border-white/10 relative overflow-hidden">
+<span class="material-symbols-outlined text-4xl">favorite</span>
+</button>
+</div>
+</main>
+<!-- BottomNavBar Component -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-2xl bg-white/40 dark:bg-black/40 backdrop-blur-2xl border-t border-white/30 dark:border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] md:hidden">
+<div class="flex justify-around items-center w-full h-20 pb-safe px-4 max-w-[1200px] mx-auto">
+<!-- Discover (Active) -->
+<button class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim p-2 rounded-xl active:scale-90 transition-all duration-300 ease-out w-16">
+<span class="material-symbols-outlined text-2xl mb-1" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="font-label-sm text-[10px] font-medium tracking-wide">Discover</span>
+</button>
+<!-- Match (Inactive) -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 active:scale-90 transition-all duration-300 ease-out hover:opacity-100 w-16">
+<span class="material-symbols-outlined text-2xl mb-1">favorite</span>
+<span class="font-label-sm text-[10px] font-medium tracking-wide">Match</span>
+</button>
+<!-- Social (Inactive) -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 active:scale-90 transition-all duration-300 ease-out hover:opacity-100 w-16">
+<span class="material-symbols-outlined text-2xl mb-1">forum</span>
+<span class="font-label-sm text-[10px] font-medium tracking-wide">Social</span>
+</button>
+<!-- Profile (Inactive) -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 active:scale-90 transition-all duration-300 ease-out hover:opacity-100 w-16">
+<span class="material-symbols-outlined text-2xl mb-1">person</span>
+<span class="font-label-sm text-[10px] font-medium tracking-wide">Profile</span>
+</button>
+</div>
+</nav>
+<!-- Desktop Nav Fallback (Visible only on md+) -->
+<nav class="hidden md:flex fixed top-0 right-0 h-16 items-center px-lg z-[51] gap-8 mr-16">
+<button class="text-primary font-bold hover:opacity-80 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Discover</span>
+</button>
+<button class="text-on-surface-variant hover:opacity-80 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined">favorite</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Match</span>
+</button>
+<button class="text-on-surface-variant hover:opacity-80 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Social</span>
+</button>
+</nav>
+</body></html>

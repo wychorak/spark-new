@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bloom - Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#6b3743",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#ffd9df",
+                        "surface-dim": "#dadada",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary": "#864e5a",
+                        "background": "#f5f5f7",
+                        "primary-fixed": "#ffdada",
+                        "on-surface-variant": "#5d3f40",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed": "#40000c",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#feb6c4",
+                        "on-primary-fixed-variant": "#920027",
+                        "on-tertiary-container": "#fcfcfc",
+                        "primary": "#ba0034",
+                        "tertiary-container": "#737575",
+                        "inverse-surface": "#303030",
+                        "surface": "#f5f5f7",
+                        "surface-container": "#eeeeee",
+                        "on-secondary-container": "#7a4450",
+                        "primary-fixed-dim": "#ffb3b5",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#e6bcbd",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "primary-container": "#e51245",
+                        "outline": "#916e6f",
+                        "on-background": "#1d1d1f",
+                        "surface-variant": "#e2e2e2",
+                        "secondary-fixed-dim": "#fbb3c1",
+                        "on-secondary-fixed": "#360c19",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#1d1d1f",
+                        "surface-bright": "#f9f9f9",
+                        "tertiary": "#5a5c5c",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-primary-container": "#fffbff",
+                        "inverse-primary": "#ffb3b5",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-high": "#e8e8e8",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "surface-tint": "#be0036"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "lg": "40px",
+                        "margin-mobile": "20px",
+                        "md": "24px",
+                        "margin-desktop": "auto",
+                        "sm": "16px",
+                        "xl": "64px",
+                        "gutter": "16px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg-mobile": ["-apple-system", "BlinkMacSystemFont", "Inter", "sans-serif"],
+                        "body-md": ["-apple-system", "BlinkMacSystemFont", "Inter", "sans-serif"],
+                        "headline-md": ["-apple-system", "BlinkMacSystemFont", "Inter", "sans-serif"],
+                        "body-lg": ["-apple-system", "BlinkMacSystemFont", "Inter", "sans-serif"],
+                        "label-sm": ["-apple-system", "BlinkMacSystemFont", "Inter", "sans-serif"],
+                        "display-lg": ["-apple-system", "BlinkMacSystemFont", "Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "display-lg-mobile": ["36px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .ios-glass {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        
+        .ios-btn {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.2s ease;
+        }
+        
+        .ios-btn:active {
+            transform: scale(0.97);
+            opacity: 0.8;
+        }
+
+        /* Soft Premium Background */
+        body {
+            background-color: theme('colors.background');
+            background-image: radial-gradient(circle at top left, rgba(255, 218, 218, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at bottom right, rgba(254, 182, 196, 0.1) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+        
+        .toggle-checkbox:checked {
+            background-color: #34c759;
+            border-color: #34c759;
+        }
+        .toggle-checkbox:checked {
+            right: 0;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #34c759;
+        }
+        .toggle-checkbox:checked + .toggle-label:after {
+            transform: translateX(100%);
+            border-color: white;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="text-on-background font-body-md antialiased overflow-x-hidden pb-[100px] md:pb-0">
+<!-- TopAppBar Simplified -->
+<header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-black/5 flex items-center justify-between px-margin-mobile md:px-lg h-14">
+<button aria-label="Menu" class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[24px]">menu</span>
+</button>
+<div class="font-headline-md text-[17px] font-semibold tracking-tight text-on-surface">Profile</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-black/10 cursor-pointer hover:opacity-80 transition-opacity active:scale-95 duration-200"><img alt="Spark Logo" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA4RsDm9SMFaI0y0jY5X9hoCCCv6pXlM4y_l3LNtD8nBA_in2x-79inZTl45KfFBmM9qb2sRyOScAAbTq7qZ3rWKFX4RzD4l9c5ZQTNi-g3ut7s9gYef4OVppI4pyjVd4jzk3bIt_sLGeFZvWIFwRYSGOiLGUPB3ogGfbyMUzx6-SYLeVcNE9dLT3FgaAnHySCPDMrpE0pa76qfECCwkBzqbSw6gNh_ZEa7RMaX3O8lT1XAzXljquUzAfcsb_eL-8-6pW0MEvICiY"/></div>
+</header>
+<!-- Main Container -->
+<main class="max-w-[1200px] mx-auto mt-14 px-margin-mobile md:px-lg pt-8 space-y-xl">
+<!-- Profile Header Section -->
+<section class="flex flex-col items-center text-center space-y-6">
+<!-- Large Avatar -->
+<div class="relative group mt-4">
+<div class="w-36 h-36 md:w-44 md:h-44 rounded-full overflow-hidden border-[3px] border-white shadow-[0_8px_24px_rgba(0,0,0,0.08)] bg-white p-1">
+<img alt="Main Profile Picture" class="w-full h-full object-cover rounded-full" data-alt="A bright, high-resolution portrait photograph of a confident young person with a stylish haircut, smiling softly. The lighting is soft and flattering, reminiscent of a high-end fashion magazine, fitting a premium social profile. The background is a blurred soft pink." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAt5atxJKqW_xsUJB2lMJVhUKbA72UvTsTyrCYTKQekNNrdpxcRW05IXm7pKX86MP0yFL3JHdJAYl0brPiMlPhucVGpDHhIi5DkkTyU-hg8_CL9FzNV41lSSveHTtfMOaBfWjtnwODwaHBvSmTVvGBPv2ybv6A5FF1QxcW9iDU_MgvHXTaPX89H2cR8y0H8HXN2FXELeIuYQSkw6WgyzVOgt92WvtQkhLU7BfCH72JR3QGj0IsNsM09IJMiyMtJDi8OW3nSOaCwLS8"/>
+</div>
+<button aria-label="Edit photo" class="absolute bottom-1 right-1 bg-white text-on-surface p-2 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:bg-gray-50 transition-transform active:scale-95 border border-black/5">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+</div>
+<!-- Name and Bio -->
+<div class="space-y-2">
+<h1 class="font-headline-md text-[28px] leading-tight text-on-surface">Alex Mercer</h1>
+<p class="font-body-md text-on-surface-variant max-w-md mx-auto text-[15px] px-4">
+                    Digital creator &amp; aesthetic enthusiast. Finding romance in the static. 🌸✨
+                </p>
+<div class="flex justify-center gap-2 mt-4">
+<span class="px-3 py-1 bg-black/5 text-on-surface-variant font-label-sm rounded-full">#Y2K</span>
+<span class="px-3 py-1 bg-black/5 text-on-surface-variant font-label-sm rounded-full">#Design</span>
+<span class="px-3 py-1 bg-black/5 text-on-surface-variant font-label-sm rounded-full">#Art</span>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex gap-3 w-full max-w-md px-4 mt-2">
+<button class="flex-1 bg-primary text-white font-medium text-[15px] py-3 rounded-xl shadow-sm active:scale-[0.98] transition-transform flex justify-center items-center gap-2">
+                    Edit Profile
+                </button>
+<button class="flex-1 ios-btn text-on-surface font-medium text-[15px] py-3 rounded-xl shadow-sm flex justify-center items-center gap-2 border border-black/5">
+                    Share Profile
+                </button>
+</div>
+</section>
+<!-- Bento Grid / Media Section -->
+<section class="space-y-4 px-2">
+<h2 class="font-semibold text-[20px] text-on-surface tracking-tight ml-2">Moments</h2>
+<div class="columns-2 gap-4 space-y-4">
+<!-- Masonry Items -->
+<div class="break-inside-avoid rounded-[20px] overflow-hidden relative group cursor-pointer shadow-sm border border-black/5">
+<img alt="Moment 1" class="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A stunning, high-gloss photograph of a retro-futuristic Y2K style room with translucent pink inflatable furniture, soft glowing neon lights, and a vintage computer monitor. The aesthetic is clean, minimal, yet highly vibrant and nostalgic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKmSJYtiJF9QHCF7tQLDTRKccFR7vGK2OWZ2Fchsep7iWIRlgwIqpkSPMParmG5kW8ik7llDPNiD3En0_UlpKI8XxyWFyo68a4HSkjQKjHHwcUkliNkA5BudDIjGw_1r6020I4MEfJik4ROAisyY3lXUp3JFz72ihRhcc4ykEXlG2zRJGGk1ihCNjlMgX5iArd1ErN_dOAeWvtwPhYAc-A4BzdO6tRr8yKdHNG1hmB-TTrWYN7X-EFKmwtqZcjBFUWO2YDaiyPOjs"/>
+</div>
+<div class="break-inside-avoid rounded-[20px] overflow-hidden relative group cursor-pointer shadow-sm border border-black/5">
+<img alt="Moment 2" class="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Close up shot of delicate cherry blossom petals resting on a pristine, highly reflective glass surface. The lighting is bright and ethereal, casting soft pink reflections. Glossy minimalist aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBvVvagxOYmBuZz-e63F_IhN72UxJzULSADG9R0efm3pTdB5ROc1wwLbbbUcbvf4wvxoxiWU-0x_QWuPBZsgTNnHFK-56UMFMGGI0Pf66yiqhKs_J7C34zkC9OK1s0tc7UzMZk8Lgcth1b6k5Y6AV0ovrPKUes4cR3BpgSuxUuo1wJG067cwyS0Yr9aGHCHOoVoQGYpx-dZjhcHdXCAEVvA2uX4pR3xKdqI3wEqNvqBxssL2W02m2L1qnV3bJuSHTSF1UfMb87Ptc"/>
+</div>
+<div class="break-inside-avoid rounded-[20px] overflow-hidden relative group cursor-pointer shadow-sm border border-black/5">
+<img alt="Moment 4" class="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Abstract fluid art in shades of vibrant pink, soft white, and silver. The texture looks like liquid plastic or glossy paint, capturing the Frutiger Aero energy in a modern minimal context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW21Sb4SjsZ_WvA24cIGaDLzGvTktb25Lym_6ulZoqwEfvbQpwPFbTDlYqNLH7Jev3xYBtRaWwpUI8W390PvY6hV53t8AlIs9QekHmTcoZdK_sPvIzn87F2_03SPoi6PBzVu5z2RZ4N7f98MrAPfaqppsYVlQDei7xtNcqSOSBeBGr7KKb7sKDg7dlCDan_5FH6tfOI-zlvKsLimoMTOT-cqSXt1Gb_4DZKDJ3UdHgIFfpqXgNpcu_TlZNAwF3ZWt8AGnfE6dwUvY"/>
+</div>
+<div class="break-inside-avoid rounded-[20px] overflow-hidden relative group cursor-pointer shadow-sm border border-black/5">
+<img alt="Moment 3" class="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A sleek, modern metallic coffee cup sitting on a minimal white desk next to wireframe glasses. Soft pastel pink lighting creating a warm, premium morning atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDesDH71Nl7LRep3SJLs2QysO1rzEZCbhMXI14IQbKry4Lt_Wb65e5SSlqIrkiOCTb8CstL7w7XmSGgf1_G9Xlw0fmRUucQBMp6AgiNzIF21sOhWWwZUTT8CvtzEA4WVp8v_aexfwlw3fBAwmtyh12wr01oJ5Gv0JzjUYBsGDqCq9qXwA81ynR2ja1t0nK-syRqLuRGw2SKBNgJ7pCB7plDfJKgY8oicTnj97cAOmLYs0ZVeTat3ef_eHouAr9dDMneH7qqlqxrojM"/>
+</div>
+<div class="break-inside-avoid rounded-[20px] overflow-hidden relative group cursor-pointer shadow-sm border border-black/5">
+<img alt="Moment 5" class="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A fashion-forward flat lay of Y2K accessories: a chunky silver necklace, tinted pink rimless sunglasses, and a flip phone, arranged neatly on a pure white surface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGqMoSOQ6_f5ELjPlqlaFpULL1fnfYAldvbH8At_CR5cZl0n0A3Cq28dqLtm0ieD2N3iCtuZZiTcjuGNDjyyKTKNoi6SBiGR5geWZ8J1N9rQjFwO64zf0oAXF2BfhtrZ_plvrq9fyadR4-A2tXvckTvuKjebuxd3HXmYYTcSKeCq820yHGjjXnJAZJdoqLyFEN9Ppr2yUDro6mfB9BEF0ELFZT95cftzWDtdUQoeAR5FkyPUX6iB_8s6vDnFLCEQLrIb34aDywdwU"/>
+</div>
+</div>
+</section>
+<!-- Settings Preview / iOS Style Menu -->
+<section class="max-w-md mx-auto w-full pb-xl px-2">
+<h2 class="font-semibold text-[20px] text-on-surface tracking-tight mb-3 ml-2">Settings</h2>
+<div class="ios-glass rounded-[20px] flex flex-col shadow-sm border border-white/50">
+<!-- Setting Item 1 -->
+<div class="flex items-center justify-between p-4 border-b border-black/5 active:bg-black/5 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-[30px] h-[30px] rounded-[8px] bg-red-500 flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-[18px]">notifications</span>
+</div>
+<span class="font-body-md text-[16px] text-on-surface">Push Notifications</span>
+</div>
+<!-- Toggle -->
+<div class="relative inline-block w-[51px] align-middle select-none">
+<input class="toggle-checkbox absolute block w-[27px] h-[27px] rounded-full bg-white border-[2px] border-white appearance-none cursor-pointer z-10 transition-transform duration-300 top-[2px] left-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.2)]" id="toggle1" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-[31px] rounded-full bg-[#e9e9ea] cursor-pointer transition-colors duration-300" for="toggle1"></label>
+</div>
+</div>
+<!-- Setting Item 2 -->
+<div class="flex items-center justify-between p-4 border-b border-black/5 active:bg-black/5 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-[30px] h-[30px] rounded-[8px] bg-blue-500 flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</div>
+<span class="font-body-md text-[16px] text-on-surface">Profile Visibility</span>
+</div>
+<div class="flex items-center gap-1 text-black/40">
+<span class="text-[16px]">Public</span>
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</div>
+</div>
+<!-- Setting Item 3 -->
+<div class="flex items-center justify-between p-4 active:bg-black/5 transition-colors cursor-pointer rounded-b-[20px]">
+<div class="flex items-center gap-3">
+<div class="w-[30px] h-[30px] rounded-[8px] bg-purple-500 flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-[18px]">palette</span>
+</div>
+<span class="font-body-md text-[16px] text-on-surface">Theme Preferences</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-black/40">chevron_right</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 bg-white/80 dark:bg-black/80 backdrop-blur-2xl border-t border-black/5 flex justify-around items-center h-[84px] pb-5 px-4">
+<a class="flex flex-col items-center justify-center text-black/40 p-2 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px]">explore</span>
+<span class="text-[10px] font-medium">Discover</span>
+</a>
+<a class="flex flex-col items-center justify-center text-black/40 p-2 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px]">favorite</span>
+<span class="text-[10px] font-medium">Match</span>
+</a>
+<a class="flex flex-col items-center justify-center text-black/40 p-2 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px]">forum</span>
+<span class="text-[10px] font-medium">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary p-2 active:scale-90 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px]" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</nav>
+</body></html>
