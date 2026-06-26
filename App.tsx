@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,8 @@ import { signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuth
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import { upsertUserProfile } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
+import { SparkAdBanner } from "./src/ads";
+import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -146,27 +149,27 @@ const matchProfiles: MatchProfile[] = [
 
 const premiumPlans = [
   {
-    id: "plus",
-    title: "Spark Plus",
-    price: "29,99 zł / mies.",
-    accent: "Więcej kontroli",
-    features: ["Nielimitowane polubienia", "Cofnij ostatnie pominięcie", "Filtry po intencjach"]
+    id: "weekly",
+    title: "Sparknew Pro Weekly",
+    price: "Subskrypcja tygodniowa",
+    accent: "Dobry test",
+    features: ["Bez reklam", "Nielimitowane polubienia", "Szybsze odkrywanie profili"]
   },
   {
-    id: "bloom",
-    title: "Bloom Premium",
-    price: "59,99 zł / mies.",
-    accent: "Najlepszy start",
-    features: ["Zobacz kto Cię polubił", "1 Superlike dziennie", "Priorytet profilu w odkrywaniu"]
+    id: "monthly",
+    title: "Sparknew Pro Monthly",
+    price: "Subskrypcja miesieczna",
+    accent: "Najlepszy rytm",
+    features: ["Wszystko z Weekly", "Zobacz kto Cie polubil", "Priorytet profilu w odkrywaniu"]
   },
   {
-    id: "vip",
-    title: "Sakura VIP",
-    price: "199,99 zł / rok",
-    accent: "Najlepsza wartość",
-    features: ["Wszystko z Bloom", "Tryb incognito", "Wyróżnione wiadomości"]
+    id: "lifetime",
+    title: "Sparknew Pro Lifetime",
+    price: "Jednorazowy zakup",
+    accent: "Na stale",
+    features: ["Wszystko z Monthly", "Tryb incognito", "Zero reklam na zawsze"]
   }
-];
+] satisfies Array<{ id: SparkPlanId; title: string; price: string; accent: string; features: string[] }>;
 
 function tap() {
   if (process.env.EXPO_OS === "ios") {
@@ -195,10 +198,11 @@ function AppContent() {
   const [mode, setMode] = useState<Mode>("classic");
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
-  const [premiumPlan, setPremiumPlan] = useState("bloom");
+  const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const revenueCat = useRevenueCat(appUser?.uid ?? null);
 
   const [, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
     clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
@@ -273,7 +277,7 @@ function AppContent() {
         email: appUser.email ?? email,
         intent,
         interests: selectedInterests,
-        premiumPlan,
+        premiumPlan: revenueCat.isPro ? premiumPlan : "free",
         privateProfile,
         socials: {
           instagram: "@alex.spark",
@@ -348,10 +352,18 @@ function AppContent() {
     <LinearGradient colors={["#fbfbfd", "#fff4f7"]} style={styles.root}>
       <StatusBar style="dark" />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
-        {tab === "discover" && <DiscoverScreen mode={mode} setMode={setMode} profile={activeProfile} />}
+        {tab === "discover" && (
+          <DiscoverScreen
+            mode={mode}
+            setMode={setMode}
+            profile={activeProfile}
+            hasPro={revenueCat.isPro}
+            requestProAccess={revenueCat.presentPaywallIfNeeded}
+          />
+        )}
         {tab === "matches" && <MatchesScreen />}
         {tab === "messages" && <MessagesScreen />}
-        {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} />}
+        {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} />}
         {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} />}
         {tab === "profile" && (
           <ProfileScreen
@@ -368,10 +380,13 @@ function AppContent() {
             setPrivateProfile={setPrivateProfile}
             profileName={profileName}
             premiumPlan={premiumPlan}
+            hasPro={revenueCat.isPro}
             openPremium={() => setTab("premium")}
+            openCustomerCenter={revenueCat.openCustomerCenter}
             openSafety={() => setTab("safety")}
           />
         )}
+        <SparkAdBanner enabled={!revenueCat.isPro && tab !== "premium"} placement={tab} />
       </ScrollView>
 
       <BlurView intensity={72} tint="light" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -582,13 +597,39 @@ function OnboardingScreen({
   );
 }
 
-function DiscoverScreen({ mode, setMode, profile }: { mode: Mode; setMode: (value: Mode) => void; profile: MatchProfile }) {
+function DiscoverScreen({
+  mode,
+  setMode,
+  profile,
+  hasPro,
+  requestProAccess
+}: {
+  mode: Mode;
+  setMode: (value: Mode) => void;
+  profile: MatchProfile;
+  hasPro: boolean;
+  requestProAccess: () => Promise<boolean>;
+}) {
   return (
     <View style={styles.gapLg}>
       <TopBar eyebrow="Odkrywaj" title="Spark" left="≡" right="⌘" />
       <View style={styles.segmented}>
         {(["classic", "premium"] as Mode[]).map((item) => (
-          <Pressable key={item} onPress={() => setMode(item)} style={[styles.segmentButton, mode === item && styles.segmentButtonActive]}>
+          <Pressable
+            key={item}
+            onPress={async () => {
+              if (item === "premium" && !hasPro) {
+                const granted = await requestProAccess();
+                if (granted) {
+                  setMode(item);
+                }
+                return;
+              }
+
+              setMode(item);
+            }}
+            style={[styles.segmentButton, mode === item && styles.segmentButtonActive]}
+          >
             <Text style={[styles.segmentText, mode === item && styles.segmentTextActive]}>{item === "classic" ? "Klasycznie" : "Premium"}</Text>
           </Pressable>
         ))}
@@ -612,7 +653,6 @@ function DiscoverScreen({ mode, setMode, profile }: { mode: Mode; setMode: (valu
     </View>
   );
 }
-
 function ProfileCard({ profile }: { profile: MatchProfile }) {
   return (
     <View style={styles.profileCard}>
@@ -678,14 +718,78 @@ function MessagesScreen() {
   );
 }
 
-function PremiumScreen({ premiumPlan, setPremiumPlan }: { premiumPlan: string; setPremiumPlan: (value: string) => void }) {
+function PremiumScreen({
+  premiumPlan,
+  setPremiumPlan,
+  revenueCat
+}: {
+  premiumPlan: SparkPlanId;
+  setPremiumPlan: (value: SparkPlanId) => void;
+  revenueCat: RevenueCatState;
+}) {
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const selectedPlan = premiumPlans.find((plan) => plan.id === premiumPlan) ?? premiumPlans[1];
+  const hasPackages = revenueCat.packages.length > 0;
+
+  async function buySelectedPlan() {
+    setBusyAction("purchase");
+    const result = await revenueCat.purchasePlan(selectedPlan.id);
+    setBusyAction(null);
+
+    if (result.ok) {
+      Alert.alert("Sparknew Pro", "Dostep premium jest aktywny.");
+      return;
+    }
+
+    if (!result.cancelled) {
+      Alert.alert("Zakup nieudany", result.message);
+    }
+  }
+
+  async function openPaywall() {
+    setBusyAction("paywall");
+    const granted = await revenueCat.presentPaywallIfNeeded();
+    setBusyAction(null);
+
+    if (granted) {
+      Alert.alert("Sparknew Pro", "Masz aktywny dostep premium.");
+    } else if (revenueCat.error) {
+      Alert.alert("Paywall", revenueCat.error);
+    }
+  }
+
+  async function restore() {
+    setBusyAction("restore");
+    const result = await revenueCat.restorePurchases();
+    setBusyAction(null);
+
+    if (result.ok) {
+      Alert.alert("Przywrocono", revenueCat.isPro ? "Sparknew Pro jest aktywny." : "Zakupy zostaly zsynchronizowane.");
+    } else {
+      Alert.alert("Restore failed", result.message);
+    }
+  }
+
+  async function manageSubscription() {
+    setBusyAction("customer-center");
+    const result = await revenueCat.openCustomerCenter();
+    setBusyAction(null);
+
+    if (!result.ok) {
+      Alert.alert("Customer Center", result.message);
+    }
+  }
+
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Premium" title="Więcej możliwości" left="✧" right="?" />
+      <TopBar eyebrow="Premium" title="Sparknew Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
       <View style={styles.premiumHero}>
-        <Text style={styles.premiumHeroKicker} selectable>Bloom Premium</Text>
-        <Text style={styles.premiumHeroTitle} selectable>Zobacz więcej ludzi, pisz szybciej, decyduj spokojniej.</Text>
-        <Text style={styles.premiumHeroText} selectable>Ten ekran jest frontem pod subskrypcje StoreKit i Play Billing.</Text>
+        <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
+        <Text style={styles.premiumHeroTitle} selectable>Bez reklam, wiecej kontroli i szybsze dopasowania.</Text>
+        <Text style={styles.premiumHeroText} selectable>
+          Entitlement: {revenueCatEntitlementId}. Produkty w RevenueCat: weekly, monthly i lifetime.
+        </Text>
+        {revenueCat.error && <Text style={styles.revenueCatError} selectable>{revenueCat.error}</Text>}
       </View>
       <View style={styles.planList}>
         {premiumPlans.map((plan) => (
@@ -698,15 +802,35 @@ function PremiumScreen({ premiumPlan, setPremiumPlan }: { premiumPlan: string; s
               <Text style={styles.planPrice} selectable>{plan.price}</Text>
             </View>
             <View style={styles.planFeatures}>
-              {plan.features.map((feature) => <Text key={feature} style={styles.planFeature} selectable>• {feature}</Text>)}
+              {plan.features.map((feature) => <Text key={feature} style={styles.planFeature} selectable>- {feature}</Text>)}
             </View>
           </Pressable>
         ))}
       </View>
+      <View style={styles.purchasePanel}>
+        <Pressable disabled={busyAction !== null || revenueCat.isPro || !hasPackages} onPress={buySelectedPlan} style={[styles.primaryButton, (busyAction !== null || revenueCat.isPro || !hasPackages) && styles.primaryButtonDisabled]}>
+          <Text style={styles.primaryButtonText}>{revenueCat.isPro ? "Sparknew Pro aktywny" : busyAction === "purchase" ? "Kupowanie..." : `Kup ${selectedPlan.title}`}</Text>
+        </Pressable>
+        {!hasPackages && (
+          <Text style={styles.purchaseHint} selectable>
+            Brak packages z RevenueCat. Skonfiguruj Offering z produktami weekly, monthly i lifetime w dashboardzie.
+          </Text>
+        )}
+        <View style={styles.purchaseActionsRow}>
+          <Pressable disabled={busyAction !== null} onPress={openPaywall} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>{busyAction === "paywall" ? "Ladowanie..." : "RevenueCat Paywall"}</Text>
+          </Pressable>
+          <Pressable disabled={busyAction !== null} onPress={restore} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>{busyAction === "restore" ? "Sync..." : "Restore"}</Text>
+          </Pressable>
+        </View>
+        <Pressable disabled={busyAction !== null} onPress={manageSubscription} style={styles.secondaryButtonWide}>
+          <Text style={styles.secondaryButtonText}>{busyAction === "customer-center" ? "Otwieram..." : "Customer Center"}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
-
 function ProfileScreen({
   firstName,
   setFirstName,
@@ -721,7 +845,9 @@ function ProfileScreen({
   setPrivateProfile,
   profileName,
   premiumPlan,
+  hasPro,
   openPremium,
+  openCustomerCenter,
   openSafety
 }: {
   firstName: string;
@@ -736,8 +862,10 @@ function ProfileScreen({
   privateProfile: boolean;
   setPrivateProfile: (value: boolean) => void;
   profileName: string;
-  premiumPlan: string;
+  premiumPlan: SparkPlanId;
+  hasPro: boolean;
   openPremium: () => void;
+  openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
 }) {
   const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Cherry walks"], ["LinkedIn", "alex-mercer"]];
@@ -751,7 +879,7 @@ function ProfileScreen({
       <View style={styles.profilePanel}>
         <Text style={styles.eyebrow} selectable>Profil</Text>
         <Text style={styles.profileName} selectable>{profileName}</Text>
-        <Text style={styles.profileDescription} selectable>{email} • plan: {premiumPlan}</Text>
+        <Text style={styles.profileDescription} selectable>{email} - plan: {hasPro ? premiumPlan : "free + ads"}</Text>
         <View style={styles.nameRow}>
           <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
           <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
@@ -775,6 +903,16 @@ function ProfileScreen({
           <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Powiadomienia push</Text><Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: colors.green }} /></View>
           <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
           <SettingRow label="Opcje premium" value="Zobacz" onPress={openPremium} />
+          <SettingRow
+            label="Zarzadzaj subskrypcja"
+            value="Customer Center"
+            onPress={async () => {
+              const result = await openCustomerCenter();
+              if (!result.ok && result.message) {
+                Alert.alert("Customer Center", result.message);
+              }
+            }}
+          />
           <SettingRow label="Centrum bezpieczeństwa" value="Otwórz" onPress={openSafety} />
           <SettingRow label="Widoczność profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
         </View>
@@ -1167,6 +1305,54 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "900"
+  },
+  secondaryButton: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.16)"
+  },
+  secondaryButtonWide: {
+    minHeight: 50,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.16)"
+  },
+  secondaryButtonText: {
+    color: colors.primaryDeep,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  purchasePanel: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 26,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.76)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  purchaseActionsRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  purchaseHint: {
+    color: "#5d3f40",
+    fontSize: 12,
+    lineHeight: 18
+  },
+  revenueCatError: {
+    color: colors.primaryDeep,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800"
   },
   topBar: {
     flexDirection: "row",

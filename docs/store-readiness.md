@@ -5,7 +5,8 @@
 - Expo / React Native app for iOS and Android.
 - Core prototype screens: onboarding, discovery, premium discovery, matches, messages, profile, safety center.
 - Firebase project, native app registrations, Firebase Auth providers, Firestore database, Firestore rules, and app-side Auth/Firestore wiring are in place.
-- Production moderation queue, analytics, push, subscriptions, and final store metadata are not implemented yet.
+- Production moderation queue, analytics, push, and final store metadata are not implemented yet.
+- RevenueCat premium gating and AdMob banner integration are wired with test keys/IDs.
 
 ## App Store / Google Play Must-Haves Before Submission
 
@@ -17,10 +18,14 @@
 - Demo account for review if login becomes required.
 - No external payment links for digital premium features. Use StoreKit / Play Billing for subscriptions.
 - App Privacy / Data Safety forms mapped to actual data collection.
+- AdMob production IDs, consent flow, and store privacy declarations before showing real ads.
 
 ## Backend Contracts / Firebase Work Still To Add
 
 - Add final Android SHA-1/SHA-256 certificate fingerprints to Firebase and refresh `google-services.json`.
+- Replace RevenueCat test key with platform public SDK keys after real App Store / Play Store apps are configured.
+- Replace AdMob test IDs with approved production app/ad unit IDs.
+- Add EU/UK consent flow before personalized ads.
 - Add account deletion with confirmation and Firestore cleanup/retention behavior.
 - Add hosted community guidelines and privacy policy URLs.
 - Add optional profile verification flow.
