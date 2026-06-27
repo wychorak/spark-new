@@ -62,6 +62,7 @@ type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety
 type Mode = "classic" | "premium";
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
+type AgeBand = "18+" | "under18" | null;
 
 type MatchProfile = {
   name: string;
@@ -101,6 +102,22 @@ const interestOptions = [
   "Planszówki",
   "LGBT+"
 ];
+
+const interestThemes: Record<string, { soft: string; active: string; border: string; text: string }> = {
+  Filmy: { soft: "rgba(255,45,85,0.12)", active: "#ff2d55", border: "rgba(255,45,85,0.28)", text: "#a20a32" },
+  Natura: { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.28)", text: "#176b34" },
+  Muzyka: { soft: "rgba(88,86,214,0.12)", active: "#5856d6", border: "rgba(88,86,214,0.28)", text: "#35339a" },
+  Kawa: { soft: "rgba(176,111,56,0.14)", active: "#b06f38", border: "rgba(176,111,56,0.28)", text: "#70401f" },
+  Sport: { soft: "rgba(0,122,255,0.12)", active: "#007aff", border: "rgba(0,122,255,0.28)", text: "#0050a4" },
+  Sztuka: { soft: "rgba(255,149,0,0.14)", active: "#ff9500", border: "rgba(255,149,0,0.28)", text: "#9b5700" },
+  Gaming: { soft: "rgba(175,82,222,0.13)", active: "#af52de", border: "rgba(175,82,222,0.28)", text: "#7330a0" },
+  Kuchnia: { soft: "rgba(255,204,0,0.16)", active: "#d89b00", border: "rgba(216,155,0,0.26)", text: "#765000" },
+  Fotografia: { soft: "rgba(90,200,250,0.14)", active: "#32ade6", border: "rgba(50,173,230,0.28)", text: "#126b91" },
+  Tech: { soft: "rgba(48,209,88,0.12)", active: "#30d158", border: "rgba(48,209,88,0.28)", text: "#15712e" },
+  Joga: { soft: "rgba(100,210,255,0.14)", active: "#64d2ff", border: "rgba(100,210,255,0.3)", text: "#12637f" },
+  Koncerty: { soft: "rgba(255,55,95,0.13)", active: "#ff375f", border: "rgba(255,55,95,0.28)", text: "#a40e35" },
+  "LGBT+": { soft: "rgba(191,90,242,0.13)", active: "#bf5af2", border: "rgba(191,90,242,0.28)", text: "#7933a0" }
+};
 
 const matchProfiles: MatchProfile[] = [
   {
@@ -205,6 +222,19 @@ function toggleListItem(items: string[], item: string) {
   return items.includes(item) ? items.filter((value) => value !== item) : [...items, item];
 }
 
+function getInterestTheme(item: string, index = 0) {
+  const fallbackThemes = [
+    { soft: "rgba(255,45,85,0.12)", active: "#ff2d55", border: "rgba(255,45,85,0.28)", text: "#a20a32" },
+    { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.28)", text: "#176b34" },
+    { soft: "rgba(88,86,214,0.12)", active: "#5856d6", border: "rgba(88,86,214,0.28)", text: "#35339a" },
+    { soft: "rgba(255,149,0,0.14)", active: "#ff9500", border: "rgba(255,149,0,0.28)", text: "#9b5700" },
+    { soft: "rgba(90,200,250,0.14)", active: "#32ade6", border: "rgba(50,173,230,0.28)", text: "#126b91" },
+    { soft: "rgba(175,82,222,0.13)", active: "#af52de", border: "rgba(175,82,222,0.28)", text: "#7330a0" }
+  ];
+
+  return interestThemes[item] ?? fallbackThemes[index % fallbackThemes.length];
+}
+
 function getProfileKey(profile: MatchProfile) {
   return `${profile.name}-${profile.surname}`;
 }
@@ -242,7 +272,7 @@ function AppContent() {
   const [password, setPassword] = useState("sparkdemo");
   const [onboarded, setOnboarded] = useState(false);
   const [intent, setIntent] = useState("Randki");
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState(["Filmy", "Natura", "Kawa", "Sztuka"]);
   const [tab, setTab] = useState<Tab>("discover");
   const [mode, setMode] = useState<Mode>("classic");
@@ -282,7 +312,7 @@ function AppContent() {
   const activeProfileKey = getProfileKey(activeProfile);
   const hasMatchedActiveProfile = matchedProfileKeys.includes(activeProfileKey);
   const hasRequestedActiveProfile = chatRequestKeys.includes(activeProfileKey);
-  const canContinue = ageConfirmed && selectedInterests.length >= 3;
+  const canContinue = selectedInterests.length >= 3 && (intent === "Randki" ? ageBand === "18+" : ageBand !== null);
 
   const contentPadding = useMemo(
     () => ({
@@ -372,7 +402,7 @@ function AppContent() {
     setMatchedProfileKeys((keys) => (keys.includes(matchedKey) ? keys : [...keys, matchedKey]));
     setChatRequestKeys((keys) => (keys.includes(requestKey) ? keys : [...keys, requestKey]));
     setSelectedInterests(["Filmy", "Natura", "Kawa", "Sztuka"]);
-    setAgeConfirmed(true);
+    setAgeBand("18+");
     setOnboarded(true);
     setTab("messages");
   }
@@ -416,6 +446,7 @@ function AppContent() {
         lastName,
         email: appUser.email ?? email,
         intent,
+        ageBand,
         interests: selectedInterests,
         premiumPlan: revenueCat.isPro ? premiumPlan : "free",
         privateProfile,
@@ -561,8 +592,8 @@ function AppContent() {
         <OnboardingScreen
           intent={intent}
           setIntent={setIntent}
-          ageConfirmed={ageConfirmed}
-          setAgeConfirmed={setAgeConfirmed}
+          ageBand={ageBand}
+          setAgeBand={setAgeBand}
           selectedInterests={selectedInterests}
           setSelectedInterests={setSelectedInterests}
           canContinue={canContinue}
@@ -629,7 +660,7 @@ function AppContent() {
         {[
           ["discover", "Discover", "✦"],
           ["matches", "Match", "♡"],
-          ["messages", "Social", "⌁"],
+          ["messages", "Wiadomosci", "msg"],
           ["premium", "Premium", "✧"],
           ["profile", "Profile", "◦"]
         ].map(([key, label, icon]) => (
@@ -778,8 +809,8 @@ function AuthScreen({
 function OnboardingScreen({
   intent,
   setIntent,
-  ageConfirmed,
-  setAgeConfirmed,
+  ageBand,
+  setAgeBand,
   selectedInterests,
   setSelectedInterests,
   canContinue,
@@ -787,13 +818,15 @@ function OnboardingScreen({
 }: {
   intent: string;
   setIntent: (value: string) => void;
-  ageConfirmed: boolean;
-  setAgeConfirmed: (value: boolean) => void;
+  ageBand: AgeBand;
+  setAgeBand: (value: AgeBand) => void;
   selectedInterests: string[];
   setSelectedInterests: (value: string[]) => void;
   canContinue: boolean;
   onContinue: () => void;
 }) {
+  const isDating = intent === "Randki";
+
   return (
     <View style={styles.gapLg}>
       <View style={styles.brand}>
@@ -801,17 +834,27 @@ function OnboardingScreen({
           <Text style={styles.logoText} selectable>S</Text>
         </View>
         <Text style={styles.eyebrow} selectable>Start profilu</Text>
-        <Text style={styles.screenHeroTitle} selectable>Znajdź to, czego szukasz</Text>
-        <Text style={styles.lead} selectable>Wybierz cel, potwierdź wiek i zaznacz minimum trzy zainteresowania.</Text>
+        <Text style={styles.screenHeroTitle} selectable>Znajdz swoj krag</Text>
+        <Text style={styles.lead} selectable>Wybierz cel, ustaw bezpieczny tryb wieku i zaznacz kilka zainteresowan dla algorytmu.</Text>
       </View>
 
       <View style={styles.intentList}>
         {[
-          ["Randki", "Chemia, rozmowy, spotkania", "♡"],
-          ["Znajomi", "Kawa, planszówki, miasto", "✦"],
-          ["Społeczność", "LGBT+, grupy, wydarzenia", "⌁"]
+          ["Randki", "Chemia, rozmowy, spotkania", "heart"],
+          ["Znajomi", "Kawa, planszowki, miasto", "spark"],
+          ["LGBT+ / Spolecznosc", "Grupy, wydarzenia, znajomosci", "wave"]
         ].map(([label, description, icon]) => (
-          <Pressable key={label} accessibilityRole="button" onPress={() => setIntent(label)} style={[styles.intentCard, intent === label && styles.intentCardActive]}>
+          <Pressable
+            key={label}
+            accessibilityRole="button"
+            onPress={() => {
+              setIntent(label);
+              if (label === "Randki" && ageBand === "under18") {
+                setAgeBand(null);
+              }
+            }}
+            style={[styles.intentCard, intent === label && styles.intentCardActive]}
+          >
             <View style={styles.intentIcon}>
               <Text style={styles.intentIconText}>{icon}</Text>
             </View>
@@ -823,27 +866,47 @@ function OnboardingScreen({
         ))}
       </View>
 
-      <View style={styles.panel}>
+      <View style={styles.panelLiquid}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Te badge pomagają dopasować profile i rozmowy.</Text>
+        <Text style={styles.panelText} selectable>Kolorowe badge pomagaja matchowac profile, rozmowy i wydarzenia. Mozesz wybrac wiele.</Text>
         <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
       </View>
 
-      <View style={styles.noticeCard}>
-        <View style={styles.fill}>
-          <Text style={styles.noticeTitle} selectable>Potwierdzam 18+</Text>
-          <Text style={styles.noticeText} selectable>Spark jest dla dorosłych. Akceptuję zasady społeczności i moderację zgłoszeń.</Text>
+      <View style={styles.agePanel}>
+        <Text style={styles.panelTitle} selectable>Wiek i bezpieczenstwo</Text>
+        <Text style={styles.panelText} selectable>
+          Randki sa tylko dla 18+. Dla znajomych i spolecznosci mozna wybrac tryb ponizej 18 lat.
+        </Text>
+        <View style={styles.ageChoiceRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setAgeBand("18+")}
+            style={[styles.ageChoice, ageBand === "18+" && styles.ageChoiceActive]}
+          >
+            <Text style={[styles.ageChoiceTitle, ageBand === "18+" && styles.ageChoiceTitleActive]} selectable>18+</Text>
+            <Text style={styles.ageChoiceText} selectable>Randki, znajomi i LGBT+</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isDating}
+            onPress={() => setAgeBand("under18")}
+            style={[styles.ageChoice, ageBand === "under18" && styles.ageChoiceActive, isDating && styles.ageChoiceDisabled]}
+          >
+            <Text style={[styles.ageChoiceTitle, ageBand === "under18" && styles.ageChoiceTitleActive]} selectable>Ponizej 18</Text>
+            <Text style={styles.ageChoiceText} selectable>Tylko znajomi i spolecznosc</Text>
+          </Pressable>
         </View>
-        <Switch value={ageConfirmed} onValueChange={setAgeConfirmed} trackColor={{ true: colors.green }} />
+        {isDating && ageBand !== "18+" && (
+          <Text style={styles.ageWarning} selectable>Tryb Randki wymaga potwierdzenia 18+.</Text>
+        )}
       </View>
 
       <Pressable accessibilityRole="button" disabled={!canContinue} onPress={onContinue} style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{canContinue ? "Kontynuuj" : "Wybierz 3 badge i potwierdź 18+"}</Text>
+        <Text style={styles.primaryButtonText}>{canContinue ? "Kontynuuj" : "Wybierz 3 badge i ustaw wiek"}</Text>
       </Pressable>
     </View>
   );
 }
-
 function DiscoverScreen({
   mode,
   setMode,
@@ -930,9 +993,19 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
       <LinearGradient colors={["transparent", "rgba(0,0,0,0.76)"]} style={styles.cardShade} />
       <View style={styles.badgeRow}>
-        {[profile.distance, ...profile.interests.slice(0, 3)].map((tag) => (
-          <Text key={tag} style={styles.badge} selectable>{tag}</Text>
-        ))}
+        {[profile.distance, ...profile.interests.slice(0, 3)].map((tag, index) => {
+          const theme = index === 0 ? null : getInterestTheme(tag, index);
+
+          return (
+            <Text
+              key={tag}
+              style={[styles.badge, theme && { backgroundColor: theme.soft, color: theme.text, borderColor: theme.border }]}
+              selectable
+            >
+              {tag}
+            </Text>
+          );
+        })}
       </View>
       <View style={styles.profileCopy}>
         <Text style={styles.verified} selectable>{profile.premium ? "Premium verified" : "Zweryfikowana"}</Text>
@@ -1019,7 +1092,7 @@ function MessagesScreen({
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Social" title="Wiadomosci" left="=" right="+" />
+      <TopBar eyebrow="Wiadomosci" title="Rozmowy" left="=" right="+" />
       <View style={styles.searchField}>
         <Text style={styles.searchIcon}>+</Text>
         <TextInput placeholder="Szukaj rozmow" placeholderTextColor={colors.muted} style={styles.searchInput} />
@@ -1113,14 +1186,22 @@ function PremiumScreen({
   return (
     <View style={styles.gapLg}>
       <TopBar eyebrow="Premium" title="Sparknew Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
-      <View style={styles.premiumHero}>
-        <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
-        <Text style={styles.premiumHeroTitle} selectable>Bez reklam, wiecej kontroli i szybsze dopasowania.</Text>
+      <LinearGradient colors={["#fff7fb", "#ffe3ec", "#f3fbff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.premiumHero}>
+        <View style={styles.premiumHeroTop}>
+          <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
+          <Text style={styles.premiumCrown} selectable>PRO</Text>
+        </View>
+        <Text style={styles.premiumHeroTitle} selectable>Zjawiskowy profil. Zero reklam. Wiekszy zasieg.</Text>
         <Text style={styles.premiumHeroText} selectable>
-          Entitlement: {revenueCatEntitlementId}. Produkty w RevenueCat: weekly, monthly i lifetime.
+          {revenueCatEntitlementId}: 10 Superlike miesiecznie, korona, premium prosba o chat i czestsze wyskakiwanie u innych.
         </Text>
+        <View style={styles.premiumBenefitRow}>
+          {["Zero reklam", "10 Superlike", "Korona", "Boost"].map((benefit) => (
+            <Text key={benefit} style={styles.premiumBenefit} selectable>{benefit}</Text>
+          ))}
+        </View>
         {revenueCat.error && <Text style={styles.revenueCatError} selectable>{revenueCat.error}</Text>}
-      </View>
+      </LinearGradient>
       <View style={styles.planList}>
         {premiumPlans.map((plan) => (
           <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[styles.planCard, premiumPlan === plan.id && styles.planCardActive]}>
@@ -1132,7 +1213,7 @@ function PremiumScreen({
               <Text style={styles.planPrice} selectable>{plan.price}</Text>
             </View>
             <View style={styles.planFeatures}>
-              {plan.features.map((feature) => <Text key={feature} style={styles.planFeature} selectable>- {feature}</Text>)}
+              {plan.features.map((feature) => <Text key={feature} style={styles.planFeature} selectable>+ {feature}</Text>)}
             </View>
           </Pressable>
         ))}
@@ -1199,12 +1280,29 @@ function ProfileScreen({
   openSafety: () => void;
 }) {
   const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Cherry walks"], ["LinkedIn", "alex-mercer"]];
+  const photoSlots = [profileImages[4], profileImages[0], profileImages[1], profileImages[3]];
 
   return (
     <View style={styles.gapLg}>
-      <View style={styles.profileHero}>
-        <Image source={profileImages[4]} style={styles.profileHeroImage} contentFit="cover" />
-        <Pressable style={styles.editButton}><Text style={styles.editButtonText}>✎</Text></Pressable>
+      <View style={styles.profileHeroShell}>
+        <View style={styles.profileHero}>
+          <Image source={profileImages[4]} style={styles.profileHeroImage} contentFit="cover" />
+          <LinearGradient colors={["transparent", "rgba(0,0,0,0.58)"]} style={styles.profileHeroShade} />
+          <View style={styles.profileHeroMeta}>
+            <Text style={styles.profileHeroLabel} selectable>Format 4:5</Text>
+            <Text style={styles.profileHeroTitle} selectable>{profileName}</Text>
+          </View>
+          <Pressable style={styles.editButton}><Text style={styles.editButtonText}>edit</Text></Pressable>
+        </View>
+        <Text style={styles.photoFormatHint} selectable>Zdjecia profilu sa przygotowane pod pionowy crop 4:5, idealny dla kart i feedu.</Text>
+      </View>
+      <View style={styles.photoGrid}>
+        {photoSlots.map((image, index) => (
+          <View key={index} style={styles.photoSlot}>
+            <Image source={image} style={styles.photoSlotImage} contentFit="cover" />
+            <Text style={styles.photoSlotBadge} selectable>{index === 0 ? "Glowne" : `Foto ${index + 1}`}</Text>
+          </View>
+        ))}
       </View>
       <View style={styles.profilePanel}>
         <Text style={styles.eyebrow} selectable>Profil</Text>
@@ -1224,7 +1322,7 @@ function ProfileScreen({
           <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
         </View>
         <View style={styles.panel}>
-          <Text style={styles.panelTitle} selectable>Social links</Text>
+          <Text style={styles.panelTitle} selectable>Linki social</Text>
           <View style={styles.socialList}>
             {socialLinks.map(([label, value]) => <View key={label} style={styles.socialLinkRow}><Text style={styles.settingLabel} selectable>{label}</Text><Text style={styles.settingValue} selectable>{value}</Text></View>)}
           </View>
@@ -1254,11 +1352,28 @@ function ProfileScreen({
 function InterestChips({ selected, onToggle }: { selected: string[]; onToggle: (item: string) => void }) {
   return (
     <View style={styles.chipWrap}>
-      {interestOptions.map((item) => (
-        <Pressable key={item} onPress={() => onToggle(item)} style={[styles.chip, selected.includes(item) && styles.chipActive]}>
-          <Text style={[styles.chipText, selected.includes(item) && styles.chipTextActive]}>{item}</Text>
-        </Pressable>
-      ))}
+      {interestOptions.map((item, index) => {
+        const isSelected = selected.includes(item);
+        const theme = getInterestTheme(item, index);
+
+        return (
+          <Pressable
+            key={item}
+            onPress={() => onToggle(item)}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: isSelected ? theme.active : theme.soft,
+                borderColor: theme.border
+              },
+              isSelected && styles.chipActive
+            ]}
+          >
+            <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
+            <Text style={[styles.chipText, { color: isSelected ? "#fff" : theme.text }]}>{item}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -1531,6 +1646,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.72)"
   },
+  panelLiquid: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.64)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.82)",
+    boxShadow: "0 18px 44px rgba(99,51,61,0.08)"
+  },
   panelTitle: {
     color: colors.ink,
     fontSize: 17,
@@ -1544,27 +1669,30 @@ const styles = StyleSheet.create({
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
+    gap: 9
   },
   chip: {
-    paddingHorizontal: 12,
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 13,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.74)",
     borderWidth: 1,
-    borderColor: "rgba(145,110,111,0.12)"
+    boxShadow: "0 10px 22px rgba(99,51,61,0.06)"
   },
   chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
+    boxShadow: "0 14px 30px rgba(99,51,61,0.14)"
+  },
+  chipDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999
   },
   chipText: {
-    color: "#5d3f40",
     fontSize: 13,
-    fontWeight: "800"
-  },
-  chipTextActive: {
-    color: "#fff"
+    fontWeight: "900"
   },
   intentList: {
     gap: 12
@@ -1632,6 +1760,58 @@ const styles = StyleSheet.create({
     color: "#5d3f40",
     fontSize: 13,
     lineHeight: 19
+  },
+  agePanel: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.82)",
+    boxShadow: "0 16px 36px rgba(99,51,61,0.08)"
+  },
+  ageChoiceRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  ageChoice: {
+    flex: 1,
+    minHeight: 92,
+    gap: 6,
+    padding: 13,
+    borderRadius: 22,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(145,110,111,0.14)",
+    backgroundColor: "rgba(255,255,255,0.72)"
+  },
+  ageChoiceActive: {
+    borderColor: "rgba(255,45,85,0.34)",
+    backgroundColor: "rgba(255,218,229,0.68)"
+  },
+  ageChoiceDisabled: {
+    opacity: 0.45
+  },
+  ageChoiceTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  ageChoiceTitleActive: {
+    color: colors.primaryDeep
+  },
+  ageChoiceText: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700"
+  },
+  ageWarning: {
+    color: colors.primaryDeep,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "900"
   },
   primaryButton: {
     minHeight: 58,
@@ -1769,7 +1949,9 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep
   },
   profileCard: {
-    height: 560,
+    aspectRatio: 4 / 5,
+    minHeight: 430,
+    maxHeight: 620,
     overflow: "hidden",
     borderRadius: 34,
     borderCurve: "continuous",
@@ -1803,6 +1985,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     color: "#442129",
     backgroundColor: "rgba(255,255,255,0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.5)",
     fontSize: 13,
     fontWeight: "900"
   },
@@ -1912,14 +2096,19 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   premiumHero: {
-    gap: 10,
+    gap: 12,
     padding: 22,
-    borderRadius: 30,
+    borderRadius: 32,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.8)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)",
-    boxShadow: "0 18px 42px rgba(99,51,61,0.1)"
+    borderColor: "rgba(255,255,255,0.82)",
+    boxShadow: "0 24px 60px rgba(255,45,85,0.18)"
+  },
+  premiumHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
   },
   premiumHeroKicker: {
     color: colors.gold,
@@ -1927,10 +2116,22 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase"
   },
+  premiumCrown: {
+    minWidth: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: "#fff",
+    textAlign: "center",
+    backgroundColor: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
   premiumHeroTitle: {
     color: colors.ink,
-    fontSize: 27,
-    lineHeight: 32,
+    fontSize: 29,
+    lineHeight: 34,
     fontWeight: "900",
     letterSpacing: 0
   },
@@ -1938,6 +2139,23 @@ const styles = StyleSheet.create({
     color: "#5d3f40",
     fontSize: 14,
     lineHeight: 21
+  },
+  premiumBenefitRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  premiumBenefit: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.primaryDeep,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.14)",
+    fontSize: 12,
+    fontWeight: "900"
   },
   planList: {
     gap: 12
@@ -1947,13 +2165,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)"
+    borderColor: "rgba(255,255,255,0.76)",
+    boxShadow: "0 14px 34px rgba(99,51,61,0.08)"
   },
   planCardActive: {
     borderColor: "rgba(255,45,85,0.38)",
-    backgroundColor: "rgba(255,255,255,0.94)"
+    backgroundColor: "rgba(255,255,255,0.94)",
+    boxShadow: "0 20px 44px rgba(255,45,85,0.14)"
   },
   planHeader: {
     flexDirection: "row",
@@ -1990,7 +2210,7 @@ const styles = StyleSheet.create({
   },
   matchCard: {
     width: "48%",
-    minHeight: 232,
+    minHeight: 286,
     overflow: "hidden",
     borderRadius: 28,
     borderCurve: "continuous",
@@ -1999,7 +2219,7 @@ const styles = StyleSheet.create({
   },
   matchImage: {
     width: "100%",
-    height: 152
+    aspectRatio: 4 / 5
   },
   matchName: {
     paddingHorizontal: 14,
@@ -2090,15 +2310,91 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20
   },
+  profileHeroShell: {
+    gap: 10
+  },
   profileHero: {
-    height: 340,
+    aspectRatio: 4 / 5,
+    maxHeight: 560,
     overflow: "hidden",
     borderRadius: 34,
-    borderCurve: "continuous"
+    borderCurve: "continuous",
+    backgroundColor: "#eee",
+    boxShadow: "0 24px 60px rgba(63,28,36,0.16)"
   },
   profileHeroImage: {
     width: "100%",
     height: "100%"
+  },
+  profileHeroShade: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0
+  },
+  profileHeroMeta: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 18
+  },
+  profileHeroLabel: {
+    alignSelf: "flex-start",
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.ink,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  profileHeroTitle: {
+    color: "#fff",
+    fontSize: 31,
+    lineHeight: 36,
+    fontWeight: "900",
+    letterSpacing: 0
+  },
+  photoFormatHint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700"
+  },
+  photoGrid: {
+    flexDirection: "row",
+    gap: 10
+  },
+  photoSlot: {
+    flex: 1,
+    aspectRatio: 4 / 5,
+    overflow: "hidden",
+    borderRadius: 22,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  photoSlotImage: {
+    width: "100%",
+    height: "100%"
+  },
+  photoSlotBadge: {
+    position: "absolute",
+    left: 7,
+    right: 7,
+    bottom: 7,
+    paddingVertical: 5,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.ink,
+    textAlign: "center",
+    backgroundColor: "rgba(255,255,255,0.78)",
+    fontSize: 10,
+    fontWeight: "900"
   },
   editButton: {
     position: "absolute",

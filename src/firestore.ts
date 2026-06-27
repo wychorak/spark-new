@@ -20,6 +20,7 @@ export type UserProfileDocument = {
   email: string | null;
   displayName?: string | null;
   intent: string;
+  ageBand?: "18+" | "under18" | null;
   interests: string[];
   authProvider?: string;
   loginCount?: number;
@@ -87,6 +88,7 @@ export async function recordUserLogin(params: {
             firstName,
             lastName,
             intent: "Randki",
+            ageBand: params.authProvider === "demo" ? "18+" : null,
             interests: ["Filmy", "Natura", "Kawa", "Sztuka"],
             premiumPlan: "free",
             privateProfile: false,
