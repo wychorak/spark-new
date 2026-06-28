@@ -4,8 +4,8 @@ export const revenueCatEntitlementId =
   process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || "Sparknew Pro";
 
 export const revenueCatProductIds = {
-  weekly: process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID || "Sparkproweek",
-  monthly: process.env.EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID || "Sparkpromonth",
+  weekly: process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID || "sparkproweek",
+  monthly: process.env.EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID || "sparkpromonth",
   lifetime: process.env.EXPO_PUBLIC_REVENUECAT_LIFETIME_PRODUCT_ID || "sparklifetime"
 } as const;
 
