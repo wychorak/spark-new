@@ -243,21 +243,21 @@ const premiumPlans = [
     title: "Spark Pro Week",
     price: "Subskrypcja tygodniowa",
     accent: "Dobry test",
-    features: ["Zero reklam", "10 zjawiskowych Superlike miesiecznie", "Korona Pro na profilu"]
+    features: ["Zobacz kto polubil Twoj profil", "Premium prosba o chat do profilu", "Korona Pro przy profilowym"]
   },
   {
     id: "monthly",
     title: "Spark Pro Month",
     price: "Subskrypcja miesieczna",
     accent: "Najlepszy rytm",
-    features: ["Wszystko z Weekly", "Lepsze motywy profilu", "Czestsze wyskakiwanie u innych"]
+    features: ["Wszystko z Weekly", "15 zdjec profilu zamiast 3", "Czestsze pojawianie sie na glownej"]
   },
   {
     id: "lifetime",
     title: "Spark Pro Lifetime",
     price: "Jednorazowy zakup",
     accent: "Na stale",
-    features: ["Wszystko z Monthly", "Lifetime bez reklam", "Premium prosba o chat przed matchem"]
+    features: ["Wszystko z Monthly", "Spark Pro na stale", "Zero reklam na zawsze"]
   }
 ] satisfies Array<{ id: SparkPlanId; title: string; price: string; accent: string; features: string[] }>;
 
@@ -342,11 +342,13 @@ function scoreProfileMatch(params: {
   const ageScore = profileAcceptsAge ? Math.max(8, 25 - ageDelta * 2) : Math.max(0, 10 - ageDelta);
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
   const interestScore = Math.min(25, sharedInterests.length * 8 + (sharedInterests.length > 0 ? 5 : 0));
-  const score = Math.max(1, Math.min(99, Math.round(distanceScore + ageScore + interestScore)));
+  const visibilityBoost = params.profile.premium ? 6 : 0;
+  const score = Math.max(1, Math.min(99, Math.round(distanceScore + ageScore + interestScore + visibilityBoost)));
   const reasons = [
     `${Math.max(1, Math.round(distanceKm))} km`,
     profileAcceptsAge ? "wiek pasuje" : "wiek poza preferencja",
-    sharedInterests.length > 0 ? sharedInterests.slice(0, 2).join(" + ") : "nowe zainteresowania"
+    sharedInterests.length > 0 ? sharedInterests.slice(0, 2).join(" + ") : "nowe zainteresowania",
+    ...(visibilityBoost > 0 ? ["boost Pro"] : [])
   ];
 
   return { score, reasons };
@@ -589,6 +591,11 @@ function AppContent() {
         mainPhotoUrl: typeof profilePhotos[0] === "string" ? profilePhotos[0] : null,
         location: userLocation,
         premiumPlan: revenueCat.isPro ? premiumPlan : "free",
+        isPro: revenueCat.isPro,
+        profilePhotoLimit: revenueCat.isPro ? 15 : 3,
+        proVisibilityBoost: revenueCat.isPro ? "priority" : "standard",
+        canSeeIncomingLikes: revenueCat.isPro,
+        canSendChatRequests: revenueCat.isPro,
         privateProfile,
         socials: {
           instagram: "@alex.spark",
@@ -1234,8 +1241,8 @@ function DiscoverScreen({
       <View style={styles.monetizationStatus}>
         <Text style={styles.monetizationStatusText} selectable>
           {hasPro
-            ? `Pro: bez reklam, ${superlikesRemaining}/10 Superlike, korona i boost profilu`
-            : "Free: reklama video co ok. 5-10 swipe'ow, latwa do pominiecia"}
+            ? `Pro: widzisz kto Cie polubil, prosby o chat, korona, 15 zdjec i boost profilu (${superlikesRemaining}/10 Superlike)`
+            : "Free: reklama video co ok. 5-10 swipe'ow, 3 zdjecia i chat dopiero po matchu"}
         </Text>
       </View>
       <View style={styles.profileSafetyRow}>
@@ -1285,7 +1292,8 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
         })}
       </View>
       <View style={styles.profileCopy}>
-        <Text style={styles.verified} selectable>{profile.premium ? "Premium verified" : "Zweryfikowana"}</Text>
+        {profile.premium && <Text style={styles.cardCrown} selectable>PRO</Text>}
+        <Text style={styles.verified} selectable>{profile.premium ? "Korona Pro" : "Zweryfikowana"}</Text>
         {profile.matchScore && (
           <View style={styles.matchScorePill}>
             <Text style={styles.matchScoreText} selectable>{profile.matchScore}% match</Text>
@@ -1559,12 +1567,12 @@ function PremiumScreen({
           <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
           <Text style={styles.premiumCrown} selectable>PRO</Text>
         </View>
-        <Text style={styles.premiumHeroTitle} selectable>Zjawiskowy profil. Zero reklam. Wiekszy zasieg.</Text>
+        <Text style={styles.premiumHeroTitle} selectable>Widzisz kto Cie polubil. Piszesz przed matchem. Masz wiekszy zasieg.</Text>
         <Text style={styles.premiumHeroText} selectable>
-          {revenueCatEntitlementId}: 10 Superlike miesiecznie, korona, premium prosba o chat i czestsze wyskakiwanie u innych.
+          {revenueCatEntitlementId}: lista osob, ktore swipe/like Ciebie, jedna prosba o chat do profilu, korona przy avatarze, 15 zdjec i czestsze pojawianie sie na glownej.
         </Text>
         <View style={styles.premiumBenefitRow}>
-          {["Zero reklam", "10 Superlike", "Korona", "Boost"].map((benefit) => (
+          {["Kto mnie polubil", "Prosba o chat", "Korona", "15 zdjec", "Boost"].map((benefit) => (
             <Text key={benefit} style={styles.premiumBenefit} selectable>{benefit}</Text>
           ))}
         </View>
@@ -1657,6 +1665,14 @@ function ProfileScreen({
 }) {
   const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Cherry walks"], ["LinkedIn", "alex-mercer"]];
   const maxPhotos = hasPro ? 15 : 3;
+  const incomingLikeProfiles = matchProfiles.slice(0, 3);
+  const proCapabilityRows = [
+    "Zobacz kto swipe/like Twoj profil",
+    "Wyslij jedna prosbe o chat do profilu",
+    "Korona Pro przy zdjeciu profilowym",
+    "15 zdjec profilu zamiast 3",
+    "Czestsze pojawianie sie na glownej"
+  ];
   const previewPhoto = profilePhotos[0] ?? profileImages[4];
   const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
   const previewProfile: MatchProfile = {
@@ -1719,6 +1735,7 @@ function ProfileScreen({
             <Text style={styles.profileHeroTitle} selectable>{profileName}</Text>
           </View>
           <Pressable onPress={() => pickProfilePhoto(0)} style={styles.editButton}><Text style={styles.editButtonText}>edit</Text></Pressable>
+          {hasPro && <Text style={styles.profileHeroCrown} selectable>PRO</Text>}
         </View>
         <Text style={styles.photoFormatHint} selectable>Zdjecia profilu sa przygotowane pod pionowy crop 4:5, idealny dla kart i feedu.</Text>
       </View>
@@ -1759,6 +1776,43 @@ function ProfileScreen({
           {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
             <View key={label} style={styles.statBox}><Text style={styles.statValue} selectable>{value}</Text><Text style={styles.statLabel} selectable>{label}</Text></View>
           ))}
+        </View>
+        <View style={styles.proFeaturePanel}>
+          <View style={styles.proFeatureHeader}>
+            <View style={styles.fill}>
+              <Text style={styles.panelTitle} selectable>Spark Pro</Text>
+              <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Aktywne funkcje premium" : "Odblokuj funkcje premium"}</Text>
+            </View>
+            <Pressable onPress={openPremium} style={styles.proMiniButton}>
+              <Text style={styles.proMiniButtonText}>{hasPro ? "Pro" : "Upgrade"}</Text>
+            </Pressable>
+          </View>
+          {proCapabilityRows.map((feature) => (
+            <Text key={feature} style={styles.proFeatureText} selectable>+ {feature}</Text>
+          ))}
+        </View>
+        <View style={styles.incomingLikesPanel}>
+          <View style={styles.proFeatureHeader}>
+            <View style={styles.fill}>
+              <Text style={styles.panelTitle} selectable>Polubili Cie</Text>
+              <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Osoby, ktore juz swipe/like Twoj profil" : "Dostepne w Spark Pro"}</Text>
+            </View>
+            <Text style={styles.incomingLikesCount} selectable>{hasPro ? incomingLikeProfiles.length : "Pro"}</Text>
+          </View>
+          {hasPro ? (
+            <View style={styles.incomingLikesRow}>
+              {incomingLikeProfiles.map((profile) => (
+                <View key={getProfileKey(profile)} style={styles.incomingLikeItem}>
+                  <Image source={profile.image} style={styles.incomingLikeImage} contentFit="cover" />
+                  <Text style={styles.incomingLikeName} selectable>{profile.name}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Pressable onPress={openPremium} style={styles.lockedLikesButton}>
+              <Text style={styles.lockedLikesText} selectable>Zobacz kto Cie polubil po odblokowaniu Pro</Text>
+            </Pressable>
+          )}
         </View>
         <View style={styles.panel}>
           <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
@@ -2439,6 +2493,20 @@ const styles = StyleSheet.create({
     right: 18,
     bottom: 22
   },
+  cardCrown: {
+    alignSelf: "flex-start",
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: "#3a2500",
+    backgroundColor: colors.gold,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.68)",
+    fontSize: 12,
+    fontWeight: "900"
+  },
   verified: {
     alignSelf: "flex-start",
     marginBottom: 8,
@@ -3047,6 +3115,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800"
   },
+  profileHeroCrown: {
+    position: "absolute",
+    top: 18,
+    left: 18,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: "#3a2500",
+    backgroundColor: colors.gold,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)",
+    fontSize: 12,
+    fontWeight: "900"
+  },
   profilePanel: {
     gap: 16
   },
@@ -3083,6 +3166,104 @@ const styles = StyleSheet.create({
   statLabel: {
     color: colors.muted,
     fontSize: 12
+  },
+  proFeaturePanel: {
+    gap: 10,
+    padding: 16,
+    borderRadius: 24,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.12)"
+  },
+  proFeatureHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  proFeatureSubtitle: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  proFeatureText: {
+    color: "#5d3f40",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "800"
+  },
+  proMiniButton: {
+    minHeight: 36,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.ink
+  },
+  proMiniButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  incomingLikesPanel: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 24,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,247,251,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.16)"
+  },
+  incomingLikesCount: {
+    minWidth: 42,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.primaryDeep,
+    textAlign: "center",
+    backgroundColor: "rgba(255,255,255,0.84)",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  incomingLikesRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  incomingLikeItem: {
+    flex: 1,
+    gap: 7,
+    alignItems: "center"
+  },
+  incomingLikeImage: {
+    width: "100%",
+    aspectRatio: 4 / 5,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    overflow: "hidden"
+  },
+  incomingLikeName: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  lockedLikesButton: {
+    minHeight: 52,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.76)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.14)"
+  },
+  lockedLikesText: {
+    color: colors.primaryDeep,
+    textAlign: "center",
+    fontSize: 13,
+    fontWeight: "900"
   },
   socialList: {
     gap: 8

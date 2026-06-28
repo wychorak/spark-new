@@ -36,6 +36,11 @@ export type UserProfileDocument = {
   } | null;
   socials?: Record<string, string>;
   premiumPlan?: string;
+  isPro?: boolean;
+  profilePhotoLimit?: number;
+  proVisibilityBoost?: "priority" | "standard";
+  canSeeIncomingLikes?: boolean;
+  canSendChatRequests?: boolean;
   privateProfile?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;

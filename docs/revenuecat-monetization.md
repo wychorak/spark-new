@@ -38,6 +38,14 @@ The AdMob IDs above are Google test IDs. Replace them with production IDs only a
 
 Free users see a lightweight banner and a skippable interstitial/video-style ad after a randomized 5-10 profile swipes. `Sparknew Pro` hides all ads.
 
+`Sparknew Pro` unlocks these user-facing features:
+
+- See who swiped/liked your profile.
+- Send one premium chat request to a profile before a mutual match; the other person must accept it.
+- Show a Pro crown/badge next to the profile photo.
+- Raise the profile photo limit from 3 to 15, with the first photo as the main 4:5 card image.
+- Increase profile visibility in the discovery feed.
+
 ## RevenueCat Dashboard
 
 Create one entitlement:
