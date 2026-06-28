@@ -1592,7 +1592,7 @@ function PremiumScreen({
         </Pressable>
         {!hasPackages && (
           <Text style={styles.purchaseHint} selectable>
-            Brak packages z RevenueCat. Skonfiguruj Offering z produktami Sparkproweek, Sparkpromonth i sparklifetime w dashboardzie.
+            Brak packages z RevenueCat. Skonfiguruj Offering z produktami Sparkproweek, Sparkpromonth i sparkprolifetime w dashboardzie.
           </Text>
         )}
         <View style={styles.purchaseActionsRow}>
