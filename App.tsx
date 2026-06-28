@@ -2,6 +2,7 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as Google from "expo-auth-session/providers/google";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,7 +22,15 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
-import { recordUserLogin, upsertUserProfile } from "./src/firestore";
+import {
+  blockUser,
+  createChatRequest,
+  createMatchThread,
+  createReport,
+  recordUserLogin,
+  sendChatMessage,
+  upsertUserProfile
+} from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { SparkAdBanner, useSwipeInterstitialAds } from "./src/ads";
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
@@ -63,6 +72,15 @@ type Mode = "classic" | "premium";
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type AgeBand = "18+" | "under18" | null;
+type ProfilePhoto = number | string;
+type ChatStatus = "matched" | "requested" | "blocked";
+
+type ChatThread = {
+  profileKey: string;
+  status: ChatStatus;
+  introMessage?: string;
+  messages: Array<{ id: string; from: "me" | "them"; text: string; time: string }>;
+};
 
 type MatchProfile = {
   name: string;
@@ -77,6 +95,10 @@ type MatchProfile = {
   interests: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
+  desiredAgeMin?: number;
+  desiredAgeMax?: number;
+  matchScore?: number;
+  matchReasons?: string[];
 };
 
 type UserLocation = {
@@ -100,7 +122,19 @@ const interestOptions = [
   "Joga",
   "Koncerty",
   "Planszówki",
-  "LGBT+"
+  "LGBT+",
+  "Taco Hemingway",
+  "Mata",
+  "Quebonafide",
+  "Bedoes",
+  "PRO8L3M",
+  "OKI",
+  "Playboi Carti",
+  "Travis Scott",
+  "Drake",
+  "Kendrick Lamar",
+  "The Weeknd",
+  "Central Cee"
 ];
 
 const interestThemes: Record<string, { soft: string; active: string; border: string; text: string }> = {
@@ -116,7 +150,14 @@ const interestThemes: Record<string, { soft: string; active: string; border: str
   Tech: { soft: "rgba(48,209,88,0.12)", active: "#30d158", border: "rgba(48,209,88,0.28)", text: "#15712e" },
   Joga: { soft: "rgba(100,210,255,0.14)", active: "#64d2ff", border: "rgba(100,210,255,0.3)", text: "#12637f" },
   Koncerty: { soft: "rgba(255,55,95,0.13)", active: "#ff375f", border: "rgba(255,55,95,0.28)", text: "#a40e35" },
-  "LGBT+": { soft: "rgba(191,90,242,0.13)", active: "#bf5af2", border: "rgba(191,90,242,0.28)", text: "#7933a0" }
+  "LGBT+": { soft: "rgba(191,90,242,0.13)", active: "#bf5af2", border: "rgba(191,90,242,0.28)", text: "#7933a0" },
+  "Taco Hemingway": { soft: "rgba(255,159,10,0.14)", active: "#ff9f0a", border: "rgba(255,159,10,0.3)", text: "#8a5200" },
+  Mata: { soft: "rgba(255,55,95,0.13)", active: "#ff375f", border: "rgba(255,55,95,0.3)", text: "#a40e35" },
+  Quebonafide: { soft: "rgba(48,176,199,0.14)", active: "#30b0c7", border: "rgba(48,176,199,0.3)", text: "#11606e" },
+  "Playboi Carti": { soft: "rgba(255,45,85,0.16)", active: "#ff2d55", border: "rgba(255,45,85,0.34)", text: "#a20a32" },
+  "Travis Scott": { soft: "rgba(94,92,230,0.14)", active: "#5e5ce6", border: "rgba(94,92,230,0.3)", text: "#37349b" },
+  Drake: { soft: "rgba(10,132,255,0.13)", active: "#0a84ff", border: "rgba(10,132,255,0.3)", text: "#0057a8" },
+  "Kendrick Lamar": { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.3)", text: "#176b34" }
 };
 
 const matchProfiles: MatchProfile[] = [
@@ -130,7 +171,9 @@ const matchProfiles: MatchProfile[] = [
     latitude: 52.2297,
     longitude: 21.0122,
     image: profileImages[0],
-    interests: ["Kawa", "Sztuka", "Filmy", "Natura"],
+    interests: ["Kawa", "Sztuka", "Filmy", "Taco Hemingway"],
+    desiredAgeMin: 22,
+    desiredAgeMax: 31,
     socials: [
       { label: "Instagram", value: "@aisha.design" },
       { label: "Spotify", value: "Indie evenings" }
@@ -147,7 +190,9 @@ const matchProfiles: MatchProfile[] = [
     latitude: 50.0647,
     longitude: 19.945,
     image: profileImages[1],
-    interests: ["Fotografia", "Natura", "Kuchnia", "Podróże"],
+    interests: ["Fotografia", "Natura", "Kuchnia", "Kendrick Lamar"],
+    desiredAgeMin: 24,
+    desiredAgeMax: 34,
     socials: [
       { label: "Instagram", value: "@lenak.frames" },
       { label: "TikTok", value: "@lenak.moves" }
@@ -163,7 +208,9 @@ const matchProfiles: MatchProfile[] = [
     latitude: 54.352,
     longitude: 18.6466,
     image: profileImages[2],
-    interests: ["Muzyka", "Koncerty", "Sport", "Filmy"],
+    interests: ["Muzyka", "Koncerty", "Playboi Carti", "Travis Scott"],
+    desiredAgeMin: 23,
+    desiredAgeMax: 35,
     socials: [
       { label: "Spotify", value: "Kuba live set" },
       { label: "LinkedIn", value: "kuba-zielinski" }
@@ -179,7 +226,9 @@ const matchProfiles: MatchProfile[] = [
     latitude: 52.4064,
     longitude: 16.9252,
     image: profileImages[3],
-    interests: ["Książki", "Sztuka", "Natura", "Joga"],
+    interests: ["Sztuka", "Natura", "Joga", "Quebonafide"],
+    desiredAgeMin: 21,
+    desiredAgeMax: 30,
     socials: [
       { label: "Instagram", value: "@mia.studio" },
       { label: "Pinterest", value: "mia moodboard" }
@@ -261,6 +310,52 @@ function getApproxDistanceLabel(userLocation: UserLocation | null, profile: Matc
   return `${Math.max(1, Math.round(distanceKm))} km`;
 }
 
+function getDistanceKm(userLocation: UserLocation | null, profile: MatchProfile) {
+  if (!userLocation) {
+    return Number(profile.distance.replace(/[^0-9]/g, "")) || 25;
+  }
+
+  const earthRadiusKm = 6371;
+  const latitudeDelta = degreesToRadians(profile.latitude - userLocation.latitude);
+  const longitudeDelta = degreesToRadians(profile.longitude - userLocation.longitude);
+  const startLatitude = degreesToRadians(userLocation.latitude);
+  const endLatitude = degreesToRadians(profile.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function scoreProfileMatch(params: {
+  profile: MatchProfile;
+  selectedInterests: string[];
+  userLocation: UserLocation | null;
+  userAge: number;
+}) {
+  const distanceKm = getDistanceKm(params.userLocation, params.profile);
+  const distanceScore = Math.max(0, 50 - Math.min(distanceKm, 50));
+  const ageDelta = Math.abs(params.profile.age - params.userAge);
+  const profileAcceptsAge =
+    !params.profile.desiredAgeMin ||
+    (params.userAge >= params.profile.desiredAgeMin && params.userAge <= (params.profile.desiredAgeMax ?? 99));
+  const ageScore = profileAcceptsAge ? Math.max(8, 25 - ageDelta * 2) : Math.max(0, 10 - ageDelta);
+  const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
+  const interestScore = Math.min(25, sharedInterests.length * 8 + (sharedInterests.length > 0 ? 5 : 0));
+  const score = Math.max(1, Math.min(99, Math.round(distanceScore + ageScore + interestScore)));
+  const reasons = [
+    `${Math.max(1, Math.round(distanceKm))} km`,
+    profileAcceptsAge ? "wiek pasuje" : "wiek poza preferencja",
+    sharedInterests.length > 0 ? sharedInterests.slice(0, 2).join(" + ") : "nowe zainteresowania"
+  ];
+
+  return { score, reasons };
+}
+
+function getThreadId(uid: string | null | undefined, profileKey: string) {
+  return `${uid || "local"}_${profileKey}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
 function AppContent() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -287,9 +382,15 @@ function AppContent() {
   const [profileIndex, setProfileIndex] = useState(0);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
   const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
+  const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
+  const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
+  const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
+  const [messageDraft, setMessageDraft] = useState("");
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "granted" | "denied">("idle");
+  const [userAge, setUserAge] = useState(24);
+  const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([profileImages[4]]);
 
   const [, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
     clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
@@ -301,7 +402,25 @@ function AppContent() {
 
   const isCompact = width < 380;
   const profileName = `${firstName.trim() || "Alex"} ${lastName.trim() || "Mercer"}`;
-  const activeProfile = matchProfiles[profileIndex % matchProfiles.length];
+  const sortedProfiles = useMemo(
+    () =>
+      matchProfiles
+        .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
+        .map((profile) => {
+          const result = scoreProfileMatch({ profile, selectedInterests, userLocation, userAge });
+
+          return {
+            ...profile,
+            distance: getApproxDistanceLabel(userLocation, profile),
+            matchScore: result.score,
+            matchReasons: result.reasons
+          };
+        })
+        .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0)),
+    [blockedProfileKeys, selectedInterests, userAge, userLocation]
+  );
+  const visibleProfiles = sortedProfiles.length > 0 ? sortedProfiles : matchProfiles;
+  const activeProfile = visibleProfiles[profileIndex % visibleProfiles.length];
   const activeProfileWithDistance = useMemo(
     () => ({
       ...activeProfile,
@@ -401,6 +520,23 @@ function AppContent() {
 
     setMatchedProfileKeys((keys) => (keys.includes(matchedKey) ? keys : [...keys, matchedKey]));
     setChatRequestKeys((keys) => (keys.includes(requestKey) ? keys : [...keys, requestKey]));
+    setSelectedChatKey(matchedKey);
+    setChatThreads((threads) => ({
+      ...threads,
+      [matchedKey]: threads[matchedKey] ?? {
+        profileKey: matchedKey,
+        status: "matched",
+        messages: [
+          { id: "demo-1", from: "them", text: "Hej, mamy match. Kawa albo spacer?", time: "teraz" }
+        ]
+      },
+      [requestKey]: threads[requestKey] ?? {
+        profileKey: requestKey,
+        status: "requested",
+        introMessage: "Hej, widze wspolne klimaty. Masz ochote pogadac?",
+        messages: []
+      }
+    }));
     setSelectedInterests(["Filmy", "Natura", "Kawa", "Sztuka"]);
     setAgeBand("18+");
     setOnboarded(true);
@@ -447,7 +583,11 @@ function AppContent() {
         email: appUser.email ?? email,
         intent,
         ageBand,
+        age: userAge,
         interests: selectedInterests,
+        photoUrls: profilePhotos.filter((photo): photo is string => typeof photo === "string"),
+        mainPhotoUrl: typeof profilePhotos[0] === "string" ? profilePhotos[0] : null,
+        location: userLocation,
         premiumPlan: revenueCat.isPro ? premiumPlan : "free",
         privateProfile,
         socials: {
@@ -519,6 +659,25 @@ function AppContent() {
 
     if (action === "like" || action === "superlike") {
       setMatchedProfileKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
+      setSelectedChatKey(activeProfileKey);
+      setChatThreads((threads) => ({
+        ...threads,
+        [activeProfileKey]: threads[activeProfileKey] ?? {
+          profileKey: activeProfileKey,
+          status: "matched",
+          messages: [
+            { id: `${Date.now()}-match`, from: "them", text: "Match! Mozecie juz pisac.", time: "teraz" }
+          ]
+        }
+      }));
+      if (appUser) {
+        createMatchThread({
+          matchId: getThreadId(appUser.uid, activeProfileKey),
+          memberUids: [appUser.uid, activeProfileKey],
+          createdByUid: appUser.uid,
+          source: "mutual-like"
+        }).catch(() => undefined);
+      }
       Alert.alert("Match", `Ty i ${activeProfile.name} polubiliscie sie. Mozecie teraz pisac.`);
     }
 
@@ -546,7 +705,93 @@ function AppContent() {
     }
 
     setChatRequestKeys((keys) => [...keys, activeProfileKey]);
+    setSelectedChatKey(activeProfileKey);
+    setChatThreads((threads) => ({
+      ...threads,
+      [activeProfileKey]: {
+        profileKey: activeProfileKey,
+        status: "requested",
+        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
+        messages: []
+      }
+    }));
+    if (appUser) {
+      createChatRequest({
+        requestId: getThreadId(appUser.uid, activeProfileKey),
+        fromUid: appUser.uid,
+        toProfileKey: activeProfileKey,
+        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?"
+      }).catch(() => undefined);
+      createMatchThread({
+        matchId: getThreadId(appUser.uid, activeProfileKey),
+        memberUids: [appUser.uid, activeProfileKey],
+        createdByUid: appUser.uid,
+        source: "premium-request"
+      }).catch(() => undefined);
+    }
     Alert.alert("Prosba o chat", `Wyslano jedna premium prosbe do ${activeProfile.name}.`);
+  }
+
+  async function sendMessageToProfile(profileKey: string, text: string) {
+    const message = text.trim();
+
+    if (!message) {
+      return;
+    }
+
+    const thread = chatThreads[profileKey];
+    if (!thread || thread.status !== "matched") {
+      Alert.alert("Chat", "Wiadomosci sa dostepne po matchu albo po zaakceptowaniu prosby.");
+      return;
+    }
+
+    setChatThreads((threads) => ({
+      ...threads,
+      [profileKey]: {
+        ...thread,
+        messages: [...thread.messages, { id: `${Date.now()}-me`, from: "me", text: message, time: "teraz" }]
+      }
+    }));
+    setMessageDraft("");
+
+    if (appUser) {
+      sendChatMessage({
+        threadId: getThreadId(appUser.uid, profileKey),
+        senderUid: appUser.uid,
+        text: message
+      }).catch(() => undefined);
+    }
+  }
+
+  function blockProfile(profileKey: string) {
+    setBlockedProfileKeys((keys) => (keys.includes(profileKey) ? keys : [...keys, profileKey]));
+    setMatchedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
+    setChatRequestKeys((keys) => keys.filter((key) => key !== profileKey));
+    setChatThreads((threads) => ({
+      ...threads,
+      [profileKey]: {
+        ...(threads[profileKey] ?? { profileKey, messages: [] }),
+        status: "blocked"
+      }
+    }));
+    if (selectedChatKey === profileKey) {
+      setSelectedChatKey(null);
+    }
+    if (appUser) {
+      blockUser({ blockerUid: appUser.uid, blockedUid: profileKey }).catch(() => undefined);
+    }
+  }
+
+  function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomosc") {
+    if (appUser) {
+      createReport({
+        reporterUid: appUser.uid,
+        targetUid: profileKey,
+        reason,
+        context: "Spark app report"
+      }).catch(() => undefined);
+    }
+    Alert.alert("Zgloszenie", `Zgloszenie trafilo do moderacji: sparkapp@gmail.com`);
   }
 
   if (!authDone) {
@@ -626,10 +871,25 @@ function AppContent() {
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
             superlikesRemaining={superlikesRemaining}
+            onBlockProfile={() => blockProfile(activeProfileKey)}
+            onReportProfile={() => reportProfile(activeProfileKey)}
           />
         )}
         {tab === "matches" && <MatchesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
-        {tab === "messages" && <MessagesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
+        {tab === "messages" && (
+          <MessagesScreen
+            matchedProfileKeys={matchedProfileKeys}
+            chatRequestKeys={chatRequestKeys}
+            chatThreads={chatThreads}
+            selectedChatKey={selectedChatKey}
+            setSelectedChatKey={setSelectedChatKey}
+            messageDraft={messageDraft}
+            setMessageDraft={setMessageDraft}
+            onSendMessage={sendMessageToProfile}
+            onBlockProfile={blockProfile}
+            onReportProfile={reportProfile}
+          />
+        )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} />}
         {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} />}
         {tab === "profile" && (
@@ -641,6 +901,10 @@ function AppContent() {
             email={email}
             selectedInterests={selectedInterests}
             setSelectedInterests={setSelectedInterests}
+            userAge={userAge}
+            setUserAge={setUserAge}
+            profilePhotos={profilePhotos}
+            setProfilePhotos={setProfilePhotos}
             pushEnabled={pushEnabled}
             setPushEnabled={setPushEnabled}
             privateProfile={privateProfile}
@@ -770,10 +1034,11 @@ function AuthScreen({
 
       <View style={styles.formCard}>
         {authMode === "register" && (
-          <View style={styles.nameRow}>
-            <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
-            <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
-          </View>
+                  <View style={styles.nameRow}>
+          <TextField label="Imie" value={firstName} onChangeText={setFirstName} />
+          <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
+        </View>
+
         )}
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
         <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
@@ -917,7 +1182,9 @@ function DiscoverScreen({
   onPremiumChatRequest,
   hasMatchedProfile,
   hasRequestedProfile,
-  superlikesRemaining
+  superlikesRemaining,
+  onBlockProfile,
+  onReportProfile
 }: {
   mode: Mode;
   setMode: (value: Mode) => void;
@@ -929,6 +1196,8 @@ function DiscoverScreen({
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
   superlikesRemaining: number;
+  onBlockProfile: () => void;
+  onReportProfile: () => void;
 }) {
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Prosba";
   const premiumActions: Array<{ label: string; icon: string; onPress: () => void }> = [
@@ -968,6 +1237,14 @@ function DiscoverScreen({
             ? `Pro: bez reklam, ${superlikesRemaining}/10 Superlike, korona i boost profilu`
             : "Free: reklama video co ok. 5-10 swipe'ow, latwa do pominiecia"}
         </Text>
+      </View>
+      <View style={styles.profileSafetyRow}>
+        <Pressable accessibilityRole="button" onPress={onReportProfile} style={styles.profileSafetyButton}>
+          <Text style={styles.profileSafetyText}>Zglos</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onBlockProfile} style={styles.profileSafetyButton}>
+          <Text style={styles.profileSafetyText}>Blokuj</Text>
+        </Pressable>
       </View>
       <View style={styles.actionRow}>
         <RoundAction label="x" tone="light" onPress={() => onSwipe("pass")} />
@@ -1009,6 +1286,12 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
       </View>
       <View style={styles.profileCopy}>
         <Text style={styles.verified} selectable>{profile.premium ? "Premium verified" : "Zweryfikowana"}</Text>
+        {profile.matchScore && (
+          <View style={styles.matchScorePill}>
+            <Text style={styles.matchScoreText} selectable>{profile.matchScore}% match</Text>
+            <Text style={styles.matchReasonText} selectable>{profile.matchReasons?.join(" - ")}</Text>
+          </View>
+        )}
         <Text style={styles.cardTitle} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
         <Text style={styles.cardBio} selectable>{profile.bio}</Text>
         <View style={styles.socialRow}>
@@ -1067,28 +1350,52 @@ function MatchesScreen({
 
 function MessagesScreen({
   matchedProfileKeys,
-  chatRequestKeys
+  chatRequestKeys,
+  chatThreads,
+  selectedChatKey,
+  setSelectedChatKey,
+  messageDraft,
+  setMessageDraft,
+  onSendMessage,
+  onBlockProfile,
+  onReportProfile
 }: {
   matchedProfileKeys: string[];
   chatRequestKeys: string[];
+  chatThreads: Record<string, ChatThread>;
+  selectedChatKey: string | null;
+  setSelectedChatKey: (value: string | null) => void;
+  messageDraft: string;
+  setMessageDraft: (value: string) => void;
+  onSendMessage: (profileKey: string, text: string) => void;
+  onBlockProfile: (profileKey: string) => void;
+  onReportProfile: (profileKey: string) => void;
 }) {
   const conversations = matchProfiles
     .filter((profile) => {
       const key = getProfileKey(profile);
-      return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key);
+      return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key) || Boolean(chatThreads[key]);
     })
     .map((profile) => {
       const key = getProfileKey(profile);
-      const isMatched = matchedProfileKeys.includes(key);
+      const thread = chatThreads[key];
+      const isMatched = matchedProfileKeys.includes(key) || thread?.status === "matched";
+      const isBlocked = thread?.status === "blocked";
+      const lastMessage = thread?.messages[thread.messages.length - 1]?.text;
 
       return {
         key,
+        profile,
         name: `${profile.name} ${profile.surname[0]}.`,
-        message: isMatched ? "Match aktywny - mozecie pisac." : "Premium prosba o chat czeka na akceptacje.",
+        message: isBlocked
+          ? "Profil zablokowany."
+          : lastMessage ?? (isMatched ? "Match aktywny - mozecie pisac." : "Premium prosba o chat czeka na akceptacje."),
         time: isMatched ? "teraz" : "oczekuje",
-        image: profile.image
+        status: isBlocked ? "blocked" : isMatched ? "matched" : "requested"
       };
     });
+  const activeConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? conversations[0];
+  const activeThread = activeConversation ? chatThreads[activeConversation.key] : null;
 
   return (
     <View style={styles.gapLg}>
@@ -1105,22 +1412,83 @@ function MessagesScreen({
           </Text>
         </View>
       ) : (
-        <View style={styles.chatList}>
-          {conversations.map((conversation) => (
-            <Pressable key={conversation.key} style={styles.chatItem}>
-              <Image source={conversation.image} style={styles.chatAvatar} contentFit="cover" />
-              <View style={styles.fill}>
-                <Text style={styles.chatName} selectable>{conversation.name}</Text>
-                <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
+        <>
+          <View style={styles.chatList}>
+            {conversations.map((conversation) => (
+              <Pressable
+                key={conversation.key}
+                onPress={() => setSelectedChatKey(conversation.key)}
+                style={[styles.chatItem, activeConversation?.key === conversation.key && styles.chatItemActive]}
+              >
+                <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
+                <View style={styles.fill}>
+                  <Text style={styles.chatName} selectable>{conversation.name}</Text>
+                  <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
+                </View>
+                <Text style={styles.chatTime} selectable>{conversation.time}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {activeConversation && (
+            <View style={styles.threadPanel}>
+              <View style={styles.threadHeader}>
+                <View>
+                  <Text style={styles.threadTitle} selectable>{activeConversation.name}</Text>
+                  <Text style={styles.threadStatus} selectable>
+                    {activeConversation.status === "matched" ? "Chat aktywny" : activeConversation.status === "blocked" ? "Zablokowany" : "Prosba oczekuje"}
+                  </Text>
+                </View>
+                <View style={styles.threadActions}>
+                  <Pressable onPress={() => onReportProfile(activeConversation.key)} style={styles.threadActionButton}>
+                    <Text style={styles.threadActionText}>Zglos</Text>
+                  </Pressable>
+                  <Pressable onPress={() => onBlockProfile(activeConversation.key)} style={styles.threadActionButton}>
+                    <Text style={styles.threadActionText}>Blokuj</Text>
+                  </Pressable>
+                </View>
               </View>
-              <Text style={styles.chatTime} selectable>{conversation.time}</Text>
-            </Pressable>
-          ))}
-        </View>
+
+              {activeConversation.status === "requested" && (
+                <View style={styles.requestCard}>
+                  <Text style={styles.requestTitle} selectable>Prosba o chat wyslana</Text>
+                  <Text style={styles.requestText} selectable>{activeThread?.introMessage ?? "Czeka na akceptacje drugiej osoby."}</Text>
+                </View>
+              )}
+
+              <View style={styles.messageStack}>
+                {(activeThread?.messages ?? []).map((message) => (
+                  <View key={message.id} style={[styles.messageBubble, message.from === "me" && styles.messageBubbleMine]}>
+                    <Text style={[styles.messageText, message.from === "me" && styles.messageTextMine]} selectable>{message.text}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.messageComposer}>
+                <TextInput
+                  value={messageDraft}
+                  onChangeText={setMessageDraft}
+                  placeholder={activeConversation.status === "matched" ? "Napisz wiadomosc" : "Chat zablokowany do czasu matcha"}
+                  editable={activeConversation.status === "matched"}
+                  placeholderTextColor={colors.muted}
+                  style={styles.messageInput}
+                />
+                <Pressable
+                  disabled={activeConversation.status !== "matched"}
+                  onPress={() => onSendMessage(activeConversation.key, messageDraft)}
+                  style={[styles.messageSendButton, activeConversation.status !== "matched" && styles.messageSendButtonDisabled]}
+                >
+                  <Text style={styles.messageSendText}>Wyslij</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </>
       )}
     </View>
   );
 }
+
 function PremiumScreen({
   premiumPlan,
   setPremiumPlan,
@@ -1250,6 +1618,10 @@ function ProfileScreen({
   email,
   selectedInterests,
   setSelectedInterests,
+  userAge,
+  setUserAge,
+  profilePhotos,
+  setProfilePhotos,
   pushEnabled,
   setPushEnabled,
   privateProfile,
@@ -1268,6 +1640,10 @@ function ProfileScreen({
   email: string;
   selectedInterests: string[];
   setSelectedInterests: (value: string[]) => void;
+  userAge: number;
+  setUserAge: (value: number) => void;
+  profilePhotos: ProfilePhoto[];
+  setProfilePhotos: (value: ProfilePhoto[]) => void;
   pushEnabled: boolean;
   setPushEnabled: (value: boolean) => void;
   privateProfile: boolean;
@@ -1280,38 +1656,105 @@ function ProfileScreen({
   openSafety: () => void;
 }) {
   const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Cherry walks"], ["LinkedIn", "alex-mercer"]];
-  const photoSlots = [profileImages[4], profileImages[0], profileImages[1], profileImages[3]];
+  const maxPhotos = hasPro ? 15 : 3;
+  const previewPhoto = profilePhotos[0] ?? profileImages[4];
+  const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
+  const previewProfile: MatchProfile = {
+    name: firstName || "Alex",
+    surname: lastName || "Spark",
+    age: userAge,
+    city: "Twoja okolica",
+    bio: "Tak inni zobacza Twoj profil w swipe feedzie.",
+    distance: "1 km",
+    latitude: 52.2297,
+    longitude: 21.0122,
+    image: previewSource,
+    interests: selectedInterests.slice(0, 4),
+    socials: socialLinks.map(([label, value]) => ({ label, value })),
+    premium: hasPro,
+    matchScore: hasPro ? 96 : 82,
+    matchReasons: ["lokalizacja", "wiek", selectedInterests[0] ?? "zainteresowania"]
+  };
+
+  async function pickProfilePhoto(index?: number) {
+    if (profilePhotos.length >= maxPhotos && index === undefined) {
+      Alert.alert("Zdjecia", hasPro ? "Limit Premium to 15 zdjec." : "Free ma limit 3 zdjec. Premium odblokuje 15.");
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Zdjecia", "Nadaj dostep do galerii, aby dodac zdjecie profilowe.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 0.88
+    });
+
+    if (result.canceled || !result.assets[0]?.uri) {
+      return;
+    }
+
+    const next = [...profilePhotos];
+    if (index !== undefined) {
+      next[index] = result.assets[0].uri;
+    } else {
+      next.push(result.assets[0].uri);
+    }
+    setProfilePhotos(next.slice(0, maxPhotos));
+  }
 
   return (
     <View style={styles.gapLg}>
       <View style={styles.profileHeroShell}>
         <View style={styles.profileHero}>
-          <Image source={profileImages[4]} style={styles.profileHeroImage} contentFit="cover" />
+          <Image source={previewSource} style={styles.profileHeroImage} contentFit="cover" />
           <LinearGradient colors={["transparent", "rgba(0,0,0,0.58)"]} style={styles.profileHeroShade} />
           <View style={styles.profileHeroMeta}>
             <Text style={styles.profileHeroLabel} selectable>Format 4:5</Text>
             <Text style={styles.profileHeroTitle} selectable>{profileName}</Text>
           </View>
-          <Pressable style={styles.editButton}><Text style={styles.editButtonText}>edit</Text></Pressable>
+          <Pressable onPress={() => pickProfilePhoto(0)} style={styles.editButton}><Text style={styles.editButtonText}>edit</Text></Pressable>
         </View>
         <Text style={styles.photoFormatHint} selectable>Zdjecia profilu sa przygotowane pod pionowy crop 4:5, idealny dla kart i feedu.</Text>
       </View>
+      <View style={styles.photoLimitBar}>
+        <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjec profilu</Text>
+        <Pressable onPress={() => pickProfilePhoto()} style={styles.photoAddButton}>
+          <Text style={styles.photoAddText}>{profilePhotos.length >= maxPhotos ? "Limit" : "Dodaj zdjecie"}</Text>
+        </Pressable>
+      </View>
       <View style={styles.photoGrid}>
-        {photoSlots.map((image, index) => (
-          <View key={index} style={styles.photoSlot}>
-            <Image source={image} style={styles.photoSlotImage} contentFit="cover" />
-            <Text style={styles.photoSlotBadge} selectable>{index === 0 ? "Glowne" : `Foto ${index + 1}`}</Text>
-          </View>
-        ))}
+        {Array.from({ length: Math.min(maxPhotos, Math.max(3, profilePhotos.length + 1)) }).map((_, index) => {
+          const image = profilePhotos[index];
+          const source = typeof image === "string" ? { uri: image } : image;
+
+          return (
+            <Pressable key={index} onPress={() => pickProfilePhoto(image ? index : undefined)} style={styles.photoSlot}>
+              {source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <Text style={styles.photoEmptyText}>+</Text>}
+              <Text style={styles.photoSlotBadge} selectable>{index === 0 ? "Glowne" : image ? `Foto ${index + 1}` : "Dodaj"}</Text>
+            </Pressable>
+          );
+        })}
       </View>
       <View style={styles.profilePanel}>
         <Text style={styles.eyebrow} selectable>Profil</Text>
         <Text style={styles.profileName} selectable>{profileName}</Text>
         <Text style={styles.profileDescription} selectable>{email} - plan: {hasPro ? premiumPlan : "free + ads"}</Text>
-        <View style={styles.nameRow}>
-          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
+                <View style={styles.nameRow}>
+          <TextField label="Imie" value={firstName} onChangeText={setFirstName} />
           <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
         </View>
+        <TextField
+          label="Wiek do algorytmu"
+          value={String(userAge)}
+          onChangeText={(value) => setUserAge(Math.max(13, Math.min(99, Number(value.replace(/[^0-9]/g, "")) || 18)))}
+          keyboardType="numeric"
+        />
         <View style={styles.statsRow}>
           {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
             <View key={label} style={styles.statBox}><Text style={styles.statValue} selectable>{value}</Text><Text style={styles.statLabel} selectable>{label}</Text></View>
@@ -1378,7 +1821,7 @@ function InterestChips({ selected, onToggle }: { selected: string[]; onToggle: (
   );
 }
 
-function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" }) {
+function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" | "numeric" }) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel} selectable>{label}</Text>
@@ -2038,7 +2481,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800"
   },
-  actionRow: {
+  matchScorePill: {
+    alignSelf: "flex-start",
+    gap: 2,
+    marginBottom: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.56)"
+  },
+  matchScoreText: {
+    color: colors.primaryDeep,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  matchReasonText: {
+    color: "#5d3f40",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  profileSafetyRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  profileSafetyButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.14)"
+  },
+  profileSafetyText: {
+    color: colors.primaryDeep,
+    fontSize: 12,
+    fontWeight: "900"
+  },  actionRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -2288,7 +2771,133 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12
   },
-  emptyStateCard: {
+  chatItemActive: {
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.2)",
+    backgroundColor: "rgba(255,255,255,0.92)"
+  },
+  threadPanel: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.76)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  threadHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  threadTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  threadStatus: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  threadActions: {
+    flexDirection: "row",
+    gap: 8
+  },
+  threadActionButton: {
+    minHeight: 34,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,218,229,0.64)"
+  },
+  threadActionText: {
+    color: colors.primaryDeep,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  requestCard: {
+    gap: 4,
+    padding: 12,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,218,229,0.48)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,85,0.13)"
+  },
+  requestTitle: {
+    color: colors.primaryDeep,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  requestText: {
+    color: "#5d3f40",
+    fontSize: 12,
+    lineHeight: 18
+  },
+  messageStack: {
+    gap: 8
+  },
+  messageBubble: {
+    alignSelf: "flex-start",
+    maxWidth: "82%",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255,255,255,0.84)"
+  },
+  messageBubbleMine: {
+    alignSelf: "flex-end",
+    backgroundColor: colors.primary
+  },
+  messageText: {
+    color: colors.ink,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700"
+  },
+  messageTextMine: {
+    color: "#fff"
+  },
+  messageComposer: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(145,110,111,0.12)"
+  },
+  messageInput: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  messageSendButton: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary
+  },
+  messageSendButtonDisabled: {
+    backgroundColor: "rgba(255,45,85,0.32)"
+  },
+  messageSendText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900"
+  },  emptyStateCard: {
     minHeight: 150,
     justifyContent: "center",
     gap: 8,
@@ -2364,7 +2973,25 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "700"
   },
-  photoGrid: {
+  photoLimitBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  photoAddButton: {
+    minHeight: 38,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary
+  },
+  photoAddText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900"
+  },  photoGrid: {
     flexDirection: "row",
     gap: 10
   },
@@ -2382,7 +3009,15 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%"
   },
-  photoSlotBadge: {
+  photoEmptyText: {
+    color: colors.primaryDeep,
+    textAlign: "center",
+    textAlignVertical: "center",
+    width: "100%",
+    height: "100%",
+    fontSize: 32,
+    fontWeight: "900"
+  },  photoSlotBadge: {
     position: "absolute",
     left: 7,
     right: 7,

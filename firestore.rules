@@ -39,6 +39,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /chatRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toProfileKey is string
+        && request.resource.data.introMessage is string;
+      allow read, update: if signedIn()
+        && resource.data.fromUid == request.auth.uid;
+      allow delete: if false;
+    }
+
     match /messages/{threadId}/items/{messageId} {
       allow read, create: if signedIn()
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids;

@@ -47,6 +47,12 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Spark uses your selected photos to build your dating and friends profile."
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",

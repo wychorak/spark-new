@@ -21,11 +21,19 @@ export type UserProfileDocument = {
   displayName?: string | null;
   intent: string;
   ageBand?: "18+" | "under18" | null;
+  age?: number | null;
   interests: string[];
+  photoUrls?: string[];
+  mainPhotoUrl?: string | null;
   authProvider?: string;
   loginCount?: number;
   lastLoginAt?: unknown;
   city?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    geohash?: string;
+  } | null;
   socials?: Record<string, string>;
   premiumPlan?: string;
   privateProfile?: boolean;
@@ -138,6 +146,73 @@ export async function createReport(params: {
   });
 
   return reportRef.id;
+}
+
+export async function createMatchThread(params: {
+  matchId: string;
+  memberUids: string[];
+  createdByUid: string;
+  source: "mutual-like" | "premium-request";
+}) {
+  const currentDb = requireDb();
+  const matchRef = doc(currentDb, "matches", params.matchId);
+
+  await setDoc(
+    matchRef,
+    {
+      memberUids: params.memberUids,
+      createdByUid: params.createdByUid,
+      source: params.source,
+      status: params.source === "premium-request" ? "requested" : "matched",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  return matchRef.id;
+}
+
+export async function sendChatMessage(params: {
+  threadId: string;
+  senderUid: string;
+  text: string;
+}) {
+  const currentDb = requireDb();
+  const messageRef = doc(collection(currentDb, "messages", params.threadId, "items"));
+
+  await setDoc(messageRef, {
+    senderUid: params.senderUid,
+    text: params.text.trim(),
+    createdAt: serverTimestamp()
+  });
+
+  return messageRef.id;
+}
+
+export async function createChatRequest(params: {
+  requestId: string;
+  fromUid: string;
+  toProfileKey: string;
+  introMessage: string;
+}) {
+  const currentDb = requireDb();
+  const requestRef = doc(currentDb, "chatRequests", params.requestId);
+
+  await setDoc(
+    requestRef,
+    {
+      fromUid: params.fromUid,
+      toProfileKey: params.toProfileKey,
+      introMessage: params.introMessage.trim(),
+      status: "pending",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  return requestRef.id;
 }
 
 export async function blockUser(params: { blockerUid: string; blockedUid: string }) {
