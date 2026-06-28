@@ -240,21 +240,21 @@ const matchProfiles: MatchProfile[] = [
 const premiumPlans = [
   {
     id: "weekly",
-    title: "Sparknew Pro Weekly",
+    title: "Spark Pro Week",
     price: "Subskrypcja tygodniowa",
     accent: "Dobry test",
     features: ["Zero reklam", "10 zjawiskowych Superlike miesiecznie", "Korona Pro na profilu"]
   },
   {
     id: "monthly",
-    title: "Sparknew Pro Monthly",
+    title: "Spark Pro Month",
     price: "Subskrypcja miesieczna",
     accent: "Najlepszy rytm",
     features: ["Wszystko z Weekly", "Lepsze motywy profilu", "Czestsze wyskakiwanie u innych"]
   },
   {
     id: "lifetime",
-    title: "Sparknew Pro Lifetime",
+    title: "Spark Pro Lifetime",
     price: "Jednorazowy zakup",
     accent: "Na stale",
     features: ["Wszystko z Monthly", "Lifetime bez reklam", "Premium prosba o chat przed matchem"]
@@ -1592,7 +1592,7 @@ function PremiumScreen({
         </Pressable>
         {!hasPackages && (
           <Text style={styles.purchaseHint} selectable>
-            Brak packages z RevenueCat. Skonfiguruj Offering z produktami weekly, monthly i lifetime w dashboardzie.
+            Brak packages z RevenueCat. Skonfiguruj Offering z produktami sparkweek, sparkmonth i sparklifetime w dashboardzie.
           </Text>
         )}
         <View style={styles.purchaseActionsRow}>

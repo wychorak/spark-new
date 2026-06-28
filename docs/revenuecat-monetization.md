@@ -22,6 +22,9 @@ These native modules require an Expo development build. They will not work in Ex
 ```powershell
 EXPO_PUBLIC_REVENUECAT_API_KEY=test_ZXrasnBoneOhTMZGyJXoPEEacNC
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Sparknew Pro
+EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID=sparkweek
+EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID=sparkmonth
+EXPO_PUBLIC_REVENUECAT_LIFETIME_PRODUCT_ID=sparklifetime
 
 EXPO_PUBLIC_ADMOB_ANDROID_APP_ID=ca-app-pub-3940256099942544~3347511713
 EXPO_PUBLIC_ADMOB_IOS_APP_ID=ca-app-pub-3940256099942544~1458002511
@@ -43,11 +46,13 @@ Create one entitlement:
 
 Create three products and attach them to that entitlement:
 
-- `weekly`: subscription, one week
-- `monthly`: subscription, one month
-- `lifetime`: non-consumable lifetime unlock
+- `sparkweek`: one week auto-renewable subscription
+- `sparkmonth`: one month auto-renewable subscription
+- `sparklifetime`: non-consumable lifetime unlock
 
-Create an Offering, mark it current, and add packages that include those products. The app matches packages by package identifier, package type, or product identifier containing `weekly`, `monthly`, or `lifetime`.
+Important: App Store Connect products for premium access should not be `Consumable`. Weekly/monthly belong in Auto-Renewable Subscriptions. Lifetime should be a Non-Consumable in-app purchase. If the current drafts cannot change type, create new products with the correct types before connecting them in RevenueCat.
+
+Create an Offering, mark it current, and add packages that include those products. The app maps plan IDs `weekly`, `monthly`, and `lifetime` to product IDs `sparkweek`, `sparkmonth`, and `sparklifetime`.
 
 Attach a RevenueCat Paywall to the current Offering. The app calls:
 
@@ -83,7 +88,7 @@ customerInfo.entitlements.active["Sparknew Pro"] !== undefined
 Manual purchase flow:
 
 ```ts
-const result = await revenueCat.purchasePlan("monthly");
+const result = await revenueCat.purchasePlan("monthly"); // maps to sparkmonth
 if (result.ok) {
   // customer info listener updates access
 }
