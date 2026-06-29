@@ -1,3 +1,4 @@
+import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -85,6 +86,42 @@ const demoAccount = {
   lastName: "Spark"
 };
 
+function getSocialIcon(label: string): { family: SocialIconFamily; name: string; color: string; backgroundColor: string } {
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("instagram")) {
+    return { family: "fontAwesome", name: "instagram", color: "#ff4fa3", backgroundColor: "rgba(255,79,163,0.16)" };
+  }
+
+  if (normalized.includes("tiktok")) {
+    return { family: "fontAwesome5", name: "tiktok", color: "#f4f6ff", backgroundColor: "rgba(244,246,255,0.13)" };
+  }
+
+  if (normalized.includes("spotify")) {
+    return { family: "fontAwesome", name: "spotify", color: "#1ed760", backgroundColor: "rgba(30,215,96,0.15)" };
+  }
+
+  if (normalized.includes("linkedin")) {
+    return { family: "fontAwesome", name: "linkedin", color: "#70b7ff", backgroundColor: "rgba(112,183,255,0.15)" };
+  }
+
+  return { family: "material", name: "link-variant", color: colors.primaryDeep, backgroundColor: colors.primarySoft };
+}
+
+function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
+  const icon = getSocialIcon(label);
+
+  if (icon.family === "fontAwesome") {
+    return <FontAwesome name={icon.name as any} size={size} color={icon.color} />;
+  }
+
+  if (icon.family === "fontAwesome5") {
+    return <FontAwesome5 name={icon.name as any} size={size} color={icon.color} />;
+  }
+
+  return <MaterialCommunityIcons name={icon.name as any} size={size + 1} color={icon.color} />;
+}
+
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type Mode = "classic" | "premium";
 type AuthMode = "login" | "register";
@@ -92,6 +129,7 @@ type SwipeAction = "pass" | "like" | "superlike";
 type AgeBand = "18+" | "under18" | null;
 type ProfilePhoto = number | string;
 type ChatStatus = "matched" | "requested" | "blocked";
+type SocialIconFamily = "fontAwesome" | "fontAwesome5" | "material";
 
 type ChatThread = {
   profileKey: string;
@@ -1353,9 +1391,16 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
         <Text style={styles.cardTitle} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
         <Text style={styles.cardBio} selectable>{profile.bio}</Text>
         <View style={styles.socialRow}>
-          {profile.socials.map((social) => (
-            <Text key={social.label} style={styles.socialPill} selectable>{social.label}: {social.value}</Text>
-          ))}
+          {profile.socials.map((social) => {
+            const icon = getSocialIcon(social.label);
+
+            return (
+              <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}>
+                <SocialIcon label={social.label} size={13} />
+                <Text style={styles.socialPillText} selectable>{social.value}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -1871,7 +1916,21 @@ function ProfileScreen({
         <View style={styles.panel}>
           <Text style={styles.panelTitle} selectable>Linki social</Text>
           <View style={styles.socialList}>
-            {socialLinks.map(([label, value]) => <View key={label} style={styles.socialLinkRow}><Text style={styles.settingLabel} selectable>{label}</Text><Text style={styles.settingValue} selectable>{value}</Text></View>)}
+            {socialLinks.map(([label, value]) => {
+              const icon = getSocialIcon(label);
+
+              return (
+                <View key={label} style={styles.socialLinkRow}>
+                  <View style={[styles.socialIconBubble, { backgroundColor: icon.backgroundColor }]}>
+                    <SocialIcon label={label} size={16} />
+                  </View>
+                  <View style={styles.socialLinkCopy}>
+                    <Text style={styles.settingLabel} selectable>{label}</Text>
+                    <Text style={styles.settingValue} selectable>{value}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
         <View style={styles.settingsList}>
@@ -2619,12 +2678,19 @@ const styles = StyleSheet.create({
     marginTop: 12
   },
   socialPill: {
-    color: colors.ink,
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "rgba(26,26,34,0.88)",
     overflow: "hidden",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    borderWidth: 1
+  },
+  socialPillText: {
+    color: colors.ink,
     fontSize: 11,
     fontWeight: "800"
   },
@@ -3348,14 +3414,25 @@ const styles = StyleSheet.create({
     gap: 8
   },
   socialLinkRow: {
-    minHeight: 48,
+    minHeight: 58,
     borderRadius: 18,
     borderCurve: "continuous",
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
     backgroundColor: "rgba(22,22,29,0.86)"
+  },
+  socialIconBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  socialLinkCopy: {
+    flex: 1,
+    gap: 2
   },
   settingsList: {
     gap: 10
