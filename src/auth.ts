@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   GoogleAuthProvider,
   signInWithCredential,
   signInWithEmailAndPassword,
@@ -66,4 +67,23 @@ export async function signInWithGoogleIdToken(idToken: string) {
 export async function signOutUser() {
   const currentAuth = requireAuth();
   await signOut(currentAuth);
+}
+
+export async function deleteCurrentUserAccount() {
+  const currentAuth = requireAuth();
+  const currentUser = currentAuth.currentUser;
+
+  if (!currentUser) {
+    throw new Error("No authenticated user to delete.");
+  }
+
+  try {
+    await deleteUser(currentUser);
+  } catch (error: any) {
+    if (error?.code === "auth/requires-recent-login") {
+      throw new Error("Zaloguj sie ponownie i sprobuj usunac konto jeszcze raz.");
+    }
+
+    throw error;
+  }
 }

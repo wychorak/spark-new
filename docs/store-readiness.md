@@ -11,10 +11,10 @@
 
 ## App Store / Google Play Must-Haves Before Submission
 
-- Privacy policy URL in store metadata and inside the app.
+- Privacy policy URL in store metadata and inside the app. App now has configurable legal links via `EXPO_PUBLIC_PRIVACY_POLICY_URL`, `EXPO_PUBLIC_TERMS_URL`, and `EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL`; real hosted URLs still need to be filled before review.
 - Terms/community guidelines URL inside the app.
 - 18+ gate retained before discovery features.
-- In-app report and block flows connected to Firestore helpers; delete-account still needs Firebase Auth deletion plus retention policy.
+- In-app report/block flows and delete-account flow are wired. Delete-account removes Firebase Auth + main `users/{uid}` profile and writes `accountDeletions/{uid}`; final backend retention cleanup for chats/reports still needs admin processing.
 - User-generated content moderation plan: automated detection, user reports, reviewer/admin workflow, and response SLA.
 - Demo account for review if login becomes required.
 - No external payment links for digital premium features. Use StoreKit / Play Billing for subscriptions.
@@ -29,8 +29,8 @@
 - Replace AdMob test IDs with approved production app/ad unit IDs.
 - Store only the minimum location precision needed for distance-based discovery and avoid exposing exact coordinates to other users.
 - Add EU/UK consent flow before personalized ads.
-- Add account deletion with confirmation and Firestore cleanup/retention behavior.
-- Add hosted community guidelines and privacy policy URLs.
+- Add admin retention cleanup for old chats, reports, and deletion requests after in-app account deletion.
+- Add hosted community guidelines, terms, and privacy policy URLs to `.env` before store review.
 - Add optional profile verification flow.
 - Add reviewer/admin workflow for `reports`.
 

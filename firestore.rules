@@ -23,6 +23,14 @@ service cloud.firestore {
       }
     }
 
+
+    match /accountDeletions/{uid} {
+      allow create, update: if isOwner(uid)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == "requested";
+      allow read, delete: if false;
+    }
+
     match /reports/{reportId} {
       allow create: if signedIn()
         && request.resource.data.reporterUid == request.auth.uid

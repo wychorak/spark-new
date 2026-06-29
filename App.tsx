@@ -20,7 +20,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   blockUser,
@@ -28,6 +28,7 @@ import {
   createMatchThread,
   createReport,
   recordUserLogin,
+  requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
   upsertUserProfile
 } from "./src/firestore";
@@ -51,6 +52,23 @@ const colors = {
   gold: "#ffbd59"
 };
 
+const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "sparkapp@gmail.com";
+const legalLinks = {
+  privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "",
+  terms: process.env.EXPO_PUBLIC_TERMS_URL || "",
+  community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || ""
+};
+
+function openLegalDocument(title: string, url: string, envName: string) {
+  if (!url) {
+    Alert.alert(title, `Dodaj ${envName} w .env przed release. Kontakt: ${supportEmail}`);
+    return;
+  }
+
+  WebBrowser.openBrowserAsync(url).catch(() => {
+    Alert.alert(title, `Nie mozna otworzyc linku. Kontakt: ${supportEmail}`);
+  });
+}
 const profileImages = [
   require("./assets/profiles/profile-1.jpg"),
   require("./assets/profiles/profile-2.jpg"),
@@ -801,6 +819,44 @@ function AppContent() {
     Alert.alert("Zgloszenie", `Zgloszenie trafilo do moderacji: sparkapp@gmail.com`);
   }
 
+
+  async function performDeleteAccount() {
+    if (!appUser) {
+      Alert.alert("Usun konto", "Musisz byc zalogowany, aby usunac konto.");
+      return;
+    }
+
+    try {
+      await requestAccountDeletionAndDeleteProfile({
+        uid: appUser.uid,
+        email: appUser.email ?? email
+      });
+      await deleteCurrentUserAccount();
+
+      setAppUser(null);
+      setAuthDone(false);
+      setOnboarded(false);
+      setMatchedProfileKeys([]);
+      setChatRequestKeys([]);
+      setBlockedProfileKeys([]);
+      setChatThreads({});
+      setSelectedChatKey(null);
+      setTab("discover");
+      setMode("classic");
+      Alert.alert("Konto usuniete", "Konto i glowny profil zostaly usuniete.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nie udalo sie usunac konta.";
+      setAuthError(message);
+      Alert.alert("Usun konto", message);
+    }
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert("Usun konto", "To usunie konto logowania i glowny profil. Tej akcji nie mozna cofnac.", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Usun", style: "destructive", onPress: () => void performDeleteAccount() }
+    ]);
+  }
   if (!authDone) {
     return (
       <ScreenFrame contentPadding={contentPadding}>
@@ -898,7 +954,7 @@ function AppContent() {
           />
         )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} />}
-        {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} />}
+        {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} />}
         {tab === "profile" && (
           <ProfileScreen
             firstName={firstName}
@@ -1884,12 +1940,38 @@ function TextField({ label, value, onChangeText, secureTextEntry = false, keyboa
   );
 }
 
-function SafetyCenter({ onBack }: { onBack: () => void }) {
+function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDeleteAccount: () => void }) {
   const actions = [
-    ["Zgłoś profil", "Wyślij zgłoszenie do moderacji z ostatnim kontekstem rozmowy.", "Priorytet"],
-    ["Zablokuj użytkownika", "Ukryj profil, przerwij match i zablokuj wiadomości.", "Natychmiast"],
-    ["Zasady społeczności", "Szacunek, zgoda, prawdziwa tożsamość i brak nękania.", "Czytaj"],
-    ["Prywatność i dane", "Zarządzaj widocznością, eksportem i usunięciem konta.", "Otwórz"]
+    {
+      title: "Zglos profil",
+      body: "Wyslij zgloszenie do moderacji z ostatnim kontekstem rozmowy.",
+      cta: "W feedzie",
+      onPress: () => Alert.alert("Zglos profil", "Zgloszenia wysylasz z karty profilu lub watku rozmowy.")
+    },
+    {
+      title: "Zablokuj uzytkownika",
+      body: "Ukryj profil, przerwij match i zablokuj wiadomosci.",
+      cta: "W feedzie",
+      onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostepne na karcie profilu i w wiadomosciach.")
+    },
+    {
+      title: "Zasady spolecznosci",
+      body: "Szacunek, zgoda, prawdziwa tozsamosc i brak nekania.",
+      cta: "Czytaj",
+      onPress: () => openLegalDocument("Zasady spolecznosci", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL")
+    },
+    {
+      title: "Prywatnosc i dane",
+      body: "Polityka prywatnosci, dane konta, lokalizacja i reklamy.",
+      cta: "Otworz",
+      onPress: () => openLegalDocument("Polityka prywatnosci", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
+    },
+    {
+      title: "Regulamin",
+      body: "Warunki korzystania, platnosci premium i zasady konta.",
+      cta: "Otworz",
+      onPress: () => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")
+    }
   ];
 
   return (
@@ -1914,22 +1996,25 @@ function SafetyCenter({ onBack }: { onBack: () => void }) {
       </View>
 
       <View style={styles.safetyList}>
-        {actions.map(([title, body, cta]) => (
-          <Pressable key={title} style={styles.safetyAction}>
+        {actions.map((action) => (
+          <Pressable key={action.title} onPress={action.onPress} style={styles.safetyAction}>
             <View style={styles.fill}>
-              <Text style={styles.safetyActionTitle} selectable>{title}</Text>
-              <Text style={styles.safetyActionText} selectable>{body}</Text>
+              <Text style={styles.safetyActionTitle} selectable>{action.title}</Text>
+              <Text style={styles.safetyActionText} selectable>{action.body}</Text>
             </View>
-            <Text style={styles.safetyActionCta}>{cta}</Text>
+            <Text style={styles.safetyActionCta}>{action.cta}</Text>
           </Pressable>
         ))}
       </View>
 
       <View style={styles.deleteCard}>
-        <Text style={styles.deleteTitle} selectable>Usunięcie konta w aplikacji</Text>
+        <Text style={styles.deleteTitle} selectable>Usuniecie konta w aplikacji</Text>
         <Text style={styles.deleteText} selectable>
-          App Store wymaga łatwej ścieżki usunięcia konta, jeśli aplikacja pozwala je tworzyć. Ten ekran rezerwuje miejsce na ten flow.
+          Usunie konto Firebase Auth, glowny profil Firestore i zapisze request do kolejki retencji danych.
         </Text>
+        <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={styles.deleteAccountButton}>
+          <Text style={styles.deleteAccountButtonText}>Usun konto</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -3383,6 +3468,20 @@ const styles = StyleSheet.create({
     color: "#d8b5c7",
     fontSize: 13,
     lineHeight: 19
+  },
+  deleteAccountButton: {
+    minHeight: 48,
+    marginTop: 8,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    boxShadow: "0 14px 34px rgba(255,45,141,0.26)"
+  },
+  deleteAccountButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900"
   },
   bottomNav: {
     position: "absolute",

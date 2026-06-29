@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -116,6 +117,30 @@ export async function getUserProfile(uid: string) {
   const currentDb = requireDb();
   const snapshot = await getDoc(doc(currentDb, "users", uid));
   return snapshot.exists() ? (snapshot.data() as UserProfileDocument) : null;
+}
+
+export async function requestAccountDeletionAndDeleteProfile(params: {
+  uid: string;
+  email: string | null;
+  reason?: string;
+}) {
+  const currentDb = requireDb();
+  const deletionRef = doc(currentDb, "accountDeletions", params.uid);
+  const profileRef = doc(currentDb, "users", params.uid);
+
+  await setDoc(
+    deletionRef,
+    {
+      uid: params.uid,
+      email: params.email,
+      reason: params.reason ?? "in-app-delete-account",
+      status: "requested",
+      requestedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await deleteDoc(profileRef);
 }
 
 export async function findProfilesByInterest(interests: string[]) {
