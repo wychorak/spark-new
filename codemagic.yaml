@@ -11,11 +11,11 @@ workflows:
       groups:
         - spark keys
       vars:
-        BUNDLE_ID: "com.spark.connect"
+        BUNDLE_ID: "com.sparknew.connect"
         APP_STORE_APP_ID: "6785284685"
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.spark.connect
+        bundle_identifier: com.sparknew.connect
 
     integrations:
       app_store_connect: codemagic

@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>271339297035-vrhu198aa7ckn9a104eb3h4rd3u6pnvg.apps.googleusercontent.com</string>
+	<string>271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.271339297035-vrhu198aa7ckn9a104eb3h4rd3u6pnvg</string>
+	<string>com.googleusercontent.apps.271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0</string>
 	<key>API_KEY</key>
 	<string>AIzaSyCbq6TsB89sA9PKk23lS7kXZxyKnmSSxX0</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +13,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.spark.connect</string>
+	<string>com.sparknew.connect</string>
 	<key>PROJECT_ID</key>
 	<string>spark-70b03</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:271339297035:ios:ca5b157a11007b6a272a0e</string>
+	<string>1:271339297035:ios:99de5bc38d0c7cb6272a0e</string>
 </dict>
 </plist>

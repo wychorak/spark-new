@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:271339297035:android:601a26ca358ea7af272a0e",
+        "mobilesdk_app_id": "1:271339297035:android:b7875d3c221ee666272a0e",
         "android_client_info": {
-          "package_name": "com.spark.connect"
+          "package_name": "com.sparknew.connect"
         }
       },
       "oauth_client": [
@@ -29,6 +29,14 @@
             {
               "client_id": "271339297035-q7oggbponrnmb8fakreca7nk8p33lg8q.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.sparknew.connect",
+                "app_store_id": "6785284685"
+              }
             }
           ]
         }
