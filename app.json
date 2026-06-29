@@ -1,17 +1,17 @@
 {
   "expo": {
     "name": "Spark",
-    "slug": "spark-cherry-blossom-connect",
+    "slug": "sparknew",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "sparkconnect",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#fbfbfd"
+      "backgroundColor": "#050507"
     },
     "ios": {
       "supportsTablet": true,
@@ -28,7 +28,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#fbfbfd"
+        "backgroundColor": "#050507"
       },
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json"

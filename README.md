@@ -1,4 +1,4 @@
-# Spark - Cherry Blossom Connect
+# Spark
 
 Expo / React Native prototype for an App Store and Google Play ready dating and friend-discovery app.
 
@@ -60,7 +60,7 @@ Before production submission, replace placeholders in `app.json` and `eas.json`:
 
 ## Reference Assets
 
-The `stitch-reference` directory contains downloaded PNG and HTML references from the Stitch project `Cherry Blossom Connect`.
+The `stitch-reference` directory contains downloaded PNG and HTML references from the original Stitch reference project.
 
 See `docs/store-readiness.md` for review and launch requirements still needed before submitting to App Store Connect or Google Play Console.
 

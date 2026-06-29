@@ -38,17 +38,17 @@ import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type Spar
 WebBrowser.maybeCompleteAuthSession();
 
 const colors = {
-  background: "#fbfbfd",
-  surface: "rgba(255,255,255,0.78)",
-  surfaceStrong: "#ffffff",
-  ink: "#1d1d1f",
-  muted: "#86868b",
-  primary: "#ff2d55",
-  primaryDeep: "#ba0034",
-  primarySoft: "#ffdada",
-  line: "rgba(145,110,111,0.18)",
-  green: "#34c759",
-  gold: "#b87a00"
+  background: "#050507",
+  surface: "rgba(20,20,26,0.86)",
+  surfaceStrong: "#15151c",
+  ink: "#f8f4f7",
+  muted: "#a7a0aa",
+  primary: "#ff2d8d",
+  primaryDeep: "#ff69ad",
+  primarySoft: "rgba(255,45,141,0.18)",
+  line: "rgba(255,45,141,0.22)",
+  green: "#42d982",
+  gold: "#ffbd59"
 };
 
 const profileImages = [
@@ -138,7 +138,7 @@ const interestOptions = [
 ];
 
 const interestThemes: Record<string, { soft: string; active: string; border: string; text: string }> = {
-  Filmy: { soft: "rgba(255,45,85,0.12)", active: "#ff2d55", border: "rgba(255,45,85,0.28)", text: "#a20a32" },
+  Filmy: { soft: "rgba(255,45,141,0.12)", active: "#ff2d8d", border: "rgba(255,45,141,0.28)", text: "#ff9ac8" },
   Natura: { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.28)", text: "#176b34" },
   Muzyka: { soft: "rgba(88,86,214,0.12)", active: "#5856d6", border: "rgba(88,86,214,0.28)", text: "#35339a" },
   Kawa: { soft: "rgba(176,111,56,0.14)", active: "#b06f38", border: "rgba(176,111,56,0.28)", text: "#70401f" },
@@ -154,7 +154,7 @@ const interestThemes: Record<string, { soft: string; active: string; border: str
   "Taco Hemingway": { soft: "rgba(255,159,10,0.14)", active: "#ff9f0a", border: "rgba(255,159,10,0.3)", text: "#8a5200" },
   Mata: { soft: "rgba(255,55,95,0.13)", active: "#ff375f", border: "rgba(255,55,95,0.3)", text: "#a40e35" },
   Quebonafide: { soft: "rgba(48,176,199,0.14)", active: "#30b0c7", border: "rgba(48,176,199,0.3)", text: "#11606e" },
-  "Playboi Carti": { soft: "rgba(255,45,85,0.16)", active: "#ff2d55", border: "rgba(255,45,85,0.34)", text: "#a20a32" },
+  "Playboi Carti": { soft: "rgba(255,45,141,0.16)", active: "#ff2d8d", border: "rgba(255,45,141,0.34)", text: "#ff9ac8" },
   "Travis Scott": { soft: "rgba(94,92,230,0.14)", active: "#5e5ce6", border: "rgba(94,92,230,0.3)", text: "#37349b" },
   Drake: { soft: "rgba(10,132,255,0.13)", active: "#0a84ff", border: "rgba(10,132,255,0.3)", text: "#0057a8" },
   "Kendrick Lamar": { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.3)", text: "#176b34" }
@@ -273,7 +273,7 @@ function toggleListItem(items: string[], item: string) {
 
 function getInterestTheme(item: string, index = 0) {
   const fallbackThemes = [
-    { soft: "rgba(255,45,85,0.12)", active: "#ff2d55", border: "rgba(255,45,85,0.28)", text: "#a20a32" },
+    { soft: "rgba(255,45,141,0.12)", active: "#ff2d8d", border: "rgba(255,45,141,0.28)", text: "#ff9ac8" },
     { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.28)", text: "#176b34" },
     { soft: "rgba(88,86,214,0.12)", active: "#5856d6", border: "rgba(88,86,214,0.28)", text: "#35339a" },
     { soft: "rgba(255,149,0,0.14)", active: "#ff9500", border: "rgba(255,149,0,0.28)", text: "#9b5700" },
@@ -600,7 +600,7 @@ function AppContent() {
         socials: {
           instagram: "@alex.spark",
           tiktok: "@alexconnects",
-          spotify: "Cherry walks",
+          spotify: "Pink night walks",
           linkedin: "alex-mercer"
         }
       });
@@ -863,8 +863,8 @@ function AppContent() {
   }
 
   return (
-    <LinearGradient colors={["#fbfbfd", "#fff4f7"]} style={styles.root}>
-      <StatusBar style="dark" />
+    <LinearGradient colors={["#050507", "#150711", "#050507"]} style={styles.root}>
+      <StatusBar style="light" />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
         {tab === "discover" && (
           <DiscoverScreen
@@ -927,7 +927,7 @@ function AppContent() {
         <SparkAdBanner enabled={!revenueCat.isPro && tab !== "premium"} placement={tab} />
       </ScrollView>
 
-      <BlurView intensity={72} tint="light" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         {[
           ["discover", "Discover", "✦"],
           ["matches", "Match", "♡"],
@@ -956,8 +956,8 @@ function AppContent() {
 
 function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; contentPadding: object }) {
   return (
-    <LinearGradient colors={["#fbfbfd", "#fff5f7"]} style={styles.root}>
-      <StatusBar style="dark" />
+    <LinearGradient colors={["#050507", "#12060e", "#050507"]} style={styles.root}>
+      <StatusBar style="light" />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
         {children}
       </ScrollView>
@@ -1010,9 +1010,9 @@ function AuthScreen({
         <View style={styles.logoMark}>
           <Text style={styles.logoText} selectable>S</Text>
         </View>
-        <Text style={styles.eyebrow} selectable>Cherry Blossom Connect</Text>
+        <Text style={styles.eyebrow} selectable>SPARK SOCIAL</Text>
         <Text style={styles.title} selectable>Spark</Text>
-        <Text style={styles.lead} selectable>Logowanie, profile i odkrywanie ludzi w jednym miękkim, mobilnym flow.</Text>
+        <Text style={styles.lead} selectable>Randki, znajomi i rozmowy w ciemnym, rozowym flow.</Text>
       </View>
 
       {!firebaseReady && (
@@ -1562,7 +1562,7 @@ function PremiumScreen({
   return (
     <View style={styles.gapLg}>
       <TopBar eyebrow="Premium" title="Sparknew Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
-      <LinearGradient colors={["#fff7fb", "#ffe3ec", "#f3fbff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.premiumHero}>
+      <LinearGradient colors={["#1b0915", "#2a0b1d", "#07070a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.premiumHero}>
         <View style={styles.premiumHeroTop}>
           <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
           <Text style={styles.premiumCrown} selectable>PRO</Text>
@@ -1663,7 +1663,7 @@ function ProfileScreen({
   openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
 }) {
-  const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Cherry walks"], ["LinkedIn", "alex-mercer"]];
+  const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Pink night walks"], ["LinkedIn", "alex-mercer"]];
   const maxPhotos = hasPro ? 15 : 3;
   const incomingLikeProfiles = matchProfiles.slice(0, 3);
   const proCapabilityRows = [
@@ -2021,7 +2021,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
-    boxShadow: "0 22px 48px rgba(255,45,85,0.28)"
+    boxShadow: "0 24px 58px rgba(255,45,141,0.34)"
   },
   logoText: {
     color: "#fff",
@@ -2044,7 +2044,7 @@ const styles = StyleSheet.create({
   },
   lead: {
     maxWidth: 330,
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 17,
     lineHeight: 26,
     textAlign: "center"
@@ -2069,7 +2069,7 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   nameRow: {
     flexDirection: "row",
@@ -2090,7 +2090,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     color: colors.ink,
     fontSize: 15,
     fontWeight: "700"
@@ -2106,7 +2106,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.72)"
+    backgroundColor: "rgba(22,22,29,0.86)"
   },
   socialLoginText: {
     color: colors.ink,
@@ -2120,9 +2120,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 22,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,218,218,0.56)",
+    backgroundColor: "rgba(255,45,141,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.18)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   configWarningTitle: {
     color: colors.primaryDeep,
@@ -2130,7 +2130,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   configWarningText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 12,
     lineHeight: 18
   },
@@ -2141,17 +2141,17 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   panelLiquid: {
     gap: 12,
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.64)",
+    backgroundColor: "rgba(18,18,25,0.82)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.82)",
-    boxShadow: "0 18px 44px rgba(99,51,61,0.08)"
+    borderColor: "rgba(255,45,141,0.22)",
+    boxShadow: "0 20px 48px rgba(0,0,0,0.34)"
   },
   panelTitle: {
     color: colors.ink,
@@ -2203,13 +2203,13 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.64)",
-    backgroundColor: "rgba(255,255,255,0.64)",
+    borderColor: "rgba(255,45,141,0.16)",
+    backgroundColor: "rgba(18,18,25,0.82)",
     boxShadow: "0 14px 34px rgba(99,51,61,0.07)"
   },
   intentCardActive: {
-    borderColor: "rgba(255,45,85,0.32)",
-    backgroundColor: "rgba(255,255,255,0.94)"
+    borderColor: "rgba(255,45,141,0.32)",
+    backgroundColor: "rgba(34,20,31,0.96)"
   },
   intentIcon: {
     width: 52,
@@ -2243,9 +2243,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.14)"
+    borderColor: "rgba(255,45,141,0.14)"
   },
   noticeTitle: {
     color: colors.ink,
@@ -2254,7 +2254,7 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     marginTop: 4,
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 13,
     lineHeight: 19
   },
@@ -2263,10 +2263,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.82)",
-    boxShadow: "0 16px 36px rgba(99,51,61,0.08)"
+    borderColor: "rgba(255,45,141,0.22)",
+    boxShadow: "0 18px 42px rgba(0,0,0,0.32)"
   },
   ageChoiceRow: {
     flexDirection: "row",
@@ -2281,11 +2281,11 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     borderWidth: 1,
     borderColor: "rgba(145,110,111,0.14)",
-    backgroundColor: "rgba(255,255,255,0.72)"
+    backgroundColor: "rgba(22,22,29,0.86)"
   },
   ageChoiceActive: {
-    borderColor: "rgba(255,45,85,0.34)",
-    backgroundColor: "rgba(255,218,229,0.68)"
+    borderColor: "rgba(255,45,141,0.34)",
+    backgroundColor: "rgba(255,45,141,0.2)"
   },
   ageChoiceDisabled: {
     opacity: 0.45
@@ -2316,11 +2316,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
-    boxShadow: "0 16px 36px rgba(255,45,85,0.3)"
+    boxShadow: "0 18px 44px rgba(255,45,141,0.32)"
   },
   primaryButtonDisabled: {
-    backgroundColor: "rgba(255,45,85,0.42)",
-    boxShadow: "0 8px 20px rgba(255,45,85,0.14)"
+    backgroundColor: "rgba(255,45,141,0.42)",
+    boxShadow: "0 8px 20px rgba(255,45,141,0.14)"
   },
   primaryButtonText: {
     color: "#fff",
@@ -2333,18 +2333,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.16)"
+    borderColor: "rgba(255,45,141,0.16)"
   },
   secondaryButtonWide: {
     minHeight: 50,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.16)"
+    borderColor: "rgba(255,45,141,0.16)"
   },
   secondaryButtonText: {
     color: colors.primaryDeep,
@@ -2356,16 +2356,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.76)",
+    backgroundColor: "rgba(24,24,31,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   purchaseActionsRow: {
     flexDirection: "row",
     gap: 10
   },
   purchaseHint: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 12,
     lineHeight: 18
   },
@@ -2381,12 +2381,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.12)"
+    borderColor: "rgba(255,45,141,0.12)"
   },
   monetizationStatusText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "800"
@@ -2404,7 +2404,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.7)",
+    borderColor: "rgba(255,45,141,0.18)",
     boxShadow: "0 10px 24px rgba(99,51,61,0.08)"
   },
   iconButtonText: {
@@ -2423,9 +2423,9 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.62)",
+    backgroundColor: "rgba(18,18,25,0.78)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.66)"
+    borderColor: "rgba(255,45,141,0.16)"
   },
   segmentButton: {
     flex: 1,
@@ -2435,8 +2435,8 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   segmentButtonActive: {
-    backgroundColor: "#fff",
-    boxShadow: "0 8px 20px rgba(99,51,61,0.08)"
+    backgroundColor: colors.surfaceStrong,
+    boxShadow: "0 12px 30px rgba(0,0,0,0.34)"
   },
   segmentText: {
     color: colors.muted,
@@ -2452,8 +2452,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 34,
     borderCurve: "continuous",
-    backgroundColor: "#eee",
-    boxShadow: "0 26px 64px rgba(63,28,36,0.18)"
+    backgroundColor: "#15151c",
+    boxShadow: "0 28px 70px rgba(0,0,0,0.5)"
   },
   profileImage: {
     width: "100%",
@@ -2481,9 +2481,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
     color: "#442129",
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: "rgba(255,45,141,0.18)",
     fontSize: 13,
     fontWeight: "900"
   },
@@ -2503,7 +2503,7 @@ const styles = StyleSheet.create({
     color: "#3a2500",
     backgroundColor: colors.gold,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.68)",
+    borderColor: "rgba(255,45,141,0.24)",
     fontSize: 12,
     fontWeight: "900"
   },
@@ -2541,7 +2541,7 @@ const styles = StyleSheet.create({
   },
   socialPill: {
     color: colors.ink,
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     overflow: "hidden",
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -2557,9 +2557,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.56)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   matchScoreText: {
     color: colors.primaryDeep,
@@ -2567,7 +2567,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   matchReasonText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 10,
     fontWeight: "800"
   },
@@ -2581,9 +2581,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.14)"
+    borderColor: "rgba(255,45,141,0.14)"
   },
   profileSafetyText: {
     color: colors.primaryDeep,
@@ -2601,7 +2601,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     boxShadow: "0 16px 34px rgba(99,51,61,0.12)"
   },
   roundActionLarge: {
@@ -2610,7 +2610,7 @@ const styles = StyleSheet.create({
   },
   roundActionPrimary: {
     backgroundColor: colors.primary,
-    boxShadow: "0 18px 40px rgba(255,45,85,0.35)"
+    boxShadow: "0 18px 40px rgba(255,45,141,0.35)"
   },
   roundActionText: {
     color: colors.ink,
@@ -2632,9 +2632,9 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.12)"
+    borderColor: "rgba(255,45,141,0.12)"
   },
   premiumIcon: {
     color: colors.primaryDeep,
@@ -2652,8 +2652,8 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.82)",
-    boxShadow: "0 24px 60px rgba(255,45,85,0.18)"
+    borderColor: "rgba(255,45,141,0.22)",
+    boxShadow: "0 26px 70px rgba(255,45,141,0.22)"
   },
   premiumHeroTop: {
     flexDirection: "row",
@@ -2687,7 +2687,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   premiumHeroText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 14,
     lineHeight: 21
   },
@@ -2702,9 +2702,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
     color: colors.primaryDeep,
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.14)",
+    borderColor: "rgba(255,45,141,0.14)",
     fontSize: 12,
     fontWeight: "900"
   },
@@ -2716,15 +2716,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.76)",
-    boxShadow: "0 14px 34px rgba(99,51,61,0.08)"
+    borderColor: "rgba(255,45,141,0.18)",
+    boxShadow: "0 18px 42px rgba(0,0,0,0.34)"
   },
   planCardActive: {
-    borderColor: "rgba(255,45,85,0.38)",
-    backgroundColor: "rgba(255,255,255,0.94)",
-    boxShadow: "0 20px 44px rgba(255,45,85,0.14)"
+    borderColor: "rgba(255,45,141,0.38)",
+    backgroundColor: "rgba(34,20,31,0.96)",
+    boxShadow: "0 20px 44px rgba(255,45,141,0.14)"
   },
   planHeader: {
     flexDirection: "row",
@@ -2750,7 +2750,7 @@ const styles = StyleSheet.create({
     gap: 6
   },
   planFeature: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 13,
     lineHeight: 19
   },
@@ -2765,7 +2765,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "#fff",
+    backgroundColor: colors.surfaceStrong,
     boxShadow: "0 16px 34px rgba(99,51,61,0.08)"
   },
   matchImage: {
@@ -2794,7 +2794,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.66)"
+    borderColor: "rgba(255,45,141,0.16)"
   },
   searchIcon: {
     color: colors.muted,
@@ -2841,17 +2841,17 @@ const styles = StyleSheet.create({
   },
   chatItemActive: {
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.2)",
-    backgroundColor: "rgba(255,255,255,0.92)"
+    borderColor: "rgba(255,45,141,0.2)",
+    backgroundColor: "rgba(32,20,30,0.94)"
   },
   threadPanel: {
     gap: 14,
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.76)",
+    backgroundColor: "rgba(24,24,31,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   threadHeader: {
     flexDirection: "row",
@@ -2880,7 +2880,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,218,229,0.64)"
+    backgroundColor: "rgba(255,45,141,0.18)"
   },
   threadActionText: {
     color: colors.primaryDeep,
@@ -2892,9 +2892,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,218,229,0.48)",
+    backgroundColor: "rgba(255,45,141,0.16)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.13)"
+    borderColor: "rgba(255,45,141,0.13)"
   },
   requestTitle: {
     color: colors.primaryDeep,
@@ -2902,7 +2902,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   requestText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 12,
     lineHeight: 18
   },
@@ -2916,7 +2916,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.84)"
+    backgroundColor: "rgba(30,30,38,0.9)"
   },
   messageBubbleMine: {
     alignSelf: "flex-end",
@@ -2938,7 +2938,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     borderWidth: 1,
     borderColor: "rgba(145,110,111,0.12)"
   },
@@ -2959,7 +2959,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary
   },
   messageSendButtonDisabled: {
-    backgroundColor: "rgba(255,45,85,0.32)"
+    backgroundColor: "rgba(255,45,141,0.32)"
   },
   messageSendText: {
     color: "#fff",
@@ -2972,9 +2972,9 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.76)",
+    backgroundColor: "rgba(24,24,31,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)",
+    borderColor: "rgba(255,45,141,0.18)",
     boxShadow: "0 16px 34px rgba(99,51,61,0.08)"
   },
   emptyStateTitle: {
@@ -2996,8 +2996,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 34,
     borderCurve: "continuous",
-    backgroundColor: "#eee",
-    boxShadow: "0 24px 60px rgba(63,28,36,0.16)"
+    backgroundColor: "#15151c",
+    boxShadow: "0 26px 66px rgba(0,0,0,0.44)"
   },
   profileHeroImage: {
     width: "100%",
@@ -3024,7 +3024,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
     color: colors.ink,
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     fontSize: 12,
     fontWeight: "900"
   },
@@ -3069,9 +3069,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 22,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   photoSlotImage: {
     width: "100%",
@@ -3095,7 +3095,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     color: colors.ink,
     textAlign: "center",
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     fontSize: 10,
     fontWeight: "900"
   },
@@ -3126,7 +3126,7 @@ const styles = StyleSheet.create({
     color: "#3a2500",
     backgroundColor: colors.gold,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)",
+    borderColor: "rgba(255,45,141,0.18)",
     fontSize: 12,
     fontWeight: "900"
   },
@@ -3140,7 +3140,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   profileDescription: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 15,
     lineHeight: 23
   },
@@ -3172,9 +3172,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 24,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.12)"
+    borderColor: "rgba(255,45,141,0.12)"
   },
   proFeatureHeader: {
     flexDirection: "row",
@@ -3189,7 +3189,7 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   proFeatureText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "800"
@@ -3212,9 +3212,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 24,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,247,251,0.88)",
+    backgroundColor: "rgba(34,12,25,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.16)"
+    borderColor: "rgba(255,45,141,0.16)"
   },
   incomingLikesCount: {
     minWidth: 42,
@@ -3224,7 +3224,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     color: colors.primaryDeep,
     textAlign: "center",
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: "rgba(30,30,38,0.9)",
     fontSize: 12,
     fontWeight: "900"
   },
@@ -3255,9 +3255,9 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.76)",
+    backgroundColor: "rgba(24,24,31,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.14)"
+    borderColor: "rgba(255,45,141,0.14)"
   },
   lockedLikesText: {
     color: colors.primaryDeep,
@@ -3276,7 +3276,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255,255,255,0.72)"
+    backgroundColor: "rgba(22,22,29,0.86)"
   },
   settingsList: {
     gap: 10
@@ -3307,9 +3307,9 @@ const styles = StyleSheet.create({
     padding: 22,
     borderRadius: 30,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "rgba(26,26,34,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.74)",
+    borderColor: "rgba(255,45,141,0.2)",
     boxShadow: "0 18px 42px rgba(99,51,61,0.1)"
   },
   safetyHeroIcon: {
@@ -3332,7 +3332,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   safetyHeroText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 14,
     lineHeight: 21
   },
@@ -3370,9 +3370,9 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 24,
     borderCurve: "continuous",
-    backgroundColor: "rgba(255,218,218,0.5)",
+    backgroundColor: "rgba(255,45,141,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,85,0.14)"
+    borderColor: "rgba(255,45,141,0.14)"
   },
   deleteTitle: {
     color: colors.primaryDeep,
@@ -3380,7 +3380,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   deleteText: {
-    color: "#5d3f40",
+    color: "#d8b5c7",
     fontSize: 13,
     lineHeight: 19
   },
@@ -3396,7 +3396,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.74)"
+    borderColor: "rgba(255,45,141,0.2)"
   },
   navButton: {
     flex: 1,
@@ -3407,7 +3407,7 @@ const styles = StyleSheet.create({
     gap: 2
   },
   navButtonActive: {
-    backgroundColor: "rgba(255,218,218,0.72)"
+    backgroundColor: "rgba(255,45,141,0.22)"
   },
   navIcon: {
     color: colors.muted,
