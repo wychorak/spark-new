@@ -1111,14 +1111,8 @@ function AuthScreen({
       </View>
 
       <View style={styles.socialLoginGrid}>
-        <Pressable style={styles.socialLoginButton}>
-          <Text style={styles.socialLoginText}>Apple</Text>
-        </Pressable>
         <Pressable disabled={!firebaseReady || !googleReady || authBusy} onPress={onGoogle} style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}>
           <Text style={styles.socialLoginText}>Google</Text>
-        </Pressable>
-        <Pressable style={styles.socialLoginButton}>
-          <Text style={styles.socialLoginText}>Instagram</Text>
         </Pressable>
       </View>
 
