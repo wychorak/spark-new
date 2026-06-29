@@ -70,6 +70,8 @@ function openLegalDocument(title: string, url: string, envName: string) {
     Alert.alert(title, `Nie mozna otworzyc linku. Kontakt: ${supportEmail}`);
   });
 }
+const brandLogoImage = require("./assets/photologo.png");
+
 const profileImages = [
   require("./assets/profiles/profile-1.jpg"),
   require("./assets/profiles/profile-2.jpg"),
@@ -1102,7 +1104,7 @@ function AuthScreen({
     <View style={styles.gapLg}>
       <View style={styles.brandCompact}>
         <View style={styles.logoMark}>
-          <Text style={styles.logoText} selectable>S</Text>
+          <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <Text style={styles.eyebrow} selectable>SPARK SOCIAL</Text>
         <Text style={styles.title} selectable>Spark</Text>
@@ -1191,7 +1193,7 @@ function OnboardingScreen({
     <View style={styles.gapLg}>
       <View style={styles.brand}>
         <View style={styles.logoMark}>
-          <Text style={styles.logoText} selectable>S</Text>
+          <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <Text style={styles.eyebrow} selectable>Start profilu</Text>
         <Text style={styles.screenHeroTitle} selectable>Znajdz swoj krag</Text>
@@ -2158,13 +2160,15 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.28)",
     boxShadow: "0 24px 58px rgba(255,45,141,0.34)"
   },
-  logoText: {
-    color: "#fff",
-    fontSize: 48,
-    fontWeight: "800"
+  logoImage: {
+    width: "100%",
+    height: "100%"
   },
   eyebrow: {
     color: colors.primary,

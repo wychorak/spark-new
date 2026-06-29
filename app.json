@@ -4,12 +4,12 @@
     "slug": "sparknew",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon main.png",
     "scheme": "sparkconnect",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/photologo.png",
       "resizeMode": "contain",
       "backgroundColor": "#050507"
     },
@@ -27,7 +27,7 @@
       "package": "com.spark.cherryblossomconnect",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon main.png",
         "backgroundColor": "#050507"
       },
       "edgeToEdgeEnabled": true,
