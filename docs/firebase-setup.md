@@ -11,12 +11,12 @@ Resolved project ID: `spark-70b03`.
 - Firestore location: `eur3`.
 - Firestore rules and indexes deployed from this repo.
 - iOS app registered:
-  - Bundle ID: `com.spark.cherryblossomconnect`
-  - App ID: `1:271339297035:ios:36ed0edfb102515b272a0e`
+  - Bundle ID: `com.spark.connect`
+  - App ID: `1:271339297035:ios:ca5b157a11007b6a272a0e`
   - Config file: `GoogleService-Info.plist`
 - Android app registered:
-  - Package: `com.spark.cherryblossomconnect`
-  - App ID: `1:271339297035:android:3adc1df993132323272a0e`
+  - Package: `com.spark.connect`
+  - App ID: `1:271339297035:android:601a26ca358ea7af272a0e`
   - Config file: `google-services.json`
 - Web app registered for Expo/Firebase JS SDK:
   - App ID: `1:271339297035:web:cdb95d58b3e84a44272a0e`
@@ -31,7 +31,7 @@ Current client IDs:
 
 ```powershell
 EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID=271339297035-q7oggbponrnmb8fakreca7nk8p33lg8q.apps.googleusercontent.com
-EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=271339297035-dpvst0c6k6aj3voh0h2avn05lsneiivo.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=271339297035-vrhu198aa7ckn9a104eb3h4rd3u6pnvg.apps.googleusercontent.com
 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=271339297035-q7oggbponrnmb8fakreca7nk8p33lg8q.apps.googleusercontent.com
 ```

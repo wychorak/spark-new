@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   ios-testflight:
     name: Spark iOS TestFlight
     max_build_duration: 120
@@ -11,11 +11,11 @@
       groups:
         - spark keys
       vars:
-        BUNDLE_ID: "com.spark.cherryblossomconnect"
+        BUNDLE_ID: "com.spark.connect"
         APP_STORE_APP_ID: "6785284685"
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.spark.cherryblossomconnect
+        bundle_identifier: com.spark.connect
 
     integrations:
       app_store_connect: codemagic

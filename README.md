@@ -21,8 +21,8 @@ Current front-end coverage:
 
 Firebase is wired to project `spark-70b03` / number `271339297035`.
 
-- iOS app registered: `com.spark.cherryblossomconnect`
-- Android app registered: `com.spark.cherryblossomconnect`
+- iOS app registered: `com.spark.connect`
+- Android app registered: `com.spark.connect`
 - Web app registered for Expo/Firebase JS SDK config
 - Firestore database created in `eur3`
 - Firestore rules and indexes are deployable from this repo
