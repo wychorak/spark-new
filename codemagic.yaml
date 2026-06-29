@@ -1,0 +1,61 @@
+﻿workflows:
+  ios-testflight:
+    name: Spark iOS TestFlight
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    environment:
+      node: latest
+      xcode: latest
+      cocoapods: default
+      groups:
+        - spark_env
+      vars:
+        BUNDLE_ID: "com.spark.cherryblossomconnect"
+        APP_STORE_APP_ID: "6785284685"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.spark.cherryblossomconnect
+
+    integrations:
+      app_store_connect: codemagic
+
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Validate TypeScript
+        script: |
+          npm run typecheck
+
+      - name: Generate iOS project from Expo
+        script: |
+          npx expo prebuild --platform ios --clean --non-interactive
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+
+      - name: Configure code signing
+        script: |
+          xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/Spark.xcworkspace \
+            --scheme Spark
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
