@@ -9,7 +9,7 @@
       xcode: latest
       cocoapods: default
       groups:
-        - spark_env
+        - spark keys
       vars:
         BUNDLE_ID: "com.spark.cherryblossomconnect"
         APP_STORE_APP_ID: "6785284685"
