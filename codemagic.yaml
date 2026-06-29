@@ -29,6 +29,10 @@ workflows:
         script: |
           npm run typecheck
 
+      - name: Set iOS build number
+        script: |
+          node -e "const fs=require('fs'); const buildNumber=String(process.env.CM_BUILD_NUMBER||process.env.BUILD_NUMBER||'2'); const app=JSON.parse(fs.readFileSync('app.json','utf8')); app.expo.ios=app.expo.ios||{}; app.expo.ios.buildNumber=buildNumber; fs.writeFileSync('app.json', JSON.stringify(app,null,2)+'\n'); console.log('Using iOS build number', buildNumber);"
+
       - name: Generate iOS project from Expo
         script: |
           npx expo prebuild --platform ios --clean --non-interactive
