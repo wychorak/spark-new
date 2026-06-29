@@ -39,7 +39,11 @@ export type RevenueCatState = {
 let didConfigureRevenueCat = false;
 
 function getRevenueCatApiKey() {
-  return process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || "test_ZXrasnBoneOhTMZGyJXoPEEacNC";
+  return process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || (__DEV__ ? "test_ZXrasnBoneOhTMZGyJXoPEEacNC" : "");
+}
+
+function isRevenueCatApiKeyUsable(apiKey: string) {
+  return Boolean(apiKey) && (__DEV__ || !apiKey.startsWith("test_"));
 }
 
 function getErrorMessage(error: unknown) {
@@ -127,8 +131,17 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
 
     Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
 
+    const apiKey = getRevenueCatApiKey();
+
+    if (!isRevenueCatApiKeyUsable(apiKey)) {
+      setConfigured(false);
+      setIsLoading(false);
+      setError("RevenueCat iOS public SDK key is missing or uses a test_ simulated-store key.");
+      return undefined;
+    }
+
     if (!didConfigureRevenueCat) {
-      Purchases.configure({ apiKey: getRevenueCatApiKey() });
+      Purchases.configure({ apiKey });
       didConfigureRevenueCat = true;
     }
 
