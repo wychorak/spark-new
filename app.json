@@ -7,12 +7,6 @@
     "icon": "./assets/icon main.png",
     "scheme": "sparkconnect",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/photologo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#050507"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.spark.cherryblossomconnect",
@@ -30,12 +24,14 @@
         "foregroundImage": "./assets/icon main.png",
         "backgroundColor": "#050507"
       },
-      "edgeToEdgeEnabled": true,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "extra": {
       "eas": {
-        "projectId": "replace-with-eas-project-id"
+        "projectId": "44c87af0-9b3a-48cb-ba98-6a57372c45c9"
       }
     },
     "plugins": [
@@ -61,7 +57,21 @@
           "optimizeInitialization": true,
           "optimizeAdLoading": true
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/photologo.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#050507",
+          "dark": {
+            "image": "./assets/photologo.png",
+            "backgroundColor": "#050507"
+          }
+        }
       ]
-    ]
+    ],
+    "owner": "wychorakkffd"
   }
 }
