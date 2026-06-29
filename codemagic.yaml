@@ -18,7 +18,7 @@ workflows:
         bundle_identifier: com.sparknew.connect
 
     integrations:
-      app_store_connect: codemagic
+      app_store_connect: wychor appstoreconnectkey
 
     scripts:
       - name: Install dependencies
