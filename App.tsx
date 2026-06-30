@@ -1081,13 +1081,13 @@ function SparkTitle() {
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          duration: 1800,
+          duration: 2200,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true
         }),
         Animated.timing(pulse, {
           toValue: 0,
-          duration: 1800,
+          duration: 2200,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true
         })
@@ -1098,18 +1098,20 @@ function SparkTitle() {
     return () => animation.stop();
   }, [pulse]);
 
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.92] });
-  const pinkLayerOpacity = pulse.interpolate({ inputRange: [0, 0.52, 1], outputRange: [0.08, 0.85, 0.18] });
-  const darkLayerOpacity = pulse.interpolate({ inputRange: [0, 0.52, 1], outputRange: [0.2, 0.05, 0.42] });
-  const translateX = pulse.interpolate({ inputRange: [0, 1], outputRange: [-1.5, 1.5] });
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.36, 0.96, 0.42] });
+  const pinkLayerOpacity = pulse.interpolate({ inputRange: [0, 0.48, 1], outputRange: [0.14, 0.78, 0.22] });
+  const shimmerOpacity = pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.75, 0] });
+  const shimmerX = pulse.interpolate({ inputRange: [0, 1], outputRange: [-68, 68] });
+  const translateY = pulse.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+  const rotate = pulse.interpolate({ inputRange: [0, 1], outputRange: ["-2deg", "1deg"] });
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.024] });
 
   return (
-    <Animated.View accessibilityLabel="Spark" style={[styles.sparkTitleWrap, { transform: [{ scale }] }]}>
+    <Animated.View accessibilityLabel="Spark" style={[styles.sparkTitleWrap, { transform: [{ translateY }, { scale }, { rotate }] }]}>
       <Animated.Text selectable={false} style={[styles.sparkTitleGlow, { opacity: glowOpacity }]}>Spark</Animated.Text>
-      <Animated.Text selectable={false} style={[styles.sparkTitleDark, { opacity: darkLayerOpacity }]}>Spark</Animated.Text>
-      <Animated.Text selectable={false} style={[styles.sparkTitlePink, { opacity: pinkLayerOpacity, transform: [{ translateX }] }]}>Spark</Animated.Text>
+      <Animated.Text selectable={false} style={[styles.sparkTitlePink, { opacity: pinkLayerOpacity }]}>Spark</Animated.Text>
       <Text style={styles.sparkTitle} selectable>Spark</Text>
+      <Animated.View style={[styles.sparkTitleShimmer, { opacity: shimmerOpacity, transform: [{ translateX: shimmerX }, { rotate: "-14deg" }] }]} />
     </Animated.View>
   );
 }
@@ -2328,55 +2330,55 @@ const styles = StyleSheet.create({
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 70,
-    paddingHorizontal: 16
+    minHeight: 76,
+    paddingHorizontal: 20,
+    overflow: "hidden"
   },
   sparkTitle: {
     color: colors.ink,
-    fontFamily: "Helvetica Neue",
-    fontSize: 58,
+    fontFamily: "Arial Rounded MT Bold",
+    fontSize: 62,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 66,
-    textShadowColor: "rgba(255,255,255,0.42)",
+    lineHeight: 70,
+    transform: [{ skewX: "-8deg" }],
+    textShadowColor: "rgba(255,255,255,0.36)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 14
   },
   sparkTitleGlow: {
     position: "absolute",
     color: colors.primary,
-    fontFamily: "Helvetica Neue",
-    fontSize: 58,
+    fontFamily: "Arial Rounded MT Bold",
+    fontSize: 62,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 66,
+    lineHeight: 70,
+    transform: [{ skewX: "-8deg" }],
     textShadowColor: colors.primary,
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 26
+    textShadowRadius: 30
   },
   sparkTitlePink: {
     position: "absolute",
-    color: colors.primary,
-    fontFamily: "Helvetica Neue",
-    fontSize: 58,
+    color: colors.primaryDeep,
+    fontFamily: "Arial Rounded MT Bold",
+    fontSize: 62,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 66,
+    lineHeight: 70,
+    transform: [{ translateX: 2 }, { translateY: 2 }, { skewX: "-8deg" }],
     textShadowColor: "rgba(255,45,141,0.95)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 18
   },
-  sparkTitleDark: {
+  sparkTitleShimmer: {
     position: "absolute",
-    color: "#050507",
-    fontFamily: "Helvetica Neue",
-    fontSize: 58,
-    fontWeight: "900",
-    letterSpacing: 0,
-    lineHeight: 66,
-    textShadowColor: "rgba(255,45,141,0.35)",
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 10
+    width: 26,
+    height: 78,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    boxShadow: "0 0 22px rgba(255,255,255,0.72)"
   },
   lead: {
     maxWidth: 330,
