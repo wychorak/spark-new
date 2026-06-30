@@ -171,15 +171,15 @@ const interestOptions = [
   "Kawa",
   "Sport",
   "Sztuka",
-  "Podróże",
+  "PodrĂłĹĽe",
   "Gaming",
-  "Książki",
+  "KsiÄ…ĹĽki",
   "Kuchnia",
   "Fotografia",
   "Tech",
   "Joga",
   "Koncerty",
-  "Planszówki",
+  "PlanszĂłwki",
   "LGBT+",
   "Taco Hemingway",
   "Mata",
@@ -224,7 +224,7 @@ const matchProfiles: MatchProfile[] = [
     surname: "Nowak",
     age: 24,
     city: "Warszawa",
-    bio: "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu.",
+    bio: "Projektantka, Ĺ‚owczyni ukrytych kawiarni i galerii. Szuka kogoĹ› do rozmĂłw bez poĹ›piechu.",
     distance: "2 km",
     latitude: 52.2297,
     longitude: 21.0122,
@@ -242,8 +242,8 @@ const matchProfiles: MatchProfile[] = [
     name: "Lena",
     surname: "Kowalska",
     age: 27,
-    city: "Kraków",
-    bio: "Fotografia analogowa, góry i niedzielne brunche. Najbardziej lubi ludzi, którzy pytają drugi raz.",
+    city: "KrakĂłw",
+    bio: "Fotografia analogowa, gĂłry i niedzielne brunche. Najbardziej lubi ludzi, ktĂłrzy pytajÄ… drugi raz.",
     distance: "5 km",
     latitude: 50.0647,
     longitude: 19.945,
@@ -258,10 +258,10 @@ const matchProfiles: MatchProfile[] = [
   },
   {
     name: "Kuba",
-    surname: "Zieliński",
+    surname: "ZieliĹ„ski",
     age: 29,
-    city: "Gdańsk",
-    bio: "Koncerty, rower i dokumenty muzyczne. Zawsze zna mały lokal z dobrą sceną.",
+    city: "GdaĹ„sk",
+    bio: "Koncerty, rower i dokumenty muzyczne. Zawsze zna maĹ‚y lokal z dobrÄ… scenÄ….",
     distance: "8 km",
     latitude: 54.352,
     longitude: 18.6466,
@@ -276,10 +276,10 @@ const matchProfiles: MatchProfile[] = [
   },
   {
     name: "Mia",
-    surname: "Wiśniewska",
+    surname: "WiĹ›niewska",
     age: 25,
-    city: "Poznań",
-    bio: "Ceramika, książki i wypady za miasto. Ceni ciepły humor i jasne intencje.",
+    city: "PoznaĹ„",
+    bio: "Ceramika, ksiÄ…ĹĽki i wypady za miasto. Ceni ciepĹ‚y humor i jasne intencje.",
     distance: "3 km",
     latitude: 52.4064,
     longitude: 16.9252,
@@ -1023,13 +1023,13 @@ function AppContent() {
         <SparkAdBanner enabled={!revenueCat.isPro && tab !== "premium"} placement={tab} />
       </ScrollView>
 
-      <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         {[
-          ["discover", "Discover", "✦"],
-          ["matches", "Match", "♡"],
-          ["messages", "Wiadomosci", "msg"],
-          ["premium", "Premium", "✧"],
-          ["profile", "Profile", "◦"]
+          ["discover", "Odkryj", "cards-heart"],
+          ["matches", "Matche", "heart-multiple"],
+          ["messages", "WiadomoĹ›ci", "message-text"],
+          ["premium", "Pro", "crown"],
+          ["profile", "Profil", "account-circle"]
         ].map(([key, label, icon]) => (
           <Pressable
             key={key}
@@ -1041,7 +1041,7 @@ function AppContent() {
             }}
             style={[styles.navButton, tab === key && styles.navButtonActive]}
           >
-            <Text style={[styles.navIcon, tab === key && styles.navTextActive]}>{icon}</Text>
+            <MaterialCommunityIcons name={icon as any} size={22} color={tab === key ? colors.primary : colors.muted} />
             <Text style={[styles.navText, tab === key && styles.navTextActive]}>{label}</Text>
           </Pressable>
         ))}
@@ -1106,23 +1106,23 @@ function AuthScreen({
         <View style={styles.logoMark}>
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
-        <Text style={styles.eyebrow} selectable>SPARK SOCIAL</Text>
+        <Text style={styles.eyebrow} selectable>SPARK</Text>
         <Text style={styles.title} selectable>Spark</Text>
-        <Text style={styles.lead} selectable>Randki, znajomi i rozmowy w ciemnym, rozowym flow.</Text>
+        <Text style={styles.lead} selectable>Randki, znajomi i rozmowy w czarno-rĂłĹĽowym stylu.</Text>
       </View>
 
       {!firebaseReady && (
         <View style={styles.configWarning}>
-          <Text style={styles.configWarningTitle} selectable>Firebase config required</Text>
+          <Text style={styles.configWarningTitle} selectable>Konfiguracja Firebase</Text>
           <Text style={styles.configWarningText} selectable>
-            Uzupełnij .env wartościami EXPO_PUBLIC_FIREBASE_*. Brakuje: {firebaseMissingConfig.join(", ")}.
+            UzupeĹ‚nij .env wartoĹ›ciami EXPO_PUBLIC_FIREBASE_*. Brakuje: {firebaseMissingConfig.join(", ")}.
           </Text>
         </View>
       )}
 
       {authError && (
         <View style={styles.configWarning}>
-          <Text style={styles.configWarningTitle} selectable>Auth error</Text>
+          <Text style={styles.configWarningTitle} selectable>Nie udaĹ‚o siÄ™ zalogowaÄ‡</Text>
           <Text style={styles.configWarningText} selectable>{authError}</Text>
         </View>
       )}
@@ -1144,9 +1144,9 @@ function AuthScreen({
 
         )}
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
-        <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
+        <TextField label="HasĹ‚o" value={password} onChangeText={setPassword} secureTextEntry />
         <Pressable accessibilityRole="button" disabled={!firebaseReady || authBusy} onPress={onContinue} style={[styles.primaryButton, (!firebaseReady || authBusy) && styles.primaryButtonDisabled]}>
-          <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
+          <Text style={styles.primaryButtonText}>{authBusy ? "ĹÄ…czenie..." : authMode === "login" ? "Zaloguj" : "UtwĂłrz konto"}</Text>
         </Pressable>
       </View>
 
@@ -1196,15 +1196,15 @@ function OnboardingScreen({
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <Text style={styles.eyebrow} selectable>Start profilu</Text>
-        <Text style={styles.screenHeroTitle} selectable>Znajdz swoj krag</Text>
-        <Text style={styles.lead} selectable>Wybierz cel, ustaw bezpieczny tryb wieku i zaznacz kilka zainteresowan dla algorytmu.</Text>
+        <Text style={styles.screenHeroTitle} selectable>ZnajdĹş swĂłj krÄ…g</Text>
+        <Text style={styles.lead} selectable>Wybierz cel, wiek i kilka zainteresowaĹ„. Spark uĹĽyje ich do pierwszych propozycji.</Text>
       </View>
 
       <View style={styles.intentList}>
         {[
-          ["Randki", "Chemia, rozmowy, spotkania", "heart"],
-          ["Znajomi", "Kawa, planszowki, miasto", "spark"],
-          ["LGBT+ / Spolecznosc", "Grupy, wydarzenia, znajomosci", "wave"]
+          ["Randki", "Chemia, rozmowy, spotkania", "heart-outline"],
+          ["Znajomi", "Kawa, planszĂłwki, miasto", "coffee-outline"],
+          ["LGBT+ / SpoĹ‚ecznoĹ›Ä‡", "Grupy, wydarzenia, znajomoĹ›ci", "account-group-outline"]
         ].map(([label, description, icon]) => (
           <Pressable
             key={label}
@@ -1218,7 +1218,7 @@ function OnboardingScreen({
             style={[styles.intentCard, intent === label && styles.intentCardActive]}
           >
             <View style={styles.intentIcon}>
-              <Text style={styles.intentIconText}>{icon}</Text>
+              <MaterialCommunityIcons name={icon as any} size={25} color={colors.primaryDeep} />
             </View>
             <View style={styles.fill}>
               <Text style={styles.intentTitle} selectable>{label}</Text>
@@ -1230,12 +1230,12 @@ function OnboardingScreen({
 
       <View style={styles.panelLiquid}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Kolorowe badge pomagaja matchowac profile, rozmowy i wydarzenia. Mozesz wybrac wiele.</Text>
+        <Text style={styles.panelText} selectable>Wybierz kilka tagĂłw. Im wiÄ™cej wspĂłlnych sygnaĹ‚Ăłw, tym lepsze propozycje.</Text>
         <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
       </View>
 
       <View style={styles.agePanel}>
-        <Text style={styles.panelTitle} selectable>Wiek i bezpieczenstwo</Text>
+        <Text style={styles.panelTitle} selectable>Wiek i bezpieczeĹ„stwo</Text>
         <Text style={styles.panelText} selectable>
           Randki sa tylko dla 18+. Dla znajomych i spolecznosci mozna wybrac tryb ponizej 18 lat.
         </Text>
@@ -1264,7 +1264,7 @@ function OnboardingScreen({
       </View>
 
       <Pressable accessibilityRole="button" disabled={!canContinue} onPress={onContinue} style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{canContinue ? "Kontynuuj" : "Wybierz 3 badge i ustaw wiek"}</Text>
+        <Text style={styles.primaryButtonText}>{canContinue ? "Kontynuuj" : "Wybierz 3 tagi i ustaw wiek"}</Text>
       </Pressable>
     </View>
   );
@@ -1298,9 +1298,9 @@ function DiscoverScreen({
 }) {
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Prosba";
   const premiumActions: Array<{ label: string; icon: string; onPress: () => void }> = [
-    { label: "Superlike", icon: "pro", onPress: () => onSwipe("superlike") },
-    { label: premiumChatLabel, icon: "msg", onPress: onPremiumChatRequest },
-    { label: "Zapisz", icon: "save", onPress: () => undefined }
+    { label: "Superlike", icon: "star-four-points", onPress: () => onSwipe("superlike") },
+    { label: premiumChatLabel, icon: "message-text", onPress: onPremiumChatRequest },
+    { label: "Zapisz", icon: "bookmark-outline", onPress: () => undefined }
   ];
 
   return (
@@ -1344,15 +1344,15 @@ function DiscoverScreen({
         </Pressable>
       </View>
       <View style={styles.actionRow}>
-        <RoundAction label="x" tone="light" onPress={() => onSwipe("pass")} />
-        <RoundAction label="♡" tone="primary" large onPress={() => onSwipe("like")} />
-        <RoundAction label="+" tone="light" onPress={() => onSwipe("superlike")} />
+        <RoundAction label="close" tone="light" onPress={() => onSwipe("pass")} />
+        <RoundAction label="heart" tone="primary" large onPress={() => onSwipe("like")} />
+        <RoundAction label="star-four-points" tone="light" onPress={() => onSwipe("superlike")} />
       </View>
       {mode === "premium" && (
         <View style={styles.premiumGrid}>
           {premiumActions.map(({ label, icon, onPress }) => (
             <Pressable key={label} onPress={onPress} style={styles.premiumAction}>
-              <Text style={styles.premiumIcon}>{icon}</Text>
+              <MaterialCommunityIcons name={icon as any} size={22} color={colors.primaryDeep} />
               <Text style={styles.premiumText}>{label}</Text>
             </Pressable>
           ))}
@@ -1506,7 +1506,7 @@ function MessagesScreen({
     <View style={styles.gapLg}>
       <TopBar eyebrow="Wiadomosci" title="Rozmowy" left="=" right="+" />
       <View style={styles.searchField}>
-        <Text style={styles.searchIcon}>+</Text>
+        <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
         <TextInput placeholder="Szukaj rozmow" placeholderTextColor={colors.muted} style={styles.searchInput} />
       </View>
       {conversations.length === 0 ? (
@@ -1666,10 +1666,10 @@ function PremiumScreen({
         </View>
         <Text style={styles.premiumHeroTitle} selectable>Widzisz kto Cie polubil. Piszesz przed matchem. Masz wiekszy zasieg.</Text>
         <Text style={styles.premiumHeroText} selectable>
-          {revenueCatEntitlementId}: lista osob, ktore swipe/like Ciebie, jedna prosba o chat do profilu, korona przy avatarze, 15 zdjec i czestsze pojawianie sie na glownej.
+          Spark Pro odblokowuje listÄ™ polubieĹ„, proĹ›bÄ™ o chat przed matchem, koronÄ™ przy profilu, 15 zdjÄ™Ä‡ i czÄ™stsze pokazywanie w odkrywaniu.
         </Text>
         <View style={styles.premiumBenefitRow}>
-          {["Kto mnie polubil", "Prosba o chat", "Korona", "15 zdjec", "Boost"].map((benefit) => (
+          {["Kto mnie polubiĹ‚", "ProĹ›ba o chat", "Korona", "15 zdjÄ™Ä‡", "Boost"].map((benefit) => (
             <Text key={benefit} style={styles.premiumBenefit} selectable>{benefit}</Text>
           ))}
         </View>
@@ -1697,19 +1697,19 @@ function PremiumScreen({
         </Pressable>
         {!hasPackages && (
           <Text style={styles.purchaseHint} selectable>
-            Brak packages z RevenueCat. Skonfiguruj Offering z produktami Sparkproweek, Sparkpromonth i sparkprolifetime w dashboardzie.
+            PĹ‚atnoĹ›ci Pro sÄ… jeszcze w konfiguracji. PoĹ‚Ä…cz Offering w RevenueCat, ĹĽeby aktywowaÄ‡ zakup w aplikacji.
           </Text>
         )}
         <View style={styles.purchaseActionsRow}>
           <Pressable disabled={busyAction !== null} onPress={openPaywall} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{busyAction === "paywall" ? "Ladowanie..." : "RevenueCat Paywall"}</Text>
+            <Text style={styles.secondaryButtonText}>{busyAction === "paywall" ? "Ĺadowanie..." : "PokaĹĽ paywall"}</Text>
           </Pressable>
           <Pressable disabled={busyAction !== null} onPress={restore} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{busyAction === "restore" ? "Sync..." : "Restore"}</Text>
+            <Text style={styles.secondaryButtonText}>{busyAction === "restore" ? "Sync..." : "PrzywrĂłÄ‡"}</Text>
           </Pressable>
         </View>
         <Pressable disabled={busyAction !== null} onPress={manageSubscription} style={styles.secondaryButtonWide}>
-          <Text style={styles.secondaryButtonText}>{busyAction === "customer-center" ? "Otwieram..." : "Customer Center"}</Text>
+          <Text style={styles.secondaryButtonText}>{busyAction === "customer-center" ? "Otwieram..." : "Centrum zakupĂłw"}</Text>
         </Pressable>
       </View>
     </View>
@@ -1870,7 +1870,7 @@ function ProfileScreen({
           keyboardType="numeric"
         />
         <View style={styles.statsRow}>
-          {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
+          {[["126", "polubieĹ„"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
             <View key={label} style={styles.statBox}><Text style={styles.statValue} selectable>{value}</Text><Text style={styles.statLabel} selectable>{label}</Text></View>
           ))}
         </View>
@@ -1949,8 +1949,8 @@ function ProfileScreen({
               }
             }}
           />
-          <SettingRow label="Centrum bezpieczeństwa" value="Otwórz" onPress={openSafety} />
-          <SettingRow label="Widoczność profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
+          <SettingRow label="Centrum bezpieczeĹ„stwa" value="OtwĂłrz" onPress={openSafety} />
+          <SettingRow label="WidocznoĹ›Ä‡ profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
         </View>
       </View>
     </View>
@@ -2033,20 +2033,20 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
     <View style={styles.gapLg}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" onPress={onBack} style={styles.iconButton}>
-          <Text style={styles.iconButtonText}>‹</Text>
+          <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
         </Pressable>
         <View style={styles.fill}>
-          <Text style={styles.eyebrow} selectable>Safety</Text>
-          <Text style={styles.screenTitle} selectable>Centrum bezpieczeństwa</Text>
+          <Text style={styles.eyebrow} selectable>BezpieczeĹ„stwo</Text>
+          <Text style={styles.screenTitle} selectable>Centrum bezpieczeĹ„stwa</Text>
         </View>
         <IconButton label="?" />
       </View>
 
       <View style={styles.safetyHero}>
-        <Text style={styles.safetyHeroIcon}>✦</Text>
+        <View style={styles.safetyHeroIcon}><MaterialCommunityIcons name={"shield-heart" as any} size={28} color={colors.primaryDeep} /></View>
         <Text style={styles.safetyHeroTitle} selectable>Bezpieczne poznawanie ludzi</Text>
         <Text style={styles.safetyHeroText} selectable>
-          Każdy profil może zostać zgłoszony lub zablokowany. Te akcje powinny trafić do backendu moderacji przed publiczną premierą.
+          KaĹĽdy profil moĹĽe zostaÄ‡ zgĹ‚oszony lub zablokowany. Te akcje powinny trafiÄ‡ do backendu moderacji przed publicznÄ… premierÄ….
         </Text>
       </View>
 
@@ -2088,10 +2088,28 @@ function TopBar({ eyebrow, title, left, right }: { eyebrow: string; title: strin
   );
 }
 
+function getIconName(label: string) {
+  const iconMap: Record<string, string> = {
+    "=": "menu",
+    "<": "chevron-left",
+    "+": "plus",
+    "?": "help-circle-outline",
+    km: "map-marker-distance",
+    pro: "crown",
+    on: "check-circle",
+    off: "circle-outline",
+    close: "close",
+    heart: "heart",
+    "star-four-points": "star-four-points"
+  };
+
+  return iconMap[label] ?? label;
+}
+
 function IconButton({ label }: { label: string }) {
   return (
     <Pressable accessibilityRole="button" style={styles.iconButton}>
-      <Text style={styles.iconButtonText}>{label}</Text>
+      <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
     </Pressable>
   );
 }
@@ -2113,11 +2131,10 @@ function RoundAction({
       onPress={onPress}
       style={[styles.roundAction, large && styles.roundActionLarge, tone === "primary" && styles.roundActionPrimary]}
     >
-      <Text style={[styles.roundActionText, tone === "primary" && styles.roundActionPrimaryText]}>{label}</Text>
+      <MaterialCommunityIcons name={getIconName(label) as any} size={large ? 38 : 30} color={tone === "primary" ? "#fff" : colors.ink} />
     </Pressable>
   );
 }
-
 function SettingRow({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
     <Pressable style={styles.settingRow} onPress={onPress}>
