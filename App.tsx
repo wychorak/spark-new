@@ -2302,18 +2302,19 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoImage: {
-    width: "86%",
-    height: "86%"
+    width: "100%",
+    height: "100%"
   },
   loginLogoMark: {
-    width: 112,
-    height: 112,
-    borderRadius: 36,
-    marginBottom: 2,
+    width: 142,
+    height: 142,
+    borderRadius: 0,
+    marginBottom: -4,
     overflow: "visible",
-    backgroundColor: "rgba(255,45,141,0.09)",
-    borderColor: "rgba(255,45,141,0.34)",
-    boxShadow: "0 22px 70px rgba(255,45,141,0.42)",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderColor: "transparent",
+    boxShadow: "none",
     transform: [{ rotate: "-1deg" }]
   },
   eyebrow: {
