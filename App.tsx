@@ -1193,7 +1193,7 @@ function AuthScreen({
     <View style={styles.gapLg}>
       <View style={styles.brandCompact}>
         <View style={[styles.logoMark, styles.loginLogoMark]}>
-          <Image source={loginLogoImage} style={styles.logoImage} contentFit="cover" />
+          <Image source={loginLogoImage} style={styles.loginLogoImage} contentFit="contain" />
         </View>
         <PixelSparkTitle />
         <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
@@ -2333,11 +2333,19 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%"
   },
+  loginLogoImage: {
+    width: "86%",
+    height: "86%"
+  },
   loginLogoMark: {
-    width: 106,
-    height: 106,
-    borderRadius: 30,
-    marginBottom: 1,
+    width: 112,
+    height: 112,
+    borderRadius: 36,
+    marginBottom: 2,
+    overflow: "visible",
+    backgroundColor: "rgba(255,45,141,0.09)",
+    borderColor: "rgba(255,45,141,0.34)",
+    boxShadow: "0 22px 70px rgba(255,45,141,0.42)",
     transform: [{ rotate: "-1deg" }]
   },
   eyebrow: {
