@@ -1073,18 +1073,7 @@ function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; 
   );
 }
 
-const pixelSparkLetters = {
-  S: ["0111110", "1111111", "1110000", "0111110", "0001111", "1111111", "1111110"],
-  P: ["1111110", "1111111", "1110011", "1111110", "1110000", "1110000", "1110000"],
-  A: ["0111110", "1111111", "1110011", "1111111", "1111111", "1110011", "1110011"],
-  R: ["1111110", "1111111", "1110011", "1111110", "1111100", "1110110", "1110011"],
-  K: ["1110011", "1110110", "1111100", "1111000", "1111100", "1110110", "1110011"]
-} as const;
-
-const pixelSparkWord = ["S", "P", "A", "R", "K"] as const;
-const pixelHeartCells = new Set(["P-2-4", "A-2-3", "R-2-4"]);
-
-function PixelSparkTitle() {
+function SparkTitle() {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -1092,14 +1081,14 @@ function PixelSparkTitle() {
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          duration: 1050,
-          easing: Easing.inOut(Easing.quad),
+          duration: 1800,
+          easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true
         }),
         Animated.timing(pulse, {
           toValue: 0,
-          duration: 1050,
-          easing: Easing.inOut(Easing.quad),
+          duration: 1800,
+          easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true
         })
       ])
@@ -1109,39 +1098,18 @@ function PixelSparkTitle() {
     return () => animation.stop();
   }, [pulse]);
 
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
-  const translateY = pulse.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 0.9] });
-  const rotate = pulse.interpolate({ inputRange: [0, 1], outputRange: ["-1deg", "1deg"] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.92] });
+  const pinkLayerOpacity = pulse.interpolate({ inputRange: [0, 0.52, 1], outputRange: [0.08, 0.85, 0.18] });
+  const darkLayerOpacity = pulse.interpolate({ inputRange: [0, 0.52, 1], outputRange: [0.2, 0.05, 0.42] });
+  const translateX = pulse.interpolate({ inputRange: [0, 1], outputRange: [-1.5, 1.5] });
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] });
 
   return (
-    <Animated.View
-      accessibilityLabel="Spark"
-      style={[styles.pixelTitleWrap, { transform: [{ translateY }, { scale }, { rotate }] }]}
-    >
-      <View style={styles.pixelTitleRow}>
-        {pixelSparkWord.map((letter, letterIndex) => (
-          <View key={letter + letterIndex} style={styles.pixelGlyph}>
-            {pixelSparkLetters[letter].map((row, rowIndex) => (
-              <View key={row + rowIndex} style={styles.pixelGlyphRow}>
-                {row.split("").map((cell, cellIndex) => (
-                  <View
-                    key={letter + rowIndex + cellIndex}
-                    style={[
-                      styles.pixelCell,
-                      cell === "1" && styles.pixelCellOn,
-                      pixelHeartCells.has(letter + "-" + rowIndex + "-" + cellIndex) && styles.pixelCellHeart
-                    ]}
-                  />
-                ))}
-              </View>
-            ))}
-          </View>
-        ))}
-      </View>
-      <Animated.View style={[styles.pixelGlow, { opacity: glowOpacity }]} />
-      <View style={styles.pixelSparkA} />
-      <View style={styles.pixelSparkB} />
+    <Animated.View accessibilityLabel="Spark" style={[styles.sparkTitleWrap, { transform: [{ scale }] }]}>
+      <Animated.Text selectable={false} style={[styles.sparkTitleGlow, { opacity: glowOpacity }]}>Spark</Animated.Text>
+      <Animated.Text selectable={false} style={[styles.sparkTitleDark, { opacity: darkLayerOpacity }]}>Spark</Animated.Text>
+      <Animated.Text selectable={false} style={[styles.sparkTitlePink, { opacity: pinkLayerOpacity, transform: [{ translateX }] }]}>Spark</Animated.Text>
+      <Text style={styles.sparkTitle} selectable>Spark</Text>
     </Animated.View>
   );
 }
@@ -1195,7 +1163,7 @@ function AuthScreen({
         <View style={[styles.logoMark, styles.loginLogoMark]}>
           <Image source={loginLogoImage} style={styles.loginLogoImage} contentFit="contain" />
         </View>
-        <PixelSparkTitle />
+        <SparkTitle />
         <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
       </View>
 
@@ -2355,85 +2323,59 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     textTransform: "uppercase"
   },
-  pixelTitleWrap: {
+  sparkTitleWrap: {
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 8
+    minHeight: 70,
+    paddingHorizontal: 16
   },
-  pixelTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3
-  },
-  pixelGlyph: {
-    gap: 2
-  },
-  pixelGlyphRow: {
-    flexDirection: "row",
-    gap: 2
-  },
-  pixelCell: {
-    width: 6,
-    height: 6,
-    borderRadius: 1,
-    backgroundColor: "transparent"
-  },
-  pixelCellOn: {
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    boxShadow: "2px 2px 0 rgba(255,255,255,0.95)"
-  },
-  pixelCellHeart: {
-    backgroundColor: "#08080d",
-    borderColor: "#fff",
-    borderRadius: 2,
-    transform: [{ rotate: "45deg" }]
-  },
-  pixelGlow: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    bottom: 1,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    transform: [{ translateY: 4 }]
-  },
-  pixelSparkA: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-    boxShadow: "0 0 18px rgba(255,45,141,0.95)"
-  },
-  pixelSparkB: {
-    position: "absolute",
-    left: 8,
-    bottom: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 2,
-    backgroundColor: colors.primaryDeep,
-    opacity: 0.78,
-    boxShadow: "0 0 16px rgba(255,105,173,0.8)"
-  },
-  title: {
+  sparkTitle: {
     color: colors.ink,
-    fontSize: 54,
+    fontFamily: "Helvetica Neue",
+    fontSize: 58,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 60,
-    textTransform: "uppercase",
-    textShadowColor: "rgba(255,45,141,0.58)",
-    textShadowOffset: { width: 3, height: 3 },
-    textShadowRadius: 0
+    lineHeight: 66,
+    textShadowColor: "rgba(255,255,255,0.42)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14
+  },
+  sparkTitleGlow: {
+    position: "absolute",
+    color: colors.primary,
+    fontFamily: "Helvetica Neue",
+    fontSize: 58,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 66,
+    textShadowColor: colors.primary,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 26
+  },
+  sparkTitlePink: {
+    position: "absolute",
+    color: colors.primary,
+    fontFamily: "Helvetica Neue",
+    fontSize: 58,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 66,
+    textShadowColor: "rgba(255,45,141,0.95)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 18
+  },
+  sparkTitleDark: {
+    position: "absolute",
+    color: "#050507",
+    fontFamily: "Helvetica Neue",
+    fontSize: 58,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 66,
+    textShadowColor: "rgba(255,45,141,0.35)",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 10
   },
   lead: {
     maxWidth: 330,
