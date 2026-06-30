@@ -1107,22 +1107,26 @@ function AuthScreen({
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <Text style={styles.eyebrow} selectable>SPARK</Text>
-        <Text style={styles.title} selectable>Spark</Text>
-        <Text style={styles.lead} selectable>Randki, znajomi i rozmowy w czarno-rĂłĹĽowym stylu.</Text>
+        <View style={styles.pixelTitleWrap}>
+          <Text style={styles.title} selectable>SPARK</Text>
+          <View style={styles.pixelSparkA} />
+          <View style={styles.pixelSparkB} />
+        </View>
+        <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
       </View>
 
       {!firebaseReady && (
         <View style={styles.configWarning}>
           <Text style={styles.configWarningTitle} selectable>Konfiguracja Firebase</Text>
           <Text style={styles.configWarningText} selectable>
-            UzupeĹ‚nij .env wartoĹ›ciami EXPO_PUBLIC_FIREBASE_*. Brakuje: {firebaseMissingConfig.join(", ")}.
+            Uzupełnij .env wartościami EXPO_PUBLIC_FIREBASE_*. Brakuje: {firebaseMissingConfig.join(", ")}.
           </Text>
         </View>
       )}
 
       {authError && (
         <View style={styles.configWarning}>
-          <Text style={styles.configWarningTitle} selectable>Nie udaĹ‚o siÄ™ zalogowaÄ‡</Text>
+          <Text style={styles.configWarningTitle} selectable>Nie udało się zalogować</Text>
           <Text style={styles.configWarningText} selectable>{authError}</Text>
         </View>
       )}
@@ -1138,21 +1142,22 @@ function AuthScreen({
       <View style={styles.formCard}>
         {authMode === "register" && (
                   <View style={styles.nameRow}>
-          <TextField label="Imie" value={firstName} onChangeText={setFirstName} />
+          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
           <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
         </View>
 
         )}
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
-        <TextField label="HasĹ‚o" value={password} onChangeText={setPassword} secureTextEntry />
+        <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
         <Pressable accessibilityRole="button" disabled={!firebaseReady || authBusy} onPress={onContinue} style={[styles.primaryButton, (!firebaseReady || authBusy) && styles.primaryButtonDisabled]}>
-          <Text style={styles.primaryButtonText}>{authBusy ? "ĹÄ…czenie..." : authMode === "login" ? "Zaloguj" : "UtwĂłrz konto"}</Text>
+          <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
         </Pressable>
       </View>
 
       <View style={styles.socialLoginGrid}>
         <Pressable disabled={!firebaseReady || !googleReady || authBusy} onPress={onGoogle} style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}>
-          <Text style={styles.socialLoginText}>Google</Text>
+          <FontAwesome name="google" size={18} color="#fff" />
+          <Text style={styles.socialLoginText}>Kontynuuj z Google</Text>
         </Pressable>
       </View>
 
@@ -2194,12 +2199,44 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     textTransform: "uppercase"
   },
+  pixelTitleWrap: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 2
+  },
+  pixelSparkA: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+    boxShadow: "0 0 18px rgba(255,45,141,0.95)"
+  },
+  pixelSparkB: {
+    position: "absolute",
+    left: 8,
+    bottom: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 2,
+    backgroundColor: colors.primaryDeep,
+    opacity: 0.78,
+    boxShadow: "0 0 16px rgba(255,105,173,0.8)"
+  },
   title: {
     color: colors.ink,
-    fontSize: 56,
-    fontWeight: "800",
-    letterSpacing: 0,
-    lineHeight: 60
+    fontSize: 54,
+    fontWeight: "900",
+    letterSpacing: 2,
+    lineHeight: 60,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(255,45,141,0.58)",
+    textShadowOffset: { width: 3, height: 3 },
+    textShadowRadius: 0
   },
   lead: {
     maxWidth: 330,
@@ -2261,11 +2298,15 @@ const styles = StyleSheet.create({
   socialLoginButton: {
     flex: 1,
     minHeight: 50,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.86)"
+    backgroundColor: "rgba(22,22,29,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)"
   },
   socialLoginText: {
     color: colors.ink,
