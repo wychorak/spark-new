@@ -8,9 +8,11 @@ import * as Location from "expo-location";
 import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -1061,6 +1063,73 @@ function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; 
   );
 }
 
+const pixelSparkLetters = {
+  S: ["11110", "10000", "11110", "00010", "11110"],
+  P: ["11110", "10001", "11110", "10000", "10000"],
+  A: ["01110", "10001", "11111", "10001", "10001"],
+  R: ["11110", "10001", "11110", "10010", "10001"],
+  K: ["10001", "10010", "11100", "10010", "10001"]
+} as const;
+
+const pixelSparkWord = ["S", "P", "A", "R", "K"] as const;
+
+function PixelSparkTitle() {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1050,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1050,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true
+        })
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
+  const translateY = pulse.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 0.9] });
+
+  return (
+    <Animated.View
+      accessibilityLabel="Spark"
+      style={[styles.pixelTitleWrap, { transform: [{ translateY }, { scale }] }]}
+    >
+      <View style={styles.pixelTitleRow}>
+        {pixelSparkWord.map((letter, letterIndex) => (
+          <View key={letter + letterIndex} style={styles.pixelGlyph}>
+            {pixelSparkLetters[letter].map((row, rowIndex) => (
+              <View key={row + rowIndex} style={styles.pixelGlyphRow}>
+                {row.split("").map((cell, cellIndex) => (
+                  <View
+                    key={letter + rowIndex + cellIndex}
+                    style={[styles.pixelCell, cell === "1" && styles.pixelCellOn]}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+      <Animated.View style={[styles.pixelGlow, { opacity: glowOpacity }]} />
+      <View style={styles.pixelSparkA} />
+      <View style={styles.pixelSparkB} />
+    </Animated.View>
+  );
+}
+
 function AuthScreen({
   authMode,
   setAuthMode,
@@ -1106,11 +1175,7 @@ function AuthScreen({
         <View style={styles.logoMark}>
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
-        <View style={styles.pixelTitleWrap}>
-          <Text style={styles.title} selectable>SPARK</Text>
-          <View style={styles.pixelSparkA} />
-          <View style={styles.pixelSparkB} />
-        </View>
+        <PixelSparkTitle />
         <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
       </View>
 
@@ -2203,7 +2268,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18,
-    paddingVertical: 2
+    paddingVertical: 8
+  },
+  pixelTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5
+  },
+  pixelGlyph: {
+    gap: 2
+  },
+  pixelGlyphRow: {
+    flexDirection: "row",
+    gap: 2
+  },
+  pixelCell: {
+    width: 7,
+    height: 7,
+    borderRadius: 1,
+    backgroundColor: "transparent"
+  },
+  pixelCellOn: {
+    backgroundColor: colors.ink,
+    boxShadow: "3px 3px 0 rgba(255,45,141,0.78)"
+  },
+  pixelGlow: {
+    position: "absolute",
+    left: 10,
+    right: 10,
+    bottom: 1,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    transform: [{ translateY: 4 }]
   },
   pixelSparkA: {
     position: "absolute",
@@ -2230,7 +2328,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 54,
     fontWeight: "900",
-    letterSpacing: 2,
+    letterSpacing: 0,
     lineHeight: 60,
     textTransform: "uppercase",
     textShadowColor: "rgba(255,45,141,0.58)",
