@@ -73,6 +73,7 @@ function openLegalDocument(title: string, url: string, envName: string) {
   });
 }
 const brandLogoImage = require("./assets/photologo.png");
+const loginLogoImage = require("./assets/loginpagelogo.png");
 
 const profileImages = [
   require("./assets/profiles/profile-1.jpg"),
@@ -427,6 +428,7 @@ function AppContent() {
   const [lastName, setLastName] = useState("Mercer");
   const [email, setEmail] = useState("alex@spark.app");
   const [password, setPassword] = useState("sparkdemo");
+  const [confirmPassword, setConfirmPassword] = useState("sparkdemo");
   const [onboarded, setOnboarded] = useState(false);
   const [intent, setIntent] = useState("Randki");
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
@@ -610,6 +612,11 @@ function AppContent() {
     setAuthError(null);
 
     try {
+      if (authMode === "register" && password !== confirmPassword) {
+        setAuthError("Hasła nie są takie same.");
+        return;
+      }
+
       const user =
         authMode === "register"
           ? await signUpWithEmail({ email, password, firstName, lastName })
@@ -677,6 +684,7 @@ function AppContent() {
     setLastName(demoAccount.lastName);
     setEmail(demoAccount.email);
     setPassword(demoAccount.password);
+    setConfirmPassword(demoAccount.password);
 
     try {
       let user: AppAuthUser;
@@ -913,6 +921,8 @@ function AppContent() {
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
+          confirmPassword={confirmPassword}
+          setConfirmPassword={setConfirmPassword}
           authBusy={authBusy}
           authError={authError}
           firebaseReady={isFirebaseConfigured}
@@ -1064,14 +1074,15 @@ function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; 
 }
 
 const pixelSparkLetters = {
-  S: ["11110", "10000", "11110", "00010", "11110"],
-  P: ["11110", "10001", "11110", "10000", "10000"],
-  A: ["01110", "10001", "11111", "10001", "10001"],
-  R: ["11110", "10001", "11110", "10010", "10001"],
-  K: ["10001", "10010", "11100", "10010", "10001"]
+  S: ["0111110", "1111111", "1110000", "0111110", "0001111", "1111111", "1111110"],
+  P: ["1111110", "1111111", "1110011", "1111110", "1110000", "1110000", "1110000"],
+  A: ["0111110", "1111111", "1110011", "1111111", "1111111", "1110011", "1110011"],
+  R: ["1111110", "1111111", "1110011", "1111110", "1111100", "1110110", "1110011"],
+  K: ["1110011", "1110110", "1111100", "1111000", "1111100", "1110110", "1110011"]
 } as const;
 
 const pixelSparkWord = ["S", "P", "A", "R", "K"] as const;
+const pixelHeartCells = new Set(["P-2-4", "A-2-3", "R-2-4"]);
 
 function PixelSparkTitle() {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -1101,11 +1112,12 @@ function PixelSparkTitle() {
   const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
   const translateY = pulse.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 0.9] });
+  const rotate = pulse.interpolate({ inputRange: [0, 1], outputRange: ["-1deg", "1deg"] });
 
   return (
     <Animated.View
       accessibilityLabel="Spark"
-      style={[styles.pixelTitleWrap, { transform: [{ translateY }, { scale }] }]}
+      style={[styles.pixelTitleWrap, { transform: [{ translateY }, { scale }, { rotate }] }]}
     >
       <View style={styles.pixelTitleRow}>
         {pixelSparkWord.map((letter, letterIndex) => (
@@ -1115,7 +1127,11 @@ function PixelSparkTitle() {
                 {row.split("").map((cell, cellIndex) => (
                   <View
                     key={letter + rowIndex + cellIndex}
-                    style={[styles.pixelCell, cell === "1" && styles.pixelCellOn]}
+                    style={[
+                      styles.pixelCell,
+                      cell === "1" && styles.pixelCellOn,
+                      pixelHeartCells.has(letter + "-" + rowIndex + "-" + cellIndex) && styles.pixelCellHeart
+                    ]}
                   />
                 ))}
               </View>
@@ -1141,6 +1157,8 @@ function AuthScreen({
   setEmail,
   password,
   setPassword,
+  confirmPassword,
+  setConfirmPassword,
   authBusy,
   authError,
   firebaseReady,
@@ -1160,6 +1178,8 @@ function AuthScreen({
   setEmail: (value: string) => void;
   password: string;
   setPassword: (value: string) => void;
+  confirmPassword: string;
+  setConfirmPassword: (value: string) => void;
   authBusy: boolean;
   authError: string | null;
   firebaseReady: boolean;
@@ -1172,8 +1192,8 @@ function AuthScreen({
   return (
     <View style={styles.gapLg}>
       <View style={styles.brandCompact}>
-        <View style={styles.logoMark}>
-          <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
+        <View style={[styles.logoMark, styles.loginLogoMark]}>
+          <Image source={loginLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <PixelSparkTitle />
         <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
@@ -1213,6 +1233,9 @@ function AuthScreen({
         )}
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
         <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
+        {authMode === "register" && (
+          <TextField label="Powtórz hasło" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+        )}
         <Pressable accessibilityRole="button" disabled={!firebaseReady || authBusy} onPress={onContinue} style={[styles.primaryButton, (!firebaseReady || authBusy) && styles.primaryButtonDisabled]}>
           <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
         </Pressable>
@@ -1556,24 +1579,69 @@ function MessagesScreen({
       const isMatched = matchedProfileKeys.includes(key) || thread?.status === "matched";
       const isBlocked = thread?.status === "blocked";
       const lastMessage = thread?.messages[thread.messages.length - 1]?.text;
+      const unreadCount = thread?.status === "matched" ? thread.messages.filter((message) => message.from === "them").length : 0;
 
       return {
         key,
         profile,
-        name: `${profile.name} ${profile.surname[0]}.`,
+        name: profile.name + " " + profile.surname[0] + ".",
         message: isBlocked
           ? "Profil zablokowany."
-          : lastMessage ?? (isMatched ? "Match aktywny - mozecie pisac." : "Premium prosba o chat czeka na akceptacje."),
+          : lastMessage ?? (isMatched ? "Match aktywny - mozecie pisac." : thread?.introMessage ?? "Premium prosba o chat czeka na akceptacje."),
         time: isMatched ? "teraz" : "oczekuje",
-        status: isBlocked ? "blocked" : isMatched ? "matched" : "requested"
+        unreadCount,
+        status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
       };
     });
-  const activeConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? conversations[0];
+  const requestConversations = conversations.filter((conversation) => conversation.status === "requested");
+  const chatConversations = conversations.filter((conversation) => conversation.status !== "requested");
+  const unreadChatsCount = chatConversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
+  const activeConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? chatConversations[0] ?? requestConversations[0];
   const activeThread = activeConversation ? chatThreads[activeConversation.key] : null;
+  const activeUnreadCount = activeConversation?.unreadCount ?? 0;
+
+  function renderConversationSection(title: string, items: typeof conversations, countLabel?: string) {
+    if (items.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.chatSection}>
+        <View style={styles.chatSectionHeader}>
+          <Text style={styles.chatSectionTitle} selectable>{title}</Text>
+          <Text style={styles.chatSectionBadge} selectable>{countLabel ?? String(items.length)}</Text>
+        </View>
+        {items.map((conversation) => (
+          <Pressable
+            key={conversation.key}
+            onPress={() => setSelectedChatKey(conversation.key)}
+            style={[styles.chatItem, activeConversation?.key === conversation.key && styles.chatItemActive]}
+          >
+            <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
+            <View style={styles.fill}>
+              <Text style={styles.chatName} selectable>{conversation.name}</Text>
+              <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
+            </View>
+            <View style={styles.chatMetaColumn}>
+              <Text style={styles.chatTime} selectable>{conversation.time}</Text>
+              {conversation.unreadCount > 0 && (
+                <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>
+              )}
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Wiadomosci" title="Rozmowy" left="=" right="+" />
+      <TopBar eyebrow="Wiadomości" title="Rozmowy" left="=" right="+" />
+      <View style={styles.chatMiniInfo}>
+        <Text style={styles.chatMiniInfoText} selectable>
+          {requestConversations.length} prośby ? {unreadChatsCount} nieodczytane w chatach
+        </Text>
+      </View>
       <View style={styles.searchField}>
         <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
         <TextInput placeholder="Szukaj rozmow" placeholderTextColor={colors.muted} style={styles.searchInput} />
@@ -1588,20 +1656,8 @@ function MessagesScreen({
       ) : (
         <>
           <View style={styles.chatList}>
-            {conversations.map((conversation) => (
-              <Pressable
-                key={conversation.key}
-                onPress={() => setSelectedChatKey(conversation.key)}
-                style={[styles.chatItem, activeConversation?.key === conversation.key && styles.chatItemActive]}
-              >
-                <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
-                <View style={styles.fill}>
-                  <Text style={styles.chatName} selectable>{conversation.name}</Text>
-                  <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
-                </View>
-                <Text style={styles.chatTime} selectable>{conversation.time}</Text>
-              </Pressable>
-            ))}
+            {renderConversationSection("Prośby", requestConversations)}
+            {renderConversationSection("Chaty", chatConversations, unreadChatsCount > 0 ? chatConversations.length + " / " + unreadChatsCount + " nowe" : String(chatConversations.length))}
           </View>
 
           {activeConversation && (
@@ -1612,6 +1668,11 @@ function MessagesScreen({
                   <Text style={styles.threadStatus} selectable>
                     {activeConversation.status === "matched" ? "Chat aktywny" : activeConversation.status === "blocked" ? "Zablokowany" : "Prosba oczekuje"}
                   </Text>
+                  {activeConversation.status === "matched" && (
+                    <Text style={styles.threadMiniInfo} selectable>
+                      {activeUnreadCount > 0 ? activeUnreadCount + " nieodczytane od tej osoby" : "Brak nowych wiadomosci"}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.threadActions}>
                   <Pressable onPress={() => onReportProfile(activeConversation.key)} style={styles.threadActionButton}>
@@ -1662,7 +1723,6 @@ function MessagesScreen({
     </View>
   );
 }
-
 function PremiumScreen({
   premiumPlan,
   setPremiumPlan,
@@ -2056,14 +2116,31 @@ function InterestChips({ selected, onToggle }: { selected: string[]; onToggle: (
 }
 
 function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" | "numeric" }) {
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const isPassword = secureTextEntry;
+
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel} selectable>{label}</Text>
-      <TextInput value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry} keyboardType={keyboardType} autoCapitalize="none" placeholderTextColor={colors.muted} style={styles.fieldInput} />
+      <View style={styles.fieldInputWrap}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={isPassword && !passwordVisible}
+          keyboardType={keyboardType}
+          autoCapitalize="none"
+          placeholderTextColor={colors.muted}
+          style={[styles.fieldInput, isPassword && styles.fieldInputWithIcon]}
+        />
+        {isPassword && (
+          <Pressable accessibilityRole="button" onPress={() => setPasswordVisible((visible) => !visible)} style={styles.passwordToggle}>
+            <MaterialCommunityIcons name={passwordVisible ? "eye-off-outline" : "eye-outline"} size={20} color={colors.muted} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
-
 function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDeleteAccount: () => void }) {
   const actions = [
     {
@@ -2256,6 +2333,13 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%"
   },
+  loginLogoMark: {
+    width: 106,
+    height: 106,
+    borderRadius: 30,
+    marginBottom: 1,
+    transform: [{ rotate: "-1deg" }]
+  },
   eyebrow: {
     color: colors.primary,
     fontSize: 12,
@@ -2274,7 +2358,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5
+    gap: 3
   },
   pixelGlyph: {
     gap: 2
@@ -2284,14 +2368,22 @@ const styles = StyleSheet.create({
     gap: 2
   },
   pixelCell: {
-    width: 7,
-    height: 7,
+    width: 6,
+    height: 6,
     borderRadius: 1,
     backgroundColor: "transparent"
   },
   pixelCellOn: {
-    backgroundColor: colors.ink,
-    boxShadow: "3px 3px 0 rgba(255,45,141,0.78)"
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    boxShadow: "2px 2px 0 rgba(255,255,255,0.95)"
+  },
+  pixelCellHeart: {
+    backgroundColor: "#08080d",
+    borderColor: "#fff",
+    borderRadius: 2,
+    transform: [{ rotate: "45deg" }]
   },
   pixelGlow: {
     position: "absolute",
@@ -2378,6 +2470,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textTransform: "uppercase"
   },
+  fieldInputWrap: {
+    position: "relative"
+  },
   fieldInput: {
     minHeight: 52,
     paddingHorizontal: 14,
@@ -2387,6 +2482,20 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 15,
     fontWeight: "700"
+  },
+  fieldInputWithIcon: {
+    paddingRight: 52
+  },
+  passwordToggle: {
+    position: "absolute",
+    right: 12,
+    top: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.04)"
   },
   socialLoginGrid: {
     flexDirection: "row",
@@ -3110,7 +3219,45 @@ const styles = StyleSheet.create({
     fontSize: 16
   },
   chatList: {
-    gap: 10
+    gap: 12
+  },
+  chatMiniInfo: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "rgba(255,45,141,0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 7
+  },
+  chatMiniInfoText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  chatSection: {
+    gap: 8
+  },
+  chatSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4
+  },
+  chatSectionTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  chatSectionBadge: {
+    overflow: "hidden",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: "900",
+    paddingHorizontal: 9,
+    paddingVertical: 4
   },
   chatItem: {
     minHeight: 78,
@@ -3139,9 +3286,25 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13
   },
+  chatMetaColumn: {
+    alignItems: "flex-end",
+    gap: 7
+  },
   chatTime: {
     color: colors.muted,
     fontSize: 12
+  },
+  unreadPill: {
+    overflow: "hidden",
+    minWidth: 22,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: "900",
+    textAlign: "center",
+    paddingHorizontal: 7,
+    paddingVertical: 3
   },
   chatItemActive: {
     borderWidth: 1,
@@ -3173,6 +3336,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     fontWeight: "800"
+  },
+  threadMiniInfo: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700"
   },
   threadActions: {
     flexDirection: "row",
