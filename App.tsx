@@ -173,15 +173,15 @@ const interestOptions = [
   "Kawa",
   "Sport",
   "Sztuka",
-  "PodrĂłĹĽe",
+  "Podróże",
   "Gaming",
-  "KsiÄ…ĹĽki",
+  "Książki",
   "Kuchnia",
   "Fotografia",
   "Tech",
   "Joga",
   "Koncerty",
-  "PlanszĂłwki",
+  "Planszówki",
   "LGBT+",
   "Taco Hemingway",
   "Mata",
@@ -226,7 +226,7 @@ const matchProfiles: MatchProfile[] = [
     surname: "Nowak",
     age: 24,
     city: "Warszawa",
-    bio: "Projektantka, Ĺ‚owczyni ukrytych kawiarni i galerii. Szuka kogoĹ› do rozmĂłw bez poĹ›piechu.",
+    bio: "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu.",
     distance: "2 km",
     latitude: 52.2297,
     longitude: 21.0122,
@@ -244,8 +244,8 @@ const matchProfiles: MatchProfile[] = [
     name: "Lena",
     surname: "Kowalska",
     age: 27,
-    city: "KrakĂłw",
-    bio: "Fotografia analogowa, gĂłry i niedzielne brunche. Najbardziej lubi ludzi, ktĂłrzy pytajÄ… drugi raz.",
+    city: "Kraków",
+    bio: "Fotografia analogowa, góry i niedzielne brunche. Najbardziej lubi ludzi, którzy pytają drugi raz.",
     distance: "5 km",
     latitude: 50.0647,
     longitude: 19.945,
@@ -260,10 +260,10 @@ const matchProfiles: MatchProfile[] = [
   },
   {
     name: "Kuba",
-    surname: "ZieliĹ„ski",
+    surname: "Zieliński",
     age: 29,
-    city: "GdaĹ„sk",
-    bio: "Koncerty, rower i dokumenty muzyczne. Zawsze zna maĹ‚y lokal z dobrÄ… scenÄ….",
+    city: "Gdańsk",
+    bio: "Koncerty, rower i dokumenty muzyczne. Zawsze zna mały lokal z dobrą sceną.",
     distance: "8 km",
     latitude: 54.352,
     longitude: 18.6466,
@@ -278,10 +278,10 @@ const matchProfiles: MatchProfile[] = [
   },
   {
     name: "Mia",
-    surname: "WiĹ›niewska",
+    surname: "Wiśniewska",
     age: 25,
-    city: "PoznaĹ„",
-    bio: "Ceramika, ksiÄ…ĹĽki i wypady za miasto. Ceni ciepĹ‚y humor i jasne intencje.",
+    city: "Poznań",
+    bio: "Ceramika, książki i wypady za miasto. Ceni ciepły humor i jasne intencje.",
     distance: "3 km",
     latitude: 52.4064,
     longitude: 16.9252,
@@ -1029,7 +1029,7 @@ function AppContent() {
         {[
           ["discover", "Odkryj", "cards-heart"],
           ["matches", "Matche", "heart-multiple"],
-          ["messages", "WiadomoĹ›ci", "message-text"],
+          ["messages", "Wiadomości", "message-text"],
           ["premium", "Pro", "crown"],
           ["profile", "Profil", "account-circle"]
         ].map(([key, label, icon]) => (
@@ -1265,15 +1265,15 @@ function OnboardingScreen({
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <Text style={styles.eyebrow} selectable>Start profilu</Text>
-        <Text style={styles.screenHeroTitle} selectable>ZnajdĹş swĂłj krÄ…g</Text>
-        <Text style={styles.lead} selectable>Wybierz cel, wiek i kilka zainteresowaĹ„. Spark uĹĽyje ich do pierwszych propozycji.</Text>
+        <Text style={styles.screenHeroTitle} selectable>Znajdź swój krąg</Text>
+        <Text style={styles.lead} selectable>Wybierz cel, wiek i kilka zainteresowań. Spark użyje ich do pierwszych propozycji.</Text>
       </View>
 
       <View style={styles.intentList}>
         {[
           ["Randki", "Chemia, rozmowy, spotkania", "heart-outline"],
-          ["Znajomi", "Kawa, planszĂłwki, miasto", "coffee-outline"],
-          ["LGBT+ / SpoĹ‚ecznoĹ›Ä‡", "Grupy, wydarzenia, znajomoĹ›ci", "account-group-outline"]
+          ["Znajomi", "Kawa, planszówki, miasto", "coffee-outline"],
+          ["LGBT+ / Społeczność", "Grupy, wydarzenia, znajomości", "account-group-outline"]
         ].map(([label, description, icon]) => (
           <Pressable
             key={label}
@@ -1299,12 +1299,12 @@ function OnboardingScreen({
 
       <View style={styles.panelLiquid}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Wybierz kilka tagĂłw. Im wiÄ™cej wspĂłlnych sygnaĹ‚Ăłw, tym lepsze propozycje.</Text>
+        <Text style={styles.panelText} selectable>Wybierz kilka tagów. Im więcej wspólnych sygnałów, tym lepsze propozycje.</Text>
         <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
       </View>
 
       <View style={styles.agePanel}>
-        <Text style={styles.panelTitle} selectable>Wiek i bezpieczeĹ„stwo</Text>
+        <Text style={styles.panelTitle} selectable>Wiek i bezpieczeństwo</Text>
         <Text style={styles.panelText} selectable>
           Randki sa tylko dla 18+. Dla znajomych i spolecznosci mozna wybrac tryb ponizej 18 lat.
         </Text>
@@ -1735,10 +1735,10 @@ function PremiumScreen({
         </View>
         <Text style={styles.premiumHeroTitle} selectable>Widzisz kto Cie polubil. Piszesz przed matchem. Masz wiekszy zasieg.</Text>
         <Text style={styles.premiumHeroText} selectable>
-          Spark Pro odblokowuje listÄ™ polubieĹ„, proĹ›bÄ™ o chat przed matchem, koronÄ™ przy profilu, 15 zdjÄ™Ä‡ i czÄ™stsze pokazywanie w odkrywaniu.
+          Spark Pro odblokowuje listę polubień, prośbę o chat przed matchem, koronę przy profilu, 15 zdjęć i częstsze pokazywanie w odkrywaniu.
         </Text>
         <View style={styles.premiumBenefitRow}>
-          {["Kto mnie polubiĹ‚", "ProĹ›ba o chat", "Korona", "15 zdjÄ™Ä‡", "Boost"].map((benefit) => (
+          {["Kto mnie polubił", "Prośba o chat", "Korona", "15 zdjęć", "Boost"].map((benefit) => (
             <Text key={benefit} style={styles.premiumBenefit} selectable>{benefit}</Text>
           ))}
         </View>
@@ -1766,19 +1766,19 @@ function PremiumScreen({
         </Pressable>
         {!hasPackages && (
           <Text style={styles.purchaseHint} selectable>
-            PĹ‚atnoĹ›ci Pro sÄ… jeszcze w konfiguracji. PoĹ‚Ä…cz Offering w RevenueCat, ĹĽeby aktywowaÄ‡ zakup w aplikacji.
+            Płatności Pro są jeszcze w konfiguracji. Połącz Offering w RevenueCat, żeby aktywować zakup w aplikacji.
           </Text>
         )}
         <View style={styles.purchaseActionsRow}>
           <Pressable disabled={busyAction !== null} onPress={openPaywall} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{busyAction === "paywall" ? "Ĺadowanie..." : "PokaĹĽ paywall"}</Text>
+            <Text style={styles.secondaryButtonText}>{busyAction === "paywall" ? "Ładowanie..." : "Pokaż paywall"}</Text>
           </Pressable>
           <Pressable disabled={busyAction !== null} onPress={restore} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{busyAction === "restore" ? "Sync..." : "PrzywrĂłÄ‡"}</Text>
+            <Text style={styles.secondaryButtonText}>{busyAction === "restore" ? "Sync..." : "Przywróć"}</Text>
           </Pressable>
         </View>
         <Pressable disabled={busyAction !== null} onPress={manageSubscription} style={styles.secondaryButtonWide}>
-          <Text style={styles.secondaryButtonText}>{busyAction === "customer-center" ? "Otwieram..." : "Centrum zakupĂłw"}</Text>
+          <Text style={styles.secondaryButtonText}>{busyAction === "customer-center" ? "Otwieram..." : "Centrum zakupów"}</Text>
         </Pressable>
       </View>
     </View>
@@ -1939,7 +1939,7 @@ function ProfileScreen({
           keyboardType="numeric"
         />
         <View style={styles.statsRow}>
-          {[["126", "polubieĹ„"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
+          {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
             <View key={label} style={styles.statBox}><Text style={styles.statValue} selectable>{value}</Text><Text style={styles.statLabel} selectable>{label}</Text></View>
           ))}
         </View>
@@ -2018,8 +2018,8 @@ function ProfileScreen({
               }
             }}
           />
-          <SettingRow label="Centrum bezpieczeĹ„stwa" value="OtwĂłrz" onPress={openSafety} />
-          <SettingRow label="WidocznoĹ›Ä‡ profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
+          <SettingRow label="Centrum bezpieczeństwa" value="Otwórz" onPress={openSafety} />
+          <SettingRow label="Widoczność profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
         </View>
       </View>
     </View>
@@ -2105,8 +2105,8 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
           <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
         </Pressable>
         <View style={styles.fill}>
-          <Text style={styles.eyebrow} selectable>BezpieczeĹ„stwo</Text>
-          <Text style={styles.screenTitle} selectable>Centrum bezpieczeĹ„stwa</Text>
+          <Text style={styles.eyebrow} selectable>Bezpieczeństwo</Text>
+          <Text style={styles.screenTitle} selectable>Centrum bezpieczeństwa</Text>
         </View>
         <IconButton label="?" />
       </View>
@@ -2115,7 +2115,7 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
         <View style={styles.safetyHeroIcon}><MaterialCommunityIcons name={"shield-heart" as any} size={28} color={colors.primaryDeep} /></View>
         <Text style={styles.safetyHeroTitle} selectable>Bezpieczne poznawanie ludzi</Text>
         <Text style={styles.safetyHeroText} selectable>
-          KaĹĽdy profil moĹĽe zostaÄ‡ zgĹ‚oszony lub zablokowany. Te akcje powinny trafiÄ‡ do backendu moderacji przed publicznÄ… premierÄ….
+          Każdy profil może zostać zgłoszony lub zablokowany. Te akcje powinny trafić do backendu moderacji przed publiczną premierą.
         </Text>
       </View>
 
