@@ -1106,7 +1106,6 @@ function AuthScreen({
         <View style={styles.logoMark}>
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
-        <Text style={styles.eyebrow} selectable>SPARK</Text>
         <View style={styles.pixelTitleWrap}>
           <Text style={styles.title} selectable>SPARK</Text>
           <View style={styles.pixelSparkA} />
