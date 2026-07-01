@@ -2307,10 +2307,10 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoMark: {
-    width: 212,
-    height: 212,
+    width: 236,
+    height: 236,
     borderRadius: 0,
-    marginBottom: -24,
+    marginBottom: -34,
     overflow: "visible",
     backgroundColor: "transparent",
     borderWidth: 0,
