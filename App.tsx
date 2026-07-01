@@ -129,6 +129,7 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type Mode = "classic" | "premium";
+type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean };
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type AgeBand = "18+" | "under18" | null;
@@ -421,7 +422,7 @@ function getThreadId(uid: string | null | undefined, profileKey: string) {
 
 function AppContent() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [authDone, setAuthDone] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [firstName, setFirstName] = useState("Alex");
@@ -435,6 +436,7 @@ function AppContent() {
   const [selectedInterests, setSelectedInterests] = useState(["Filmy", "Natura", "Kawa", "Sztuka"]);
   const [tab, setTab] = useState<Tab>("discover");
   const [mode, setMode] = useState<Mode>("classic");
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false });
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
@@ -470,6 +472,9 @@ function AppContent() {
     () =>
       matchProfiles
         .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
+        .filter((profile) => selectedInterests.length === 0 || profile.interests.some((interest) => selectedInterests.includes(interest)))
+        .filter((profile) => !discoverFilters.nearbyOnly || getDistanceKm(userLocation, profile) <= 25)
+        .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
           const result = scoreProfileMatch({ profile, selectedInterests, userLocation, userAge });
 
@@ -481,7 +486,7 @@ function AppContent() {
           };
         })
         .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0)),
-    [blockedProfileKeys, selectedInterests, userAge, userLocation]
+    [blockedProfileKeys, discoverFilters.nearbyOnly, discoverFilters.proOnly, selectedInterests, userAge, userLocation]
   );
   const visibleProfiles = sortedProfiles.length > 0 ? sortedProfiles : matchProfiles;
   const activeProfile = visibleProfiles[profileIndex % visibleProfiles.length];
@@ -505,6 +510,7 @@ function AppContent() {
     }),
     [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
+  const discoverMinHeight = Math.max(620, height - contentPadding.paddingTop - contentPadding.paddingBottom);
 
   useEffect(() => {
     const idToken = googleResponse?.type === "success" ? googleResponse.params.id_token : undefined;
@@ -973,7 +979,7 @@ function AppContent() {
   return (
     <LinearGradient colors={["#050507", "#150711", "#050507"]} style={styles.root}>
       <StatusBar style="light" />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, tab === "discover" && styles.discoverScroll, contentPadding]}>
         {tab === "discover" && (
           <DiscoverScreen
             mode={mode}
@@ -983,9 +989,17 @@ function AppContent() {
             requestProAccess={revenueCat.presentPaywallIfNeeded}
             onSwipe={handleSwipe}
             onPremiumChatRequest={sendPremiumChatRequest}
+            onOpenMessages={() => setTab("messages")}
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
             superlikesRemaining={superlikesRemaining}
+            selectedInterests={selectedInterests}
+            setSelectedInterests={setSelectedInterests}
+            userAge={userAge}
+            setUserAge={setUserAge}
+            discoverFilters={discoverFilters}
+            setDiscoverFilters={setDiscoverFilters}
+            screenMinHeight={discoverMinHeight}
             onBlockProfile={() => blockProfile(activeProfileKey)}
             onReportProfile={() => reportProfile(activeProfileKey)}
           />
@@ -1379,9 +1393,17 @@ function DiscoverScreen({
   requestProAccess,
   onSwipe,
   onPremiumChatRequest,
+  onOpenMessages,
   hasMatchedProfile,
   hasRequestedProfile,
   superlikesRemaining,
+  selectedInterests,
+  setSelectedInterests,
+  userAge,
+  setUserAge,
+  discoverFilters,
+  setDiscoverFilters,
+  screenMinHeight,
   onBlockProfile,
   onReportProfile
 }: {
@@ -1392,74 +1414,210 @@ function DiscoverScreen({
   requestProAccess: () => Promise<boolean>;
   onSwipe: (action: SwipeAction) => void;
   onPremiumChatRequest: () => void;
+  onOpenMessages: () => void;
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
   superlikesRemaining: number;
+  selectedInterests: string[];
+  setSelectedInterests: (value: string[]) => void;
+  userAge: number;
+  setUserAge: (value: number) => void;
+  discoverFilters: DiscoverFilters;
+  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
+  screenMinHeight: number;
   onBlockProfile: () => void;
   onReportProfile: () => void;
 }) {
-  const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Prosba";
-  const premiumActions: Array<{ label: string; icon: string; onPress: () => void }> = [
-    { label: "Superlike", icon: "star-four-points", onPress: () => onSwipe("superlike") },
-    { label: premiumChatLabel, icon: "message-text", onPress: onPremiumChatRequest },
-    { label: "Zapisz", icon: "bookmark-outline", onPress: () => undefined }
+  const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Prośba";
+  const premiumChatSub = hasMatchedProfile ? "Otwórz rozmowę" : hasRequestedProfile ? "Już wysłana" : "Napisz przed matchem";
+  const filterCandidates = Array.from(new Set([...profile.interests, ...selectedInterests, "Muzyka", "Natura", "Kawa", "LGBT+"])).slice(0, 8);
+
+  async function setPremiumMode() {
+    if (!hasPro) {
+      const granted = await requestProAccess();
+      if (!granted) {
+        return;
+      }
+    }
+
+    setMode("premium");
+  }
+
+  async function runProAction(action: () => void, locked: boolean) {
+    if (locked) {
+      const granted = await requestProAccess();
+      if (!granted) {
+        return;
+      }
+    }
+
+    action();
+  }
+
+  async function toggleProFilter(key: keyof DiscoverFilters) {
+    if (!hasPro) {
+      const granted = await requestProAccess();
+      if (!granted) {
+        return;
+      }
+    }
+
+    setDiscoverFilters((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  const premiumActions = [
+    {
+      label: "Superlike",
+      sub: superlikesRemaining + "/10 w miesiącu",
+      icon: "star-four-points",
+      locked: !hasPro,
+      onPress: () => onSwipe("superlike")
+    },
+    {
+      label: premiumChatLabel,
+      sub: premiumChatSub,
+      icon: "message-text",
+      locked: !hasPro && !hasMatchedProfile,
+      onPress: () => {
+        if (hasMatchedProfile) {
+          onOpenMessages();
+          return;
+        }
+
+        if (hasRequestedProfile) {
+          Alert.alert("Prośba o chat", "Ta prośba już czeka na akceptację.");
+          return;
+        }
+
+        onPremiumChatRequest();
+      }
+    },
+    {
+      label: "Boost",
+      sub: "Częściej u innych",
+      icon: "rocket-launch",
+      locked: !hasPro,
+      onPress: () => Alert.alert("Boost Pro", "Twój profil ma priorytet w odkrywaniu.")
+    }
   ];
 
   return (
-    <View style={styles.gapLg}>
-      <TopBar eyebrow="Odkrywaj" title="Spark" left="=" right="km" />
-      <View style={styles.segmented}>
-        {(["classic", "premium"] as Mode[]).map((item) => (
-          <Pressable
-            key={item}
-            onPress={async () => {
-              if (item === "premium" && !hasPro) {
-                const granted = await requestProAccess();
-                if (granted) {
-                  setMode(item);
-                }
-                return;
-              }
-
-              setMode(item);
-            }}
-            style={[styles.segmentButton, mode === item && styles.segmentButtonActive]}
-          >
-            <Text style={[styles.segmentText, mode === item && styles.segmentTextActive]}>{item === "classic" ? "Klasycznie" : "Premium"}</Text>
-          </Pressable>
-        ))}
+    <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
+      <View style={styles.discoverHeader}>
+        <View style={styles.discoverTitleBlock}>
+          <Text style={styles.discoverEyebrow} selectable>Odkrywaj</Text>
+          <Text style={styles.discoverTitle} selectable>Spark</Text>
+        </View>
+        <View style={styles.discoverMetricPill}>
+          <MaterialCommunityIcons name="map-marker-radius" size={16} color={colors.primaryDeep} />
+          <Text style={styles.discoverMetricText} selectable>{profile.distance}</Text>
+        </View>
       </View>
-      <ProfileCard profile={profile} />
-      <View style={styles.monetizationStatus}>
-        <Text style={styles.monetizationStatusText} selectable>
+
+      <View style={styles.discoverSegmented}>
+        <Pressable onPress={() => setMode("classic")} style={[styles.discoverSegmentButton, mode === "classic" && styles.discoverSegmentButtonActive]}>
+          <Text style={[styles.discoverSegmentText, mode === "classic" && styles.discoverSegmentTextActive]}>Free</Text>
+        </Pressable>
+        <Pressable onPress={setPremiumMode} style={[styles.discoverSegmentButton, mode === "premium" && styles.discoverSegmentButtonActive]}>
+          <MaterialCommunityIcons name={hasPro ? "crown" : "lock"} size={15} color={mode === "premium" ? colors.ink : colors.primaryDeep} />
+          <Text style={[styles.discoverSegmentText, mode === "premium" && styles.discoverSegmentTextActive]}>Pro</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.discoverFilterPanel}>
+        <View style={styles.discoverPanelHeader}>
+          <Text style={styles.discoverPanelTitle} selectable>Filtry matchy</Text>
+          <View style={[styles.discoverPlanPill, hasPro && styles.discoverPlanPillActive]}>
+            <MaterialCommunityIcons name={hasPro ? "check-decagram" : "lock"} size={13} color={hasPro ? colors.ink : colors.primaryDeep} />
+            <Text style={[styles.discoverPlanPillText, hasPro && styles.discoverPlanPillTextActive]} selectable>{hasPro ? "Pro aktywne" : "Pro zablokowane"}</Text>
+          </View>
+        </View>
+        <View style={styles.filterChipsRow}>
+          {filterCandidates.map((interest) => {
+            const active = selectedInterests.includes(interest);
+            const theme = getInterestTheme(interest);
+
+            return (
+              <Pressable key={interest} onPress={() => setSelectedInterests(toggleListItem(selectedInterests, interest))} style={[styles.filterChip, { borderColor: theme.border }, active && styles.filterChipActive, active && { backgroundColor: theme.active }]}>
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]} numberOfLines={1}>{interest}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.filterControlGrid}>
+          <View style={styles.ageControl}>
+            <Pressable onPress={() => setUserAge(Math.max(18, userAge - 1))} style={styles.ageButton}>
+              <MaterialCommunityIcons name="minus" size={17} color={colors.ink} />
+            </Pressable>
+            <View style={styles.ageCopy}>
+              <Text style={styles.ageLabel} selectable>Wiek</Text>
+              <Text style={styles.ageValue} selectable>{userAge}</Text>
+            </View>
+            <Pressable onPress={() => setUserAge(Math.min(60, userAge + 1))} style={styles.ageButton}>
+              <MaterialCommunityIcons name="plus" size={17} color={colors.ink} />
+            </Pressable>
+          </View>
+          {([
+            ["nearbyOnly", "Blisko", "do 25 km", "map-marker-radius"],
+            ["proOnly", "Profile Pro", "korona i boost", "crown"]
+          ] as Array<[keyof DiscoverFilters, string, string, string]>).map(([key, label, sub, icon]) => {
+            const active = discoverFilters[key];
+            const locked = !hasPro;
+
+            return (
+              <Pressable key={key} onPress={() => toggleProFilter(key)} style={[styles.proFilterButton, active && styles.proFilterButtonActive, locked && styles.proFilterButtonLocked]}>
+                <MaterialCommunityIcons name={(locked ? "lock" : icon) as any} size={18} color={active ? colors.ink : colors.primaryDeep} />
+                <View style={styles.fill}>
+                  <Text style={styles.proFilterText} numberOfLines={1}>{label}</Text>
+                  <Text style={styles.proFilterSubtext} numberOfLines={1}>{locked ? "Spark Pro" : sub}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.discoverCardStage}>
+        <ProfileCard profile={profile} />
+      </View>
+
+      <View style={styles.discoverInfoStrip}>
+        <MaterialCommunityIcons name={hasPro ? "crown" : "information"} size={17} color={colors.primaryDeep} />
+        <Text style={styles.discoverInfoText} selectable>
           {hasPro
-            ? `Pro: widzisz kto Cie polubil, prosby o chat, korona, 15 zdjec i boost profilu (${superlikesRemaining}/10 Superlike)`
-            : "Free: reklama video co ok. 5-10 swipe'ow, 3 zdjecia i chat dopiero po matchu"}
+            ? "Pro: polubienia, prośby o chat, korona, 15 zdjęć, boost i zero reklam."
+            : "Free: lajki i chat po matchu. Pro odblokowuje Superlike, prośby o chat i filtry premium."}
         </Text>
       </View>
-      <View style={styles.profileSafetyRow}>
+
+      <View style={styles.discoverSafetyRow}>
         <Pressable accessibilityRole="button" onPress={onReportProfile} style={styles.profileSafetyButton}>
-          <Text style={styles.profileSafetyText}>Zglos</Text>
+          <MaterialCommunityIcons name="flag-outline" size={15} color={colors.primaryDeep} />
+          <Text style={styles.profileSafetyText}>Zgłoś</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onBlockProfile} style={styles.profileSafetyButton}>
+          <MaterialCommunityIcons name="block-helper" size={15} color={colors.primaryDeep} />
           <Text style={styles.profileSafetyText}>Blokuj</Text>
         </Pressable>
       </View>
-      <View style={styles.actionRow}>
+
+      <View style={styles.actionDock}>
         <RoundAction label="close" tone="light" onPress={() => onSwipe("pass")} />
         <RoundAction label="heart" tone="primary" large onPress={() => onSwipe("like")} />
-        <RoundAction label="star-four-points" tone="light" onPress={() => onSwipe("superlike")} />
+        <RoundAction label="star-four-points" tone="light" locked={!hasPro} onPress={() => runProAction(() => onSwipe("superlike"), !hasPro)} />
       </View>
-      {mode === "premium" && (
-        <View style={styles.premiumGrid}>
-          {premiumActions.map(({ label, icon, onPress }) => (
-            <Pressable key={label} onPress={onPress} style={styles.premiumAction}>
-              <MaterialCommunityIcons name={icon as any} size={22} color={colors.primaryDeep} />
-              <Text style={styles.premiumText}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
+
+      <View style={styles.proQuickGrid}>
+        {premiumActions.map((action) => (
+          <Pressable key={action.label} onPress={() => runProAction(action.onPress, action.locked)} style={[styles.proQuickAction, !action.locked && styles.proQuickActionActive, action.locked && styles.proQuickActionLocked]}>
+            <View style={styles.proQuickIconWrap}>
+              <MaterialCommunityIcons name={(action.locked ? "lock" : action.icon) as any} size={20} color={action.locked ? colors.muted : colors.primaryDeep} />
+            </View>
+            <Text style={styles.proQuickText} numberOfLines={1}>{action.label}</Text>
+            <Text style={styles.proQuickSubtext} numberOfLines={1}>{action.locked ? "Odblokuj Pro" : action.sub}</Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -2232,20 +2390,27 @@ function RoundAction({
   label,
   tone,
   large = false,
+  locked = false,
   onPress
 }: {
   label: string;
   tone: "light" | "primary";
   large?: boolean;
+  locked?: boolean;
   onPress?: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.roundAction, large && styles.roundActionLarge, tone === "primary" && styles.roundActionPrimary]}
+      style={[styles.roundAction, large && styles.roundActionLarge, tone === "primary" && styles.roundActionPrimary, locked && styles.roundActionLocked]}
     >
       <MaterialCommunityIcons name={getIconName(label) as any} size={large ? 38 : 30} color={tone === "primary" ? "#fff" : colors.ink} />
+      {locked && (
+        <View style={styles.roundActionLockBadge}>
+          <MaterialCommunityIcons name="lock" size={11} color={colors.ink} />
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -2311,7 +2476,11 @@ const styles = StyleSheet.create({
     boxShadow: "0 0 120px rgba(255,45,141,0.32)"
   },
   scroll: {
+    flexGrow: 1,
     gap: 24
+  },
+  discoverScroll: {
+    gap: 0
   },
   fill: {
     flex: 1
@@ -2772,6 +2941,292 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "800"
   },
+  discoverScreen: {
+    flex: 1,
+    gap: 10
+  },
+  discoverHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  discoverTitleBlock: {
+    gap: 1
+  },
+  discoverEyebrow: {
+    color: colors.primaryDeep,
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  discoverTitle: {
+    color: colors.ink,
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: "900"
+  },
+  discoverMetricPill: {
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(18,18,25,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  discoverMetricText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  discoverSegmented: {
+    flexDirection: "row",
+    gap: 8,
+    padding: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(10,10,14,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)"
+  },
+  discoverSegmentButton: {
+    flex: 1,
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 999
+  },
+  discoverSegmentButtonActive: {
+    backgroundColor: colors.primary,
+    boxShadow: "0 12px 28px rgba(255,45,141,0.28)"
+  },
+  discoverSegmentText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  discoverSegmentTextActive: {
+    color: colors.ink
+  },
+  discoverFilterPanel: {
+    gap: 10,
+    padding: 12,
+    borderRadius: 24,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(14,14,20,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  discoverPanelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  discoverPanelTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  discoverPlanPill: {
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,45,141,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  discoverPlanPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: "rgba(255,255,255,0.16)"
+  },
+  discoverPlanPillText: {
+    color: colors.primaryDeep,
+    fontSize: 10,
+    fontWeight: "900"
+  },
+  discoverPlanPillTextActive: {
+    color: colors.ink
+  },
+  filterChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7
+  },
+  filterChip: {
+    maxWidth: 142,
+    minHeight: 34,
+    justifyContent: "center",
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1
+  },
+  filterChipActive: {
+    borderColor: "rgba(255,255,255,0.2)"
+  },
+  filterChipText: {
+    color: "#d8b5c7",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  filterChipTextActive: {
+    color: colors.ink
+  },
+  filterControlGrid: {
+    flexDirection: "row",
+    gap: 8
+  },
+  ageControl: {
+    flex: 1.1,
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    padding: 7,
+    borderRadius: 20,
+    backgroundColor: "rgba(26,26,34,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.12)"
+  },
+  ageButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary
+  },
+  ageCopy: {
+    alignItems: "center",
+    minWidth: 42
+  },
+  ageLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  ageValue: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  proFilterButton: {
+    flex: 1,
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(26,26,34,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.12)"
+  },
+  proFilterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: "rgba(255,255,255,0.16)"
+  },
+  proFilterButtonLocked: {
+    opacity: 0.74
+  },
+  proFilterText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  proFilterSubtext: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  discoverCardStage: {
+    flex: 1,
+    minHeight: 360
+  },
+  discoverInfoStrip: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 18,
+    backgroundColor: "rgba(14,14,20,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  discoverInfoText: {
+    flex: 1,
+    color: "#d8b5c7",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800"
+  },
+  discoverSafetyRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  actionDock: {
+    minHeight: 84,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 18
+  },
+  proQuickGrid: {
+    flexDirection: "row",
+    gap: 8
+  },
+  proQuickAction: {
+    flex: 1,
+    minHeight: 78,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    borderRadius: 22,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(18,18,25,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  proQuickActionActive: {
+    borderColor: "rgba(255,45,141,0.34)",
+    backgroundColor: "rgba(35,12,26,0.92)"
+  },
+  proQuickActionLocked: {
+    opacity: 0.72
+  },
+  proQuickIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,45,141,0.12)"
+  },
+  proQuickText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  proQuickSubtext: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "800"
+  },
   monetizationStatus: {
     minHeight: 44,
     paddingHorizontal: 14,
@@ -2982,6 +3437,8 @@ const styles = StyleSheet.create({
   profileSafetyButton: {
     flex: 1,
     minHeight: 42,
+    flexDirection: "row",
+    gap: 7,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -3000,6 +3457,7 @@ const styles = StyleSheet.create({
     gap: 18
   },
   roundAction: {
+    position: "relative",
     width: 74,
     height: 74,
     borderRadius: 999,
@@ -3015,6 +3473,22 @@ const styles = StyleSheet.create({
   roundActionPrimary: {
     backgroundColor: colors.primary,
     boxShadow: "0 18px 40px rgba(255,45,141,0.35)"
+  },
+  roundActionLocked: {
+    opacity: 0.74,
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.22)"
+  },
+  roundActionLockBadge: {
+    position: "absolute",
+    right: 4,
+    top: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary
   },
   roundActionText: {
     color: colors.ink,
