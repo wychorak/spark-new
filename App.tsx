@@ -73,7 +73,7 @@ function openLegalDocument(title: string, url: string, envName: string) {
   });
 }
 const brandLogoImage = require("./assets/photologo.png");
-const loginLogoImage = require("./assets/loginpagelogo.png");
+const loginLogoImage = require("./assets/ChatGPT_Image_1_lip_2026__15_32_40-removebg-preview_waifu2x_3x_png.png");
 
 const profileImages = [
   require("./assets/profiles/profile-1.jpg"),
@@ -2308,10 +2308,10 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoMark: {
-    width: 142,
-    height: 142,
+    width: 158,
+    height: 158,
     borderRadius: 0,
-    marginBottom: -4,
+    marginBottom: -10,
     overflow: "visible",
     backgroundColor: "transparent",
     borderWidth: 0,
