@@ -301,24 +301,24 @@ const matchProfiles: MatchProfile[] = [
 const premiumPlans = [
   {
     id: "weekly",
-    title: "Spark Pro Week",
-    price: "Subskrypcja tygodniowa",
-    accent: "Dobry test",
-    features: ["Zobacz kto polubil Twoj profil", "Premium prosba o chat do profilu", "Korona Pro przy profilowym"]
+    title: "Spark Pro na tydzień",
+    price: "Tygodniowy dostęp",
+    accent: "Dobry start",
+    features: ["Zobacz, kto polubił Twój profil", "Wyślij prośbę o chat przed matchem", "Korona Pro przy profilowym"]
   },
   {
     id: "monthly",
-    title: "Spark Pro Month",
-    price: "Subskrypcja miesieczna",
-    accent: "Najlepszy rytm",
-    features: ["Wszystko z Weekly", "15 zdjec profilu zamiast 3", "Czestsze pojawianie sie na glownej"]
+    title: "Spark Pro na miesiąc",
+    price: "Subskrypcja miesięczna",
+    accent: "Najlepszy wybór",
+    features: ["Zero reklam", "15 zdjęć profilu zamiast 3", "Częstsze pojawianie się na głównej"]
   },
   {
     id: "lifetime",
-    title: "Spark Pro Lifetime",
+    title: "Spark Pro na zawsze",
     price: "Jednorazowy zakup",
-    accent: "Na stale",
-    features: ["Wszystko z Monthly", "Spark Pro na stale", "Zero reklam na zawsze"]
+    accent: "Bez limitu czasu",
+    features: ["Wszystko z planu miesięcznego", "Spark Pro bez odnawiania", "Premium aktywne na zawsze"]
   }
 ] satisfies Array<{ id: SparkPlanId; title: string; price: string; accent: string; features: string[] }>;
 
@@ -1578,6 +1578,12 @@ function MessagesScreen({
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
 }) {
+  void messageDraft;
+  void setMessageDraft;
+  void onSendMessage;
+  void onBlockProfile;
+  void onReportProfile;
+
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const conversations = matchProfiles
     .filter((profile) => {
@@ -1598,7 +1604,7 @@ function MessagesScreen({
         name: profile.name + " " + profile.surname[0] + ".",
         message: isBlocked
           ? "Profil zablokowany."
-          : lastMessage ?? (isMatched ? "Match aktywny - mozecie pisac." : thread?.introMessage ?? "Premium prosba o chat czeka na akceptacje."),
+          : lastMessage ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Premium prośba o chat czeka na akceptację."),
         time: isMatched ? "teraz" : "oczekuje",
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
@@ -1608,13 +1614,11 @@ function MessagesScreen({
   const chatConversations = conversations.filter((conversation) => conversation.status !== "requested");
   const unreadChatsCount = chatConversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
   const visibleConversations = messageView === "chats" ? chatConversations : requestConversations;
-  const activeConversation = visibleConversations.find((conversation) => conversation.key === selectedChatKey) ?? visibleConversations[0];
-  const activeThread = activeConversation ? chatThreads[activeConversation.key] : null;
-  const activeUnreadCount = activeConversation?.unreadCount ?? 0;
-  const emptyTitle = messageView === "chats" ? "Brak aktywnych chatow" : "Brak nowych próśb";
+  const selectedVisibleKey = visibleConversations.some((conversation) => conversation.key === selectedChatKey) ? selectedChatKey : null;
+  const emptyTitle = messageView === "chats" ? "Brak aktywnych chatów" : "Brak nowych próśb";
   const emptyText = messageView === "chats"
-    ? "Chat pojawi sie tutaj po matchu albo zaakceptowanej prosbie."
-    : "Premium prosby o pierwsza wiadomosc beda czekaly tutaj osobno.";
+    ? "Chat pojawi się tutaj po matchu albo zaakceptowanej prośbie."
+    : "Pierwsze wiadomości od profili premium będą czekały tutaj osobno.";
 
   function selectMessageView(nextView: "chats" | "requests") {
     setMessageView(nextView);
@@ -1626,20 +1630,12 @@ function MessagesScreen({
     <View style={styles.gapLg}>
       <TopBar eyebrow="Wiadomości" title="Rozmowy" left="=" right="+" />
       <View style={styles.chatToggleRow}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => selectMessageView("chats")}
-          style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}
-        >
+        <Pressable accessibilityRole="button" onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
           <Text style={[styles.chatToggleText, messageView === "chats" && styles.chatToggleTextActive]} selectable>Chaty</Text>
           <Text style={[styles.chatToggleCount, messageView === "chats" && styles.chatToggleCountActive]} selectable>{chatConversations.length}</Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => selectMessageView("requests")}
-          style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}
-        >
+        <Pressable accessibilityRole="button" onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
           <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prośby</Text>
           <Text style={[styles.chatToggleCount, messageView === "requests" && styles.chatToggleCountActive]} selectable>{requestConversations.length}</Text>
@@ -1647,9 +1643,7 @@ function MessagesScreen({
       </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats"
-            ? unreadChatsCount + " nieodczytane w chatach"
-            : requestConversations.length + " prośby czekają osobno"}
+          {messageView === "chats" ? unreadChatsCount + " nieodczytane w chatach" : requestConversations.length + " prośby czekają osobno"}
         </Text>
       </View>
       <View style={styles.searchField}>
@@ -1662,88 +1656,21 @@ function MessagesScreen({
           <Text style={styles.emptyStateText} selectable>{emptyText}</Text>
         </View>
       ) : (
-        <>
-          <View style={styles.chatList}>
-            {visibleConversations.map((conversation) => (
-              <Pressable
-                key={conversation.key}
-                onPress={() => setSelectedChatKey(conversation.key)}
-                style={[styles.chatItem, activeConversation?.key === conversation.key && styles.chatItemActive]}
-              >
-                <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
-                <View style={styles.fill}>
-                  <Text style={styles.chatName} selectable>{conversation.name}</Text>
-                  <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
-                </View>
-                <View style={styles.chatMetaColumn}>
-                  <Text style={styles.chatTime} selectable>{conversation.time}</Text>
-                  {conversation.unreadCount > 0 && (
-                    <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>
-                  )}
-                </View>
-              </Pressable>
-            ))}
-          </View>
-
-          {activeConversation && (
-            <View style={styles.threadPanel}>
-              <View style={styles.threadHeader}>
-                <View>
-                  <Text style={styles.threadTitle} selectable>{activeConversation.name}</Text>
-                  <Text style={styles.threadStatus} selectable>
-                    {activeConversation.status === "matched" ? "Chat aktywny" : activeConversation.status === "blocked" ? "Zablokowany" : "Prosba oczekuje"}
-                  </Text>
-                  {activeConversation.status === "matched" && (
-                    <Text style={styles.threadMiniInfo} selectable>
-                      {activeUnreadCount > 0 ? activeUnreadCount + " nieodczytane od tej osoby" : "Brak nowych wiadomosci"}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.threadActions}>
-                  <Pressable onPress={() => onReportProfile(activeConversation.key)} style={styles.threadActionButton}>
-                    <Text style={styles.threadActionText}>Zglos</Text>
-                  </Pressable>
-                  <Pressable onPress={() => onBlockProfile(activeConversation.key)} style={styles.threadActionButton}>
-                    <Text style={styles.threadActionText}>Blokuj</Text>
-                  </Pressable>
-                </View>
+        <View style={styles.chatList}>
+          {visibleConversations.map((conversation) => (
+            <Pressable key={conversation.key} onPress={() => setSelectedChatKey(conversation.key)} style={[styles.chatItem, selectedVisibleKey === conversation.key && styles.chatItemActive]}>
+              <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
+              <View style={styles.fill}>
+                <Text style={styles.chatName} selectable>{conversation.name}</Text>
+                <Text style={styles.chatMessage} numberOfLines={2} selectable>{conversation.message}</Text>
               </View>
-
-              {activeConversation.status === "requested" && (
-                <View style={styles.requestCard}>
-                  <Text style={styles.requestTitle} selectable>Prosba o chat wyslana</Text>
-                  <Text style={styles.requestText} selectable>{activeThread?.introMessage ?? "Czeka na akceptacje drugiej osoby."}</Text>
-                </View>
-              )}
-
-              <View style={styles.messageStack}>
-                {(activeThread?.messages ?? []).map((message) => (
-                  <View key={message.id} style={[styles.messageBubble, message.from === "me" && styles.messageBubbleMine]}>
-                    <Text style={[styles.messageText, message.from === "me" && styles.messageTextMine]} selectable>{message.text}</Text>
-                  </View>
-                ))}
+              <View style={styles.chatMetaColumn}>
+                <Text style={styles.chatTime} selectable>{conversation.time}</Text>
+                {conversation.unreadCount > 0 && <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>}
               </View>
-
-              <View style={styles.messageComposer}>
-                <TextInput
-                  value={messageDraft}
-                  onChangeText={setMessageDraft}
-                  placeholder={activeConversation.status === "matched" ? "Napisz wiadomosc" : "Chat zablokowany do czasu matcha"}
-                  editable={activeConversation.status === "matched"}
-                  placeholderTextColor={colors.muted}
-                  style={styles.messageInput}
-                />
-                <Pressable
-                  disabled={activeConversation.status !== "matched"}
-                  onPress={() => onSendMessage(activeConversation.key, messageDraft)}
-                  style={[styles.messageSendButton, activeConversation.status !== "matched" && styles.messageSendButtonDisabled]}
-                >
-                  <Text style={styles.messageSendText}>Wyslij</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
-        </>
+            </Pressable>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -1768,7 +1695,7 @@ function PremiumScreen({
     setBusyAction(null);
 
     if (result.ok) {
-      Alert.alert("Sparknew Pro", "Dostep premium jest aktywny.");
+      Alert.alert("Sparknew Pro", "Dostęp premium jest aktywny.");
       return;
     }
 
@@ -1783,7 +1710,7 @@ function PremiumScreen({
     setBusyAction(null);
 
     if (granted) {
-      Alert.alert("Sparknew Pro", "Masz aktywny dostep premium.");
+      Alert.alert("Sparknew Pro", "Masz aktywny dostęp premium.");
     } else if (revenueCat.error) {
       Alert.alert("Paywall", revenueCat.error);
     }
@@ -1795,7 +1722,7 @@ function PremiumScreen({
     setBusyAction(null);
 
     if (result.ok) {
-      Alert.alert("Przywrocono", revenueCat.isPro ? "Sparknew Pro jest aktywny." : "Zakupy zostaly zsynchronizowane.");
+      Alert.alert("Przywrócono", revenueCat.isPro ? "Sparknew Pro jest aktywny." : "Zakupy zostały zsynchronizowane.");
     } else {
       Alert.alert("Restore failed", result.message);
     }
@@ -1813,42 +1740,57 @@ function PremiumScreen({
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Premium" title="Sparknew Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
+      <TopBar eyebrow="Premium" title="Spark Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
       <LinearGradient colors={["#1b0915", "#2a0b1d", "#07070a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.premiumHero}>
         <View style={styles.premiumHeroTop}>
           <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
           <Text style={styles.premiumCrown} selectable>PRO</Text>
         </View>
-        <Text style={styles.premiumHeroTitle} selectable>Widzisz kto Cie polubil. Piszesz przed matchem. Masz wiekszy zasieg.</Text>
+        <Text style={styles.premiumHeroTitle} selectable>Więcej matchy, zero reklam i wiadomości przed matchem.</Text>
         <Text style={styles.premiumHeroText} selectable>
-          Spark Pro odblokowuje listę polubień, prośbę o chat przed matchem, koronę przy profilu, 15 zdjęć i częstsze pokazywanie w odkrywaniu.
+          Wybierz Pro na tydzień, miesiąc albo na zawsze. Dostajesz koronę przy profilu, 15 zdjęć, podbicie w odkrywaniu i prośby o chat.
         </Text>
         <View style={styles.premiumBenefitRow}>
-          {["Kto mnie polubił", "Prośba o chat", "Korona", "15 zdjęć", "Boost"].map((benefit) => (
+          {["Polubienia", "Prośby o chat", "Korona", "15 zdjęć", "Boost"].map((benefit) => (
             <Text key={benefit} style={styles.premiumBenefit} selectable>{benefit}</Text>
           ))}
         </View>
         {revenueCat.error && <Text style={styles.revenueCatError} selectable>{revenueCat.error}</Text>}
       </LinearGradient>
       <View style={styles.planList}>
-        {premiumPlans.map((plan) => (
-          <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[styles.planCard, premiumPlan === plan.id && styles.planCardActive]}>
-            <View style={styles.planHeader}>
-              <View style={styles.fill}>
-                <Text style={styles.planTitle} selectable>{plan.title}</Text>
-                <Text style={styles.planAccent} selectable>{plan.accent}</Text>
+        {premiumPlans.map((plan) => {
+          const active = premiumPlan === plan.id;
+          const iconName = plan.id === "weekly" ? "calendar-week" : plan.id === "monthly" ? "calendar-heart" : "infinity";
+          return (
+            <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[styles.planCard, active && styles.planCardActive]}>
+              <View style={styles.planHeader}>
+                <View style={[styles.planIcon, active && styles.planIconActive]}>
+                  <MaterialCommunityIcons name={iconName} size={22} color={active ? colors.ink : colors.primaryDeep} />
+                </View>
+                <View style={styles.fill}>
+                  <Text style={styles.planTitle} selectable>{plan.title}</Text>
+                  <Text style={styles.planAccent} selectable>{plan.accent}</Text>
+                </View>
+                <View style={styles.planPriceColumn}>
+                  <Text style={styles.planBadge} selectable>{plan.price}</Text>
+                  <View style={[styles.planSelectDot, active && styles.planSelectDotActive]} />
+                </View>
               </View>
-              <Text style={styles.planPrice} selectable>{plan.price}</Text>
-            </View>
-            <View style={styles.planFeatures}>
-              {plan.features.map((feature) => <Text key={feature} style={styles.planFeature} selectable>+ {feature}</Text>)}
-            </View>
-          </Pressable>
-        ))}
+              <View style={styles.planFeatures}>
+                {plan.features.map((feature) => (
+                  <View key={feature} style={styles.planFeatureRow}>
+                    <MaterialCommunityIcons name="check-circle" size={15} color={colors.primaryDeep} />
+                    <Text style={styles.planFeature} selectable>{feature}</Text>
+                  </View>
+                ))}
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
       <View style={styles.purchasePanel}>
         <Pressable disabled={busyAction !== null || revenueCat.isPro || !hasPackages} onPress={buySelectedPlan} style={[styles.primaryButton, (busyAction !== null || revenueCat.isPro || !hasPackages) && styles.primaryButtonDisabled]}>
-          <Text style={styles.primaryButtonText}>{revenueCat.isPro ? "Sparknew Pro aktywny" : busyAction === "purchase" ? "Kupowanie..." : `Kup ${selectedPlan.title}`}</Text>
+          <Text style={styles.primaryButtonText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Kupowanie..." : "Kup " + selectedPlan.title}</Text>
         </Pressable>
         {!hasPackages && (
           <Text style={styles.purchaseHint} selectable>
@@ -3171,50 +3113,101 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   planList: {
-    gap: 12
+    gap: 14
   },
   planCard: {
-    gap: 14,
+    gap: 15,
     padding: 16,
-    borderRadius: 26,
+    borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: "rgba(14,14,20,0.92)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)",
-    boxShadow: "0 18px 42px rgba(0,0,0,0.34)"
+    borderColor: "rgba(255,45,141,0.16)",
+    boxShadow: "0 18px 42px rgba(0,0,0,0.36)"
   },
   planCardActive: {
-    borderColor: "rgba(255,45,141,0.38)",
-    backgroundColor: "rgba(34,20,31,0.96)",
-    boxShadow: "0 20px 44px rgba(255,45,141,0.14)"
+    borderColor: "rgba(255,45,141,0.58)",
+    backgroundColor: "rgba(37,10,27,0.96)",
+    boxShadow: "0 22px 52px rgba(255,45,141,0.2)"
   },
   planHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
     gap: 12
+  },
+  planIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,45,141,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.22)"
+  },
+  planIconActive: {
+    backgroundColor: colors.primary,
+    borderColor: "rgba(255,255,255,0.18)"
   },
   planTitle: {
     color: colors.ink,
-    fontSize: 18,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "900"
   },
   planAccent: {
-    color: colors.gold,
+    marginTop: 3,
+    color: colors.primaryDeep,
     fontSize: 12,
     fontWeight: "900"
+  },
+  planPriceColumn: {
+    alignItems: "flex-end",
+    gap: 9
   },
   planPrice: {
     color: colors.primaryDeep,
     fontSize: 14,
     fontWeight: "900"
   },
+  planBadge: {
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    color: colors.ink,
+    backgroundColor: "rgba(255,45,141,0.16)",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  planSelectDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.03)"
+  },
+  planSelectDotActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary
+  },
   planFeatures: {
-    gap: 6
+    gap: 8,
+    paddingTop: 3
+  },
+  planFeatureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
   },
   planFeature: {
-    color: "#d8b5c7",
+    flex: 1,
+    color: "#f0c9da",
     fontSize: 13,
-    lineHeight: 19
+    lineHeight: 19,
+    fontWeight: "700"
   },
   matchGrid: {
     flexDirection: "row",
