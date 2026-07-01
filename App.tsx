@@ -1578,6 +1578,7 @@ function MessagesScreen({
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
 }) {
+  const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const conversations = matchProfiles
     .filter((profile) => {
       const key = getProfileKey(profile);
@@ -1606,68 +1607,82 @@ function MessagesScreen({
   const requestConversations = conversations.filter((conversation) => conversation.status === "requested");
   const chatConversations = conversations.filter((conversation) => conversation.status !== "requested");
   const unreadChatsCount = chatConversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
-  const activeConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? chatConversations[0] ?? requestConversations[0];
+  const visibleConversations = messageView === "chats" ? chatConversations : requestConversations;
+  const activeConversation = visibleConversations.find((conversation) => conversation.key === selectedChatKey) ?? visibleConversations[0];
   const activeThread = activeConversation ? chatThreads[activeConversation.key] : null;
   const activeUnreadCount = activeConversation?.unreadCount ?? 0;
+  const emptyTitle = messageView === "chats" ? "Brak aktywnych chatow" : "Brak nowych próśb";
+  const emptyText = messageView === "chats"
+    ? "Chat pojawi sie tutaj po matchu albo zaakceptowanej prosbie."
+    : "Premium prosby o pierwsza wiadomosc beda czekaly tutaj osobno.";
 
-  function renderConversationSection(title: string, items: typeof conversations, countLabel?: string) {
-    if (items.length === 0) {
-      return null;
-    }
-
-    return (
-      <View style={styles.chatSection}>
-        <View style={styles.chatSectionHeader}>
-          <Text style={styles.chatSectionTitle} selectable>{title}</Text>
-          <Text style={styles.chatSectionBadge} selectable>{countLabel ?? String(items.length)}</Text>
-        </View>
-        {items.map((conversation) => (
-          <Pressable
-            key={conversation.key}
-            onPress={() => setSelectedChatKey(conversation.key)}
-            style={[styles.chatItem, activeConversation?.key === conversation.key && styles.chatItemActive]}
-          >
-            <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
-            <View style={styles.fill}>
-              <Text style={styles.chatName} selectable>{conversation.name}</Text>
-              <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
-            </View>
-            <View style={styles.chatMetaColumn}>
-              <Text style={styles.chatTime} selectable>{conversation.time}</Text>
-              {conversation.unreadCount > 0 && (
-                <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>
-              )}
-            </View>
-          </Pressable>
-        ))}
-      </View>
-    );
+  function selectMessageView(nextView: "chats" | "requests") {
+    setMessageView(nextView);
+    const nextList = nextView === "chats" ? chatConversations : requestConversations;
+    setSelectedChatKey(nextList[0]?.key ?? null);
   }
 
   return (
     <View style={styles.gapLg}>
       <TopBar eyebrow="Wiadomości" title="Rozmowy" left="=" right="+" />
+      <View style={styles.chatToggleRow}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => selectMessageView("chats")}
+          style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}
+        >
+          <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
+          <Text style={[styles.chatToggleText, messageView === "chats" && styles.chatToggleTextActive]} selectable>Chaty</Text>
+          <Text style={[styles.chatToggleCount, messageView === "chats" && styles.chatToggleCountActive]} selectable>{chatConversations.length}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => selectMessageView("requests")}
+          style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}
+        >
+          <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
+          <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prośby</Text>
+          <Text style={[styles.chatToggleCount, messageView === "requests" && styles.chatToggleCountActive]} selectable>{requestConversations.length}</Text>
+        </Pressable>
+      </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {requestConversations.length} prośby ? {unreadChatsCount} nieodczytane w chatach
+          {messageView === "chats"
+            ? unreadChatsCount + " nieodczytane w chatach"
+            : requestConversations.length + " prośby czekają osobno"}
         </Text>
       </View>
       <View style={styles.searchField}>
         <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
-        <TextInput placeholder="Szukaj rozmow" placeholderTextColor={colors.muted} style={styles.searchInput} />
+        <TextInput placeholder={messageView === "chats" ? "Szukaj chatów" : "Szukaj próśb"} placeholderTextColor={colors.muted} style={styles.searchInput} />
       </View>
-      {conversations.length === 0 ? (
+      {visibleConversations.length === 0 ? (
         <View style={styles.emptyStateCard}>
-          <Text style={styles.emptyStateTitle} selectable>Brak aktywnych rozmow</Text>
-          <Text style={styles.emptyStateText} selectable>
-            Chat odblokuje sie po matchu. Premium moze wyslac jedna prosbe o rozmowe przed matchem.
-          </Text>
+          <Text style={styles.emptyStateTitle} selectable>{emptyTitle}</Text>
+          <Text style={styles.emptyStateText} selectable>{emptyText}</Text>
         </View>
       ) : (
         <>
           <View style={styles.chatList}>
-            {renderConversationSection("Prośby", requestConversations)}
-            {renderConversationSection("Chaty", chatConversations, unreadChatsCount > 0 ? chatConversations.length + " / " + unreadChatsCount + " nowe" : String(chatConversations.length))}
+            {visibleConversations.map((conversation) => (
+              <Pressable
+                key={conversation.key}
+                onPress={() => setSelectedChatKey(conversation.key)}
+                style={[styles.chatItem, activeConversation?.key === conversation.key && styles.chatItemActive]}
+              >
+                <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
+                <View style={styles.fill}>
+                  <Text style={styles.chatName} selectable>{conversation.name}</Text>
+                  <Text style={styles.chatMessage} numberOfLines={1} selectable>{conversation.message}</Text>
+                </View>
+                <View style={styles.chatMetaColumn}>
+                  <Text style={styles.chatTime} selectable>{conversation.time}</Text>
+                  {conversation.unreadCount > 0 && (
+                    <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>
+                  )}
+                </View>
+              </Pressable>
+            ))}
           </View>
 
           {activeConversation && (
@@ -1733,6 +1748,7 @@ function MessagesScreen({
     </View>
   );
 }
+
 function PremiumScreen({
   premiumPlan,
   setPremiumPlan,
@@ -3253,6 +3269,53 @@ const styles = StyleSheet.create({
   },
   chatList: {
     gap: 12
+  },
+  chatToggleRow: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 5,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "rgba(10,10,14,0.72)"
+  },
+  chatToggleButton: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.04)"
+  },
+  chatToggleButtonActive: {
+    backgroundColor: colors.primary,
+    boxShadow: "0 10px 28px rgba(255,45,141,0.34)"
+  },
+  chatToggleText: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  chatToggleTextActive: {
+    color: colors.ink
+  },
+  chatToggleCount: {
+    overflow: "hidden",
+    minWidth: 24,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    textAlign: "center",
+    paddingHorizontal: 7,
+    paddingVertical: 3
+  },
+  chatToggleCountActive: {
+    backgroundColor: "rgba(0,0,0,0.18)",
+    color: colors.ink
   },
   chatMiniInfo: {
     alignSelf: "flex-start",
