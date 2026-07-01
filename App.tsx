@@ -1062,9 +1062,50 @@ function AppContent() {
   );
 }
 
+function AnimatedBackground() {
+  const motion = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(motion, {
+          toValue: 1,
+          duration: 6200,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true
+        }),
+        Animated.timing(motion, {
+          toValue: 0,
+          duration: 6200,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true
+        })
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [motion]);
+
+  const glowOpacity = motion.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.2, 0.62, 0.26] });
+  const sweepOpacity = motion.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.08, 0.28, 0.1] });
+  const sweepX = motion.interpolate({ inputRange: [0, 1], outputRange: [-90, 90] });
+  const sweepY = motion.interpolate({ inputRange: [0, 1], outputRange: [24, -28] });
+  const pulseScale = motion.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
+
+  return (
+    <View pointerEvents="none" style={styles.animatedBackground}>
+      <Animated.View style={[styles.backgroundRoseWash, { opacity: glowOpacity, transform: [{ scale: pulseScale }] }]} />
+      <Animated.View style={[styles.backgroundRoseSweep, { opacity: sweepOpacity, transform: [{ translateX: sweepX }, { translateY: sweepY }, { rotate: "-18deg" }] }]} />
+      <Animated.View style={[styles.backgroundRoseHorizon, { opacity: glowOpacity }]} />
+    </View>
+  );
+}
+
 function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; contentPadding: object }) {
   return (
-    <LinearGradient colors={["#050507", "#12060e", "#050507"]} style={styles.root}>
+    <LinearGradient colors={["#020203", "#080307", "#050507"]} style={styles.root}>
+      <AnimatedBackground />
       <StatusBar style="light" />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
         {children}
@@ -2269,7 +2310,47 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1
+    flex: 1,
+    overflow: "hidden"
+  },
+  animatedBackground: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "#020203"
+  },
+  backgroundRoseWash: {
+    position: "absolute",
+    left: -70,
+    right: -70,
+    top: -110,
+    height: 360,
+    borderRadius: 140,
+    backgroundColor: "rgba(255,45,141,0.34)",
+    transform: [{ rotate: "-10deg" }],
+    boxShadow: "0 0 120px rgba(255,45,141,0.46)"
+  },
+  backgroundRoseSweep: {
+    position: "absolute",
+    left: -120,
+    right: -120,
+    top: 145,
+    height: 160,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,45,141,0.5)",
+    boxShadow: "0 0 90px rgba(255,45,141,0.5)"
+  },
+  backgroundRoseHorizon: {
+    position: "absolute",
+    left: -40,
+    right: -40,
+    bottom: -90,
+    height: 230,
+    borderRadius: 110,
+    backgroundColor: "rgba(255,45,141,0.2)",
+    boxShadow: "0 0 120px rgba(255,45,141,0.32)"
   },
   scroll: {
     gap: 24
