@@ -1165,7 +1165,6 @@ function AuthScreen({
         <View style={[styles.logoMark, styles.loginLogoMark]}>
           <Image source={loginLogoImage} style={styles.loginLogoImage} contentFit="contain" />
         </View>
-        <SparkTitle />
         <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
       </View>
 
@@ -2308,10 +2307,10 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoMark: {
-    width: 158,
-    height: 158,
+    width: 212,
+    height: 212,
     borderRadius: 0,
-    marginBottom: -10,
+    marginBottom: -24,
     overflow: "visible",
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -2389,8 +2388,8 @@ const styles = StyleSheet.create({
   },
   brandCompact: {
     alignItems: "center",
-    gap: 10,
-    paddingTop: 4
+    gap: 4,
+    paddingTop: 0
   },
   screenHeroTitle: {
     color: colors.ink,
