@@ -1428,9 +1428,15 @@ function DiscoverScreen({
   onBlockProfile: () => void;
   onReportProfile: () => void;
 }) {
-  const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Prośba";
-  const premiumChatSub = hasMatchedProfile ? "Otwórz rozmowę" : hasRequestedProfile ? "Już wysłana" : "Napisz przed matchem";
-  const filterCandidates = Array.from(new Set([...profile.interests, ...selectedInterests, "Muzyka", "Natura", "Kawa", "LGBT+"])).slice(0, 8);
+  void selectedInterests;
+  void setSelectedInterests;
+  void userAge;
+  void setUserAge;
+  void discoverFilters;
+  void setDiscoverFilters;
+
+  const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
+  const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
 
   async function setPremiumMode() {
     if (!hasPro) {
@@ -1454,169 +1460,64 @@ function DiscoverScreen({
     action();
   }
 
-  async function toggleProFilter(key: keyof DiscoverFilters) {
-    if (!hasPro) {
-      const granted = await requestProAccess();
-      if (!granted) {
-        return;
-      }
+  function handlePremiumChat() {
+    if (hasMatchedProfile) {
+      onOpenMessages();
+      return;
     }
 
-    setDiscoverFilters((current) => ({ ...current, [key]: !current[key] }));
+    if (hasRequestedProfile) {
+      Alert.alert("Prośba o chat", "Ta prośba już czeka na akceptację.");
+      return;
+    }
+
+    onPremiumChatRequest();
   }
-
-  const premiumActions = [
-    {
-      label: "Superlike",
-      sub: superlikesRemaining + "/10 w miesiącu",
-      icon: "star-four-points",
-      locked: !hasPro,
-      onPress: () => onSwipe("superlike")
-    },
-    {
-      label: premiumChatLabel,
-      sub: premiumChatSub,
-      icon: "message-text",
-      locked: !hasPro && !hasMatchedProfile,
-      onPress: () => {
-        if (hasMatchedProfile) {
-          onOpenMessages();
-          return;
-        }
-
-        if (hasRequestedProfile) {
-          Alert.alert("Prośba o chat", "Ta prośba już czeka na akceptację.");
-          return;
-        }
-
-        onPremiumChatRequest();
-      }
-    },
-    {
-      label: "Boost",
-      sub: "Częściej u innych",
-      icon: "rocket-launch",
-      locked: !hasPro,
-      onPress: () => Alert.alert("Boost Pro", "Twój profil ma priorytet w odkrywaniu.")
-    }
-  ];
 
   return (
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
-      <View style={styles.discoverHeader}>
-        <View style={styles.discoverTitleBlock}>
+      <View style={styles.stitchTopBar}>
+        <View>
           <Text style={styles.discoverEyebrow} selectable>Odkrywaj</Text>
           <Text style={styles.discoverTitle} selectable>Spark</Text>
         </View>
-        <View style={styles.discoverMetricPill}>
-          <MaterialCommunityIcons name="map-marker-radius" size={16} color={colors.primaryDeep} />
-          <Text style={styles.discoverMetricText} selectable>{profile.distance}</Text>
+        <View style={styles.locationGlassPill}>
+          <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
+          <Text style={styles.locationGlassText} selectable>{profile.distance}</Text>
         </View>
       </View>
 
-      <View style={styles.discoverSegmented}>
-        <Pressable onPress={() => setMode("classic")} style={[styles.discoverSegmentButton, mode === "classic" && styles.discoverSegmentButtonActive]}>
-          <Text style={[styles.discoverSegmentText, mode === "classic" && styles.discoverSegmentTextActive]}>Free</Text>
+      <View style={styles.stitchPlanToggle}>
+        <Pressable onPress={() => setMode("classic")} style={[styles.stitchPlanButton, mode === "classic" && styles.stitchPlanButtonActive]}>
+          <Text style={[styles.stitchPlanText, mode === "classic" && styles.stitchPlanTextActive]}>Free</Text>
         </Pressable>
-        <Pressable onPress={setPremiumMode} style={[styles.discoverSegmentButton, mode === "premium" && styles.discoverSegmentButtonActive]}>
-          <MaterialCommunityIcons name={hasPro ? "crown" : "lock"} size={15} color={mode === "premium" ? colors.ink : colors.primaryDeep} />
-          <Text style={[styles.discoverSegmentText, mode === "premium" && styles.discoverSegmentTextActive]}>Pro</Text>
+        <Pressable onPress={setPremiumMode} style={[styles.stitchPlanButton, mode === "premium" && styles.stitchPlanButtonActive]}>
+          <MaterialCommunityIcons name={hasPro ? "crown" : "lock"} size={16} color={mode === "premium" ? colors.ink : "#e4bdc3"} />
+          <Text style={[styles.stitchPlanText, mode === "premium" && styles.stitchPlanTextActive]}>Pro</Text>
         </Pressable>
       </View>
 
-      <View style={styles.discoverFilterPanel}>
-        <View style={styles.discoverPanelHeader}>
-          <Text style={styles.discoverPanelTitle} selectable>Filtry matchy</Text>
-          <View style={[styles.discoverPlanPill, hasPro && styles.discoverPlanPillActive]}>
-            <MaterialCommunityIcons name={hasPro ? "check-decagram" : "lock"} size={13} color={hasPro ? colors.ink : colors.primaryDeep} />
-            <Text style={[styles.discoverPlanPillText, hasPro && styles.discoverPlanPillTextActive]} selectable>{hasPro ? "Pro aktywne" : "Pro zablokowane"}</Text>
-          </View>
-        </View>
-        <View style={styles.filterChipsRow}>
-          {filterCandidates.map((interest) => {
-            const active = selectedInterests.includes(interest);
-            const theme = getInterestTheme(interest);
-
-            return (
-              <Pressable key={interest} onPress={() => setSelectedInterests(toggleListItem(selectedInterests, interest))} style={[styles.filterChip, { borderColor: theme.border }, active && styles.filterChipActive, active && { backgroundColor: theme.active }]}>
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]} numberOfLines={1}>{interest}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View style={styles.filterControlGrid}>
-          <View style={styles.ageControl}>
-            <Pressable onPress={() => setUserAge(Math.max(18, userAge - 1))} style={styles.ageButton}>
-              <MaterialCommunityIcons name="minus" size={17} color={colors.ink} />
-            </Pressable>
-            <View style={styles.ageCopy}>
-              <Text style={styles.ageLabel} selectable>Wiek</Text>
-              <Text style={styles.ageValue} selectable>{userAge}</Text>
-            </View>
-            <Pressable onPress={() => setUserAge(Math.min(60, userAge + 1))} style={styles.ageButton}>
-              <MaterialCommunityIcons name="plus" size={17} color={colors.ink} />
-            </Pressable>
-          </View>
-          {([
-            ["nearbyOnly", "Blisko", "do 25 km", "map-marker-radius"],
-            ["proOnly", "Profile Pro", "korona i boost", "crown"]
-          ] as Array<[keyof DiscoverFilters, string, string, string]>).map(([key, label, sub, icon]) => {
-            const active = discoverFilters[key];
-            const locked = !hasPro;
-
-            return (
-              <Pressable key={key} onPress={() => toggleProFilter(key)} style={[styles.proFilterButton, active && styles.proFilterButtonActive, locked && styles.proFilterButtonLocked]}>
-                <MaterialCommunityIcons name={(locked ? "lock" : icon) as any} size={18} color={active ? colors.ink : colors.primaryDeep} />
-                <View style={styles.fill}>
-                  <Text style={styles.proFilterText} numberOfLines={1}>{label}</Text>
-                  <Text style={styles.proFilterSubtext} numberOfLines={1}>{locked ? "Spark Pro" : sub}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.discoverCardStage}>
+      <View style={styles.stitchMainCanvas}>
         <ProfileCard profile={profile} />
       </View>
 
-      <View style={styles.discoverInfoStrip}>
-        <MaterialCommunityIcons name={hasPro ? "crown" : "information"} size={17} color={colors.primaryDeep} />
-        <Text style={styles.discoverInfoText} selectable>
-          {hasPro
-            ? "Pro: polubienia, prośby o chat, korona, 15 zdjęć, boost i zero reklam."
-            : "Free: lajki i chat po matchu. Pro odblokowuje Superlike, prośby o chat i filtry premium."}
-        </Text>
+      <View style={styles.stitchFabDock} pointerEvents="box-none">
+        <SwipeFab label="Odrzuć" icon="close" onPress={() => onSwipe("pass")} />
+        <SwipeFab label="Zobacz profil" icon="account" small onPress={() => Alert.alert(profile.name + " " + profile.surname, profile.bio)} />
+        <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => runProAction(() => onSwipe("superlike"), !hasPro)} />
+        <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => runProAction(handlePremiumChat, !hasPro && !hasMatchedProfile)} />
+        <SwipeFab label="Match" icon="heart" onPress={() => onSwipe("like")} />
       </View>
 
-      <View style={styles.discoverSafetyRow}>
-        <Pressable accessibilityRole="button" onPress={onReportProfile} style={styles.profileSafetyButton}>
-          <MaterialCommunityIcons name="flag-outline" size={15} color={colors.primaryDeep} />
-          <Text style={styles.profileSafetyText}>Zgłoś</Text>
+      <View style={styles.stitchSafetyDock}>
+        <Pressable accessibilityRole="button" onPress={onReportProfile} style={styles.stitchSafetyButton}>
+          <MaterialCommunityIcons name="flag-outline" size={14} color={colors.primaryDeep} />
+          <Text style={styles.stitchSafetyText}>Zgłoś</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onBlockProfile} style={styles.profileSafetyButton}>
-          <MaterialCommunityIcons name="block-helper" size={15} color={colors.primaryDeep} />
-          <Text style={styles.profileSafetyText}>Blokuj</Text>
+        <Pressable accessibilityRole="button" onPress={onBlockProfile} style={styles.stitchSafetyButton}>
+          <MaterialCommunityIcons name="block-helper" size={14} color={colors.primaryDeep} />
+          <Text style={styles.stitchSafetyText}>Blokuj</Text>
         </Pressable>
-      </View>
-
-      <View style={styles.actionDock}>
-        <RoundAction label="close" tone="light" onPress={() => onSwipe("pass")} />
-        <RoundAction label="heart" tone="primary" large onPress={() => onSwipe("like")} />
-        <RoundAction label="star-four-points" tone="light" locked={!hasPro} onPress={() => runProAction(() => onSwipe("superlike"), !hasPro)} />
-      </View>
-
-      <View style={styles.proQuickGrid}>
-        {premiumActions.map((action) => (
-          <Pressable key={action.label} onPress={() => runProAction(action.onPress, action.locked)} style={[styles.proQuickAction, !action.locked && styles.proQuickActionActive, action.locked && styles.proQuickActionLocked]}>
-            <View style={styles.proQuickIconWrap}>
-              <MaterialCommunityIcons name={(action.locked ? "lock" : action.icon) as any} size={20} color={action.locked ? colors.muted : colors.primaryDeep} />
-            </View>
-            <Text style={styles.proQuickText} numberOfLines={1}>{action.label}</Text>
-            <Text style={styles.proQuickSubtext} numberOfLines={1}>{action.locked ? "Odblokuj Pro" : action.sub}</Text>
-          </Pressable>
-        ))}
       </View>
     </View>
   );
@@ -1625,7 +1526,7 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
   return (
     <View style={styles.profileCard}>
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
-      <LinearGradient colors={["transparent", "rgba(0,0,0,0.76)"]} style={styles.cardShade} />
+      <LinearGradient colors={["transparent", "rgba(0,0,0,0.52)", "rgba(0,0,0,0.95)"]} locations={[0, 0.46, 1]} style={styles.cardShade} />
       <View style={styles.badgeRow}>
         {[profile.distance, ...profile.interests.slice(0, 3)].map((tag, index) => {
           const theme = index === 0 ? null : getInterestTheme(tag, index);
@@ -1641,19 +1542,22 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
           );
         })}
       </View>
+      {profile.premium && <Image source={brandLogoImage} style={styles.cardSparkOverlay} contentFit="contain" />}
+      {profile.matchScore && (
+        <View style={styles.matchScorePill}>
+          <Text style={styles.matchScoreText} selectable>{profile.matchScore}% match</Text>
+          <Text style={styles.matchReasonText} selectable>{profile.matchReasons?.join(" - ")}</Text>
+        </View>
+      )}
       <View style={styles.profileCopy}>
-        {profile.premium && <Text style={styles.cardCrown} selectable>PRO</Text>}
-        <Text style={styles.verified} selectable>{profile.premium ? "Korona Pro" : "Zweryfikowana"}</Text>
-        {profile.matchScore && (
-          <View style={styles.matchScorePill}>
-            <Text style={styles.matchScoreText} selectable>{profile.matchScore}% match</Text>
-            <Text style={styles.matchReasonText} selectable>{profile.matchReasons?.join(" - ")}</Text>
-          </View>
-        )}
+        <View style={styles.profileStatusRow}>
+          {profile.premium && <Text style={styles.cardCrown} selectable>PRO</Text>}
+          <Text style={styles.verified} selectable>{profile.premium ? "Korona Pro" : "Zweryfikowana"}</Text>
+        </View>
         <Text style={styles.cardTitle} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
-        <Text style={styles.cardBio} selectable>{profile.bio}</Text>
+        <Text style={styles.cardBio} numberOfLines={2} selectable>{profile.bio}</Text>
         <View style={styles.socialRow}>
-          {profile.socials.map((social) => {
+          {profile.socials.slice(0, 2).map((social) => {
             const icon = getSocialIcon(social.label);
 
             return (
@@ -1666,6 +1570,41 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
         </View>
       </View>
     </View>
+  );
+}
+
+function SwipeFab({
+  label,
+  sublabel,
+  icon,
+  onPress,
+  primary = false,
+  large = false,
+  small = false,
+  locked = false
+}: {
+  label: string;
+  sublabel?: string;
+  icon: string;
+  onPress: () => void;
+  primary?: boolean;
+  large?: boolean;
+  small?: boolean;
+  locked?: boolean;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.swipeFabButton}>
+      <View style={[styles.swipeFabIcon, small && styles.swipeFabIconSmall, large && styles.swipeFabIconLarge, primary && styles.swipeFabIconPrimary]}>
+        <MaterialCommunityIcons name={icon as any} size={large ? 40 : small ? 23 : 28} color={primary ? "#fff" : colors.ink} />
+        {locked && (
+          <View style={styles.swipeFabLock}>
+            <MaterialCommunityIcons name="lock" size={10} color="#fff" />
+          </View>
+        )}
+      </View>
+      <Text style={[styles.swipeFabLabel, primary && styles.swipeFabLabelPrimary]} numberOfLines={1}>{label}</Text>
+      {sublabel && <Text style={styles.swipeFabSublabel} numberOfLines={1}>{sublabel}</Text>}
+    </Pressable>
   );
 }
 
@@ -2943,9 +2882,15 @@ const styles = StyleSheet.create({
   },
   discoverScreen: {
     flex: 1,
-    gap: 10
+    position: "relative",
+    width: "100%",
+    maxWidth: 500,
+    alignSelf: "center",
+    paddingBottom: 118,
+    gap: 14
   },
-  discoverHeader: {
+  stitchTopBar: {
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2955,276 +2900,171 @@ const styles = StyleSheet.create({
     gap: 1
   },
   discoverEyebrow: {
-    color: colors.primaryDeep,
-    fontSize: 12,
+    color: colors.primary,
+    fontSize: 10,
+    letterSpacing: 1.3,
     fontWeight: "900",
     textTransform: "uppercase"
   },
   discoverTitle: {
     color: colors.ink,
-    fontSize: 32,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 35,
     fontWeight: "900"
   },
-  discoverMetricPill: {
-    minHeight: 38,
+  locationGlassPill: {
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: "rgba(18,18,25,0.86)",
+    backgroundColor: "rgba(26,26,26,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.2)"
+    borderColor: "rgba(255,255,255,0.1)"
   },
-  discoverMetricText: {
+  locationGlassText: {
     color: colors.ink,
-    fontSize: 12,
-    fontWeight: "900"
-  },
-  discoverSegmented: {
-    flexDirection: "row",
-    gap: 8,
-    padding: 5,
-    borderRadius: 999,
-    backgroundColor: "rgba(10,10,14,0.72)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.16)"
-  },
-  discoverSegmentButton: {
-    flex: 1,
-    minHeight: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    borderRadius: 999
-  },
-  discoverSegmentButtonActive: {
-    backgroundColor: colors.primary,
-    boxShadow: "0 12px 28px rgba(255,45,141,0.28)"
-  },
-  discoverSegmentText: {
-    color: colors.muted,
     fontSize: 13,
     fontWeight: "900"
   },
-  discoverSegmentTextActive: {
-    color: colors.ink
-  },
-  discoverFilterPanel: {
-    gap: 10,
-    padding: 12,
-    borderRadius: 24,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(14,14,20,0.82)",
+  stitchPlanToggle: {
+    minHeight: 48,
+    flexDirection: "row",
+    gap: 4,
+    padding: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(26,26,26,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.14)"
+    borderColor: "rgba(255,255,255,0.1)"
   },
-  discoverPanelHeader: {
+  stitchPlanButton: {
+    flex: 1,
+    minHeight: 39,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10
+    justifyContent: "center",
+    gap: 5,
+    borderRadius: 999
   },
-  discoverPanelTitle: {
-    color: colors.ink,
+  stitchPlanButtonActive: {
+    backgroundColor: colors.primary,
+    boxShadow: "0 0 28px rgba(255,76,131,0.28)"
+  },
+  stitchPlanText: {
+    color: "#e4bdc3",
     fontSize: 14,
     fontWeight: "900"
   },
-  discoverPlanPill: {
-    minHeight: 28,
+  stitchPlanTextActive: {
+    color: "#fff"
+  },
+  stitchMainCanvas: {
+    flex: 1,
+    minHeight: 470,
+    justifyContent: "flex-end"
+  },
+  stitchFabDock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 44,
+    zIndex: 20,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 9,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,45,141,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.14)"
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 2
   },
-  discoverPlanPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: "rgba(255,255,255,0.16)"
-  },
-  discoverPlanPillText: {
-    color: colors.primaryDeep,
-    fontSize: 10,
-    fontWeight: "900"
-  },
-  discoverPlanPillTextActive: {
-    color: colors.ink
-  },
-  filterChipsRow: {
+  stitchSafetyDock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7
+    justifyContent: "center",
+    gap: 8
   },
-  filterChip: {
-    maxWidth: 142,
+  stitchSafetyButton: {
     minHeight: 34,
-    justifyContent: "center",
-    paddingHorizontal: 11,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1
-  },
-  filterChipActive: {
-    borderColor: "rgba(255,255,255,0.2)"
-  },
-  filterChipText: {
-    color: "#d8b5c7",
-    fontSize: 12,
-    fontWeight: "900"
-  },
-  filterChipTextActive: {
-    color: colors.ink
-  },
-  filterControlGrid: {
     flexDirection: "row",
-    gap: 8
-  },
-  ageControl: {
-    flex: 1.1,
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    padding: 7,
-    borderRadius: 20,
-    backgroundColor: "rgba(26,26,34,0.82)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.12)"
-  },
-  ageButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary
-  },
-  ageCopy: {
-    alignItems: "center",
-    minWidth: 42
-  },
-  ageLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase"
-  },
-  ageValue: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: "900"
-  },
-  proFilterButton: {
-    flex: 1,
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(26,26,34,0.82)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.12)"
-  },
-  proFilterButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: "rgba(255,255,255,0.16)"
-  },
-  proFilterButtonLocked: {
-    opacity: 0.74
-  },
-  proFilterText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: "900"
-  },
-  proFilterSubtext: {
-    marginTop: 2,
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "800"
-  },
-  discoverCardStage: {
-    flex: 1,
-    minHeight: 360
-  },
-  discoverInfoStrip: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
+    gap: 6,
     paddingHorizontal: 13,
-    paddingVertical: 9,
-    borderRadius: 18,
-    backgroundColor: "rgba(14,14,20,0.84)",
+    borderRadius: 999,
+    backgroundColor: "rgba(26,26,26,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.14)"
+    borderColor: "rgba(255,255,255,0.1)"
   },
-  discoverInfoText: {
+  stitchSafetyText: {
+    color: colors.primaryDeep,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  swipeFabButton: {
     flex: 1,
-    color: "#d8b5c7",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "800"
-  },
-  discoverSafetyRow: {
-    flexDirection: "row",
-    gap: 10
-  },
-  actionDock: {
-    minHeight: 84,
-    flexDirection: "row",
-    justifyContent: "center",
+    minWidth: 0,
     alignItems: "center",
-    gap: 18
+    gap: 3
   },
-  proQuickGrid: {
-    flexDirection: "row",
-    gap: 8
-  },
-  proQuickAction: {
-    flex: 1,
-    minHeight: 78,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    borderRadius: 22,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(18,18,25,0.9)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.14)"
-  },
-  proQuickActionActive: {
-    borderColor: "rgba(255,45,141,0.34)",
-    backgroundColor: "rgba(35,12,26,0.92)"
-  },
-  proQuickActionLocked: {
-    opacity: 0.72
-  },
-  proQuickIconWrap: {
-    width: 30,
-    height: 30,
+  swipeFabIcon: {
+    width: 56,
+    height: 56,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,45,141,0.12)"
+    backgroundColor: "rgba(26,26,26,0.64)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.34)"
   },
-  proQuickText: {
+  swipeFabIconSmall: {
+    width: 48,
+    height: 48
+  },
+  swipeFabIconLarge: {
+    width: 80,
+    height: 80
+  },
+  swipeFabIconPrimary: {
+    backgroundColor: colors.primary,
+    boxShadow: "0 0 32px rgba(255,76,131,0.46)"
+  },
+  swipeFabLock: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 21,
+    height: 21,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceStrong,
+    borderWidth: 2,
+    borderColor: colors.background
+  },
+  swipeFabLabel: {
+    maxWidth: 78,
     color: colors.ink,
-    fontSize: 12,
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    textAlign: "center",
     fontWeight: "900"
   },
-  proQuickSubtext: {
+  swipeFabLabelPrimary: {
+    color: colors.primary,
+    letterSpacing: 1
+  },
+  swipeFabSublabel: {
+    maxWidth: 68,
+    marginTop: -2,
     color: colors.muted,
-    fontSize: 10,
+    fontSize: 9,
+    lineHeight: 10,
+    textAlign: "center",
     fontWeight: "800"
   },
   monetizationStatus: {
@@ -3298,14 +3138,17 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep
   },
   profileCard: {
-    aspectRatio: 4 / 5,
-    minHeight: 430,
-    maxHeight: 620,
+    flex: 1,
+    width: "100%",
+    minHeight: 500,
+    maxHeight: 720,
     overflow: "hidden",
     borderRadius: 34,
     borderCurve: "continuous",
-    backgroundColor: "#15151c",
-    boxShadow: "0 28px 70px rgba(0,0,0,0.5)"
+    backgroundColor: colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    boxShadow: "0 30px 78px rgba(0,0,0,0.58)"
   },
   profileImage: {
     width: "100%",
@@ -3320,70 +3163,91 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     position: "absolute",
-    top: 18,
-    left: 18,
-    right: 18,
+    top: 24,
+    left: 24,
+    right: 24,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
+    gap: 8,
+    zIndex: 5
   },
   badge: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 999,
     overflow: "hidden",
-    color: "#442129",
-    backgroundColor: "rgba(26,26,34,0.88)",
+    color: colors.ink,
+    backgroundColor: "rgba(26,26,26,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)",
-    fontSize: 13,
+    borderColor: "rgba(255,255,255,0.1)",
+    fontSize: 12,
     fontWeight: "900"
+  },
+  cardSparkOverlay: {
+    position: "absolute",
+    top: "31%",
+    left: 24,
+    width: 132,
+    height: 84,
+    opacity: 0.72,
+    zIndex: 4
   },
   profileCopy: {
     position: "absolute",
-    left: 18,
-    right: 18,
-    bottom: 22
+    left: 24,
+    right: 24,
+    bottom: 132,
+    zIndex: 5
+  },
+  profileStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8
   },
   cardCrown: {
     alignSelf: "flex-start",
-    marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: 999,
     overflow: "hidden",
     color: "#3a2500",
     backgroundColor: colors.gold,
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.24)",
-    fontSize: 12,
+    borderColor: "rgba(255,255,255,0.14)",
+    fontSize: 11,
     fontWeight: "900"
   },
   verified: {
     alignSelf: "flex-start",
-    marginBottom: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     overflow: "hidden",
     color: "#fff",
-    backgroundColor: colors.green,
-    fontSize: 12,
+    backgroundColor: "rgba(66,217,130,0.9)",
+    fontSize: 11,
     fontWeight: "900"
   },
   cardTitle: {
     color: "#fff",
-    fontSize: 34,
+    fontSize: 29,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 38
+    lineHeight: 35,
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8
   },
   cardBio: {
     maxWidth: 330,
-    marginTop: 8,
-    color: "#fff",
+    marginTop: 7,
+    color: "#e4bdc3",
     fontSize: 15,
-    lineHeight: 22
+    lineHeight: 22,
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6
   },
   socialRow: {
     flexDirection: "row",
@@ -3392,11 +3256,11 @@ const styles = StyleSheet.create({
     marginTop: 12
   },
   socialPill: {
-    minHeight: 30,
+    minHeight: 31,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(26,26,34,0.88)",
+    backgroundColor: "rgba(26,26,26,0.62)",
     overflow: "hidden",
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -3409,25 +3273,29 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   matchScorePill: {
-    alignSelf: "flex-start",
+    position: "absolute",
+    left: 24,
+    bottom: 246,
+    zIndex: 5,
     gap: 2,
-    marginBottom: 8,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 16,
+    maxWidth: "86%",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
     borderCurve: "continuous",
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: "rgba(26,26,26,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)"
+    borderColor: "rgba(255,255,255,0.1)"
   },
   matchScoreText: {
-    color: colors.primaryDeep,
-    fontSize: 12,
+    color: colors.primary,
+    fontSize: 14,
     fontWeight: "900"
   },
   matchReasonText: {
-    color: "#d8b5c7",
+    color: "#e4bdc3",
     fontSize: 10,
+    lineHeight: 14,
     fontWeight: "800"
   },
   profileSafetyRow: {
