@@ -13,6 +13,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -73,6 +74,7 @@ function openLegalDocument(title: string, url: string, envName: string) {
   });
 }
 const brandLogoImage = require("./assets/photologo.png");
+const headerLogoImage = require("./assets/header.png");
 const loginLogoImage = require("./assets/ChatGPT_Image_1_lip_2026__15_32_40-removebg-preview_waifu2x_3x_png.png");
 
 const profileImages = [
@@ -863,7 +865,7 @@ function AppContent() {
     }
   }
 
-  function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomosc") {
+  function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomość") {
     if (appUser) {
       createReport({
         reporterUid: appUser.uid,
@@ -872,7 +874,6 @@ function AppContent() {
         context: "Spark app report"
       }).catch(() => undefined);
     }
-    Alert.alert("Zgloszenie", `Zgloszenie trafilo do moderacji: sparkapp@gmail.com`);
   }
 
 
@@ -990,6 +991,7 @@ function AppContent() {
             onSwipe={handleSwipe}
             onPremiumChatRequest={sendPremiumChatRequest}
             onOpenMessages={() => setTab("messages")}
+            reporterName={profileName}
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
             superlikesRemaining={superlikesRemaining}
@@ -1000,8 +1002,7 @@ function AppContent() {
             discoverFilters={discoverFilters}
             setDiscoverFilters={setDiscoverFilters}
             screenMinHeight={discoverMinHeight}
-            onBlockProfile={() => blockProfile(activeProfileKey)}
-            onReportProfile={() => reportProfile(activeProfileKey)}
+            onReportProfile={(reason) => reportProfile(activeProfileKey, reason)}
           />
         )}
         {tab === "matches" && <MatchesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
@@ -1394,6 +1395,7 @@ function DiscoverScreen({
   onSwipe,
   onPremiumChatRequest,
   onOpenMessages,
+  reporterName,
   hasMatchedProfile,
   hasRequestedProfile,
   superlikesRemaining,
@@ -1404,7 +1406,6 @@ function DiscoverScreen({
   discoverFilters,
   setDiscoverFilters,
   screenMinHeight,
-  onBlockProfile,
   onReportProfile
 }: {
   mode: Mode;
@@ -1415,6 +1416,7 @@ function DiscoverScreen({
   onSwipe: (action: SwipeAction) => void;
   onPremiumChatRequest: () => void;
   onOpenMessages: () => void;
+  reporterName: string;
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
   superlikesRemaining: number;
@@ -1425,8 +1427,7 @@ function DiscoverScreen({
   discoverFilters: DiscoverFilters;
   setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   screenMinHeight: number;
-  onBlockProfile: () => void;
-  onReportProfile: () => void;
+  onReportProfile: (reason?: string) => void;
 }) {
   void selectedInterests;
   void setSelectedInterests;
@@ -1434,7 +1435,10 @@ function DiscoverScreen({
   void setUserAge;
   void discoverFilters;
   void setDiscoverFilters;
+  void superlikesRemaining;
 
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
 
@@ -1474,16 +1478,51 @@ function DiscoverScreen({
     onPremiumChatRequest();
   }
 
+  async function sendReport() {
+    const description = reportText.trim();
+
+    if (description.length < 8) {
+      Alert.alert("Zgłoszenie", "Opisz problem trochę dokładniej.");
+      return;
+    }
+
+    const targetName = profile.name + " " + profile.surname;
+    const body = [
+      "Nowe zgłoszenie w Spark",
+      "",
+      "Zgłaszający: " + reporterName,
+      "Zgłaszany profil: " + targetName,
+      "Wiek profilu: " + profile.age,
+      "Miasto/profil: " + profile.city + " / " + profile.distance,
+      "",
+      "Opis problemu:",
+      description
+    ].join("\n");
+
+    onReportProfile(body);
+    setReportOpen(false);
+    setReportText("");
+
+    const mailto = "mailto:" + supportEmail + "?subject=" + encodeURIComponent("Zgłoszenie profilu: " + targetName) + "&body=" + encodeURIComponent(body);
+    try {
+      await Linking.openURL(mailto);
+    } catch {
+      Alert.alert("Zgłoszenie zapisane", "Nie udało się otworzyć aplikacji mail. Napisz na " + supportEmail + ".");
+    }
+  }
+
   return (
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
       <View style={styles.stitchTopBar}>
-        <View>
-          <Text style={styles.discoverEyebrow} selectable>Odkrywaj</Text>
-          <Text style={styles.discoverTitle} selectable>Spark</Text>
-        </View>
-        <View style={styles.locationGlassPill}>
-          <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
-          <Text style={styles.locationGlassText} selectable>{profile.distance}</Text>
+        <Image source={headerLogoImage} style={styles.discoverHeaderLogo} contentFit="contain" />
+        <View style={styles.stitchTopActions}>
+          <View style={styles.locationGlassPill}>
+            <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
+            <Text style={styles.locationGlassText} selectable>{profile.distance}</Text>
+          </View>
+          <Pressable accessibilityRole="button" onPress={() => setReportOpen(true)} style={styles.reportIconButton}>
+            <MaterialCommunityIcons name="exclamation-thick" size={18} color="#fff" />
+          </Pressable>
         </View>
       </View>
 
@@ -1501,24 +1540,51 @@ function DiscoverScreen({
         <ProfileCard profile={profile} />
       </View>
 
-      <View style={styles.stitchFabDock} pointerEvents="box-none">
-        <SwipeFab label="Odrzuć" icon="close" onPress={() => onSwipe("pass")} />
-        <SwipeFab label="Zobacz profil" icon="account" small onPress={() => Alert.alert(profile.name + " " + profile.surname, profile.bio)} />
-        <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => runProAction(() => onSwipe("superlike"), !hasPro)} />
-        <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => runProAction(handlePremiumChat, !hasPro && !hasMatchedProfile)} />
-        <SwipeFab label="Match" icon="heart" onPress={() => onSwipe("like")} />
+      <View style={styles.stitchBottomPanel}>
+        <View style={styles.stitchFabDock} pointerEvents="box-none">
+          <SwipeFab label="Odrzuć" icon="close" onPress={() => onSwipe("pass")} />
+          <SwipeFab label="Profil" icon="account" small onPress={() => Alert.alert(profile.name + " " + profile.surname, profile.bio)} />
+          <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => runProAction(() => onSwipe("superlike"), !hasPro)} />
+          <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => runProAction(handlePremiumChat, !hasPro && !hasMatchedProfile)} />
+          <SwipeFab label="Match" icon="heart" onPress={() => onSwipe("like")} />
+        </View>
+        <View style={styles.stitchProHintRow}>
+          <MaterialCommunityIcons name={hasPro ? "crown" : "lock"} size={16} color={colors.primaryDeep} />
+          <Text style={styles.stitchProHintText} selectable>
+            {hasPro ? "Spark Pro aktywny: zero reklam, boost i wiadomości przed matchem." : "Free: match po polubieniu. Pro odblokowuje SPARKLIKE i wiadomość przed matchem."}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.stitchSafetyDock}>
-        <Pressable accessibilityRole="button" onPress={onReportProfile} style={styles.stitchSafetyButton}>
-          <MaterialCommunityIcons name="flag-outline" size={14} color={colors.primaryDeep} />
-          <Text style={styles.stitchSafetyText}>Zgłoś</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={onBlockProfile} style={styles.stitchSafetyButton}>
-          <MaterialCommunityIcons name="block-helper" size={14} color={colors.primaryDeep} />
-          <Text style={styles.stitchSafetyText}>Blokuj</Text>
-        </Pressable>
-      </View>
+      {reportOpen && (
+        <View style={styles.reportOverlay}>
+          <Pressable style={styles.reportBackdrop} onPress={() => setReportOpen(false)} />
+          <View style={styles.reportSheet}>
+            <View style={styles.reportSheetHeader}>
+              <View style={styles.fill}>
+                <Text style={styles.reportTitle} selectable>Zgłoś profil</Text>
+                <Text style={styles.reportSubtitle} selectable>{profile.name} {profile.surname} - wysyłka na {supportEmail}</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => setReportOpen(false)} style={styles.reportCloseButton}>
+                <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
+              </Pressable>
+            </View>
+            <TextInput
+              value={reportText}
+              onChangeText={setReportText}
+              multiline
+              textAlignVertical="top"
+              placeholder="Opisz problem, np. fałszywy profil, obraźliwe treści, spam..."
+              placeholderTextColor={colors.muted}
+              style={styles.reportInput}
+            />
+            <Pressable accessibilityRole="button" onPress={sendReport} style={styles.reportSendButton}>
+              <MaterialCommunityIcons name="email-edit" size={18} color="#fff" />
+              <Text style={styles.reportSendText}>Wyślij zgłoszenie</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -2896,6 +2962,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12
   },
+  discoverHeaderLogo: {
+    width: 156,
+    height: 54
+  },
+  stitchTopActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  reportIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ef2449",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    boxShadow: "0 0 22px rgba(239,36,73,0.42)"
+  },
   discoverTitleBlock: {
     gap: 1
   },
@@ -2964,26 +3050,51 @@ const styles = StyleSheet.create({
     minHeight: 470,
     justifyContent: "flex-end"
   },
-  stitchFabDock: {
+  stitchBottomPanel: {
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 44,
-    zIndex: 20,
+    bottom: 0,
+    minHeight: 132,
+    paddingTop: 8,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    backgroundColor: "rgba(5,5,7,0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  stitchFabDock: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "center",
     gap: 10,
     paddingHorizontal: 2
   },
-  stitchSafetyDock: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+  stitchProHintRow: {
+    minHeight: 38,
+    marginTop: 8,
+    marginHorizontal: 8,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    gap: 8
+    gap: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(26,26,26,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  stitchProHintText: {
+    flex: 1,
+    color: "#e4bdc3",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "800"
+  },
+  stitchSafetyDock: {
+    display: "none"
   },
   stitchSafetyButton: {
     minHeight: 34,
@@ -3066,6 +3177,87 @@ const styles = StyleSheet.create({
     lineHeight: 10,
     textAlign: "center",
     fontWeight: "800"
+  },
+  reportOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 60,
+    justifyContent: "flex-end"
+  },
+  reportBackdrop: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(0,0,0,0.58)"
+  },
+  reportSheet: {
+    gap: 14,
+    padding: 18,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    backgroundColor: "rgba(18,18,25,0.98)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  reportSheetHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  reportTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "900"
+  },
+  reportSubtitle: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800"
+  },
+  reportCloseButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)"
+  },
+  reportInput: {
+    minHeight: 126,
+    padding: 14,
+    borderRadius: 20,
+    borderCurve: "continuous",
+    color: colors.ink,
+    backgroundColor: "rgba(5,5,7,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700"
+  },
+  reportSendButton: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    boxShadow: "0 16px 34px rgba(255,45,141,0.26)"
+  },
+  reportSendText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900"
   },
   monetizationStatus: {
     minHeight: 44,
@@ -3196,7 +3388,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 24,
     right: 24,
-    bottom: 132,
+    bottom: 104,
     zIndex: 5
   },
   profileStatusRow: {
@@ -3275,7 +3467,7 @@ const styles = StyleSheet.create({
   matchScorePill: {
     position: "absolute",
     left: 24,
-    bottom: 246,
+    bottom: 220,
     zIndex: 5,
     gap: 2,
     maxWidth: "86%",
