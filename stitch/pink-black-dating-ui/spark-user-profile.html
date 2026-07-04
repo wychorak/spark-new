@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pl"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Spark - Profil</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#393939",
+                        "on-surface": "#e2e2e2",
+                        "error": "#ffb4ab",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#e5e2e1",
+                        "surface-container-low": "#1b1b1b",
+                        "on-primary": "#660029",
+                        "surface-container-high": "#2a2a2a",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "outline-variant": "#5b3f44",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "tertiary": "#c8c6c5",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary-container": "#b4b5b5",
+                        "primary-container": "#ff4c83",
+                        "surface-dim": "#131313",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "on-background": "#e2e2e2",
+                        "surface-container-highest": "#353535",
+                        "primary-fixed-dim": "#ffb1c0",
+                        "secondary-container": "#454747",
+                        "on-tertiary-container": "#2a2a2a",
+                        "surface-variant": "#353535",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-primary-fixed": "#3f0017",
+                        "surface-container": "#1f1f1f",
+                        "primary": "#ffb1c0",
+                        "on-primary-fixed-variant": "#90003d",
+                        "inverse-surface": "#e2e2e2",
+                        "background": "#131313",
+                        "on-secondary": "#2f3131",
+                        "secondary": "#c6c6c7",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-surface-variant": "#e4bdc3",
+                        "outline": "#ab888e",
+                        "on-secondary-fixed-variant": "#454747",
+                        "inverse-primary": "#bc0051",
+                        "on-tertiary": "#313030",
+                        "on-primary-container": "#5a0023",
+                        "tertiary-container": "#929090",
+                        "surface": "#131313",
+                        "inverse-on-surface": "#303030",
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-fixed": "#ffd9df",
+                        "surface-tint": "#ffb1c0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "20px",
+                        "gutter": "12px",
+                        "md": "24px",
+                        "xs": "8px",
+                        "sm": "16px",
+                        "xl": "48px",
+                        "base": "4px",
+                        "lg": "32px"
+                    },
+                    "fontFamily": {
+                        "display": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "display": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "900" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "500" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "34px", "fontWeight": "800" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #131313; color: #e2e2e2; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .pink-glow { box-shadow: 0 0 30px rgba(255, 76, 131, 0.3); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="font-body-md text-body-md min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface/80 backdrop-blur-xl border-b border-white/10 flex justify-between items-center px-margin-mobile h-16">
+<div class="w-8">
+<span class="material-symbols-outlined text-primary hover:opacity-80 active:scale-95 transition-transform cursor-pointer">settings</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface">Profile</h1>
+<div class="w-8 flex justify-end">
+<span class="material-symbols-outlined text-on-surface-variant hover:opacity-80 active:scale-95 transition-transform cursor-pointer">notifications</span>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow pt-24 pb-32 px-margin-mobile">
+<!-- Profile Header -->
+<section class="flex flex-col items-center mb-lg relative">
+<div class="relative w-32 h-32 rounded-full overflow-hidden mb-sm border-2 border-primary pink-glow">
+<img alt="Profile Picture" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4podSjirmx6AAo3pSayhqDjVXXQhnIqu_VAMyDlHZ2MGjCojigVNEVzyorWsz9QZZiJ6jvgIjFzyKMLDASZuLDcKwbHeHAhJEPYJUoTsY8vk9_O4Jtio9Mmf2tLW2GmkBClY-aS_6eX84ctkQo5ckgafGUWampKmli1SzmaD5DG5fVQmDWWg0uoCblDcMDJJbk8qO2HYDcRZ10VEjBn8k5p_LjtECAa5e9caD02Kl0bqYWeTaa2Pp2ORXIts-p7D4_MI"/>
+</div>
+<div class="flex items-center gap-xs mb-xs">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Aisha Nowak, 24</h2>
+</div>
+<div class="glass-panel px-sm py-base rounded-full flex items-center gap-base mb-md">
+<span class="material-symbols-outlined text-primary text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-label-bold text-label-bold text-primary">Pro</span>
+</div>
+<button class="w-full max-w-[280px] bg-primary text-on-primary font-label-bold text-label-bold py-sm rounded-full pink-glow hover:opacity-90 active:scale-95 transition-all">
+                Edytuj Profil
+            </button>
+</section>
+<!-- Interests -->
+<section class="mb-lg">
+<h3 class="font-body-lg text-body-lg text-on-surface mb-sm">Zainteresowania</h3>
+<div class="flex flex-wrap gap-xs">
+<div class="bg-surface-container-high px-sm py-base rounded-full font-label-bold text-label-bold text-on-surface-variant border border-white/5">Kawa</div>
+<div class="bg-surface-container-high px-sm py-base rounded-full font-label-bold text-label-bold text-on-surface-variant border border-white/5">Sztuka</div>
+<div class="bg-surface-container-high px-sm py-base rounded-full font-label-bold text-label-bold text-on-surface-variant border border-white/5">Filmy</div>
+<div class="bg-surface-container-high px-sm py-base rounded-full font-label-bold text-label-bold text-on-surface-variant border border-white/5">Podróże</div>
+</div>
+</section>
+<!-- Photo Gallery -->
+<section class="mb-lg">
+<div class="flex justify-between items-end mb-sm">
+<h3 class="font-body-lg text-body-lg text-on-surface">Twoje zdjęcia</h3>
+<span class="font-label-sm text-label-sm text-primary cursor-pointer hover:underline">Dodaj</span>
+</div>
+<div class="grid grid-cols-3 gap-xs">
+<div class="aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-high border border-white/5" data-alt="A candid, vibrant nighttime photo of a young woman laughing in a neon-lit urban alleyway. Deep blacks contrast with bright pink and cyan neon lights reflecting off wet pavement. The mood is energetic, spontaneous, and cinematic, fitting a premium nightlife dating app aesthetic. High quality, sharp focus on the subject." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCdxbC5qGA8qz93daclLvcSgNW4n3T6La-Bv-F57JU2D9_xWyKMXT22iWjf_Sip-g4LGx_zU7nPLg9eIZNz2-i6S10Wb1cWZjO40ru_NrPTE9vNBffu2nKMc5vt8VV_SY-W17Q0n-CdZ27QgKCF9Wh9Lt_OTr8QWvXHK5lw7phRU6_xIxe6_RHKXSpCTNW9SJ4R0Huxc6z2L5ICB9z_c6HpiuNcX-YKluHNFfD9j1cBTaGqjqme0hv8_w'); background-size: cover; background-position: center;"></div>
+<div class="aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-high border border-white/5" data-alt="A stylish portrait of a woman sitting in a dimly lit, upscale cocktail bar. The lighting is moody and intimate, with a soft pink spotlight highlighting her face and a dark, blurred background of glass bottles and shadows. The aesthetic is sophisticated, modern, and noir-inspired. High contrast, professional photography." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDdXG3i5dR5PpLqdJ7tAgDpkixyF0hMwBOZy3nDzsBJNkNCOfPPB2-34y_FZbhyzYjn9hFZjoWrJEsMwcTd3ww1Zc6XM7nwhx1PE3sU3Vp3aWIbhaMnwhuNFGJa2Sp2QXRtvnQlnAp1EakwXr64VJolvKquDco_7V57C5BIiosTlQui4_7eHluCyDaVK-Z8fpVCwh2kuR_2P5MrOj-6hnGlmwhb7ZoIfwjnsIODtcOYtEHQBjiBazy_mg'); background-size: cover; background-position: center;"></div>
+<div class="aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-high border border-white/5 flex items-center justify-center cursor-pointer hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-[32px]">add_a_photo</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-lg border-t border-white/10 shadow-lg shadow-primary/20 bg-surface-container-lowest/80 dark:bg-surface-container-lowest/80 backdrop-blur-xl flex justify-around items-center h-20 px-md pb-safe md:hidden">
+<a class="flex items-center justify-center text-on-surface-variant w-12 h-12 hover:text-primary transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">style</span>
+</a>
+<a class="flex items-center justify-center text-on-surface-variant w-12 h-12 hover:text-primary transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">search</span>
+</a>
+<a class="flex items-center justify-center text-on-surface-variant w-12 h-12 hover:text-primary transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">favorite</span>
+</a>
+<a class="flex items-center justify-center bg-primary-container text-on-primary-container rounded-full w-12 h-12 shadow-[0_0_20px_rgba(255,177,192,0.3)] hover:text-primary transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+</a>
+</nav>
+</body></html>

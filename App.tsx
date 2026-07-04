@@ -2024,11 +2024,11 @@ function ProfileScreen({
   const maxPhotos = hasPro ? 15 : 3;
   const incomingLikeProfiles = matchProfiles.slice(0, 3);
   const proCapabilityRows = [
-    "Zobacz kto swipe/like Twoj profil",
-    "Wyslij jedna prosbe o chat do profilu",
-    "Korona Pro przy zdjeciu profilowym",
-    "15 zdjec profilu zamiast 3",
-    "Czestsze pojawianie sie na glownej"
+    "Zobacz, kto polubił Twój profil",
+    "Wyślij jedną prośbę o chat do profilu",
+    "Korona Pro przy zdjęciu profilowym",
+    "15 zdjęć profilu zamiast 3",
+    "Częstsze pojawianie się na głównej"
   ];
   const previewPhoto = profilePhotos[0] ?? profileImages[4];
   const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
@@ -2037,7 +2037,7 @@ function ProfileScreen({
     surname: lastName || "Spark",
     age: userAge,
     city: "Twoja okolica",
-    bio: "Tak inni zobacza Twoj profil w swipe feedzie.",
+    bio: "Tak inni zobaczą Twój profil w swipe feedzie.",
     distance: "1 km",
     latitude: 52.2297,
     longitude: 21.0122,
@@ -2051,13 +2051,13 @@ function ProfileScreen({
 
   async function pickProfilePhoto(index?: number) {
     if (profilePhotos.length >= maxPhotos && index === undefined) {
-      Alert.alert("Zdjecia", hasPro ? "Limit Premium to 15 zdjec." : "Free ma limit 3 zdjec. Premium odblokuje 15.");
+      Alert.alert("Zdjęcia", hasPro ? "Limit Premium to 15 zdjęć." : "Free ma limit 3 zdjęć. Premium odblokuje 15.");
       return;
     }
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Zdjecia", "Nadaj dostep do galerii, aby dodac zdjecie profilowe.");
+      Alert.alert("Zdjęcia", "Nadaj dostęp do galerii, aby dodać zdjęcie profilowe.");
       return;
     }
 
@@ -2082,45 +2082,81 @@ function ProfileScreen({
   }
 
   return (
-    <View style={styles.gapLg}>
-      <View style={styles.profileHeroShell}>
-        <View style={styles.profileHero}>
-          <Image source={previewSource} style={styles.profileHeroImage} contentFit="cover" />
-          <LinearGradient colors={["transparent", "rgba(0,0,0,0.58)"]} style={styles.profileHeroShade} />
-          <View style={styles.profileHeroMeta}>
-            <Text style={styles.profileHeroLabel} selectable>Format 4:5</Text>
-            <Text style={styles.profileHeroTitle} selectable>{profileName}</Text>
-          </View>
-          <Pressable onPress={() => pickProfilePhoto(0)} style={styles.editButton}><Text style={styles.editButtonText}>edit</Text></Pressable>
-          {hasPro && <Text style={styles.profileHeroCrown} selectable>PRO</Text>}
-        </View>
-        <Text style={styles.photoFormatHint} selectable>Zdjecia profilu sa przygotowane pod pionowy crop 4:5, idealny dla kart i feedu.</Text>
-      </View>
-      <View style={styles.photoLimitBar}>
-        <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjec profilu</Text>
-        <Pressable onPress={() => pickProfilePhoto()} style={styles.photoAddButton}>
-          <Text style={styles.photoAddText}>{profilePhotos.length >= maxPhotos ? "Limit" : "Dodaj zdjecie"}</Text>
+    <View style={styles.profileScreen}>
+      <View style={styles.profileTopBar}>
+        <Pressable accessibilityRole="button" onPress={openSafety} style={styles.profileRoundIcon}>
+          <MaterialCommunityIcons name="cog-outline" size={21} color={colors.primary} />
+        </Pressable>
+        <Text style={styles.profileTopTitle} selectable>Profil</Text>
+        <Pressable accessibilityRole="button" onPress={() => setPushEnabled(!pushEnabled)} style={styles.profileRoundIcon}>
+          <MaterialCommunityIcons name={pushEnabled ? "bell" : "bell-outline"} size={21} color={colors.ink} />
         </Pressable>
       </View>
-      <View style={styles.photoGrid}>
-        {Array.from({ length: Math.min(maxPhotos, Math.max(3, profilePhotos.length + 1)) }).map((_, index) => {
-          const image = profilePhotos[index];
-          const source = typeof image === "string" ? { uri: image } : image;
 
-          return (
-            <Pressable key={index} onPress={() => pickProfilePhoto(image ? index : undefined)} style={styles.photoSlot}>
-              {source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <Text style={styles.photoEmptyText}>+</Text>}
-              <Text style={styles.photoSlotBadge} selectable>{index === 0 ? "Glowne" : image ? `Foto ${index + 1}` : "Dodaj"}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.profileIdentitySection}>
+        <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileAvatarWrap}>
+          <Image source={previewSource} style={styles.profileAvatarImage} contentFit="cover" />
+          <View style={styles.profileAvatarEdit}>
+            <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
+          </View>
+        </Pressable>
+        <View style={styles.profileNameLine}>
+          <Text style={styles.profileDisplayName} selectable>{profileName}, {userAge}</Text>
+          {hasPro && <MaterialCommunityIcons name="crown" size={20} color={colors.gold} />}
+        </View>
+        <View style={styles.profileProPill}>
+          <MaterialCommunityIcons name={hasPro ? "star" : "lock-outline"} size={16} color={colors.primary} />
+          <Text style={styles.profileProText} selectable>{hasPro ? "Spark Pro" : "Free"}</Text>
+        </View>
+        <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileEditCta}>
+          <Text style={styles.profileEditCtaText}>Edytuj profil</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.profileQuickStats}>
+        {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
+          <View key={label} style={styles.profileQuickStat}>
+            <Text style={styles.profileQuickStatValue} selectable>{value}</Text>
+            <Text style={styles.profileQuickStatLabel} selectable>{label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.profileGalleryPanel}>
+        <View style={styles.profileGalleryHeader}>
+          <View style={styles.fill}>
+            <Text style={styles.panelTitle} selectable>Twoje zdjęcia</Text>
+            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjęć profilu - pionowy format 4:5</Text>
+          </View>
+          <Pressable onPress={() => pickProfilePhoto()} style={styles.photoAddButton}>
+            <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+            <Text style={styles.photoAddText}>{profilePhotos.length >= maxPhotos ? "Limit" : "Dodaj"}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.photoGrid}>
+          {Array.from({ length: Math.min(maxPhotos, Math.max(3, profilePhotos.length + 1)) }).map((_, index) => {
+            const image = profilePhotos[index];
+            const source = typeof image === "string" ? { uri: image } : image;
+
+            return (
+              <Pressable key={index} onPress={() => pickProfilePhoto(image ? index : undefined)} style={styles.photoSlot}>
+                {source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <View style={styles.photoEmptyState}><MaterialCommunityIcons name="camera-plus" size={24} color={colors.primary} /></View>}
+                <Text style={styles.photoSlotBadge} selectable>{index === 0 ? "Główne" : image ? "Foto " + (index + 1) : "Dodaj"}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
       <View style={styles.profilePanel}>
-        <Text style={styles.eyebrow} selectable>Profil</Text>
-        <Text style={styles.profileName} selectable>{profileName}</Text>
-        <Text style={styles.profileDescription} selectable>{email} - plan: {hasPro ? premiumPlan : "free + ads"}</Text>
-                <View style={styles.nameRow}>
-          <TextField label="Imie" value={firstName} onChangeText={setFirstName} />
+        <View style={styles.profileSectionHeader}>
+          <View style={styles.fill}>
+            <Text style={styles.eyebrow} selectable>Dane profilu</Text>
+            <Text style={styles.profileDescription} selectable>{email} - plan: {hasPro ? premiumPlan : "free + reklamy"}</Text>
+          </View>
+          <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
+        </View>
+        <View style={styles.nameRow}>
+          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
           <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
         </View>
         <TextField
@@ -2129,11 +2165,6 @@ function ProfileScreen({
           onChangeText={(value) => setUserAge(Math.max(13, Math.min(99, Number(value.replace(/[^0-9]/g, "")) || 18)))}
           keyboardType="numeric"
         />
-        <View style={styles.statsRow}>
-          {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
-            <View key={label} style={styles.statBox}><Text style={styles.statValue} selectable>{value}</Text><Text style={styles.statLabel} selectable>{label}</Text></View>
-          ))}
-        </View>
         <View style={styles.proFeaturePanel}>
           <View style={styles.proFeatureHeader}>
             <View style={styles.fill}>
@@ -2151,8 +2182,8 @@ function ProfileScreen({
         <View style={styles.incomingLikesPanel}>
           <View style={styles.proFeatureHeader}>
             <View style={styles.fill}>
-              <Text style={styles.panelTitle} selectable>Polubili Cie</Text>
-              <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Osoby, ktore juz swipe/like Twoj profil" : "Dostepne w Spark Pro"}</Text>
+              <Text style={styles.panelTitle} selectable>Polubili Cię</Text>
+              <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Osoby, które już polubiły Twój profil" : "Dostępne w Spark Pro"}</Text>
             </View>
             <Text style={styles.incomingLikesCount} selectable>{hasPro ? incomingLikeProfiles.length : "Pro"}</Text>
           </View>
@@ -2167,7 +2198,7 @@ function ProfileScreen({
             </View>
           ) : (
             <Pressable onPress={openPremium} style={styles.lockedLikesButton}>
-              <Text style={styles.lockedLikesText} selectable>Zobacz kto Cie polubil po odblokowaniu Pro</Text>
+              <Text style={styles.lockedLikesText} selectable>Zobacz, kto Cię polubił po odblokowaniu Pro</Text>
             </Pressable>
           )}
         </View>
@@ -2200,7 +2231,7 @@ function ProfileScreen({
           <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
           <SettingRow label="Opcje premium" value="Zobacz" onPress={openPremium} />
           <SettingRow
-            label="Zarzadzaj subskrypcja"
+            label="Zarządzaj subskrypcją"
             value="Customer Center"
             onPress={async () => {
               const result = await openCustomerCenter();
@@ -4082,6 +4113,189 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 20
+  },
+  profileScreen: {
+    gap: 16,
+    paddingTop: 2
+  },
+  profileTopBar: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderRadius: 24,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(10,10,14,0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  profileRoundIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  profileTopTitle: {
+    color: colors.ink,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "900"
+  },
+  profileIdentitySection: {
+    alignItems: "center",
+    gap: 10,
+    padding: 22,
+    borderRadius: 34,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(18,18,25,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)",
+    boxShadow: "0 24px 60px rgba(0,0,0,0.42)"
+  },
+  profileAvatarWrap: {
+    width: 136,
+    height: 136,
+    borderRadius: 999,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: "#15151c",
+    boxShadow: "0 0 34px rgba(255,45,141,0.34)"
+  },
+  profileAvatarImage: {
+    width: "100%",
+    height: "100%"
+  },
+  profileAvatarEdit: {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: "rgba(18,18,25,0.95)"
+  },
+  profileNameLine: {
+    marginTop: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8
+  },
+  profileDisplayName: {
+    color: colors.ink,
+    fontSize: 28,
+    lineHeight: 34,
+    textAlign: "center",
+    fontWeight: "900"
+  },
+  profileProPill: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)"
+  },
+  profileProText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  profileEditCta: {
+    width: "100%",
+    maxWidth: 286,
+    minHeight: 52,
+    marginTop: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    boxShadow: "0 16px 38px rgba(255,45,141,0.32)"
+  },
+  profileEditCtaText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  profileQuickStats: {
+    flexDirection: "row",
+    gap: 10
+  },
+  profileQuickStat: {
+    flex: 1,
+    minHeight: 74,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(18,18,25,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.12)"
+  },
+  profileQuickStatValue: {
+    color: colors.primary,
+    fontSize: 22,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"]
+  },
+  profileQuickStatLabel: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  profileGalleryPanel: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 30,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(18,18,25,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)"
+  },
+  profileGalleryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  photoEmptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.04)"
+  },
+  profileSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  profilePlanBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.primary,
+    backgroundColor: "rgba(255,45,141,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)",
+    fontSize: 12,
+    fontWeight: "900"
   },
   profileHeroShell: {
     gap: 10
