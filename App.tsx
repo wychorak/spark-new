@@ -96,7 +96,7 @@ const demoAccount = {
 function getSocialIcon(label: string): { family: SocialIconFamily; name: string; color: string; backgroundColor: string } {
   const normalized = label.toLowerCase();
 
-  if (normalized.includes("instagram")) {
+  if (normalized.includes("instagram") || normalized === "ig" || normalized.includes("@")) {
     return { family: "fontAwesome", name: "instagram", color: "#ff4fa3", backgroundColor: "rgba(255,79,163,0.16)" };
   }
 
@@ -104,7 +104,7 @@ function getSocialIcon(label: string): { family: SocialIconFamily; name: string;
     return { family: "fontAwesome5", name: "tiktok", color: "#f4f6ff", backgroundColor: "rgba(244,246,255,0.13)" };
   }
 
-  if (normalized.includes("spotify")) {
+  if (normalized.includes("spotify") || normalized.includes("muzyka") || normalized.includes("music")) {
     return { family: "fontAwesome", name: "spotify", color: "#1ed760", backgroundColor: "rgba(30,215,96,0.15)" };
   }
 
@@ -131,7 +131,7 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type Mode = "classic" | "premium";
-type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean };
+type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type AgeBand = "18+" | "under18" | null;
@@ -156,11 +156,15 @@ type MatchProfile = {
   latitude: number;
   longitude: number;
   image: any;
+  photos?: any[];
   interests: string[];
+  featuredInterests?: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
   desiredAgeMin?: number;
   desiredAgeMax?: number;
+  heightCm?: number;
+  weightKg?: number;
   matchScore?: number;
   matchReasons?: string[];
 };
@@ -170,36 +174,18 @@ type UserLocation = {
   longitude: number;
 };
 
-const interestOptions = [
-  "Filmy",
-  "Natura",
-  "Muzyka",
-  "Kawa",
-  "Sport",
-  "Sztuka",
-  "Podróże",
-  "Gaming",
-  "Książki",
-  "Kuchnia",
-  "Fotografia",
-  "Tech",
-  "Joga",
-  "Koncerty",
-  "Planszówki",
-  "LGBT+",
-  "Taco Hemingway",
-  "Mata",
-  "Quebonafide",
-  "Bedoes",
-  "PRO8L3M",
-  "OKI",
-  "Playboi Carti",
-  "Travis Scott",
-  "Drake",
-  "Kendrick Lamar",
-  "The Weeknd",
-  "Central Cee"
-];
+const interestCategories = [
+  { title: "Popularne", icon: "heart", items: ["Filmy", "Natura", "Muzyka", "Kawa", "Sport", "Sztuka", "Podróże", "Gaming", "Książki", "Kuchnia", "Fotografia", "Tech", "Joga", "Koncerty", "Planszówki", "LGBT+"] },
+  { title: "Lifestyle", icon: "sparkles", items: ["Moda", "Streetwear", "Siłownia", "Bieganie", "Zdrowe jedzenie", "Gotowanie", "Kawiarnie", "Nocne spacery", "Tatuaże", "Samorozwój", "Minimalizm", "Anime"] },
+  { title: "Sport i ruch", icon: "run", items: ["Piłka nożna", "Koszykówka", "Tenis", "Rower", "Taniec", "Pilates", "Wspinaczka", "Góry", "Basen", "Sztuki walki", "Skate", "Snowboard"] },
+  { title: "Kultura", icon: "palette", items: ["Teatr", "Muzea", "Design", "Architektura", "Kino studyjne", "Seriale", "Podcasty", "Poezja", "Manga", "Komiksy", "Psychologia", "Historia"] },
+  { title: "Tech i gry", icon: "controller", items: ["AI", "Startupy", "Programowanie", "UX/UI", "Crypto", "Minecraft", "Valorant", "League of Legends", "Counter-Strike", "Fortnite", "Nintendo", "PlayStation"] },
+  { title: "Rap PL", icon: "microphone-variant", items: ["Taco Hemingway", "Mata", "Quebonafide", "Bedoes", "PRO8L3M", "OKI", "Young Leosia", "White 2115", "Białas", "Sobel", "Otsochodzi", "Kizo", "Kaz Bałagane", "Chivas"] },
+  { title: "Rap / Pop świat", icon: "music-circle", items: ["Playboi Carti", "Travis Scott", "Drake", "Kendrick Lamar", "The Weeknd", "Central Cee", "Frank Ocean", "Tyler The Creator", "SZA", "Billie Eilish", "Doja Cat", "A$AP Rocky", "Lana Del Rey", "Metro Boomin"] },
+  { title: "Społeczność", icon: "account-group", items: ["Nowi znajomi", "Randki", "LGBTQ+", "Wydarzenia", "Planszówkowe wieczory", "Karaoke", "Wolontariat", "Studia", "Erasmus", "Networking", "Wspólne wyjazdy", "Miasto nocą"] }
+] as const;
+
+const interestOptions = Array.from(new Set(interestCategories.flatMap((category) => category.items)));
 
 const interestThemes: Record<string, { soft: string; active: string; border: string; text: string }> = {
   Filmy: { soft: "rgba(255,45,141,0.12)", active: "#ff2d8d", border: "rgba(255,45,141,0.28)", text: "#ff9ac8" },
@@ -238,6 +224,8 @@ const matchProfiles: MatchProfile[] = [
     interests: ["Kawa", "Sztuka", "Filmy", "Taco Hemingway"],
     desiredAgeMin: 22,
     desiredAgeMax: 31,
+    heightCm: 168,
+    weightKg: 56,
     socials: [
       { label: "Instagram", value: "@aisha.design" },
       { label: "Spotify", value: "Indie evenings" }
@@ -257,6 +245,8 @@ const matchProfiles: MatchProfile[] = [
     interests: ["Fotografia", "Natura", "Kuchnia", "Kendrick Lamar"],
     desiredAgeMin: 24,
     desiredAgeMax: 34,
+    heightCm: 172,
+    weightKg: 61,
     socials: [
       { label: "Instagram", value: "@lenak.frames" },
       { label: "TikTok", value: "@lenak.moves" }
@@ -275,6 +265,8 @@ const matchProfiles: MatchProfile[] = [
     interests: ["Muzyka", "Koncerty", "Playboi Carti", "Travis Scott"],
     desiredAgeMin: 23,
     desiredAgeMax: 35,
+    heightCm: 184,
+    weightKg: 78,
     socials: [
       { label: "Spotify", value: "Kuba live set" },
       { label: "LinkedIn", value: "kuba-zielinski" }
@@ -293,6 +285,8 @@ const matchProfiles: MatchProfile[] = [
     interests: ["Sztuka", "Natura", "Joga", "Quebonafide"],
     desiredAgeMin: 21,
     desiredAgeMax: 30,
+    heightCm: 165,
+    weightKg: 54,
     socials: [
       { label: "Instagram", value: "@mia.studio" },
       { label: "Pinterest", value: "mia moodboard" }
@@ -305,21 +299,21 @@ const premiumPlans = [
   {
     id: "weekly",
     title: "Spark Pro na tydzień",
-    price: "Tygodniowy dostęp",
+    price: "19.99 zł",
     accent: "Dobry start",
     features: ["Zobacz, kto polubił Twój profil", "Wyślij prośbę o chat przed matchem", "Korona Pro przy profilowym"]
   },
   {
     id: "monthly",
     title: "Spark Pro na miesiąc",
-    price: "Subskrypcja miesięczna",
+    price: "49.99 zł",
     accent: "Najlepszy wybór",
     features: ["Zero reklam", "15 zdjęć profilu zamiast 3", "Częstsze pojawianie się na głównej"]
   },
   {
     id: "lifetime",
     title: "Spark Pro na zawsze",
-    price: "Jednorazowy zakup",
+    price: "199.99 zł",
     accent: "Bez limitu czasu",
     features: ["Wszystko z planu miesięcznego", "Spark Pro bez odnawiania", "Premium aktywne na zawsze"]
   }
@@ -350,6 +344,15 @@ function getInterestTheme(item: string, index = 0) {
 
 function getProfileKey(profile: MatchProfile) {
   return `${profile.name}-${profile.surname}`;
+}
+
+function getProfileGallery(profile: MatchProfile) {
+  const fallbackPhotos = [profile.image, ...profileImages.filter((image) => image !== profile.image)];
+  return (profile.photos && profile.photos.length > 0 ? profile.photos : fallbackPhotos).slice(0, 3);
+}
+
+function getFeaturedInterests(profile: MatchProfile) {
+  return (profile.featuredInterests && profile.featuredInterests.length > 0 ? profile.featuredInterests : profile.interests).slice(0, 3);
 }
 
 function degreesToRadians(value: number) {
@@ -398,24 +401,19 @@ function scoreProfileMatch(params: {
   userAge: number;
 }) {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
-  const distanceScore = Math.max(0, 50 - Math.min(distanceKm, 50));
-  const ageDelta = Math.abs(params.profile.age - params.userAge);
-  const profileAcceptsAge =
-    !params.profile.desiredAgeMin ||
-    (params.userAge >= params.profile.desiredAgeMin && params.userAge <= (params.profile.desiredAgeMax ?? 99));
-  const ageScore = profileAcceptsAge ? Math.max(8, 25 - ageDelta * 2) : Math.max(0, 10 - ageDelta);
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
-  const interestScore = Math.min(25, sharedInterests.length * 8 + (sharedInterests.length > 0 ? 5 : 0));
-  const visibilityBoost = params.profile.premium ? 6 : 0;
-  const score = Math.max(1, Math.min(99, Math.round(distanceScore + ageScore + interestScore + visibilityBoost)));
+  const interestBase = Math.max(3, Math.min(15, params.selectedInterests.length || params.profile.interests.length || 3));
+  const interestPercent = Math.round((sharedInterests.length / interestBase) * 100);
+  const visibilityBoost = params.profile.premium ? 4 : 0;
+  const score = Math.max(12, Math.min(99, interestPercent + visibilityBoost));
   const reasons = [
     `${Math.max(1, Math.round(distanceKm))} km`,
-    profileAcceptsAge ? "wiek pasuje" : "wiek poza preferencja",
-    sharedInterests.length > 0 ? sharedInterests.slice(0, 2).join(" + ") : "nowe zainteresowania",
+    `${params.profile.age} lat`,
+    sharedInterests.length > 0 ? sharedInterests.slice(0, 3).join(" + ") : "odkryj nowe zainteresowania",
     ...(visibilityBoost > 0 ? ["boost Pro"] : [])
   ];
 
-  return { score, reasons };
+  return { score, reasons, sharedInterests };
 }
 
 function getThreadId(uid: string | null | undefined, profileKey: string) {
@@ -438,7 +436,7 @@ function AppContent() {
   const [selectedInterests, setSelectedInterests] = useState(["Filmy", "Natura", "Kawa", "Sztuka"]);
   const [tab, setTab] = useState<Tab>("discover");
   const [mode, setMode] = useState<Mode>("classic");
-  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false });
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
@@ -488,7 +486,7 @@ function AppContent() {
           };
         })
         .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0)),
-    [blockedProfileKeys, discoverFilters.nearbyOnly, discoverFilters.proOnly, selectedInterests, userAge, userLocation]
+    [blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
   );
   const visibleProfiles = sortedProfiles.length > 0 ? sortedProfiles : matchProfiles;
   const activeProfile = visibleProfiles[profileIndex % visibleProfiles.length];
@@ -1304,7 +1302,23 @@ function OnboardingScreen({
   canContinue: boolean;
   onContinue: () => void;
 }) {
-  const isDating = intent === "Randki";
+  const [selectedIntents, setSelectedIntents] = useState([intent]);
+  const isDating = selectedIntents.includes("Randki");
+
+  function toggleIntent(label: string) {
+    const next = selectedIntents.includes(label) ? selectedIntents.filter((item) => item !== label) : [...selectedIntents, label];
+
+    if (next.length === 0) {
+      return;
+    }
+
+    setSelectedIntents(next);
+    setIntent(next.includes("Randki") ? "Randki" : next[0]);
+
+    if (next.includes("Randki") && ageBand === "under18") {
+      setAgeBand(null);
+    }
+  }
 
   return (
     <View style={styles.gapLg}>
@@ -1313,8 +1327,8 @@ function OnboardingScreen({
           <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
         </View>
         <Text style={styles.eyebrow} selectable>Start profilu</Text>
-        <Text style={styles.screenHeroTitle} selectable>Znajdź swój krąg</Text>
-        <Text style={styles.lead} selectable>Wybierz cel, wiek i kilka zainteresowań. Spark użyje ich do pierwszych propozycji.</Text>
+        <Text style={styles.screenHeroTitle} selectable>Wybierz swój cel</Text>
+        <Text style={styles.lead} selectable>Możesz zaznaczyć kilka opcji. Spark użyje ich do dopasowań, rozmów i rekomendacji profili.</Text>
       </View>
 
       <View style={styles.intentList}>
@@ -1322,39 +1336,38 @@ function OnboardingScreen({
           ["Randki", "Chemia, rozmowy, spotkania", "heart-outline"],
           ["Znajomi", "Kawa, planszówki, miasto", "coffee-outline"],
           ["LGBT+ / Społeczność", "Grupy, wydarzenia, znajomości", "account-group-outline"]
-        ].map(([label, description, icon]) => (
-          <Pressable
-            key={label}
-            accessibilityRole="button"
-            onPress={() => {
-              setIntent(label);
-              if (label === "Randki" && ageBand === "under18") {
-                setAgeBand(null);
-              }
-            }}
-            style={[styles.intentCard, intent === label && styles.intentCardActive]}
-          >
-            <View style={styles.intentIcon}>
-              <MaterialCommunityIcons name={icon as any} size={25} color={colors.primaryDeep} />
-            </View>
-            <View style={styles.fill}>
-              <Text style={styles.intentTitle} selectable>{label}</Text>
-              <Text style={styles.intentDescription} selectable>{description}</Text>
-            </View>
-          </Pressable>
-        ))}
+        ].map(([label, description, icon]) => {
+          const active = selectedIntents.includes(label);
+
+          return (
+            <Pressable
+              key={label}
+              accessibilityRole="button"
+              onPress={() => toggleIntent(label)}
+              style={[styles.intentCard, active && styles.intentCardActive]}
+            >
+              <View style={styles.intentIcon}>
+                <MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} />
+              </View>
+              <View style={styles.fill}>
+                <Text style={styles.intentTitle} selectable>{label}</Text>
+                <Text style={styles.intentDescription} selectable>{description}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.panelLiquid}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Wybierz kilka tagów. Im więcej wspólnych sygnałów, tym lepsze propozycje.</Text>
-        <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
+        <Text style={styles.panelText} selectable>Wybierz 3-15 tagów. Procent matcha liczymy głównie po wspólnych zainteresowaniach.</Text>
+        <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
 
       <View style={styles.agePanel}>
         <Text style={styles.panelTitle} selectable>Wiek i bezpieczeństwo</Text>
         <Text style={styles.panelText} selectable>
-          Randki sa tylko dla 18+. Dla znajomych i spolecznosci mozna wybrac tryb ponizej 18 lat.
+          Randki są tylko dla 18+. Dla znajomych i społeczności można wybrać tryb poniżej 18 lat.
         </Text>
         <View style={styles.ageChoiceRow}>
           <Pressable
@@ -1371,8 +1384,8 @@ function OnboardingScreen({
             onPress={() => setAgeBand("under18")}
             style={[styles.ageChoice, ageBand === "under18" && styles.ageChoiceActive, isDating && styles.ageChoiceDisabled]}
           >
-            <Text style={[styles.ageChoiceTitle, ageBand === "under18" && styles.ageChoiceTitleActive]} selectable>Ponizej 18</Text>
-            <Text style={styles.ageChoiceText} selectable>Tylko znajomi i spolecznosc</Text>
+            <Text style={[styles.ageChoiceTitle, ageBand === "under18" && styles.ageChoiceTitleActive]} selectable>Poniżej 18</Text>
+            <Text style={styles.ageChoiceText} selectable>Tylko znajomi i społeczność</Text>
           </Pressable>
         </View>
         {isDating && ageBand !== "18+" && (
@@ -1429,29 +1442,22 @@ function DiscoverScreen({
   screenMinHeight: number;
   onReportProfile: (reason?: string) => void;
 }) {
-  void selectedInterests;
-  void setSelectedInterests;
   void userAge;
   void setUserAge;
-  void discoverFilters;
-  void setDiscoverFilters;
   void superlikesRemaining;
 
   const [reportOpen, setReportOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
-
-  async function setPremiumMode() {
-    if (!hasPro) {
-      const granted = await requestProAccess();
-      if (!granted) {
-        return;
-      }
-    }
-
-    setMode("premium");
-  }
+  const preferenceSummary = [
+    { icon: "map-marker", text: profile.distance },
+    { icon: "calendar", text: `${discoverFilters.ageMin}-${discoverFilters.ageMax} lat` },
+    { icon: "tag-heart", text: `${selectedInterests.length}/15 tagów` },
+    { icon: "human-male-height", text: `${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm` }
+  ];
 
   async function runProAction(action: () => void, locked: boolean) {
     if (locked) {
@@ -1463,7 +1469,34 @@ function DiscoverScreen({
 
     action();
   }
+  function updatePreference(key: keyof DiscoverFilters, value: number | boolean) {
+    setDiscoverFilters((current) => ({ ...current, [key]: value }));
+  }
 
+  function shiftRange(minKey: keyof DiscoverFilters, maxKey: keyof DiscoverFilters, delta: number, floor: number, ceiling: number) {
+    setDiscoverFilters((current) => {
+      const min = current[minKey] as number;
+      const max = current[maxKey] as number;
+      return {
+        ...current,
+        [minKey]: Math.max(floor, Math.min(ceiling - 1, min + delta)),
+        [maxKey]: Math.max(floor + 1, Math.min(ceiling, max + delta))
+      };
+    });
+  }
+
+  async function promptProFeature(kind: "superlike" | "message", action: () => void, locked: boolean) {
+    if (locked) {
+      Alert.alert(
+        "Spark Pro",
+        kind === "superlike"
+          ? "SPARKLIKE jest funkcją Pro. Odblokuj Pro, żeby wyróżniać profile i częściej pojawiać się na głównej."
+          : "Wiadomość przed matchem jest funkcją Pro. Odblokuj Pro, żeby wysłać prośbę o chat do tej osoby."
+      );
+    }
+
+    await runProAction(action, locked);
+  }
   function handlePremiumChat() {
     if (hasMatchedProfile) {
       onOpenMessages();
@@ -1476,6 +1509,16 @@ function DiscoverScreen({
     }
 
     onPremiumChatRequest();
+  }
+
+  function handlePreviewLike() {
+    setPreviewOpen(false);
+    onSwipe("like");
+  }
+
+  function handlePreviewMessage() {
+    setPreviewOpen(false);
+    handlePremiumChat();
   }
 
   async function sendReport() {
@@ -1512,50 +1555,79 @@ function DiscoverScreen({
   }
 
   return (
-    <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
-      <View style={styles.stitchTopBar}>
-        <Image source={headerLogoImage} style={styles.discoverHeaderLogo} contentFit="contain" />
-        <View style={styles.stitchTopActions}>
-          <View style={styles.locationGlassPill}>
-            <MaterialCommunityIcons name="map-marker" size={18} color={colors.primary} />
-            <Text style={styles.locationGlassText} selectable>{profile.distance}</Text>
+    <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}> 
+      <TopBar eyebrow="Odkrywaj" title="Profile" left="=" right="tune-variant" onRightPress={() => setPreferencesOpen(true)} />
+      <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.discoverSummaryBar}>
+        {preferenceSummary.map((item) => (
+          <View key={item.text} style={styles.discoverSummaryPill}>
+            <MaterialCommunityIcons name={item.icon as any} size={14} color={colors.primary} />
+            <Text style={styles.discoverSummaryText} numberOfLines={1} selectable>{item.text}</Text>
           </View>
-          <Pressable accessibilityRole="button" onPress={() => setReportOpen(true)} style={styles.reportIconButton}>
-            <MaterialCommunityIcons name="exclamation-thick" size={18} color="#fff" />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.stitchPlanToggle}>
-        <Pressable onPress={() => setMode("classic")} style={[styles.stitchPlanButton, mode === "classic" && styles.stitchPlanButtonActive]}>
-          <Text style={[styles.stitchPlanText, mode === "classic" && styles.stitchPlanTextActive]}>Free</Text>
-        </Pressable>
-        <Pressable onPress={setPremiumMode} style={[styles.stitchPlanButton, mode === "premium" && styles.stitchPlanButtonActive]}>
-          <MaterialCommunityIcons name={hasPro ? "crown" : "lock"} size={16} color={mode === "premium" ? colors.ink : "#e4bdc3"} />
-          <Text style={[styles.stitchPlanText, mode === "premium" && styles.stitchPlanTextActive]}>Pro</Text>
-        </Pressable>
-      </View>
+        ))}
+      </Pressable>
 
       <View style={styles.stitchMainCanvas}>
-        <ProfileCard profile={profile} />
+        <ProfileCard profile={profile} onOpenPreview={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
       </View>
 
       <View style={styles.stitchBottomPanel}>
         <View style={styles.stitchFabDock} pointerEvents="box-none">
           <SwipeFab label="Odrzuć" icon="close" onPress={() => onSwipe("pass")} />
-          <SwipeFab label="Profil" icon="account" small onPress={() => Alert.alert(profile.name + " " + profile.surname, profile.bio)} />
-          <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => runProAction(() => onSwipe("superlike"), !hasPro)} />
-          <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => runProAction(handlePremiumChat, !hasPro && !hasMatchedProfile)} />
+          <SwipeFab label="Profil" icon="account" small onPress={() => setPreviewOpen(true)} />
+          <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => onSwipe("superlike"), !hasPro)} />
+          <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile)} />
           <SwipeFab label="Match" icon="heart" onPress={() => onSwipe("like")} />
-        </View>
-        <View style={styles.stitchProHintRow}>
-          <MaterialCommunityIcons name={hasPro ? "crown" : "lock"} size={16} color={colors.primaryDeep} />
-          <Text style={styles.stitchProHintText} selectable>
-            {hasPro ? "Spark Pro aktywny: zero reklam, boost i wiadomości przed matchem." : "Free: match po polubieniu. Pro odblokowuje SPARKLIKE i wiadomość przed matchem."}
-          </Text>
         </View>
       </View>
 
+      {previewOpen && (
+        <ProfilePreviewSheet
+          profile={profile}
+          viewerInterests={selectedInterests}
+          onClose={() => setPreviewOpen(false)}
+          onLike={handlePreviewLike}
+          onMessage={handlePreviewMessage}
+        />
+      )}
+
+      {preferencesOpen && (
+        <View style={styles.reportOverlay}>
+          <Pressable style={styles.reportBackdrop} onPress={() => setPreferencesOpen(false)} />
+          <View style={styles.preferenceSheet}>
+            <View style={styles.reportSheetHeader}>
+              <View style={styles.fill}>
+                <Text style={styles.reportTitle} selectable>Preferencje odkrywania</Text>
+                <Text style={styles.reportSubtitle} selectable>Dopasuj osoby po zainteresowaniach, wieku, wzroście i wadze.</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportCloseButton}>
+                <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.preferenceScroll}>
+              <View style={styles.preferenceSection}>
+                <Text style={styles.preferenceLabel} selectable>Zainteresowania</Text>
+                <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
+              </View>
+              <PreferenceRange label="Wiek" value={`${discoverFilters.ageMin}-${discoverFilters.ageMax} lat`} onMinus={() => shiftRange("ageMin", "ageMax", -1, 18, 70)} onPlus={() => shiftRange("ageMin", "ageMax", 1, 18, 70)} />
+              <PreferenceRange label="Wzrost" value={`${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm`} onMinus={() => shiftRange("minHeight", "maxHeight", -5, 140, 220)} onPlus={() => shiftRange("minHeight", "maxHeight", 5, 140, 220)} />
+              <PreferenceRange label="Waga" value={`${discoverFilters.minWeight}-${discoverFilters.maxWeight} kg`} onMinus={() => shiftRange("minWeight", "maxWeight", -5, 40, 150)} onPlus={() => shiftRange("minWeight", "maxWeight", 5, 40, 150)} />
+              <View style={styles.preferenceToggleRow}>
+                <Pressable accessibilityRole="button" onPress={() => updatePreference("nearbyOnly", !discoverFilters.nearbyOnly)} style={[styles.preferenceToggle, discoverFilters.nearbyOnly && styles.preferenceToggleActive]}>
+                  <MaterialCommunityIcons name="map-marker-radius" size={17} color={discoverFilters.nearbyOnly ? "#fff" : colors.primary} />
+                  <Text style={[styles.preferenceToggleText, discoverFilters.nearbyOnly && styles.preferenceToggleTextActive]}>Blisko mnie</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => updatePreference("proOnly", !discoverFilters.proOnly)} style={[styles.preferenceToggle, discoverFilters.proOnly && styles.preferenceToggleActive]}>
+                  <MaterialCommunityIcons name="crown" size={17} color={discoverFilters.proOnly ? "#fff" : colors.primary} />
+                  <Text style={[styles.preferenceToggleText, discoverFilters.proOnly && styles.preferenceToggleTextActive]}>Tylko Pro</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+            <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportSendButton}>
+              <Text style={styles.reportSendText}>Zastosuj preferencje</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
       {reportOpen && (
         <View style={styles.reportOverlay}>
           <Pressable style={styles.reportBackdrop} onPress={() => setReportOpen(false)} />
@@ -1588,13 +1660,38 @@ function DiscoverScreen({
     </View>
   );
 }
-function ProfileCard({ profile }: { profile: MatchProfile }) {
+function PreferenceRange({ label, value, onMinus, onPlus }: { label: string; value: string; onMinus: () => void; onPlus: () => void }) {
   return (
-    <View style={styles.profileCard}>
+    <View style={styles.preferenceRangeRow}>
+      <View style={styles.fill}>
+        <Text style={styles.preferenceLabel} selectable>{label}</Text>
+        <Text style={styles.preferenceValue} selectable>{value}</Text>
+      </View>
+      <View style={styles.preferenceStepper}>
+        <Pressable accessibilityRole="button" onPress={onMinus} style={styles.preferenceStepButton}>
+          <MaterialCommunityIcons name="minus" size={18} color={colors.ink} />
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onPlus} style={styles.preferenceStepButton}>
+          <MaterialCommunityIcons name="plus" size={18} color={colors.ink} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+function ProfileCard({ profile, onOpenPreview, onReport, compact = false }: { profile: MatchProfile; onOpenPreview?: () => void; onReport?: () => void; compact?: boolean }) {
+  const featuredInterests = getFeaturedInterests(profile);
+
+  return (
+    <Pressable accessibilityRole="button" onPress={onOpenPreview} style={[styles.profileCard, compact && styles.profileCardCompact]}>
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
-      <LinearGradient colors={["transparent", "rgba(0,0,0,0.52)", "rgba(0,0,0,0.95)"]} locations={[0, 0.46, 1]} style={styles.cardShade} />
+      <LinearGradient colors={["transparent", "rgba(0,0,0,0.48)", "rgba(0,0,0,0.94)"]} locations={[0, 0.48, 1]} style={styles.cardShade} />
+      {onReport && (
+        <Pressable accessibilityRole="button" onPress={onReport} style={styles.cardReportButton}>
+          <MaterialCommunityIcons name="exclamation-thick" size={17} color="#fff" />
+        </Pressable>
+      )}
       <View style={styles.badgeRow}>
-        {[profile.distance, ...profile.interests.slice(0, 3)].map((tag, index) => {
+        {[profile.distance, ...featuredInterests].map((tag, index) => {
           const theme = index === 0 ? null : getInterestTheme(tag, index);
 
           return (
@@ -1608,31 +1705,146 @@ function ProfileCard({ profile }: { profile: MatchProfile }) {
           );
         })}
       </View>
-      {profile.premium && <Image source={brandLogoImage} style={styles.cardSparkOverlay} contentFit="contain" />}
-      {profile.matchScore && (
-        <View style={styles.matchScorePill}>
-          <Text style={styles.matchScoreText} selectable>{profile.matchScore}% match</Text>
-          <Text style={styles.matchReasonText} selectable>{profile.matchReasons?.join(" - ")}</Text>
-        </View>
-      )}
-      <View style={styles.profileCopy}>
+      <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
         <View style={styles.profileStatusRow}>
           {profile.premium && <Text style={styles.cardCrown} selectable>PRO</Text>}
           <Text style={styles.verified} selectable>{profile.premium ? "Korona Pro" : "Zweryfikowana"}</Text>
+          {profile.matchScore && <Text style={styles.matchInlinePill} selectable>{profile.matchScore}%</Text>}
         </View>
-        <Text style={styles.cardTitle} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
-        <Text style={styles.cardBio} numberOfLines={2} selectable>{profile.bio}</Text>
+        <Text style={styles.cardTitle} numberOfLines={1} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+        {profile.matchScore && (
+          <Text style={styles.matchReasonInline} numberOfLines={1} selectable>
+            {[profile.city, profile.heightCm ? `${profile.heightCm} cm` : null, ...(profile.matchReasons ?? []).slice(1, 3)].filter(Boolean).join(" • ")}
+          </Text>
+        )}
+        <Text style={styles.cardBio} numberOfLines={compact ? 1 : 2} selectable>{profile.bio}</Text>
         <View style={styles.socialRow}>
           {profile.socials.slice(0, 2).map((social) => {
             const icon = getSocialIcon(social.label);
 
             return (
-              <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}>
+              <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}> 
                 <SocialIcon label={social.label} size={13} />
                 <Text style={styles.socialPillText} selectable>{social.value}</Text>
               </View>
             );
           })}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function ProfilePreviewSheet({
+  profile,
+  viewerInterests,
+  onClose,
+  onLike,
+  onMessage
+}: {
+  profile: MatchProfile;
+  viewerInterests: string[];
+  onClose: () => void;
+  onLike: () => void;
+  onMessage: () => void;
+}) {
+  const photos = getProfileGallery(profile);
+  const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
+  const matchBase = Math.max(3, Math.min(15, viewerInterests.length || profile.interests.length || 3));
+  const matchPercent = Math.max(12, Math.min(99, Math.round((sharedInterests.length / matchBase) * 100) + (profile.premium ? 4 : 0)));
+  const local = StyleSheet.create({
+    overlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 70, justifyContent: "flex-end" },
+    backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.72)" },
+    sheet: { maxHeight: "92%", padding: 16, gap: 14, borderTopLeftRadius: 32, borderTopRightRadius: 32, backgroundColor: "rgba(12,12,17,0.98)", borderWidth: 1, borderColor: "rgba(255,45,141,0.2)" },
+    header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
+    kicker: { color: colors.primary, fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
+    title: { marginTop: 3, color: colors.ink, fontSize: 25, lineHeight: 31, fontWeight: "900" },
+    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
+    scroller: { marginHorizontal: -16 },
+    photo: { width: 332, height: 420, marginHorizontal: 16, borderRadius: 28, overflow: "hidden", backgroundColor: "#111" },
+    metrics: { flexDirection: "row", gap: 8 },
+    metric: { flex: 1, minHeight: 72, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900" },
+    metricLabel: { marginTop: 2, color: colors.muted, fontSize: 10, textAlign: "center", fontWeight: "800" },
+    bio: { color: "#e4bdc3", fontSize: 14, lineHeight: 21, fontWeight: "700" },
+    section: { gap: 9 },
+    sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: "900" },
+    wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, overflow: "hidden", borderWidth: 1, fontSize: 12, fontWeight: "900" },
+    socials: { gap: 8 },
+    social: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    socialLabel: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+    socialValue: { color: colors.muted, fontSize: 12, fontWeight: "800" },
+    actions: { flexDirection: "row", gap: 10 },
+    like: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: colors.primary },
+    likeText: { color: "#fff", fontSize: 14, fontWeight: "900" },
+    message: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
+    messageText: { color: colors.primary, fontSize: 14, fontWeight: "900" }
+  });
+
+  return (
+    <View style={local.overlay}>
+      <Pressable style={local.backdrop} onPress={onClose} />
+      <View style={local.sheet}>
+        <View style={local.header}>
+          <View style={styles.fill}>
+            <Text style={local.kicker} selectable>Podgląd profilu</Text>
+            <Text style={local.title} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+          </View>
+          <Pressable accessibilityRole="button" onPress={onClose} style={local.close}>
+            <MaterialCommunityIcons name="close" size={22} color={colors.ink} />
+          </Pressable>
+        </View>
+
+        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={local.scroller}>
+          {photos.map((photo, index) => (
+            <Image key={index} source={photo} style={local.photo} contentFit="cover" />
+          ))}
+        </ScrollView>
+
+        <View style={local.metrics}>
+          <View style={local.metric}><Text style={local.metricValue} selectable>{matchPercent}%</Text><Text style={local.metricLabel} selectable>match z zainteresowań</Text></View>
+          <View style={local.metric}><Text style={local.metricValue} selectable>{profile.age}</Text><Text style={local.metricLabel} selectable>wiek</Text></View>
+          <View style={local.metric}><Text style={local.metricValue} selectable>{profile.distance}</Text><Text style={local.metricLabel} selectable>odległość</Text></View>
+        </View>
+
+        <Text style={local.bio} selectable>{profile.bio}</Text>
+
+        <View style={local.section}>
+          <Text style={local.sectionTitle} selectable>Wspólne zainteresowania</Text>
+          <View style={local.wrap}>
+            {(sharedInterests.length > 0 ? sharedInterests : getFeaturedInterests(profile)).slice(0, 6).map((interest, index) => {
+              const theme = getInterestTheme(interest, index);
+
+              return <Text key={interest} style={[local.chip, { backgroundColor: theme.soft, color: theme.text, borderColor: theme.border }]} selectable>{interest}</Text>;
+            })}
+          </View>
+        </View>
+
+        <View style={local.section}>
+          <Text style={local.sectionTitle} selectable>Sociale</Text>
+          <View style={local.socials}>
+            {profile.socials.map((social) => (
+              <View key={social.label} style={local.social}>
+                <SocialIcon label={social.label} size={18} />
+                <View style={styles.fill}>
+                  <Text style={local.socialLabel} selectable>{social.label}</Text>
+                  <Text style={local.socialValue} selectable>{social.value}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={local.actions}>
+          <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
+            <MaterialCommunityIcons name="heart" size={20} color="#fff" />
+            <Text style={local.likeText}>Match</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onMessage} style={local.message}>
+            <MaterialCommunityIcons name="message-text" size={20} color={colors.primary} />
+            <Text style={local.messageText}>Napisz</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -1851,6 +2063,55 @@ function PremiumScreen({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const selectedPlan = premiumPlans.find((plan) => plan.id === premiumPlan) ?? premiumPlans[1];
   const hasPackages = revenueCat.packages.length > 0;
+  const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
+    weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Dobry start" },
+    monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór" },
+    lifetime: { label: "Na zawsze", period: "jednorazowo", helper: "Pełny dostęp", badge: "Best value" }
+  };
+  const benefitRows = [
+    ["ad-off", "Zero reklam", "Przeglądanie profili bez przerw i bez bannerów."],
+    ["eye-check", "Zobacz, kto Cię polubił", "Odkrywaj osoby, które już dały Ci swipe."],
+    ["message-badge", "Prośba o chat", "Napisz do profilu przed matchem i czekaj na akceptację."],
+    ["crown", "Korona Pro", "Widoczny status premium przy Twoim profilu."],
+    ["image-multiple", "Do 15 zdjęć", "Więcej miejsca na zdjęcia i lepszy podgląd profilu."],
+    ["rocket-launch", "Boost widoczności", "Częstsze pojawianie się u innych w odkrywaniu."],
+    ["fire", "10 Superlike miesięcznie", "Więcej wyróżnień dla profili, które naprawdę Cię interesują."],
+    ["tune-variant", "Filtry premium", "Lepsze dopasowania po wieku, lokalizacji i zainteresowaniach."]
+  ];
+  const local = StyleSheet.create({
+    screen: { gap: 16 },
+    top: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6, borderRadius: 24, backgroundColor: "rgba(10,10,14,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    iconButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    topTitle: { color: colors.ink, fontSize: 20, fontWeight: "900" },
+    hero: { alignItems: "center", gap: 8, paddingTop: 8, paddingHorizontal: 8 },
+    heroBadge: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, overflow: "hidden", color: colors.primary, backgroundColor: "rgba(255,45,141,0.12)", borderWidth: 1, borderColor: "rgba(255,45,141,0.22)", fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
+    heroTitle: { color: colors.ink, fontSize: 26, lineHeight: 32, textAlign: "center", fontWeight: "900" },
+    heroText: { maxWidth: 360, color: "#e4bdc3", fontSize: 13, lineHeight: 20, textAlign: "center", fontWeight: "700" },
+    tierGrid: { flexDirection: "row", gap: 8, alignItems: "stretch" },
+    tierCard: { flex: 1, minHeight: 136, gap: 6, paddingHorizontal: 8, paddingTop: 14, paddingBottom: 10, alignItems: "center", justifyContent: "center", borderRadius: 22, borderCurve: "continuous", backgroundColor: "rgba(18,18,24,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)", overflow: "hidden" },
+    tierActive: { borderColor: "rgba(255,45,141,0.9)", backgroundColor: "rgba(33,13,25,0.96)", boxShadow: "0 12px 28px rgba(255,45,141,0.16)" },
+    bestRibbon: { minHeight: 18, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: colors.primary },
+    bestText: { color: "#fff", fontSize: 8, lineHeight: 11, fontWeight: "900", textTransform: "uppercase" },
+    tierLabel: { color: colors.ink, fontSize: 13, lineHeight: 17, fontWeight: "900", textAlign: "center" },
+    tierLabelActive: { color: "#fff" },
+    tierPrice: { color: colors.ink, fontSize: 19, lineHeight: 24, textAlign: "center", fontWeight: "900" },
+    tierPeriod: { color: colors.muted, fontSize: 10, lineHeight: 13, textAlign: "center", fontWeight: "800" },
+    tierAccent: { color: "#f5a7c8", fontSize: 10, lineHeight: 13, textAlign: "center", fontWeight: "900" },
+    selectedPill: { minHeight: 24, paddingHorizontal: 9, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    selectedPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    selectedPillText: { color: colors.muted, fontSize: 9, lineHeight: 12, fontWeight: "900", textTransform: "uppercase" },
+    selectedPillTextActive: { color: "#fff" },
+    benefitsPanel: { gap: 14, padding: 16, borderRadius: 30, borderCurve: "continuous", backgroundColor: "rgba(22,22,29,0.9)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    sectionTitle: { color: colors.ink, fontSize: 13, fontWeight: "900", textTransform: "uppercase" },
+    benefitRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+    benefitIcon: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.14)" },
+    benefitTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+    benefitText: { marginTop: 2, color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
+    primaryCta: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: colors.primary, boxShadow: "0 18px 38px rgba(255,45,141,0.28)" },
+    primaryCtaDisabled: { opacity: 0.48 },
+    primaryText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+    error: { color: colors.primaryDeep, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "800" }
+  });
 
   async function buySelectedPlan() {
     setBusyAction("purchase");
@@ -1858,7 +2119,7 @@ function PremiumScreen({
     setBusyAction(null);
 
     if (result.ok) {
-      Alert.alert("Sparknew Pro", "Dostęp premium jest aktywny.");
+      Alert.alert("Spark Pro", "Dostęp premium jest aktywny.");
       return;
     }
 
@@ -1867,112 +2128,57 @@ function PremiumScreen({
     }
   }
 
-  async function openPaywall() {
-    setBusyAction("paywall");
-    const granted = await revenueCat.presentPaywallIfNeeded();
-    setBusyAction(null);
-
-    if (granted) {
-      Alert.alert("Sparknew Pro", "Masz aktywny dostęp premium.");
-    } else if (revenueCat.error) {
-      Alert.alert("Paywall", revenueCat.error);
-    }
-  }
-
-  async function restore() {
-    setBusyAction("restore");
-    const result = await revenueCat.restorePurchases();
-    setBusyAction(null);
-
-    if (result.ok) {
-      Alert.alert("Przywrócono", revenueCat.isPro ? "Sparknew Pro jest aktywny." : "Zakupy zostały zsynchronizowane.");
-    } else {
-      Alert.alert("Restore failed", result.message);
-    }
-  }
-
-  async function manageSubscription() {
-    setBusyAction("customer-center");
-    const result = await revenueCat.openCustomerCenter();
-    setBusyAction(null);
-
-    if (!result.ok) {
-      Alert.alert("Customer Center", result.message);
-    }
-  }
 
   return (
-    <View style={styles.gapLg}>
-      <TopBar eyebrow="Premium" title="Spark Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
-      <LinearGradient colors={["#1b0915", "#2a0b1d", "#07070a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.premiumHero}>
-        <View style={styles.premiumHeroTop}>
-          <Text style={styles.premiumHeroKicker} selectable>{revenueCat.isPro ? "Aktywny" : "Upgrade"}</Text>
-          <Text style={styles.premiumCrown} selectable>PRO</Text>
-        </View>
-        <Text style={styles.premiumHeroTitle} selectable>Więcej matchy, zero reklam i wiadomości przed matchem.</Text>
-        <Text style={styles.premiumHeroText} selectable>
-          Wybierz Pro na tydzień, miesiąc albo na zawsze. Dostajesz koronę przy profilu, 15 zdjęć, podbicie w odkrywaniu i prośby o chat.
-        </Text>
-        <View style={styles.premiumBenefitRow}>
-          {["Polubienia", "Prośby o chat", "Korona", "15 zdjęć", "Boost"].map((benefit) => (
-            <Text key={benefit} style={styles.premiumBenefit} selectable>{benefit}</Text>
-          ))}
-        </View>
-        {revenueCat.error && <Text style={styles.revenueCatError} selectable>{revenueCat.error}</Text>}
-      </LinearGradient>
-      <View style={styles.planList}>
+    <View style={local.screen}>
+      <TopBar eyebrow={revenueCat.isPro ? "Aktywne" : "Premium"} title="Spark Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
+
+      <View style={local.hero}>
+        <Text style={local.heroBadge} selectable>{revenueCat.isPro ? "Aktywne" : "Premium"}</Text>
+        <Text style={local.heroTitle} selectable>Odblokuj pełen potencjał</Text>
+        <Text style={local.heroText} selectable>Zdobądź więcej matchy, lepszą widoczność i funkcje premium z Spark Pro.</Text>
+      </View>
+
+      <View style={local.tierGrid}>
         {premiumPlans.map((plan) => {
           const active = premiumPlan === plan.id;
-          const iconName = plan.id === "weekly" ? "calendar-week" : plan.id === "monthly" ? "calendar-heart" : "infinity";
+          const card = planCards[plan.id];
+
           return (
-            <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[styles.planCard, active && styles.planCardActive]}>
-              <View style={styles.planHeader}>
-                <View style={[styles.planIcon, active && styles.planIconActive]}>
-                  <MaterialCommunityIcons name={iconName} size={22} color={active ? colors.ink : colors.primaryDeep} />
-                </View>
-                <View style={styles.fill}>
-                  <Text style={styles.planTitle} selectable>{plan.title}</Text>
-                  <Text style={styles.planAccent} selectable>{plan.accent}</Text>
-                </View>
-                <View style={styles.planPriceColumn}>
-                  <Text style={styles.planBadge} selectable>{plan.price}</Text>
-                  <View style={[styles.planSelectDot, active && styles.planSelectDotActive]} />
-                </View>
-              </View>
-              <View style={styles.planFeatures}>
-                {plan.features.map((feature) => (
-                  <View key={feature} style={styles.planFeatureRow}>
-                    <MaterialCommunityIcons name="check-circle" size={15} color={colors.primaryDeep} />
-                    <Text style={styles.planFeature} selectable>{feature}</Text>
-                  </View>
-                ))}
+            <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[local.tierCard, active && local.tierActive]}>
+              {card.badge ? <View style={local.bestRibbon}><Text style={local.bestText} numberOfLines={1}>{card.badge}</Text></View> : <View style={{ minHeight: 18 }} />}
+              <Text style={[local.tierLabel, active && local.tierLabelActive]} numberOfLines={1} selectable>{card.label}</Text>
+              <Text style={local.tierPrice} numberOfLines={1} selectable>{plan.price}</Text>
+              <Text style={local.tierPeriod} numberOfLines={1} selectable>{card.period}</Text>
+              <Text style={local.tierAccent} numberOfLines={1} selectable>{card.helper}</Text>
+              <View style={[local.selectedPill, active && local.selectedPillActive]}>
+                <Text style={[local.selectedPillText, active && local.selectedPillTextActive]} numberOfLines={1}>{active ? "Wybrane" : "Wybierz"}</Text>
               </View>
             </Pressable>
           );
         })}
       </View>
-      <View style={styles.purchasePanel}>
-        <Pressable disabled={busyAction !== null || revenueCat.isPro || !hasPackages} onPress={buySelectedPlan} style={[styles.primaryButton, (busyAction !== null || revenueCat.isPro || !hasPackages) && styles.primaryButtonDisabled]}>
-          <Text style={styles.primaryButtonText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Kupowanie..." : "Kup " + selectedPlan.title}</Text>
-        </Pressable>
-        {!hasPackages && (
-          <Text style={styles.purchaseHint} selectable>
-            Płatności Pro są jeszcze w konfiguracji. Połącz Offering w RevenueCat, żeby aktywować zakup w aplikacji.
-          </Text>
-        )}
-        <View style={styles.purchaseActionsRow}>
-          <Pressable disabled={busyAction !== null} onPress={openPaywall} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{busyAction === "paywall" ? "Ładowanie..." : "Pokaż paywall"}</Text>
-          </Pressable>
-          <Pressable disabled={busyAction !== null} onPress={restore} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{busyAction === "restore" ? "Sync..." : "Przywróć"}</Text>
-          </Pressable>
-        </View>
-        <Pressable disabled={busyAction !== null} onPress={manageSubscription} style={styles.secondaryButtonWide}>
-          <Text style={styles.secondaryButtonText}>{busyAction === "customer-center" ? "Otwieram..." : "Centrum zakupów"}</Text>
-        </Pressable>
+
+      <View style={local.benefitsPanel}>
+        <Text style={local.sectionTitle} selectable>Co zyskujesz</Text>
+        {benefitRows.map(([icon, title, body]) => (
+          <View key={title} style={local.benefitRow}>
+            <View style={local.benefitIcon}>
+              <MaterialCommunityIcons name={icon as any} size={18} color={colors.primary} />
+            </View>
+            <View style={styles.fill}>
+              <Text style={local.benefitTitle} selectable>{title}</Text>
+              <Text style={local.benefitText} selectable>{body}</Text>
+            </View>
+          </View>
+        ))}
       </View>
-    </View>
+
+      {revenueCat.error && <Text style={local.error} selectable>{revenueCat.error}</Text>}
+      <Pressable disabled={busyAction !== null || revenueCat.isPro || !hasPackages} onPress={buySelectedPlan} style={[local.primaryCta, (busyAction !== null || revenueCat.isPro || !hasPackages) && local.primaryCtaDisabled]}>
+        <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Kupowanie..." : "Kontynuuj za " + selectedPlan.price}</Text>
+      </Pressable>    </View>
   );
 }
 function ProfileScreen({
@@ -2023,6 +2229,8 @@ function ProfileScreen({
   const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Pink night walks"], ["LinkedIn", "alex-mercer"]];
   const maxPhotos = hasPro ? 15 : 3;
   const incomingLikeProfiles = matchProfiles.slice(0, 3);
+  const [primaryInterests, setPrimaryInterests] = useState(selectedInterests.slice(0, 3));
+  const [profilePreviewExpanded, setProfilePreviewExpanded] = useState(false);
   const proCapabilityRows = [
     "Zobacz, kto polubił Twój profil",
     "Wyślij jedną prośbę o chat do profilu",
@@ -2042,12 +2250,35 @@ function ProfileScreen({
     latitude: 52.2297,
     longitude: 21.0122,
     image: previewSource,
-    interests: selectedInterests.slice(0, 4),
+    photos: profilePhotos.map((photo) => (typeof photo === "string" ? { uri: photo } : photo)).slice(0, 3),
+    interests: selectedInterests.slice(0, 15),
+    featuredInterests: primaryInterests,
     socials: socialLinks.map(([label, value]) => ({ label, value })),
     premium: hasPro,
     matchScore: hasPro ? 96 : 82,
-    matchReasons: ["lokalizacja", "wiek", selectedInterests[0] ?? "zainteresowania"]
+    matchReasons: [`${userAge} lat`, primaryInterests.join(" + ") || "zainteresowania"]
   };
+  useEffect(() => {
+    setPrimaryInterests((items) => items.filter((item) => selectedInterests.includes(item)).slice(0, 3));
+  }, [selectedInterests]);
+
+  function togglePrimaryInterest(item: string) {
+    if (!selectedInterests.includes(item)) {
+      return;
+    }
+
+    if (primaryInterests.includes(item)) {
+      setPrimaryInterests(primaryInterests.filter((interest) => interest !== item));
+      return;
+    }
+
+    if (primaryInterests.length >= 3) {
+      Alert.alert("Główne zainteresowania", "Możesz wybrać maksymalnie 3 główne zainteresowania na kartę.");
+      return;
+    }
+
+    setPrimaryInterests([...primaryInterests, item]);
+  }
 
   async function pickProfilePhoto(index?: number) {
     if (profilePhotos.length >= maxPhotos && index === undefined) {
@@ -2083,38 +2314,52 @@ function ProfileScreen({
 
   return (
     <View style={styles.profileScreen}>
-      <View style={styles.profileTopBar}>
-        <Pressable accessibilityRole="button" onPress={openSafety} style={styles.profileRoundIcon}>
-          <MaterialCommunityIcons name="cog-outline" size={21} color={colors.primary} />
-        </Pressable>
-        <Text style={styles.profileTopTitle} selectable>Profil</Text>
-        <Pressable accessibilityRole="button" onPress={() => setPushEnabled(!pushEnabled)} style={styles.profileRoundIcon}>
-          <MaterialCommunityIcons name={pushEnabled ? "bell" : "bell-outline"} size={21} color={colors.ink} />
-        </Pressable>
-      </View>
+      <TopBar eyebrow="Profil" title="Twoja karta" left="cog-outline" right={pushEnabled ? "bell" : "bell-outline"} onLeftPress={openSafety} onRightPress={() => setPushEnabled(!pushEnabled)} />
 
       <View style={styles.profileIdentitySection}>
-        <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileAvatarWrap}>
-          <Image source={previewSource} style={styles.profileAvatarImage} contentFit="cover" />
-          <View style={styles.profileAvatarEdit}>
-            <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
+        <View style={styles.profileIdentityTop}>
+          <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileAvatarWrap}>
+            <Image source={previewSource} style={styles.profileAvatarImage} contentFit="cover" />
+            <View style={styles.profileAvatarEdit}>
+              <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
+            </View>
+          </Pressable>
+          <View style={styles.profileIdentityCopy}>
+            <View style={styles.profileNameLine}>
+              <Text style={styles.profileDisplayName} numberOfLines={1} selectable>{profileName}</Text>
+              {hasPro && <MaterialCommunityIcons name="crown" size={19} color={colors.gold} />}
+            </View>
+            <Text style={styles.profileDescription} numberOfLines={1} selectable>{email}</Text>
+            <View style={styles.profileMetaRow}>
+              <View style={styles.profileMetaPill}>
+                <MaterialCommunityIcons name="calendar" size={14} color={colors.primary} />
+                <Text style={styles.profileMetaText} selectable>{userAge} lat</Text>
+              </View>
+              <View style={styles.profileMetaPill}>
+                <MaterialCommunityIcons name="image-multiple" size={14} color={colors.primary} />
+                <Text style={styles.profileMetaText} selectable>{profilePhotos.length}/{maxPhotos}</Text>
+              </View>
+              <View style={styles.profileMetaPill}>
+                <MaterialCommunityIcons name={privateProfile ? "eye-off" : "eye"} size={14} color={colors.primary} />
+                <Text style={styles.profileMetaText} selectable>{privateProfile ? "Prywatny" : "Publiczny"}</Text>
+              </View>
+            </View>
           </View>
-        </Pressable>
-        <View style={styles.profileNameLine}>
-          <Text style={styles.profileDisplayName} selectable>{profileName}, {userAge}</Text>
-          {hasPro && <MaterialCommunityIcons name="crown" size={20} color={colors.gold} />}
         </View>
-        <View style={styles.profileProPill}>
-          <MaterialCommunityIcons name={hasPro ? "star" : "lock-outline"} size={16} color={colors.primary} />
-          <Text style={styles.profileProText} selectable>{hasPro ? "Spark Pro" : "Free"}</Text>
+        <View style={styles.profileHeroActions}>
+          <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileEditCta}>
+            <MaterialCommunityIcons name="pencil" size={17} color="#fff" />
+            <Text style={styles.profileEditCtaText}>Edytuj zdjęcie główne</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={openPremium} style={styles.profileSecondaryButton}>
+            <MaterialCommunityIcons name={hasPro ? "crown" : "lock-open-variant"} size={17} color={colors.primary} />
+            <Text style={styles.profileSecondaryButtonText}>{hasPro ? "Spark Pro" : "Odblokuj Pro"}</Text>
+          </Pressable>
         </View>
-        <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileEditCta}>
-          <Text style={styles.profileEditCtaText}>Edytuj profil</Text>
-        </Pressable>
       </View>
 
       <View style={styles.profileQuickStats}>
-        {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "badge"]].map(([value, label]) => (
+        {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "zainteresowań"]].map(([value, label]) => (
           <View key={label} style={styles.profileQuickStat}>
             <Text style={styles.profileQuickStatValue} selectable>{value}</Text>
             <Text style={styles.profileQuickStatLabel} selectable>{label}</Text>
@@ -2122,14 +2367,32 @@ function ProfileScreen({
         ))}
       </View>
 
+      <View style={styles.profilePreviewPanel}>
+        <Pressable accessibilityRole="button" onPress={() => setProfilePreviewExpanded((open) => !open)} style={styles.accordionHeader}>
+          <View style={styles.fill}>
+            <Text style={styles.panelTitle} selectable>Podgląd w Odkrywaj</Text>
+            <Text style={styles.photoFormatHint} selectable>Tak inni widzą Twoją kartę podczas swipe.</Text>
+          </View>
+          <View style={styles.accordionHeaderRight}>
+            <Text style={styles.incomingLikesCount} selectable>{primaryInterests.length}/3</Text>
+            <MaterialCommunityIcons name={profilePreviewExpanded ? "chevron-up" : "chevron-down"} size={22} color={colors.ink} />
+          </View>
+        </Pressable>
+        {profilePreviewExpanded && (
+          <View style={styles.profilePreviewFrame}>
+            <ProfileCard profile={previewProfile} compact />
+          </View>
+        )}
+      </View>
+
       <View style={styles.profileGalleryPanel}>
         <View style={styles.profileGalleryHeader}>
           <View style={styles.fill}>
-            <Text style={styles.panelTitle} selectable>Twoje zdjęcia</Text>
-            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjęć profilu - pionowy format 4:5</Text>
+            <Text style={styles.panelTitle} selectable>Zdjęcia profilu</Text>
+            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjęć - format 4:5 najlepiej działa w Odkrywaj</Text>
           </View>
           <Pressable onPress={() => pickProfilePhoto()} style={styles.photoAddButton}>
-            <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+            <MaterialCommunityIcons name={profilePhotos.length >= maxPhotos ? "lock" : "plus"} size={16} color="#fff" />
             <Text style={styles.photoAddText}>{profilePhotos.length >= maxPhotos ? "Limit" : "Dodaj"}</Text>
           </Pressable>
         </View>
@@ -2150,8 +2413,8 @@ function ProfileScreen({
       <View style={styles.profilePanel}>
         <View style={styles.profileSectionHeader}>
           <View style={styles.fill}>
-            <Text style={styles.eyebrow} selectable>Dane profilu</Text>
-            <Text style={styles.profileDescription} selectable>{email} - plan: {hasPro ? premiumPlan : "free + reklamy"}</Text>
+            <Text style={styles.eyebrow} selectable>Dane osobowe</Text>
+            <Text style={styles.profileDescription} selectable>Uzupełnij dane używane w profilu i algorytmie dopasowań.</Text>
           </View>
           <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
         </View>
@@ -2172,11 +2435,14 @@ function ProfileScreen({
               <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Aktywne funkcje premium" : "Odblokuj funkcje premium"}</Text>
             </View>
             <Pressable onPress={openPremium} style={styles.proMiniButton}>
-              <Text style={styles.proMiniButtonText}>{hasPro ? "Pro" : "Upgrade"}</Text>
+              <Text style={styles.proMiniButtonText}>{hasPro ? "Aktywne" : "Upgrade"}</Text>
             </Pressable>
           </View>
           {proCapabilityRows.map((feature) => (
-            <Text key={feature} style={styles.proFeatureText} selectable>+ {feature}</Text>
+            <View key={feature} style={styles.proFeatureRow}>
+              <MaterialCommunityIcons name="check-circle" size={17} color={colors.primary} />
+              <Text style={styles.proFeatureText} selectable>{feature}</Text>
+            </View>
           ))}
         </View>
         <View style={styles.incomingLikesPanel}>
@@ -2198,13 +2464,37 @@ function ProfileScreen({
             </View>
           ) : (
             <Pressable onPress={openPremium} style={styles.lockedLikesButton}>
+              <MaterialCommunityIcons name="lock" size={17} color={colors.primary} />
               <Text style={styles.lockedLikesText} selectable>Zobacz, kto Cię polubił po odblokowaniu Pro</Text>
             </Pressable>
           )}
         </View>
         <View style={styles.panel}>
           <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-          <InterestChips selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} />
+          <Text style={styles.panelText} selectable>Wybierz maksymalnie 15 zainteresowań. Algorytm liczy match głównie po wspólnych tagach.</Text>
+          <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
+          <View style={styles.primaryInterestPanel}>
+            <View style={styles.profileGalleryHeader}>
+              <View style={styles.fill}>
+                <Text style={styles.panelTitle} selectable>Główne na karcie</Text>
+                <Text style={styles.panelText} selectable>Wybierz 3 badge widoczne od razu w feedzie.</Text>
+              </View>
+              <Text style={styles.incomingLikesCount} selectable>{primaryInterests.length}/3</Text>
+            </View>
+            <View style={styles.chipWrap}>
+              {selectedInterests.map((interest, index) => {
+                const active = primaryInterests.includes(interest);
+                const theme = getInterestTheme(interest, index);
+
+                return (
+                  <Pressable key={interest} onPress={() => togglePrimaryInterest(interest)} style={[styles.chip, { backgroundColor: active ? theme.active : theme.soft, borderColor: theme.border }]}>
+                    <MaterialCommunityIcons name={active ? "star" : "star-outline"} size={14} color={active ? "#fff" : theme.active} />
+                    <Text style={[styles.chipText, { color: active ? "#fff" : theme.text }]}>{interest}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         </View>
         <View style={styles.panel}>
           <Text style={styles.panelTitle} selectable>Linki social</Text>
@@ -2248,24 +2538,33 @@ function ProfileScreen({
   );
 }
 
-function InterestChips({ selected, onToggle }: { selected: string[]; onToggle: (item: string) => void }) {
+function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
   return (
     <View style={styles.chipWrap}>
       {interestOptions.map((item, index) => {
         const isSelected = selected.includes(item);
         const theme = getInterestTheme(item, index);
+        const limitReached = !isSelected && selected.length >= maxSelected;
 
         return (
           <Pressable
             key={item}
-            onPress={() => onToggle(item)}
+            onPress={() => {
+              if (limitReached) {
+                Alert.alert("Zainteresowania", `Możesz wybrać maksymalnie ${maxSelected} zainteresowań.`);
+                return;
+              }
+
+              onToggle(item);
+            }}
             style={[
               styles.chip,
               {
                 backgroundColor: isSelected ? theme.active : theme.soft,
                 borderColor: theme.border
               },
-              isSelected && styles.chipActive
+              isSelected && styles.chipActive,
+              limitReached && { opacity: 0.42 }
             ]}
           >
             <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
@@ -2277,6 +2576,76 @@ function InterestChips({ selected, onToggle }: { selected: string[]; onToggle: (
   );
 }
 
+function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    interestCategories.reduce<Record<string, boolean>>((state, category, index) => {
+      state[category.title] = index < 2;
+      return state;
+    }, {})
+  );
+
+  function handleToggle(item: string) {
+    if (!selected.includes(item) && selected.length >= maxSelected) {
+      Alert.alert("Zainteresowania", `Możesz wybrać maksymalnie ${maxSelected} zainteresowań.`);
+      return;
+    }
+
+    onToggle(item);
+  }
+
+  return (
+    <View style={styles.interestAccordionList}>
+      {interestCategories.map((category, categoryIndex) => {
+        const isOpen = openSections[category.title] ?? false;
+        const selectedInCategory = category.items.filter((item) => selected.includes(item)).length;
+
+        return (
+          <View key={category.title} style={styles.interestCategoryCard}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setOpenSections((current) => ({ ...current, [category.title]: !isOpen }))}
+              style={styles.interestCategoryHeader}
+            >
+              <View style={styles.interestCategoryTitleRow}>
+                <MaterialCommunityIcons name={category.icon as any} size={18} color={colors.primary} />
+                <View style={styles.fill}>
+                  <Text style={styles.interestCategoryTitle} selectable>{category.title}</Text>
+                  <Text style={styles.interestCategoryMeta} selectable>{selectedInCategory}/{category.items.length} wybranych</Text>
+                </View>
+              </View>
+              <MaterialCommunityIcons name={isOpen ? "chevron-up" : "chevron-down"} size={22} color={colors.ink} />
+            </Pressable>
+            {isOpen && (
+              <View style={styles.interestCategoryBody}>
+                {category.items.map((item, index) => {
+                  const isSelected = selected.includes(item);
+                  const theme = getInterestTheme(item, categoryIndex * 12 + index);
+                  const limitReached = !isSelected && selected.length >= maxSelected;
+
+                  return (
+                    <Pressable
+                      key={item}
+                      onPress={() => handleToggle(item)}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: isSelected ? theme.active : theme.soft, borderColor: theme.border },
+                        isSelected && styles.chipActive,
+                        limitReached && { opacity: 0.42 }
+                      ]}
+                    >
+                      <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
+                      <Text style={[styles.chipText, { color: isSelected ? "#fff" : theme.text }]}>{item}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" | "numeric" }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const isPassword = secureTextEntry;
@@ -2383,19 +2752,35 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
   );
 }
 
-function TopBar({ eyebrow, title, left, right }: { eyebrow: string; title: string; left: string; right: string }) {
+function TopBar({
+  eyebrow,
+  title,
+  left,
+  right,
+  onLeftPress,
+  onRightPress
+}: {
+  eyebrow: string;
+  title: string;
+  left: string;
+  right: string;
+  onLeftPress?: () => void;
+  onRightPress?: () => void;
+}) {
   return (
     <View style={styles.topBar}>
-      <IconButton label={left} />
-      <View style={styles.fill}>
-        <Text style={styles.eyebrow} selectable>{eyebrow}</Text>
-        <Text style={styles.screenTitle} selectable>{title}</Text>
+      <IconButton label={left} onPress={onLeftPress} />
+      <View style={styles.topBarTitleWrap}>
+        <View style={styles.topBarEyebrowRow}>
+          <Image source={headerLogoImage} style={styles.topBarLogo} contentFit="contain" />
+          <Text style={styles.eyebrow} numberOfLines={1} selectable>{eyebrow}</Text>
+        </View>
+        <Text style={styles.screenTitle} numberOfLines={1} selectable>{title}</Text>
       </View>
-      <IconButton label={right} />
+      <IconButton label={right} onPress={onRightPress} />
     </View>
   );
 }
-
 function getIconName(label: string) {
   const iconMap: Record<string, string> = {
     "=": "menu",
@@ -2414,14 +2799,13 @@ function getIconName(label: string) {
   return iconMap[label] ?? label;
 }
 
-function IconButton({ label }: { label: string }) {
+function IconButton({ label, onPress }: { label: string; onPress?: () => void }) {
   return (
-    <Pressable accessibilityRole="button" style={styles.iconButton}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.iconButton}>
       <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
     </Pressable>
   );
 }
-
 function RoundAction({
   label,
   tone,
@@ -2979,23 +3363,11 @@ const styles = StyleSheet.create({
   },
   discoverScreen: {
     flex: 1,
-    position: "relative",
     width: "100%",
-    maxWidth: 500,
-    alignSelf: "center",
-    paddingBottom: 118,
-    gap: 14
-  },
-  stitchTopBar: {
-    minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12
-  },
-  discoverHeaderLogo: {
-    width: 156,
-    height: 54
+    gap: 12,
+    paddingTop: 8,
+    paddingHorizontal: 0,
+    paddingBottom: 0
   },
   stitchTopActions: {
     flexDirection: "row",
@@ -3046,23 +3418,35 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   stitchPlanToggle: {
-    minHeight: 48,
-    flexDirection: "row",
-    gap: 4,
-    padding: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(26,26,26,0.62)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    display: "none"
   },
-  stitchPlanButton: {
+  discoverSummaryBar: {
+    minHeight: 42,
+    marginHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 2
+  },
+  discoverSummaryPill: {
     flex: 1,
-    minHeight: 39,
+    minWidth: 0,
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    borderRadius: 999
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    backgroundColor: "rgba(22,20,26,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)"
+  },
+  discoverSummaryText: {
+    minWidth: 0,
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: "900"
   },
   stitchPlanButtonActive: {
     backgroundColor: colors.primary,
@@ -3078,29 +3462,29 @@ const styles = StyleSheet.create({
   },
   stitchMainCanvas: {
     flex: 1,
-    minHeight: 470,
+    minHeight: 510,
     justifyContent: "flex-end"
   },
   stitchBottomPanel: {
     position: "absolute",
-    left: 0,
-    right: 0,
+    left: 8,
+    right: 8,
     bottom: 0,
-    minHeight: 132,
+    minHeight: 92,
     paddingTop: 8,
-    paddingHorizontal: 0,
-    paddingBottom: 0,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    backgroundColor: "rgba(5,5,7,0.58)",
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    borderRadius: 32,
+    backgroundColor: "rgba(7,7,10,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: "rgba(255,45,141,0.2)",
+    boxShadow: "0 -12px 42px rgba(0,0,0,0.34)"
   },
   stitchFabDock: {
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    gap: 6,
     paddingHorizontal: 2
   },
   stitchProHintRow: {
@@ -3209,6 +3593,92 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "800"
   },
+  preferenceSheet: {
+    maxHeight: "88%",
+    gap: 14,
+    padding: 16,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    backgroundColor: "rgba(12,12,17,0.98)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  preferenceScroll: {
+    gap: 12,
+    paddingBottom: 8
+  },
+  preferenceSection: {
+    gap: 10,
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  preferenceLabel: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  preferenceValue: {
+    marginTop: 3,
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  preferenceRangeRow: {
+    minHeight: 66,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  preferenceStepper: {
+    flexDirection: "row",
+    gap: 8
+  },
+  preferenceStepButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)"
+  },
+  preferenceToggleRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  preferenceToggle: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  preferenceToggleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  preferenceToggleText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  preferenceToggleTextActive: {
+    color: "#fff"
+  },
   reportOverlay: {
     position: "absolute",
     top: 0,
@@ -3307,9 +3777,26 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   topBar: {
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12
+    gap: 12,
+    paddingHorizontal: 4
+  },
+  topBarTitleWrap: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 2,
+    minWidth: 0
+  },
+  topBarEyebrowRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  topBarLogo: {
+    width: 18,
+    height: 18
   },
   iconButton: {
     width: 46,
@@ -3317,10 +3804,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(18,18,24,0.78)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)",
-    boxShadow: "0 10px 24px rgba(99,51,61,0.08)"
+    borderColor: "rgba(255,45,141,0.28)",
+    boxShadow: "0 10px 24px rgba(255,45,141,0.1)"
   },
   iconButtonText: {
     color: colors.ink,
@@ -3330,7 +3817,8 @@ const styles = StyleSheet.create({
   screenTitle: {
     color: colors.ink,
     fontSize: 28,
-    fontWeight: "800",
+    lineHeight: 34,
+    fontWeight: "900",
     letterSpacing: 0
   },
   segmented: {
@@ -3362,16 +3850,19 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     flex: 1,
+    minHeight: 520,
+    maxHeight: 760,
     width: "100%",
-    minHeight: 500,
-    maxHeight: 720,
     overflow: "hidden",
-    borderRadius: 34,
-    borderCurve: "continuous",
-    backgroundColor: colors.surfaceStrong,
+    borderRadius: 32,
+    backgroundColor: "#151017",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
     boxShadow: "0 30px 78px rgba(0,0,0,0.58)"
+  },
+  profileCardCompact: {
+    minHeight: 500,
+    maxHeight: 540
   },
   profileImage: {
     width: "100%",
@@ -3386,25 +3877,40 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     position: "absolute",
-    top: 24,
-    left: 24,
-    right: 24,
+    top: 22,
+    left: 20,
+    right: 74,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 7,
     zIndex: 5
   },
   badge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 999,
     overflow: "hidden",
     color: colors.ink,
-    backgroundColor: "rgba(26,26,26,0.62)",
+    backgroundColor: "rgba(18,18,22,0.72)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    fontSize: 12,
+    borderColor: "rgba(255,255,255,0.12)",
+    fontSize: 11,
     fontWeight: "900"
+  },
+  cardReportButton: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    width: 42,
+    height: 42,
+    zIndex: 8,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(239,36,73,0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    boxShadow: "0 0 24px rgba(239,36,73,0.42)"
   },
   cardSparkOverlay: {
     position: "absolute",
@@ -3417,15 +3923,19 @@ const styles = StyleSheet.create({
   },
   profileCopy: {
     position: "absolute",
-    left: 24,
-    right: 24,
-    bottom: 104,
+    left: 22,
+    right: 22,
+    bottom: 116,
     zIndex: 5
+  },
+  profileCopyCompact: {
+    bottom: 28
   },
   profileStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    flexWrap: "wrap",
+    gap: 7,
     marginBottom: 8
   },
   cardCrown: {
@@ -3454,20 +3964,20 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: "#fff",
-    fontSize: 29,
+    fontSize: 27,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 35,
-    textShadowColor: "rgba(0,0,0,0.45)",
+    lineHeight: 33,
+    textShadowColor: "rgba(0,0,0,0.52)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8
   },
   cardBio: {
     maxWidth: 330,
     marginTop: 7,
-    color: "#e4bdc3",
-    fontSize: 15,
-    lineHeight: 22,
+    color: "#f0d3dd",
+    fontSize: 14,
+    lineHeight: 21,
     textShadowColor: "rgba(0,0,0,0.4)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6
@@ -3476,7 +3986,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 12
+    marginTop: 11
   },
   socialPill: {
     minHeight: 31,
@@ -3494,6 +4004,30 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 11,
     fontWeight: "800"
+  },
+  matchInlinePill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.primary,
+    backgroundColor: "rgba(255,45,141,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.22)",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  matchReasonInline: {
+    maxWidth: 330,
+    marginBottom: 5,
+    color: "#f5c4d8",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "800",
+    textShadowColor: "rgba(0,0,0,0.36)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5
   },
   matchScorePill: {
     position: "absolute",
@@ -3541,7 +4075,8 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep,
     fontSize: 12,
     fontWeight: "900"
-  },  actionRow: {
+  },
+  actionRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -4092,7 +4627,8 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "900"
-  },  emptyStateCard: {
+  },
+  emptyStateCard: {
     minHeight: 150,
     justifyContent: "center",
     gap: 8,
@@ -4115,8 +4651,9 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   profileScreen: {
-    gap: 16,
-    paddingTop: 2
+    gap: 14,
+    paddingTop: 2,
+    paddingBottom: 12
   },
   profileTopBar: {
     minHeight: 58,
@@ -4148,20 +4685,70 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   profileIdentitySection: {
-    alignItems: "center",
-    gap: 10,
-    padding: 22,
-    borderRadius: 34,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(18,18,25,0.9)",
+    gap: 16,
+    padding: 16,
+    borderRadius: 30,
+    backgroundColor: "rgba(18,18,25,0.92)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)",
+    borderColor: "rgba(255,45,141,0.2)",
     boxShadow: "0 24px 60px rgba(0,0,0,0.42)"
   },
-  profileAvatarWrap: {
-    width: 136,
-    height: 136,
+  profileIdentityTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14
+  },
+  profileIdentityCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8
+  },
+  profileMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7
+  },
+  profileMetaPill: {
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
     borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  profileMetaText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  profileHeroActions: {
+    flexDirection: "row",
+    gap: 10
+  },
+  profileSecondaryButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)"
+  },
+  profileSecondaryButtonText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  profileAvatarWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 30,
     overflow: "hidden",
     borderWidth: 2,
     borderColor: colors.primary,
@@ -4176,8 +4763,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 6,
     bottom: 6,
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -4186,17 +4773,16 @@ const styles = StyleSheet.create({
     borderColor: "rgba(18,18,25,0.95)"
   },
   profileNameLine: {
-    marginTop: 5,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8
+    gap: 7,
+    minWidth: 0
   },
   profileDisplayName: {
+    flexShrink: 1,
     color: colors.ink,
-    fontSize: 28,
-    lineHeight: 34,
-    textAlign: "center",
+    fontSize: 26,
+    lineHeight: 31,
     fontWeight: "900"
   },
   profileProPill: {
@@ -4216,35 +4802,34 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   profileEditCta: {
-    width: "100%",
-    maxWidth: 286,
-    minHeight: 52,
-    marginTop: 4,
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 7,
     borderRadius: 999,
     backgroundColor: colors.primary,
     boxShadow: "0 16px 38px rgba(255,45,141,0.32)"
   },
   profileEditCtaText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "900"
   },
   profileQuickStats: {
     flexDirection: "row",
-    gap: 10
+    gap: 8
   },
   profileQuickStat: {
     flex: 1,
-    minHeight: 74,
+    minHeight: 70,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 24,
-    borderCurve: "continuous",
+    borderRadius: 22,
     backgroundColor: "rgba(18,18,25,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.12)"
+    borderColor: "rgba(255,45,141,0.14)"
   },
   profileQuickStatValue: {
     color: colors.primary,
@@ -4260,12 +4845,25 @@ const styles = StyleSheet.create({
   },
   profileGalleryPanel: {
     gap: 14,
-    padding: 16,
-    borderRadius: 30,
-    borderCurve: "continuous",
+    padding: 14,
+    borderRadius: 28,
     backgroundColor: "rgba(18,18,25,0.88)",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
+  },
+  profilePreviewPanel: {
+    gap: 14,
+    padding: 14,
+    borderRadius: 28,
+    backgroundColor: "rgba(18,18,25,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)"
+  },
+  profilePreviewFrame: {
+    height: 540,
+    overflow: "hidden",
+    borderRadius: 32,
+    backgroundColor: "#08070a"
   },
   profileGalleryHeader: {
     flexDirection: "row",
@@ -4304,7 +4902,7 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 5,
     maxHeight: 560,
     overflow: "hidden",
-    borderRadius: 34,
+    borderRadius: 32,
     borderCurve: "continuous",
     backgroundColor: "#15151c",
     boxShadow: "0 26px 66px rgba(0,0,0,0.44)"
@@ -4369,16 +4967,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "900"
-  },  photoGrid: {
+  },
+  photoGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10
   },
   photoSlot: {
-    flex: 1,
+    width: "31.5%",
+    minWidth: 94,
     aspectRatio: 4 / 5,
     overflow: "hidden",
-    borderRadius: 22,
-    borderCurve: "continuous",
+    borderRadius: 20,
     backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
@@ -4395,7 +4995,8 @@ const styles = StyleSheet.create({
     height: "100%",
     fontSize: 32,
     fontWeight: "900"
-  },  photoSlotBadge: {
+  },
+  photoSlotBadge: {
     position: "absolute",
     left: 7,
     right: 7,
@@ -4441,7 +5042,12 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   profilePanel: {
-    gap: 16
+    gap: 14,
+    padding: 14,
+    borderRadius: 28,
+    backgroundColor: "rgba(14,14,19,0.76)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.12)"
   },
   profileName: {
     color: colors.ink,
@@ -4479,12 +5085,11 @@ const styles = StyleSheet.create({
   },
   proFeaturePanel: {
     gap: 10,
-    padding: 16,
+    padding: 14,
     borderRadius: 24,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(26,26,34,0.88)",
+    backgroundColor: "rgba(255,45,141,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.12)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   proFeatureHeader: {
     flexDirection: "row",
@@ -4498,8 +5103,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700"
   },
+  proFeatureRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8
+  },
   proFeatureText: {
-    color: "#d8b5c7",
+    flex: 1,
+    color: "#f0d3dd",
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "800"
@@ -4519,12 +5130,11 @@ const styles = StyleSheet.create({
   },
   incomingLikesPanel: {
     gap: 14,
-    padding: 16,
+    padding: 14,
     borderRadius: 24,
-    borderCurve: "continuous",
     backgroundColor: "rgba(34,12,25,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.16)"
+    borderColor: "rgba(255,45,141,0.18)"
   },
   incomingLikesCount: {
     minWidth: 42,
@@ -4561,10 +5171,12 @@ const styles = StyleSheet.create({
   },
   lockedLikesButton: {
     minHeight: 52,
-    borderRadius: 18,
-    borderCurve: "continuous",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
     backgroundColor: "rgba(24,24,31,0.88)",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
@@ -4581,12 +5193,13 @@ const styles = StyleSheet.create({
   socialLinkRow: {
     minHeight: 58,
     borderRadius: 18,
-    borderCurve: "continuous",
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "rgba(22,22,29,0.86)"
+    backgroundColor: "rgba(22,22,29,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
   },
   socialIconBubble: {
     width: 36,
@@ -4600,17 +5213,79 @@ const styles = StyleSheet.create({
     gap: 2
   },
   settingsList: {
+    gap: 10,
+    paddingTop: 2
+  },
+  primaryInterestPanel: {
+    gap: 10,
+    paddingTop: 4
+  },
+  accordionHeader: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  accordionHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  interestAccordionList: {
     gap: 10
+  },
+  interestCategoryCard: {
+    overflow: "hidden",
+    borderRadius: 22,
+    backgroundColor: "rgba(22,22,29,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  interestCategoryHeader: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10
+  },
+  interestCategoryTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  interestCategoryTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  interestCategoryMeta: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  interestCategoryBody: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 12
   },
   settingRow: {
     minHeight: 58,
     borderRadius: 22,
-    borderCurve: "continuous",
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.surface
+    backgroundColor: "rgba(22,22,29,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)"
   },
   settingLabel: {
     color: colors.ink,

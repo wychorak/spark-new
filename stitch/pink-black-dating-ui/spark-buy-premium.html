@@ -1,0 +1,236 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Spark Pro - Subscription</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#1f1f1f",
+                        "primary-fixed": "#ffd9df",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container-lowest": "#0e0e0e",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#131313",
+                        "on-primary-container": "#5a0023",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-secondary-container": "#b4b5b5",
+                        "surface-tint": "#ffb1c0",
+                        "on-secondary": "#2f3131",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "error-container": "#93000a",
+                        "surface-container-low": "#1b1b1b",
+                        "on-tertiary-container": "#2a2a2a",
+                        "on-primary-fixed": "#3f0017",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "tertiary-fixed": "#e5e2e1",
+                        "primary-container": "#ff4c83",
+                        "surface-bright": "#393939",
+                        "inverse-on-surface": "#303030",
+                        "inverse-surface": "#e2e2e2",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "primary": "#ffb1c0",
+                        "outline": "#ab888e",
+                        "tertiary-container": "#929090",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "on-primary-fixed-variant": "#90003d",
+                        "tertiary": "#c8c6c5",
+                        "surface-variant": "#353535",
+                        "secondary-container": "#454747",
+                        "on-surface": "#e2e2e2",
+                        "on-tertiary": "#313030",
+                        "on-surface-variant": "#e4bdc3",
+                        "inverse-primary": "#bc0051",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "secondary": "#c6c6c7",
+                        "on-primary": "#660029",
+                        "surface-container-highest": "#353535",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "background": "#131313",
+                        "secondary-fixed": "#e2e2e2",
+                        "outline-variant": "#5b3f44",
+                        "surface": "#131313",
+                        "primary-fixed-dim": "#ffb1c0",
+                        "on-background": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "48px",
+                        "gutter": "12px",
+                        "base": "4px",
+                        "xs": "8px",
+                        "sm": "16px",
+                        "lg": "32px",
+                        "md": "24px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "display": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "display": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "900" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "34px", "fontWeight": "800" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(31, 31, 31, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glow-primary {
+            box-shadow: 0 0 20px rgba(255, 76, 131, 0.3);
+        }
+        .tier-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .tier-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 76, 131, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center px-margin-mobile py-sm w-full fixed top-0 z-50 bg-background/80 backdrop-blur-md border-b border-white/5 transition-opacity duration-200">
+<button aria-label="Go back" class="p-xs rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-[24px]">arrow_back</span>
+</button>
+<div class="flex items-center gap-2">
+
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-display font-black text-on-surface"><br></h1>
+</div>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow pt-[80px] pb-[120px] px-margin-mobile flex flex-col gap-lg max-w-[600px] mx-auto w-full">
+<!-- Hero Section -->
+<section class="text-center space-y-sm mt-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">Odblokuj pełen potencjał</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Zdobądź więcej matchy, lepszą widoczność i funkcje premium z Spark Pro.</p>
+</section>
+<!-- Pricing Tiers (Bento-style layout) -->
+<section class="grid grid-cols-3 gap-xs">
+<!-- Tier 1: Week -->
+<button class="tier-card glass-panel rounded-xl p-sm flex flex-col items-center justify-center gap-xs relative overflow-hidden group">
+<span class="font-label-bold text-label-bold text-on-surface-variant group-hover:text-primary transition-colors">Tydzień</span>
+<span class="font-headline-md text-[20px] font-bold text-on-surface">19.99<span class="text-sm font-normal text-on-surface-variant">zł</span></span>
+</button>
+<!-- Tier 2: Month (Highlighted) -->
+<button class="tier-card glass-panel rounded-xl p-sm flex flex-col items-center justify-center gap-xs relative overflow-hidden group">
+<span class="font-label-bold text-label-bold text-on-surface-variant group-hover:text-primary transition-colors">Miesiąc</span>
+<span class="font-headline-md text-[20px] font-bold text-on-surface">49.99<span class="text-sm font-normal text-on-surface-variant">zł</span></span>
+<span class="font-label-sm text-[11px] text-on-surface-variant">Najczęściej wybierane</span>
+</button>
+<!-- Tier 3: Lifetime -->
+<button class="tier-card bg-surface-container-high border-2 border-primary-container rounded-xl p-sm flex flex-col items-center justify-center gap-xs relative overflow-hidden transform scale-105 shadow-[0_4px_24px_rgba(255,76,131,0.15)] z-10">
+<div class="absolute top-0 left-0 w-full bg-primary-container py-[2px] text-center">
+<span class="font-label-sm text-[10px] text-on-primary font-bold uppercase tracking-wider">Best Value</span>
+</div>
+<span class="font-label-bold text-label-bold text-primary mt-2">Lifetime</span>
+<span class="font-headline-md text-headline-md text-on-surface">199.99<span class="text-sm font-normal text-on-surface-variant">zł<br></span></span>
+</button>
+</section>
+<!-- Benefits List -->
+<section class="bg-surface-container rounded-xl p-md border border-white/5 space-y-md">
+<h3 class="font-label-bold text-label-bold text-on-surface uppercase tracking-wider mb-sm opacity-80">Co zyskujesz:</h3>
+<ul class="space-y-sm">
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">block</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">Zero reklam</span>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">visibility</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">Zobaczenie, kto Cię polubił</span>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">chat</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">Wysłanie prośby o chat przed matchem</span>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">workspace_premium</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">Korona Pro przy profilu</span>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">photo_library</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">Do 15 zdjęć na profilu</span>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">rocket_launch</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">Większa widoczność w odkrywaniu</span>
+</div>
+</li>
+<li class="flex items-start gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">tune</span>
+</div>
+<div class="flex-grow">
+<span class="font-body-md text-body-md text-on-surface">10 Superlike miesięcznie / Boost / filtry premium</span>
+</div>
+</li>
+</ul>
+</section>
+</main>
+<!-- Bottom Action Bar -->
+<div class="fixed bottom-0 left-0 w-full p-margin-mobile bg-gradient-to-t from-background via-background to-transparent z-50 flex justify-center pb-8">
+<button class="w-full max-w-[400px] bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-label-bold text-label-bold py-sm px-lg rounded-full flex items-center justify-center gap-2 glow-primary transition-all duration-200 active:scale-95">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+            Kontynuuj za 49.99 zł
+        </button>
+</div>
+<!-- Navigation suppressed due to linear/transactional flow rule -->
+
+
+</body></html>
