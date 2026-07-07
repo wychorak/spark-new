@@ -37,7 +37,7 @@ import {
   upsertUserProfile
 } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
-import { SparkAdBanner, useSwipeInterstitialAds } from "./src/ads";
+import { SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -444,7 +444,8 @@ function AppContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
-  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro);
+  const adsReady = useGoogleMobileAds(!revenueCat.isPro);
+  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady);
   const [profileIndex, setProfileIndex] = useState(0);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
   const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
@@ -1045,7 +1046,7 @@ function AppContent() {
             openSafety={() => setTab("safety")}
           />
         )}
-        <SparkAdBanner enabled={!revenueCat.isPro && tab !== "premium"} placement={tab} />
+        <SparkAdBanner enabled={!revenueCat.isPro && adsReady && tab !== "premium"} placement={tab} />
       </ScrollView>
 
             <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>

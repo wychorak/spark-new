@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .expo/
 dist/
 build/
@@ -12,3 +12,8 @@ google-service-account.json
 *.mobileprovision
 .DS_Store
 Thumbs.db
+graphify-out/
+src/graphify-out/
+
+.vercel
+.codex/

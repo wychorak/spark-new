@@ -20,21 +20,21 @@ These native modules require an Expo development build. They will not work in Ex
 ## Environment
 
 ```powershell
-EXPO_PUBLIC_REVENUECAT_API_KEY=test_ZXrasnBoneOhTMZGyJXoPEEacNC
+EXPO_PUBLIC_REVENUECAT_API_KEY=appl_ncfYcNBlFslQlMhPWGSaAfHHeaM
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Sparknew Pro
 EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID=Sparkproweek
 EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID=Sparkpromonth
 EXPO_PUBLIC_REVENUECAT_LIFETIME_PRODUCT_ID=sparkprolifetime
 
-EXPO_PUBLIC_ADMOB_ANDROID_APP_ID=ca-app-pub-3940256099942544~3347511713
-EXPO_PUBLIC_ADMOB_IOS_APP_ID=ca-app-pub-3940256099942544~1458002511
-EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID=ca-app-pub-3940256099942544/6300978111
-EXPO_PUBLIC_ADMOB_IOS_BANNER_ID=ca-app-pub-3940256099942544/2934735716
-EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID=ca-app-pub-3940256099942544/1033173712
-EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID=ca-app-pub-3940256099942544/4411468910
+EXPO_PUBLIC_ADMOB_ANDROID_APP_ID=ca-app-pub-8263324816746737~5461920676
+EXPO_PUBLIC_ADMOB_IOS_APP_ID=ca-app-pub-8263324816746737~3188934953
+EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID=ca-app-pub-8263324816746737/1021936619
+EXPO_PUBLIC_ADMOB_IOS_BANNER_ID=ca-app-pub-8263324816746737/9299047738
+EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID=ca-app-pub-8263324816746737/8708854948
+EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID=ca-app-pub-8263324816746737/4491619788
 ```
 
-The AdMob IDs above are Google test IDs. Replace them with production IDs only after AdMob approval and before store release.
+The iOS and Android AdMob IDs above are production IDs from AdMob. New units can take up to an hour before they start serving ads.
 
 Free users see a lightweight banner and a skippable interstitial/video-style ad after a randomized 5-10 profile swipes. `Sparknew Pro` hides all ads.
 
@@ -115,8 +115,8 @@ const result = await revenueCat.restorePurchases();
 - Do not show purchase errors when `userCancelled` is true.
 - Disable purchase buttons while a purchase is in progress.
 - Keep interstitial frequency randomized and capped by swipe actions so ads monetize without interrupting every profile.
-- Keep using AdMob test IDs until the production AdMob app and ad units are approved.
-- Replace the single test RevenueCat key with platform-specific public SDK keys when the real App Store and Google Play apps are configured in RevenueCat.
+- iOS and Android production AdMob IDs are configured. Keep test device IDs enabled during development, and only rely on production serving after AdMob approval.
+- RevenueCat public SDK key is configured in env. Use only public mobile SDK keys in the app, never secret API keys.
 - Never put RevenueCat secret API keys in the mobile app.
 
 ## Development Build

@@ -1,15 +1,117 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import Purchases from "react-native-purchases";
-import {
+import mobileAds, {
   AdEventType,
+  AdsConsent,
+  AdsConsentDebugGeography,
   BannerAd,
   BannerAdSize,
   InterstitialAd,
+  MaxAdContentRating,
   TestIds,
   type PaidEvent
 } from "react-native-google-mobile-ads";
 
+
+let mobileAdsStartPromise: Promise<boolean> | null = null;
+
+function getAdMobTestDeviceIdentifiers() {
+  const configuredDevices = (process.env.EXPO_PUBLIC_ADMOB_TEST_DEVICE_ID || "")
+    .split(",")
+    .map((deviceId: string) => deviceId.trim())
+    .filter(Boolean);
+
+  return __DEV__ ? ["EMULATOR", ...configuredDevices] : configuredDevices;
+}
+
+function getAdMobDebugGeography() {
+  switch ((process.env.EXPO_PUBLIC_ADMOB_DEBUG_GEOGRAPHY || "").toUpperCase()) {
+    case "EEA":
+      return AdsConsentDebugGeography.EEA;
+    case "REGULATED_US_STATE":
+      return AdsConsentDebugGeography.REGULATED_US_STATE;
+    case "OTHER":
+    case "NOT_EEA":
+      return AdsConsentDebugGeography.OTHER;
+    case "DISABLED":
+      return AdsConsentDebugGeography.DISABLED;
+    default:
+      return undefined;
+  }
+}
+
+async function startGoogleMobileAds() {
+  const testDeviceIdentifiers = getAdMobTestDeviceIdentifiers();
+  const debugGeography = getAdMobDebugGeography();
+
+  try {
+    await mobileAds().setRequestConfiguration({
+      maxAdContentRating: MaxAdContentRating.MA,
+      tagForChildDirectedTreatment: false,
+      tagForUnderAgeOfConsent: false,
+      testDeviceIdentifiers: testDeviceIdentifiers.length > 0 ? testDeviceIdentifiers : undefined
+    });
+
+    await AdsConsent.gatherConsent({
+      debugGeography,
+      testDeviceIdentifiers: testDeviceIdentifiers.length > 0 ? testDeviceIdentifiers : undefined
+    });
+
+    const consentInfo = await AdsConsent.getConsentInfo();
+
+    if (!consentInfo.canRequestAds) {
+      return false;
+    }
+
+    await mobileAds().initialize();
+    return true;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("Google Mobile Ads initialization failed", error);
+    }
+
+    try {
+      const consentInfo = await AdsConsent.getConsentInfo();
+
+      if (consentInfo.canRequestAds) {
+        await mobileAds().initialize();
+        return true;
+      }
+    } catch {
+      return false;
+    }
+
+    return false;
+  }
+}
+
+export function useGoogleMobileAds(enabled: boolean) {
+  const [canRequestAds, setCanRequestAds] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!enabled || Platform.OS === "web") {
+      setCanRequestAds(false);
+      return undefined;
+    }
+
+    mobileAdsStartPromise = mobileAdsStartPromise || startGoogleMobileAds();
+
+    mobileAdsStartPromise.then((isReady) => {
+      if (isMounted) {
+        setCanRequestAds(isReady);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
+
+  return canRequestAds;
+}
 const adUnitIds = {
   ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || TestIds.BANNER,
   android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || TestIds.BANNER,

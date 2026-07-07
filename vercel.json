@@ -1,0 +1,6 @@
+{
+  "buildCommand": "echo Legal site ready",
+  "outputDirectory": "legal-site",
+  "cleanUrls": true,
+  "trailingSlash": false
+}

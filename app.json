@@ -51,11 +51,12 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "androidAppId": "ca-app-pub-8263324816746737~5461920676",
+          "iosAppId": "ca-app-pub-8263324816746737~3188934953",
           "delayAppMeasurementInit": true,
           "optimizeInitialization": true,
-          "optimizeAdLoading": true
+          "optimizeAdLoading": true,
+          "userTrackingUsageDescription": "Spark moze uzywac identyfikatora urzadzenia do mierzenia i dopasowania reklam."
         }
       ],
       [
