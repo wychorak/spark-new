@@ -58,19 +58,19 @@ const colors = {
 
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "sparkapp@gmail.com";
 const legalLinks = {
-  privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "",
-  terms: process.env.EXPO_PUBLIC_TERMS_URL || "",
-  community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || ""
+  privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/privacy-policy.md",
+  terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/terms.md",
+  community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/community-guidelines.md"
 };
 
 function openLegalDocument(title: string, url: string, envName: string) {
   if (!url) {
-    Alert.alert(title, `Dodaj ${envName} w .env przed release. Kontakt: ${supportEmail}`);
+    Alert.alert(title, `Dokument jest chwilowo niedostępny. Kontakt: ${supportEmail}`);
     return;
   }
 
   WebBrowser.openBrowserAsync(url).catch(() => {
-    Alert.alert(title, `Nie mozna otworzyc linku. Kontakt: ${supportEmail}`);
+    Alert.alert(title, `Nie można otworzyć dokumentu. Kontakt: ${supportEmail}`);
   });
 }
 const brandLogoImage = require("./assets/photologo.png");
@@ -713,7 +713,7 @@ function AppContent() {
       setAppUser(user);
       setAuthDone(true);
       seedDemoMatchState();
-      Alert.alert("Konto testowe", "Zalogowano demo i dodano gotowy match oraz prosbe o chat.");
+      Alert.alert("Konto testowe", "Zalogowano demo i dodano gotowy match oraz prośbę o chat.");
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not open demo account.");
     } finally {
@@ -731,7 +731,7 @@ function AppContent() {
       }
 
       if (superlikesRemaining <= 0) {
-        Alert.alert("Superlike", "Limit 10 zjawiskowych Superlike w tym miesiacu jest juz wykorzystany.");
+        Alert.alert("Superlike", "Limit 10 zjawiskowych Superlike w tym miesiącu jest już wykorzystany.");
         return;
       }
 
@@ -759,7 +759,7 @@ function AppContent() {
           source: "mutual-like"
         }).catch(() => undefined);
       }
-      Alert.alert("Match", `Ty i ${activeProfile.name} polubiliscie sie. Mozecie teraz pisac.`);
+      Alert.alert("Match", `Ty i ${activeProfile.name} polubiliście się. Możecie teraz pisać.`);
     }
 
     trackSwipeAd();
@@ -775,13 +775,13 @@ function AppContent() {
     }
 
     if (hasMatchedActiveProfile) {
-      Alert.alert("Chat", `Masz juz match z ${activeProfile.name}. Rozmowa jest odblokowana.`);
+      Alert.alert("Chat", `Masz już match z ${activeProfile.name}. Rozmowa jest odblokowana.`);
       setTab("messages");
       return;
     }
 
     if (hasRequestedActiveProfile) {
-      Alert.alert("Prosba wyslana", `Jedna prosba o chat do ${activeProfile.name} juz czeka na akceptacje.`);
+      Alert.alert("Prośba wysłana", `Jedna prośba o chat do ${activeProfile.name} już czeka na akceptację.`);
       return;
     }
 
@@ -810,7 +810,7 @@ function AppContent() {
         source: "premium-request"
       }).catch(() => undefined);
     }
-    Alert.alert("Prosba o chat", `Wyslano jedna premium prosbe do ${activeProfile.name}.`);
+    Alert.alert("Prośba o chat", `Wysłano jedną premium prośbę do ${activeProfile.name}.`);
   }
 
   async function sendMessageToProfile(profileKey: string, text: string) {
@@ -822,7 +822,7 @@ function AppContent() {
 
     const thread = chatThreads[profileKey];
     if (!thread || thread.status !== "matched") {
-      Alert.alert("Chat", "Wiadomosci sa dostepne po matchu albo po zaakceptowaniu prosby.");
+      Alert.alert("Chat", "Wiadomości są dostępne po matchu albo po zaakceptowaniu prośby.");
       return;
     }
 
@@ -877,7 +877,7 @@ function AppContent() {
 
   async function performDeleteAccount() {
     if (!appUser) {
-      Alert.alert("Usun konto", "Musisz byc zalogowany, aby usunac konto.");
+      Alert.alert("Usuń konto", "Musisz być zalogowany, aby usunąć konto.");
       return;
     }
 
@@ -898,18 +898,18 @@ function AppContent() {
       setSelectedChatKey(null);
       setTab("discover");
       setMode("classic");
-      Alert.alert("Konto usuniete", "Konto i glowny profil zostaly usuniete.");
+      Alert.alert("Konto usunięte", "Konto i główny profil zostały usunięte.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Nie udalo sie usunac konta.";
+      const message = error instanceof Error ? error.message : "Nie udało się usunąć konta.";
       setAuthError(message);
-      Alert.alert("Usun konto", message);
+      Alert.alert("Usuń konto", message);
     }
   }
 
   function confirmDeleteAccount() {
-    Alert.alert("Usun konto", "To usunie konto logowania i glowny profil. Tej akcji nie mozna cofnac.", [
+    Alert.alert("Usuń konto", "To usunie konto logowania i główny profil. Tej akcji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
-      { text: "Usun", style: "destructive", onPress: () => void performDeleteAccount() }
+      { text: "Usuń", style: "destructive", onPress: () => void performDeleteAccount() }
     ]);
   }
   if (!authDone) {
@@ -1216,7 +1216,7 @@ function AuthScreen({
   return (
     <View style={styles.gapLg}>
       <View style={styles.brandCompact}>
-        <View style={[styles.logoMark, styles.loginLogoMark]}>
+        <View style={styles.loginLogoMark}>
           <Image source={loginLogoImage} style={styles.loginLogoImage} contentFit="contain" />
         </View>
         <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
@@ -1919,7 +1919,7 @@ function MatchesScreen({
                 <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
                 <Text style={styles.matchName} selectable>{profile.name}, {profile.age}</Text>
                 <Text style={styles.matchSubtitle} selectable>
-                  {isRequest ? "Prosba o chat wyslana" : profile.interests.slice(0, 2).join(" - ")}
+                  {isRequest ? "Prośba o chat wyslana" : profile.interests.slice(0, 2).join(" - ")}
                 </Text>
               </View>
             );
@@ -2675,16 +2675,16 @@ function TextField({ label, value, onChangeText, secureTextEntry = false, keyboa
 function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDeleteAccount: () => void }) {
   const actions = [
     {
-      title: "Zglos profil",
+      title: "Zgłoś profil",
       body: "Wyslij zgloszenie do moderacji z ostatnim kontekstem rozmowy.",
       cta: "W feedzie",
-      onPress: () => Alert.alert("Zglos profil", "Zgloszenia wysylasz z karty profilu lub watku rozmowy.")
+      onPress: () => Alert.alert("Zgłoś profil", "Zgłoszenia wysyłasz z karty profilu lub wątku rozmowy.")
     },
     {
       title: "Zablokuj uzytkownika",
       body: "Ukryj profil, przerwij match i zablokuj wiadomosci.",
       cta: "W feedzie",
-      onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostepne na karcie profilu i w wiadomosciach.")
+      onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostępne na karcie profilu i w wiadomościach.")
     },
     {
       title: "Zasady spolecznosci",
@@ -2745,7 +2745,7 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
           Usunie konto Firebase Auth, glowny profil Firestore i zapisze request do kolejki retencji danych.
         </Text>
         <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={styles.deleteAccountButton}>
-          <Text style={styles.deleteAccountButtonText}>Usun konto</Text>
+          <Text style={styles.deleteAccountButtonText}>Usuń konto</Text>
         </Pressable>
       </View>
     </View>
@@ -2931,14 +2931,15 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoImage: {
-    width: "100%",
-    height: "100%"
+    width: 214,
+    height: 214
   },
   loginLogoMark: {
-    width: 236,
-    height: 236,
-    borderRadius: 0,
-    marginBottom: -34,
+    width: 238,
+    height: 214,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: -18,
     overflow: "visible",
     backgroundColor: "transparent",
     borderWidth: 0,

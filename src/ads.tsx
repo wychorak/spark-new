@@ -126,7 +126,9 @@ export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placem
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
         onAdFailedToLoad={(error) => {
-          console.warn("AdMob banner failed", error);
+          if (__DEV__) {
+            console.warn("AdMob banner failed", error);
+          }
           Purchases.adTracker.trackAdFailedToLoad({
             mediatorName: "AdMob",
             adFormat: "banner",
