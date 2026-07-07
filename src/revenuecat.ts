@@ -10,9 +10,11 @@ import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 export const revenueCatEntitlementId =
   process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || "Sparknew Pro";
 
+export const revenueCatOfferingId = process.env.EXPO_PUBLIC_REVENUECAT_OFFERING_ID || "Spark pro offer";
+
 export const revenueCatProductIds = {
-  weekly: process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID || "Sparkproweek",
-  monthly: process.env.EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID || "Sparkpromonth",
+  weekly: process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID || "sparkproweek",
+  monthly: process.env.EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID || "sparkpromonth",
   lifetime: process.env.EXPO_PUBLIC_REVENUECAT_LIFETIME_PRODUCT_ID || "sparkprolifetime"
 } as const;
 
@@ -72,7 +74,7 @@ function isUserCancelled(error: unknown) {
 }
 
 function matchPackageForPlan(packages: PurchasesPackage[], planId: SparkPlanId) {
-  const productId = revenueCatProductIds[planId];
+  const productId = revenueCatProductIds[planId].toLowerCase();
 
   return packages.find((item) => {
     const candidateValues = [
@@ -116,7 +118,8 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
 
     try {
       const offerings = await Purchases.getOfferings();
-      setPackages(offerings.current?.availablePackages ?? []);
+      const selectedOffering = offerings.all[revenueCatOfferingId] ?? offerings.current;
+      setPackages(selectedOffering?.availablePackages ?? []);
       setError(null);
     } catch (offeringsError) {
       setError(getErrorMessage(offeringsError));
