@@ -62,6 +62,7 @@ const legalLinks = {
   terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/terms.md",
   community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/community-guidelines.md"
 };
+const showDemoLogin = process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
 
 function openLegalDocument(title: string, url: string, envName: string) {
   if (!url) {
@@ -425,15 +426,15 @@ function AppContent() {
   const { width, height } = useWindowDimensions();
   const [authDone, setAuthDone] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [firstName, setFirstName] = useState("Alex");
-  const [lastName, setLastName] = useState("Mercer");
-  const [email, setEmail] = useState("alex@spark.app");
-  const [password, setPassword] = useState("sparkdemo");
-  const [confirmPassword, setConfirmPassword] = useState("sparkdemo");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [onboarded, setOnboarded] = useState(false);
   const [intent, setIntent] = useState("Randki");
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
-  const [selectedInterests, setSelectedInterests] = useState(["Filmy", "Natura", "Kawa", "Sztuka"]);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
   const [mode, setMode] = useState<Mode>("classic");
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
@@ -456,8 +457,9 @@ function AppContent() {
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "granted" | "denied">("idle");
-  const [userAge, setUserAge] = useState(24);
-  const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([profileImages[4]]);
+  const [userAge, setUserAge] = useState(18);
+  const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
+  const [bottomNavHidden, setBottomNavHidden] = useState(false);
 
   const [, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
     clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
@@ -468,7 +470,7 @@ function AppContent() {
   });
 
   const isCompact = width < 380;
-  const profileName = `${firstName.trim() || "Alex"} ${lastName.trim() || "Mercer"}`;
+  const profileName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twoj profil";
   const sortedProfiles = useMemo(
     () =>
       matchProfiles
@@ -505,13 +507,17 @@ function AppContent() {
 
   const contentPadding = useMemo(
     () => ({
-      paddingTop: authDone && onboarded ? Math.max(insets.top + 16, 28) : Math.max(insets.top + 34, 54),
-      paddingBottom: authDone && onboarded ? insets.bottom + 108 : insets.bottom + 28,
-      paddingHorizontal: isCompact ? 16 : 20
+      paddingTop: authDone && onboarded ? Math.max(insets.top + 14, 26) : Math.max(insets.top + 34, 54),
+      paddingBottom: authDone && onboarded ? Math.max(insets.bottom + 124, 144) : insets.bottom + 28,
+      paddingHorizontal: isCompact ? 14 : 20
     }),
     [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
-  const discoverMinHeight = Math.max(620, height - contentPadding.paddingTop - contentPadding.paddingBottom);
+  const discoverMinHeight = Math.max(560, height - contentPadding.paddingTop - contentPadding.paddingBottom + 36);
+
+  useEffect(() => {
+    setBottomNavHidden(false);
+  }, [tab]);
 
   useEffect(() => {
     const idToken = googleResponse?.type === "success" ? googleResponse.params.id_token : undefined;
@@ -671,12 +677,7 @@ function AppContent() {
         canSeeIncomingLikes: revenueCat.isPro,
         canSendChatRequests: revenueCat.isPro,
         privateProfile,
-        socials: {
-          instagram: "@alex.spark",
-          tiktok: "@alexconnects",
-          spotify: "Pink night walks",
-          linkedin: "alex-mercer"
-        }
+        socials: {}
       });
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
@@ -720,6 +721,12 @@ function AppContent() {
     } finally {
       setAuthBusy(false);
     }
+  }
+
+  function refreshDiscovery() {
+    tap();
+    setProfileIndex((value) => (visibleProfiles.length > 0 ? (value + 1) % visibleProfiles.length : 0));
+    Alert.alert("Odkrywaj", "Odswiezono profile i kolejnosc kart.");
   }
 
   async function handleSwipe(action: SwipeAction) {
@@ -943,6 +950,7 @@ function AppContent() {
             setAuthError(null);
             promptGoogleSignIn();
           }}
+          showDemoLogin={showDemoLogin}
           onDemoAccount={() => {
             tap();
             handleDemoAccount();
@@ -979,7 +987,14 @@ function AppContent() {
   return (
     <LinearGradient colors={["#050507", "#150711", "#050507"]} style={styles.root}>
       <StatusBar style="light" />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, tab === "discover" && styles.discoverScroll, contentPadding]}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        alwaysBounceVertical={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.scroll, tab === "discover" && styles.discoverScroll, contentPadding]}
+      >
         {tab === "discover" && (
           <DiscoverScreen
             mode={mode}
@@ -1002,6 +1017,8 @@ function AppContent() {
             setDiscoverFilters={setDiscoverFilters}
             screenMinHeight={discoverMinHeight}
             onReportProfile={(reason) => reportProfile(activeProfileKey, reason)}
+            onRefresh={refreshDiscovery}
+            onChromeHiddenChange={setBottomNavHidden}
           />
         )}
         {tab === "matches" && <MatchesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
@@ -1048,8 +1065,8 @@ function AppContent() {
         )}
         <SparkAdBanner enabled={!revenueCat.isPro && adsReady && tab !== "premium"} placement={tab} />
       </ScrollView>
-
-            <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      {!bottomNavHidden && (
+        <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { bottom: Math.max(insets.bottom, 10) }]}>
         {[
           ["discover", "Odkryj", "cards-heart"],
           ["matches", "Matche", "heart-multiple"],
@@ -1071,7 +1088,8 @@ function AppContent() {
             <Text style={[styles.navText, tab === key && styles.navTextActive]}>{label}</Text>
           </Pressable>
         ))}
-      </BlurView>
+        </BlurView>
+      )}
     </LinearGradient>
   );
 }
@@ -1189,6 +1207,7 @@ function AuthScreen({
   firebaseReady,
   firebaseMissingConfig,
   googleReady,
+  showDemoLogin,
   onContinue,
   onGoogle,
   onDemoAccount
@@ -1210,6 +1229,7 @@ function AuthScreen({
   firebaseReady: boolean;
   firebaseMissingConfig: string[];
   googleReady: boolean;
+  showDemoLogin: boolean;
   onContinue: () => void;
   onGoogle: () => void;
   onDemoAccount: () => void;
@@ -1272,14 +1292,16 @@ function AuthScreen({
         </Pressable>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        disabled={!firebaseReady || authBusy}
-        onPress={onDemoAccount}
-        style={[styles.secondaryButtonWide, (!firebaseReady || authBusy) && styles.socialLoginButtonDisabled]}
-      >
-        <Text style={styles.secondaryButtonText}>Konto testowe: tester@spark.app</Text>
-      </Pressable>
+      {showDemoLogin && (
+        <Pressable
+          accessibilityRole="button"
+          disabled={!firebaseReady || authBusy}
+          onPress={onDemoAccount}
+          style={[styles.secondaryButtonWide, (!firebaseReady || authBusy) && styles.socialLoginButtonDisabled]}
+        >
+          <Text style={styles.secondaryButtonText}>Konto testowe: tester@spark.app</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -1420,7 +1442,9 @@ function DiscoverScreen({
   discoverFilters,
   setDiscoverFilters,
   screenMinHeight,
-  onReportProfile
+  onReportProfile,
+  onRefresh,
+  onChromeHiddenChange
 }: {
   mode: Mode;
   setMode: (value: Mode) => void;
@@ -1442,6 +1466,8 @@ function DiscoverScreen({
   setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   screenMinHeight: number;
   onReportProfile: (reason?: string) => void;
+  onRefresh: () => void;
+  onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   void userAge;
   void setUserAge;
@@ -1451,16 +1477,35 @@ function DiscoverScreen({
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [reportText, setReportText] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [swipeBusy, setSwipeBusy] = useState(false);
+  const swipeMotion = useRef(new Animated.Value(0)).current;
+  const profileKey = getProfileKey(profile);
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
   const preferenceSummary = [
     { icon: "map-marker", text: profile.distance },
     { icon: "calendar", text: `${discoverFilters.ageMin}-${discoverFilters.ageMax} lat` },
-    { icon: "tag-heart", text: `${selectedInterests.length}/15 tagów` },
+    { icon: "tag-heart", text: `${selectedInterests.length}/15 tagow` },
     { icon: "human-male-height", text: `${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm` }
   ];
+  const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
+  const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
+  const passLabelOpacity = swipeMotion.interpolate({ inputRange: [-260, -80, 0], outputRange: [1, 0.55, 0], extrapolate: "clamp" });
+  const matchLabelOpacity = swipeMotion.interpolate({ inputRange: [0, 80, 260], outputRange: [0, 0.55, 1], extrapolate: "clamp" });
+  const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
 
-  async function runProAction(action: () => void, locked: boolean) {
+  useEffect(() => {
+    onChromeHiddenChange?.(overlayOpen);
+    return () => onChromeHiddenChange?.(false);
+  }, [onChromeHiddenChange, overlayOpen]);
+
+  useEffect(() => {
+    swipeMotion.setValue(0);
+    setSwipeBusy(false);
+  }, [profileKey, swipeMotion]);
+
+  async function runProAction(action: () => void | Promise<void>, locked: boolean) {
     if (locked) {
       const granted = await requestProAccess();
       if (!granted) {
@@ -1468,8 +1513,30 @@ function DiscoverScreen({
       }
     }
 
-    action();
+    await action();
   }
+
+  async function runSwipeAction(action: SwipeAction) {
+    if (swipeBusy) {
+      return;
+    }
+
+    setSwipeBusy(true);
+    const direction = action === "pass" ? -1 : 1;
+    Animated.timing(swipeMotion, {
+      toValue: direction * 420,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start(({ finished }) => {
+      if (finished) {
+        void onSwipe(action);
+      }
+      swipeMotion.setValue(0);
+      setSwipeBusy(false);
+    });
+  }
+
   function updatePreference(key: keyof DiscoverFilters, value: number | boolean) {
     setDiscoverFilters((current) => ({ ...current, [key]: value }));
   }
@@ -1486,7 +1553,7 @@ function DiscoverScreen({
     });
   }
 
-  async function promptProFeature(kind: "superlike" | "message", action: () => void, locked: boolean) {
+  async function promptProFeature(kind: "superlike" | "message", action: () => void | Promise<void>, locked: boolean) {
     if (locked) {
       Alert.alert(
         "Spark Pro",
@@ -1514,7 +1581,7 @@ function DiscoverScreen({
 
   function handlePreviewLike() {
     setPreviewOpen(false);
-    onSwipe("like");
+    void runSwipeAction("like");
   }
 
   function handlePreviewMessage() {
@@ -1557,7 +1624,7 @@ function DiscoverScreen({
 
   return (
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}> 
-      <TopBar eyebrow="Odkrywaj" title="Profile" left="=" right="tune-variant" onRightPress={() => setPreferencesOpen(true)} />
+      <TopBar eyebrow="Odkrywaj" title="Profile" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
       <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.discoverSummaryBar}>
         {preferenceSummary.map((item) => (
           <View key={item.text} style={styles.discoverSummaryPill}>
@@ -1568,16 +1635,24 @@ function DiscoverScreen({
       </Pressable>
 
       <View style={styles.stitchMainCanvas}>
-        <ProfileCard profile={profile} onOpenPreview={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
+        <Animated.View style={[styles.swipeCardMotion, { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }] }]}>
+          <ProfileCard profile={profile} onOpenPreview={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
+          <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
+            <Text style={styles.swipeCueText}>ODRZUC</Text>
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, { opacity: matchLabelOpacity }]}>
+            <Text style={styles.swipeCueText}>MATCH</Text>
+          </Animated.View>
+        </Animated.View>
       </View>
 
       <View style={styles.stitchBottomPanel}>
         <View style={styles.stitchFabDock} pointerEvents="box-none">
-          <SwipeFab label="Odrzuć" icon="close" onPress={() => onSwipe("pass")} />
+          <SwipeFab label="Odrzuc" icon="close" onPress={() => void runSwipeAction("pass")} />
           <SwipeFab label="Profil" icon="account" small onPress={() => setPreviewOpen(true)} />
-          <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => onSwipe("superlike"), !hasPro)} />
+          <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro)} />
           <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile)} />
-          <SwipeFab label="Match" icon="heart" onPress={() => onSwipe("like")} />
+          <SwipeFab label="Match" icon="heart" onPress={() => void runSwipeAction("like")} />
         </View>
       </View>
 
@@ -1589,6 +1664,30 @@ function DiscoverScreen({
           onLike={handlePreviewLike}
           onMessage={handlePreviewMessage}
         />
+      )}
+
+      {menuOpen && (
+        <View style={styles.reportOverlay}>
+          <Pressable style={styles.reportBackdrop} onPress={() => setMenuOpen(false)} />
+          <View style={styles.reportSheet}>
+            <View style={styles.reportSheetHeader}>
+              <View style={styles.fill}>
+                <Text style={styles.reportTitle} selectable>Menu odkrywania</Text>
+                <Text style={styles.reportSubtitle} selectable>Szybkie akcje bez wychodzenia z kart.</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.reportCloseButton}>
+                <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
+              </Pressable>
+            </View>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onRefresh(); }} style={styles.reportSendButton}>
+              <MaterialCommunityIcons name="refresh" size={18} color="#fff" />
+              <Text style={styles.reportSendText}>Odswiez profile</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); setPreferencesOpen(true); }} style={styles.secondaryButtonWide}>
+              <Text style={styles.secondaryButtonText}>Preferencje i filtry</Text>
+            </Pressable>
+          </View>
+        </View>
       )}
 
       {preferencesOpen && (
@@ -1749,22 +1848,24 @@ function ProfilePreviewSheet({
   onLike: () => void;
   onMessage: () => void;
 }) {
+  const { width } = useWindowDimensions();
   const photos = getProfileGallery(profile);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
   const matchBase = Math.max(3, Math.min(15, viewerInterests.length || profile.interests.length || 3));
   const matchPercent = Math.max(12, Math.min(99, Math.round((sharedInterests.length / matchBase) * 100) + (profile.premium ? 4 : 0)));
+  const photoWidth = Math.min(width - 32, 430);
   const local = StyleSheet.create({
-    overlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 70, justifyContent: "flex-end" },
-    backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.72)" },
-    sheet: { maxHeight: "92%", padding: 16, gap: 14, borderTopLeftRadius: 32, borderTopRightRadius: 32, backgroundColor: "rgba(12,12,17,0.98)", borderWidth: 1, borderColor: "rgba(255,45,141,0.2)" },
+    overlay: { position: "absolute", top: -8, right: 0, bottom: 0, left: 0, zIndex: 120, backgroundColor: "#050507" },
+    sheet: { flex: 1, gap: 14, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16, backgroundColor: "#050507" },
     header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
     kicker: { color: colors.primary, fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
     title: { marginTop: 3, color: colors.ink, fontSize: 25, lineHeight: 31, fontWeight: "900" },
-    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
+    close: { width: 44, height: 44, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)" },
+    content: { gap: 14, paddingBottom: 10 },
     scroller: { marginHorizontal: -16 },
-    photo: { width: 332, height: 420, marginHorizontal: 16, borderRadius: 28, overflow: "hidden", backgroundColor: "#111" },
+    photo: { width: photoWidth, aspectRatio: 4 / 5, marginHorizontal: 16, borderRadius: 28, overflow: "hidden", backgroundColor: "#111" },
     metrics: { flexDirection: "row", gap: 8 },
-    metric: { flex: 1, minHeight: 72, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    metric: { flex: 1, minHeight: 70, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900" },
     metricLabel: { marginTop: 2, color: colors.muted, fontSize: 10, textAlign: "center", fontWeight: "800" },
     bio: { color: "#e4bdc3", fontSize: 14, lineHeight: 21, fontWeight: "700" },
@@ -1785,11 +1886,10 @@ function ProfilePreviewSheet({
 
   return (
     <View style={local.overlay}>
-      <Pressable style={local.backdrop} onPress={onClose} />
       <View style={local.sheet}>
         <View style={local.header}>
           <View style={styles.fill}>
-            <Text style={local.kicker} selectable>Podgląd profilu</Text>
+            <Text style={local.kicker} selectable>Podglad profilu</Text>
             <Text style={local.title} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
           </View>
           <Pressable accessibilityRole="button" onPress={onClose} style={local.close}>
@@ -1797,45 +1897,49 @@ function ProfilePreviewSheet({
           </Pressable>
         </View>
 
-        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={local.scroller}>
-          {photos.map((photo, index) => (
-            <Image key={index} source={photo} style={local.photo} contentFit="cover" />
-          ))}
-        </ScrollView>
-
-        <View style={local.metrics}>
-          <View style={local.metric}><Text style={local.metricValue} selectable>{matchPercent}%</Text><Text style={local.metricLabel} selectable>match z zainteresowań</Text></View>
-          <View style={local.metric}><Text style={local.metricValue} selectable>{profile.age}</Text><Text style={local.metricLabel} selectable>wiek</Text></View>
-          <View style={local.metric}><Text style={local.metricValue} selectable>{profile.distance}</Text><Text style={local.metricLabel} selectable>odległość</Text></View>
-        </View>
-
-        <Text style={local.bio} selectable>{profile.bio}</Text>
-
-        <View style={local.section}>
-          <Text style={local.sectionTitle} selectable>Wspólne zainteresowania</Text>
-          <View style={local.wrap}>
-            {(sharedInterests.length > 0 ? sharedInterests : getFeaturedInterests(profile)).slice(0, 6).map((interest, index) => {
-              const theme = getInterestTheme(interest, index);
-
-              return <Text key={interest} style={[local.chip, { backgroundColor: theme.soft, color: theme.text, borderColor: theme.border }]} selectable>{interest}</Text>;
-            })}
-          </View>
-        </View>
-
-        <View style={local.section}>
-          <Text style={local.sectionTitle} selectable>Sociale</Text>
-          <View style={local.socials}>
-            {profile.socials.map((social) => (
-              <View key={social.label} style={local.social}>
-                <SocialIcon label={social.label} size={18} />
-                <View style={styles.fill}>
-                  <Text style={local.socialLabel} selectable>{social.label}</Text>
-                  <Text style={local.socialValue} selectable>{social.value}</Text>
-                </View>
-              </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.content}>
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={local.scroller}>
+            {photos.map((photo, index) => (
+              <Image key={index} source={photo} style={local.photo} contentFit="contain" />
             ))}
+          </ScrollView>
+
+          <View style={local.metrics}>
+            <View style={local.metric}><Text style={local.metricValue} selectable>{matchPercent}%</Text><Text style={local.metricLabel} selectable>match z tagow</Text></View>
+            <View style={local.metric}><Text style={local.metricValue} selectable>{profile.age}</Text><Text style={local.metricLabel} selectable>wiek</Text></View>
+            <View style={local.metric}><Text style={local.metricValue} selectable>{profile.distance}</Text><Text style={local.metricLabel} selectable>odleglosc</Text></View>
           </View>
-        </View>
+
+          <Text style={local.bio} selectable>{profile.bio}</Text>
+
+          <View style={local.section}>
+            <Text style={local.sectionTitle} selectable>Wspolne zainteresowania</Text>
+            <View style={local.wrap}>
+              {(sharedInterests.length > 0 ? sharedInterests : getFeaturedInterests(profile)).slice(0, 6).map((interest, index) => {
+                const theme = getInterestTheme(interest, index);
+
+                return <Text key={interest} style={[local.chip, { backgroundColor: theme.soft, color: theme.text, borderColor: theme.border }]} selectable>{interest}</Text>;
+              })}
+            </View>
+          </View>
+
+          {profile.socials.length > 0 && (
+            <View style={local.section}>
+              <Text style={local.sectionTitle} selectable>Sociale</Text>
+              <View style={local.socials}>
+                {profile.socials.map((social) => (
+                  <View key={social.label} style={local.social}>
+                    <SocialIcon label={social.label} size={18} />
+                    <View style={styles.fill}>
+                      <Text style={local.socialLabel} selectable>{social.label}</Text>
+                      <Text style={local.socialValue} selectable>{social.value}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </ScrollView>
 
         <View style={local.actions}>
           <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
@@ -2111,7 +2215,8 @@ function PremiumScreen({
     primaryCta: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: colors.primary, boxShadow: "0 18px 38px rgba(255,45,141,0.28)" },
     primaryCtaDisabled: { opacity: 0.48 },
     primaryText: { color: "#fff", fontSize: 15, fontWeight: "900" },
-    error: { color: colors.primaryDeep, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "800" }
+    statusBox: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.2)" },
+    statusText: { flex: 1, color: colors.primaryDeep, fontSize: 12, lineHeight: 18, fontWeight: "800" }
   });
 
   async function buySelectedPlan() {
@@ -2175,11 +2280,17 @@ function PremiumScreen({
         ))}
       </View>
 
-      {revenueCat.error && <Text style={local.error} selectable>{revenueCat.error}</Text>}
+      {!revenueCat.isPro && !hasPackages && (
+        <View style={local.statusBox}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={19} color={colors.primaryDeep} />
+          <Text style={local.statusText} selectable>Subskrypcje sa chwilowo niedostepne. Sprawdz produkty w RevenueCat i App Store Connect.</Text>
+        </View>
+      )}
       <Pressable disabled={busyAction !== null || revenueCat.isPro || !hasPackages} onPress={buySelectedPlan} style={[local.primaryCta, (busyAction !== null || revenueCat.isPro || !hasPackages) && local.primaryCtaDisabled]}>
         <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
-        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Kupowanie..." : "Kontynuuj za " + selectedPlan.price}</Text>
-      </Pressable>    </View>
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : !hasPackages ? "Pakiety Pro niedostepne" : busyAction === "purchase" ? "Kupowanie..." : "Kontynuuj za " + selectedPlan.price}</Text>
+      </Pressable>
+    </View>
   );
 }
 function ProfileScreen({
@@ -2199,7 +2310,6 @@ function ProfileScreen({
   privateProfile,
   setPrivateProfile,
   profileName,
-  premiumPlan,
   hasPro,
   openPremium,
   openCustomerCenter,
@@ -2227,63 +2337,18 @@ function ProfileScreen({
   openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
 }) {
-  const socialLinks = [["Instagram", "@alex.spark"], ["TikTok", "@alexconnects"], ["Spotify", "Pink night walks"], ["LinkedIn", "alex-mercer"]];
   const maxPhotos = hasPro ? 15 : 3;
-  const incomingLikeProfiles = matchProfiles.slice(0, 3);
-  const [primaryInterests, setPrimaryInterests] = useState(selectedInterests.slice(0, 3));
-  const [profilePreviewExpanded, setProfilePreviewExpanded] = useState(false);
-  const proCapabilityRows = [
-    "Zobacz, kto polubił Twój profil",
-    "Wyślij jedną prośbę o chat do profilu",
-    "Korona Pro przy zdjęciu profilowym",
-    "15 zdjęć profilu zamiast 3",
-    "Częstsze pojawianie się na głównej"
-  ];
   const previewPhoto = profilePhotos[0] ?? profileImages[4];
   const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
-  const previewProfile: MatchProfile = {
-    name: firstName || "Alex",
-    surname: lastName || "Spark",
-    age: userAge,
-    city: "Twoja okolica",
-    bio: "Tak inni zobaczą Twój profil w swipe feedzie.",
-    distance: "1 km",
-    latitude: 52.2297,
-    longitude: 21.0122,
-    image: previewSource,
-    photos: profilePhotos.map((photo) => (typeof photo === "string" ? { uri: photo } : photo)).slice(0, 3),
-    interests: selectedInterests.slice(0, 15),
-    featuredInterests: primaryInterests,
-    socials: socialLinks.map(([label, value]) => ({ label, value })),
-    premium: hasPro,
-    matchScore: hasPro ? 96 : 82,
-    matchReasons: [`${userAge} lat`, primaryInterests.join(" + ") || "zainteresowania"]
-  };
-  useEffect(() => {
-    setPrimaryInterests((items) => items.filter((item) => selectedInterests.includes(item)).slice(0, 3));
-  }, [selectedInterests]);
-
-  function togglePrimaryInterest(item: string) {
-    if (!selectedInterests.includes(item)) {
-      return;
-    }
-
-    if (primaryInterests.includes(item)) {
-      setPrimaryInterests(primaryInterests.filter((interest) => interest !== item));
-      return;
-    }
-
-    if (primaryInterests.length >= 3) {
-      Alert.alert("Główne zainteresowania", "Możesz wybrać maksymalnie 3 główne zainteresowania na kartę.");
-      return;
-    }
-
-    setPrimaryInterests([...primaryInterests, item]);
-  }
+  const profileStatusRows = [
+    [String(profilePhotos.length) + "/" + String(maxPhotos), "zdjęcia"],
+    [String(selectedInterests.length) + "/15", "tagi"],
+    [hasPro ? "Pro" : "Free", "plan"]
+  ];
 
   async function pickProfilePhoto(index?: number) {
     if (profilePhotos.length >= maxPhotos && index === undefined) {
-      Alert.alert("Zdjęcia", hasPro ? "Limit Premium to 15 zdjęć." : "Free ma limit 3 zdjęć. Premium odblokuje 15.");
+      Alert.alert("Zdjęcia", hasPro ? "Limit Premium to 15 zdjęć." : "Free ma limit 3 zdjęcia. Premium odblokuje 15.");
       return;
     }
 
@@ -2315,7 +2380,7 @@ function ProfileScreen({
 
   return (
     <View style={styles.profileScreen}>
-      <TopBar eyebrow="Profil" title="Twoja karta" left="cog-outline" right={pushEnabled ? "bell" : "bell-outline"} onLeftPress={openSafety} onRightPress={() => setPushEnabled(!pushEnabled)} />
+      <TopBar eyebrow="Profil" title="Twoja karta" left="shield-check" right={pushEnabled ? "bell" : "bell-outline"} onLeftPress={openSafety} onRightPress={() => setPushEnabled(!pushEnabled)} />
 
       <View style={styles.profileIdentitySection}>
         <View style={styles.profileIdentityTop}>
@@ -2337,10 +2402,6 @@ function ProfileScreen({
                 <Text style={styles.profileMetaText} selectable>{userAge} lat</Text>
               </View>
               <View style={styles.profileMetaPill}>
-                <MaterialCommunityIcons name="image-multiple" size={14} color={colors.primary} />
-                <Text style={styles.profileMetaText} selectable>{profilePhotos.length}/{maxPhotos}</Text>
-              </View>
-              <View style={styles.profileMetaPill}>
                 <MaterialCommunityIcons name={privateProfile ? "eye-off" : "eye"} size={14} color={colors.primary} />
                 <Text style={styles.profileMetaText} selectable>{privateProfile ? "Prywatny" : "Publiczny"}</Text>
               </View>
@@ -2349,18 +2410,18 @@ function ProfileScreen({
         </View>
         <View style={styles.profileHeroActions}>
           <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileEditCta}>
-            <MaterialCommunityIcons name="pencil" size={17} color="#fff" />
-            <Text style={styles.profileEditCtaText}>Edytuj zdjęcie główne</Text>
+            <MaterialCommunityIcons name="camera-plus" size={17} color="#fff" />
+            <Text style={styles.profileEditCtaText}>Zmień główne zdjęcie</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={openPremium} style={styles.profileSecondaryButton}>
-            <MaterialCommunityIcons name={hasPro ? "crown" : "lock-open-variant"} size={17} color={colors.primary} />
-            <Text style={styles.profileSecondaryButtonText}>{hasPro ? "Spark Pro" : "Odblokuj Pro"}</Text>
+            <MaterialCommunityIcons name={hasPro ? "crown" : "star-four-points"} size={17} color={colors.primary} />
+            <Text style={styles.profileSecondaryButtonText}>{hasPro ? "Spark Pro" : "Ulepsz"}</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.profileQuickStats}>
-        {[["126", "polubień"], ["18", "matchy"], [String(selectedInterests.length), "zainteresowań"]].map(([value, label]) => (
+        {profileStatusRows.map(([value, label]) => (
           <View key={label} style={styles.profileQuickStat}>
             <Text style={styles.profileQuickStatValue} selectable>{value}</Text>
             <Text style={styles.profileQuickStatLabel} selectable>{label}</Text>
@@ -2368,37 +2429,40 @@ function ProfileScreen({
         ))}
       </View>
 
-      <View style={styles.profilePreviewPanel}>
-        <Pressable accessibilityRole="button" onPress={() => setProfilePreviewExpanded((open) => !open)} style={styles.accordionHeader}>
+      <View style={styles.profilePanel}>
+        <View style={styles.profileSectionHeader}>
           <View style={styles.fill}>
-            <Text style={styles.panelTitle} selectable>Podgląd w Odkrywaj</Text>
-            <Text style={styles.photoFormatHint} selectable>Tak inni widzą Twoją kartę podczas swipe.</Text>
+            <Text style={styles.eyebrow} selectable>Podstawy</Text>
+            <Text style={styles.profileDescription} selectable>Najważniejsze dane widoczne na profilu.</Text>
           </View>
-          <View style={styles.accordionHeaderRight}>
-            <Text style={styles.incomingLikesCount} selectable>{primaryInterests.length}/3</Text>
-            <MaterialCommunityIcons name={profilePreviewExpanded ? "chevron-up" : "chevron-down"} size={22} color={colors.ink} />
-          </View>
-        </Pressable>
-        {profilePreviewExpanded && (
-          <View style={styles.profilePreviewFrame}>
-            <ProfileCard profile={previewProfile} compact />
-          </View>
-        )}
+          <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
+        </View>
+        <View style={styles.nameRow}>
+          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
+          <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
+        </View>
+        <TextField
+          label="Wiek"
+          value={String(userAge)}
+          onChangeText={(value) => setUserAge(Math.max(18, Math.min(99, Number(value.replace(/[^0-9]/g, "")) || 18)))}
+          keyboardType="numeric"
+        />
       </View>
 
       <View style={styles.profileGalleryPanel}>
         <View style={styles.profileGalleryHeader}>
           <View style={styles.fill}>
-            <Text style={styles.panelTitle} selectable>Zdjęcia profilu</Text>
-            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjęć - format 4:5 najlepiej działa w Odkrywaj</Text>
+            <Text style={styles.panelTitle} selectable>Zdjęcia</Text>
+            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjec - format 4:5</Text>
+            <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdjec aktywny" : "Spark Pro odblokuje do 15 zdjec"}</Text>
           </View>
-          <Pressable onPress={() => pickProfilePhoto()} style={styles.photoAddButton}>
+          <Pressable onPress={() => (profilePhotos.length >= maxPhotos && !hasPro ? openPremium() : pickProfilePhoto())} style={styles.photoAddButton}>
             <MaterialCommunityIcons name={profilePhotos.length >= maxPhotos ? "lock" : "plus"} size={16} color="#fff" />
             <Text style={styles.photoAddText}>{profilePhotos.length >= maxPhotos ? "Limit" : "Dodaj"}</Text>
           </Pressable>
         </View>
         <View style={styles.photoGrid}>
-          {Array.from({ length: Math.min(maxPhotos, Math.max(3, profilePhotos.length + 1)) }).map((_, index) => {
+          {Array.from({ length: Math.min(maxPhotos, Math.max(hasPro ? 6 : 3, profilePhotos.length + 1)) }).map((_, index) => {
             const image = profilePhotos[index];
             const source = typeof image === "string" ? { uri: image } : image;
 
@@ -2411,130 +2475,99 @@ function ProfileScreen({
           })}
         </View>
       </View>
-      <View style={styles.profilePanel}>
-        <View style={styles.profileSectionHeader}>
-          <View style={styles.fill}>
-            <Text style={styles.eyebrow} selectable>Dane osobowe</Text>
-            <Text style={styles.profileDescription} selectable>Uzupełnij dane używane w profilu i algorytmie dopasowań.</Text>
-          </View>
-          <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
-        </View>
-        <View style={styles.nameRow}>
-          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
-          <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
-        </View>
-        <TextField
-          label="Wiek do algorytmu"
-          value={String(userAge)}
-          onChangeText={(value) => setUserAge(Math.max(13, Math.min(99, Number(value.replace(/[^0-9]/g, "")) || 18)))}
-          keyboardType="numeric"
-        />
-        <View style={styles.proFeaturePanel}>
-          <View style={styles.proFeatureHeader}>
-            <View style={styles.fill}>
-              <Text style={styles.panelTitle} selectable>Spark Pro</Text>
-              <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Aktywne funkcje premium" : "Odblokuj funkcje premium"}</Text>
-            </View>
-            <Pressable onPress={openPremium} style={styles.proMiniButton}>
-              <Text style={styles.proMiniButtonText}>{hasPro ? "Aktywne" : "Upgrade"}</Text>
-            </Pressable>
-          </View>
-          {proCapabilityRows.map((feature) => (
-            <View key={feature} style={styles.proFeatureRow}>
-              <MaterialCommunityIcons name="check-circle" size={17} color={colors.primary} />
-              <Text style={styles.proFeatureText} selectable>{feature}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={styles.incomingLikesPanel}>
-          <View style={styles.proFeatureHeader}>
-            <View style={styles.fill}>
-              <Text style={styles.panelTitle} selectable>Polubili Cię</Text>
-              <Text style={styles.proFeatureSubtitle} selectable>{hasPro ? "Osoby, które już polubiły Twój profil" : "Dostępne w Spark Pro"}</Text>
-            </View>
-            <Text style={styles.incomingLikesCount} selectable>{hasPro ? incomingLikeProfiles.length : "Pro"}</Text>
-          </View>
-          {hasPro ? (
-            <View style={styles.incomingLikesRow}>
-              {incomingLikeProfiles.map((profile) => (
-                <View key={getProfileKey(profile)} style={styles.incomingLikeItem}>
-                  <Image source={profile.image} style={styles.incomingLikeImage} contentFit="cover" />
-                  <Text style={styles.incomingLikeName} selectable>{profile.name}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Pressable onPress={openPremium} style={styles.lockedLikesButton}>
-              <MaterialCommunityIcons name="lock" size={17} color={colors.primary} />
-              <Text style={styles.lockedLikesText} selectable>Zobacz, kto Cię polubił po odblokowaniu Pro</Text>
-            </Pressable>
-          )}
-        </View>
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-          <Text style={styles.panelText} selectable>Wybierz maksymalnie 15 zainteresowań. Algorytm liczy match głównie po wspólnych tagach.</Text>
-          <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
-          <View style={styles.primaryInterestPanel}>
-            <View style={styles.profileGalleryHeader}>
-              <View style={styles.fill}>
-                <Text style={styles.panelTitle} selectable>Główne na karcie</Text>
-                <Text style={styles.panelText} selectable>Wybierz 3 badge widoczne od razu w feedzie.</Text>
-              </View>
-              <Text style={styles.incomingLikesCount} selectable>{primaryInterests.length}/3</Text>
-            </View>
-            <View style={styles.chipWrap}>
-              {selectedInterests.map((interest, index) => {
-                const active = primaryInterests.includes(interest);
-                const theme = getInterestTheme(interest, index);
 
-                return (
-                  <Pressable key={interest} onPress={() => togglePrimaryInterest(interest)} style={[styles.chip, { backgroundColor: active ? theme.active : theme.soft, borderColor: theme.border }]}>
-                    <MaterialCommunityIcons name={active ? "star" : "star-outline"} size={14} color={active ? "#fff" : theme.active} />
-                    <Text style={[styles.chipText, { color: active ? "#fff" : theme.text }]}>{interest}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle} selectable>Linki social</Text>
-          <View style={styles.socialList}>
-            {socialLinks.map(([label, value]) => {
-              const icon = getSocialIcon(label);
-
-              return (
-                <View key={label} style={styles.socialLinkRow}>
-                  <View style={[styles.socialIconBubble, { backgroundColor: icon.backgroundColor }]}>
-                    <SocialIcon label={label} size={16} />
-                  </View>
-                  <View style={styles.socialLinkCopy}>
-                    <Text style={styles.settingLabel} selectable>{label}</Text>
-                    <Text style={styles.settingValue} selectable>{value}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-        <View style={styles.settingsList}>
-          <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Powiadomienia push</Text><Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: colors.green }} /></View>
-          <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
-          <SettingRow label="Opcje premium" value="Zobacz" onPress={openPremium} />
-          <SettingRow
-            label="Zarządzaj subskrypcją"
-            value="Customer Center"
-            onPress={async () => {
-              const result = await openCustomerCenter();
-              if (!result.ok && result.message) {
-                Alert.alert("Customer Center", result.message);
-              }
-            }}
-          />
-          <SettingRow label="Centrum bezpieczeństwa" value="Otwórz" onPress={openSafety} />
-          <SettingRow label="Widoczność profilu" value={privateProfile ? "Prywatny" : "Publiczny"} />
-        </View>
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
+        <Text style={styles.panelText} selectable>Wybierz 3-15 tagów. Pierwsze wybrane tagi pokazują się na karcie.</Text>
+        <SimpleInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
+
+      <View style={styles.settingsList}>
+        <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Powiadomienia push</Text><Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: colors.green }} /></View>
+        <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
+        <SettingRow label="Spark Pro" value={hasPro ? "Aktywne" : "Zobacz"} onPress={openPremium} />
+        <SettingRow
+          label="Subskrypcja"
+          value="Zarządzaj"
+          onPress={async () => {
+            const result = await openCustomerCenter();
+            if (!result.ok && result.message) {
+              Alert.alert("Customer Center", result.message);
+            }
+          }}
+        />
+        <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
+      </View>
+    </View>
+  );
+}
+
+function SimpleInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
+  const [showAll, setShowAll] = useState(false);
+  const starterOptions = Array.from(new Set([
+    ...interestCategories[0].items,
+    ...interestCategories[1].items.slice(0, 8),
+    ...interestCategories[7].items.slice(0, 2)
+  ]));
+  const visibleOptions = Array.from(new Set([...selected, ...(showAll ? interestOptions : starterOptions)])).filter((item) => (interestOptions as readonly string[]).includes(item) && !selected.includes(item));
+  function handleToggle(item: string) {
+    if (!selected.includes(item) && selected.length >= maxSelected) {
+      Alert.alert("Zainteresowania", "Możesz wybrać maksymalnie " + maxSelected + " zainteresowań.");
+      return;
+    }
+
+    onToggle(item);
+  }
+
+  return (
+    <View style={styles.simpleInterestBox}>
+      <View style={styles.simpleInterestTop}>
+        <Text style={styles.simpleInterestCount} selectable>{selected.length}/{maxSelected}</Text>
+        <Text style={styles.simpleInterestHint} selectable>{selected.length < 3 ? "Dodaj jeszcze kilka tagów" : "Gotowe do dopasowań"}</Text>
+      </View>
+      {selected.length > 0 ? (
+        <View style={styles.chipWrap}>
+          {selected.map((item, index) => {
+            const theme = getInterestTheme(item, index);
+            return (
+              <Pressable key={item} onPress={() => handleToggle(item)} style={[styles.chip, styles.chipActive, { backgroundColor: theme.active, borderColor: theme.border }]}>
+                <MaterialCommunityIcons name="check" size={14} color="#fff" />
+                <Text style={[styles.chipText, { color: "#fff" }]}>{item}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <Text style={styles.selectedInterestEmpty} selectable>Nie masz jeszcze wybranych tagów.</Text>
+      )}
+      <View style={styles.simpleInterestDivider} />
+      <View style={styles.chipWrap}>
+        {visibleOptions.map((item, index) => {
+          const isSelected = selected.includes(item);
+          const theme = getInterestTheme(item, index);
+          const limitReached = !isSelected && selected.length >= maxSelected;
+
+          return (
+            <Pressable
+              key={item}
+              onPress={() => handleToggle(item)}
+              style={[
+                styles.chip,
+                { backgroundColor: isSelected ? theme.active : theme.soft, borderColor: theme.border },
+                isSelected && styles.chipActive,
+                limitReached && { opacity: 0.42 }
+              ]}
+            >
+              <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
+              <Text style={[styles.chipText, { color: isSelected ? "#fff" : theme.text }]}>{item}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Pressable accessibilityRole="button" onPress={() => setShowAll((value) => !value)} style={styles.simpleInterestMoreButton}>
+        <Text style={styles.simpleInterestMoreText}>{showAll ? "Pokaż mniej" : "Pokaż więcej tagów"}</Text>
+        <MaterialCommunityIcons name={showAll ? "chevron-up" : "chevron-down"} size={18} color={colors.primaryDeep} />
+      </Pressable>
     </View>
   );
 }
@@ -3466,6 +3499,34 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 510,
     justifyContent: "flex-end"
+  },
+  swipeCardMotion: {
+    flex: 1
+  },
+  swipeCue: {
+    position: "absolute",
+    top: 36,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: "rgba(5,5,7,0.72)",
+    zIndex: 20
+  },
+  swipeCueLeft: {
+    left: 24,
+    transform: [{ rotate: "-12deg" }]
+  },
+  swipeCueRight: {
+    right: 24,
+    transform: [{ rotate: "12deg" }]
+  },
+  swipeCueText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 1.2
   },
   stitchBottomPanel: {
     position: "absolute",
@@ -4951,6 +5012,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "700"
   },
+  photoProHint: {
+    marginTop: 2,
+    color: colors.primaryDeep,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "900"
+  },
   photoLimitBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -4976,8 +5044,8 @@ const styles = StyleSheet.create({
     gap: 10
   },
   photoSlot: {
-    width: "31.5%",
-    minWidth: 94,
+    width: "30.8%",
+    minWidth: 0,
     aspectRatio: 4 / 5,
     overflow: "hidden",
     borderRadius: 20,
@@ -5218,6 +5286,59 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 2
   },
+  simpleInterestBox: {
+    gap: 12
+  },
+  simpleInterestTop: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(22,22,29,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  simpleInterestCount: {
+    color: colors.primaryDeep,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  simpleInterestHint: {
+    flex: 1,
+    color: colors.muted,
+    textAlign: "right",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  selectedInterestEmpty: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "700"
+  },
+  simpleInterestDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)"
+  },
+  simpleInterestMoreButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,45,141,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)"
+  },
+  simpleInterestMoreText: {
+    color: colors.primaryDeep,
+    fontSize: 13,
+    fontWeight: "900"
+  },
   primaryInterestPanel: {
     gap: 10,
     paddingTop: 4
@@ -5428,7 +5549,8 @@ const styles = StyleSheet.create({
   },
   navText: {
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: "900"
   },
   navTextActive: {
