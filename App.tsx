@@ -62,7 +62,7 @@ const legalLinks = {
   terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/terms.md",
   community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/community-guidelines.md"
 };
-const showDemoLogin = process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
+const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
 
 function openLegalDocument(title: string, url: string, envName: string) {
   if (!url) {
@@ -461,12 +461,11 @@ function AppContent() {
   const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
   const [bottomNavHidden, setBottomNavHidden] = useState(false);
 
-  const [, googleResponse, promptGoogleSignIn] = Google.useAuthRequest({
+  const [, googleResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
     clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
     iosClientId: googleClientIds.iosClientId,
     androidClientId: googleClientIds.androidClientId,
-    webClientId: googleClientIds.webClientId,
-    responseType: "id_token"
+    webClientId: googleClientIds.webClientId
   });
 
   const isCompact = width < 380;
@@ -507,13 +506,13 @@ function AppContent() {
 
   const contentPadding = useMemo(
     () => ({
-      paddingTop: authDone && onboarded ? Math.max(insets.top + 14, 26) : Math.max(insets.top + 34, 54),
-      paddingBottom: authDone && onboarded ? Math.max(insets.bottom + 124, 144) : insets.bottom + 28,
+      paddingTop: authDone && onboarded ? Math.max(insets.top + 4, 12) : Math.max(insets.top + 6, 14),
+      paddingBottom: authDone && onboarded ? Math.max(insets.bottom + 94, 106) : Math.max(insets.bottom + 16, 24),
       paddingHorizontal: isCompact ? 14 : 20
     }),
     [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
-  const discoverMinHeight = Math.max(560, height - contentPadding.paddingTop - contentPadding.paddingBottom + 36);
+  const discoverMinHeight = Math.max(520, height - contentPadding.paddingTop - contentPadding.paddingBottom + 8);
 
   useEffect(() => {
     setBottomNavHidden(false);
@@ -988,7 +987,7 @@ function AppContent() {
     <LinearGradient colors={["#050507", "#150711", "#050507"]} style={styles.root}>
       <StatusBar style="light" />
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
         bounces={false}
         alwaysBounceVertical={false}
@@ -1066,7 +1065,7 @@ function AppContent() {
         <SparkAdBanner enabled={!revenueCat.isPro && adsReady && tab !== "premium"} placement={tab} />
       </ScrollView>
       {!bottomNavHidden && (
-        <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { bottom: Math.max(insets.bottom, 10) }]}>
+        <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { bottom: Math.max(insets.bottom - 2, 6) }]}>
         {[
           ["discover", "Odkryj", "cards-heart"],
           ["matches", "Matche", "heart-multiple"],
@@ -1139,7 +1138,14 @@ function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; 
     <LinearGradient colors={["#020203", "#080307", "#050507"]} style={styles.root}>
       <AnimatedBackground />
       <StatusBar style="light" />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.scroll, contentPadding]}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        alwaysBounceVertical={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.scroll, contentPadding]}
+      >
         {children}
       </ScrollView>
     </LinearGradient>
@@ -2168,6 +2174,7 @@ function PremiumScreen({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const selectedPlan = premiumPlans.find((plan) => plan.id === premiumPlan) ?? premiumPlans[1];
   const hasPackages = revenueCat.packages.length > 0;
+  const primaryDisabled = busyAction !== null || revenueCat.isPro;
   const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
     weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Dobry start" },
     monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór" },
@@ -2286,9 +2293,9 @@ function PremiumScreen({
           <Text style={local.statusText} selectable>Subskrypcje sa chwilowo niedostepne. Sprawdz produkty w RevenueCat i App Store Connect.</Text>
         </View>
       )}
-      <Pressable disabled={busyAction !== null || revenueCat.isPro || !hasPackages} onPress={buySelectedPlan} style={[local.primaryCta, (busyAction !== null || revenueCat.isPro || !hasPackages) && local.primaryCtaDisabled]}>
+      <Pressable disabled={primaryDisabled} onPress={buySelectedPlan} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
         <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
-        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : !hasPackages ? "Pakiety Pro niedostepne" : busyAction === "purchase" ? "Kupowanie..." : "Kontynuuj za " + selectedPlan.price}</Text>
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Laczenie..." : !hasPackages ? "Otworz paywall Pro" : "Kontynuuj za " + selectedPlan.price}</Text>
       </Pressable>
     </View>
   );
@@ -2693,7 +2700,13 @@ function TextField({ label, value, onChangeText, secureTextEntry = false, keyboa
           onChangeText={onChangeText}
           secureTextEntry={isPassword && !passwordVisible}
           keyboardType={keyboardType}
-          autoCapitalize="none"
+          autoCorrect={false}
+          autoCapitalize={keyboardType === "email-address" ? "none" : "sentences"}
+          autoComplete="off"
+          importantForAutofill="no"
+          textContentType="none"
+          selectionColor="rgba(255,45,141,0.35)"
+          cursorColor={colors.primary}
           placeholderTextColor={colors.muted}
           style={[styles.fieldInput, isPassword && styles.fieldInputWithIcon]}
         />
@@ -2931,7 +2944,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    gap: 24
+    gap: 18
   },
   discoverScroll: {
     gap: 0
@@ -2940,7 +2953,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   gapLg: {
-    gap: 18
+    gap: 15
   },
   brand: {
     alignItems: "center",
@@ -2965,15 +2978,15 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoImage: {
-    width: 214,
-    height: 214
+    width: 176,
+    height: 176
   },
   loginLogoMark: {
-    width: 238,
-    height: 214,
+    width: 196,
+    height: 176,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: -18,
+    marginBottom: -8,
     overflow: "visible",
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -3045,13 +3058,13 @@ const styles = StyleSheet.create({
   lead: {
     maxWidth: 330,
     color: "#d8b5c7",
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: "center"
   },
   brandCompact: {
     alignItems: "center",
-    gap: 4,
+    gap: 2,
     paddingTop: 0
   },
   screenHeroTitle: {
@@ -3063,8 +3076,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   formCard: {
-    gap: 14,
-    padding: 16,
+    gap: 12,
+    padding: 15,
     borderRadius: 28,
     borderCurve: "continuous",
     backgroundColor: colors.surface,
@@ -5519,14 +5532,14 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 10,
-    minHeight: 72,
+    left: 12,
+    right: 12,
+    bottom: 6,
+    minHeight: 68,
     flexDirection: "row",
     gap: 4,
-    padding: 8,
-    borderRadius: 28,
+    padding: 7,
+    borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)"
@@ -5534,7 +5547,7 @@ const styles = StyleSheet.create({
   navButton: {
     flex: 1,
     minWidth: 0,
-    borderRadius: 22,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     gap: 2

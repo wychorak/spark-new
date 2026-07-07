@@ -3,6 +3,8 @@ import { Platform } from "react-native";
 import Purchases, {
   LOG_LEVEL,
   type CustomerInfo,
+  type PurchasesOffering,
+  type PurchasesOfferings,
   type PurchasesPackage
 } from "react-native-purchases";
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
@@ -87,6 +89,25 @@ function matchPackageForPlan(packages: PurchasesPackage[], planId: SparkPlanId) 
   });
 }
 
+function getPreferredOffering(offerings: PurchasesOfferings) {
+  const allOfferings = Object.values(offerings.all);
+
+  return (
+    offerings.all[revenueCatOfferingId] ??
+    allOfferings.find((offering) => offering.identifier.toLowerCase() === revenueCatOfferingId.toLowerCase()) ??
+    offerings.current ??
+    null
+  );
+}
+
+function getOfferingWithPackages(offerings: PurchasesOfferings) {
+  const preferredOffering = getPreferredOffering(offerings);
+  const candidates = [preferredOffering, offerings.current, ...Object.values(offerings.all)].filter(
+    (offering): offering is PurchasesOffering => Boolean(offering)
+  );
+
+  return candidates.find((offering) => offering.availablePackages.length > 0) ?? preferredOffering;
+}
 export function useRevenueCat(appUserId: string | null): RevenueCatState {
   const [configured, setConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -118,7 +139,7 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
 
     try {
       const offerings = await Purchases.getOfferings();
-      const selectedOffering = offerings.all[revenueCatOfferingId] ?? offerings.current;
+      const selectedOffering = getOfferingWithPackages(offerings);
       setPackages(selectedOffering?.availablePackages ?? []);
       setError(null);
     } catch (offeringsError) {
@@ -239,8 +260,13 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
 
   const presentPaywallIfNeeded = useCallback(async () => {
     try {
+      const offerings = await Purchases.getOfferings();
+      const offering = getOfferingWithPackages(offerings);
+      setPackages(offering?.availablePackages ?? []);
+
       const result = await RevenueCatUI.presentPaywallIfNeeded({
         requiredEntitlementIdentifier: revenueCatEntitlementId,
+        offering,
         displayCloseButton: true
       });
 
