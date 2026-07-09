@@ -10,10 +10,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,6 +35,11 @@ import {
   createChatRequest,
   createMatchThread,
   createReport,
+  findMatchThreadsForUser,
+  findOutgoingProfileSwipes,
+  findProfilesByInterest,
+  hasIncomingProfileLike,
+  recordProfileSwipe,
   recordUserLogin,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
@@ -131,10 +140,10 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
-type Mode = "classic" | "premium";
 type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
+type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
 type AgeBand = "18+" | "under18" | null;
 type ProfilePhoto = number | string;
 type ChatStatus = "matched" | "requested" | "blocked";
@@ -148,6 +157,7 @@ type ChatThread = {
 };
 
 type MatchProfile = {
+  id?: string;
   name: string;
   surname: string;
   age: number;
@@ -156,12 +166,14 @@ type MatchProfile = {
   distance: string;
   latitude: number;
   longitude: number;
+  locationAvailable?: boolean;
   image: any;
   photos?: any[];
   interests: string[];
   featuredInterests?: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
+  likedYou?: boolean;
   desiredAgeMin?: number;
   desiredAgeMax?: number;
   heightCm?: number;
@@ -231,7 +243,8 @@ const matchProfiles: MatchProfile[] = [
       { label: "Instagram", value: "@aisha.design" },
       { label: "Spotify", value: "Indie evenings" }
     ],
-    premium: true
+    premium: true,
+    likedYou: true
   },
   {
     name: "Lena",
@@ -344,10 +357,14 @@ function getInterestTheme(item: string, index = 0) {
 }
 
 function getProfileKey(profile: MatchProfile) {
-  return `${profile.name}-${profile.surname}`;
+  return profile.id ?? `${profile.name}-${profile.surname}`;
 }
 
 function getProfileGallery(profile: MatchProfile) {
+  if (profile.id) {
+    return (profile.photos && profile.photos.length > 0 ? profile.photos : [profile.image]).slice(0, 6);
+  }
+
   const fallbackPhotos = [profile.image, ...profileImages.filter((image) => image !== profile.image)];
   return (profile.photos && profile.photos.length > 0 ? profile.photos : fallbackPhotos).slice(0, 3);
 }
@@ -356,11 +373,59 @@ function getFeaturedInterests(profile: MatchProfile) {
   return (profile.featuredInterests && profile.featuredInterests.length > 0 ? profile.featuredInterests : profile.interests).slice(0, 3);
 }
 
+function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
+  const id = typeof item.id === "string" ? item.id : null;
+  const name = typeof item.firstName === "string" ? item.firstName.trim() : "";
+  const surname = typeof item.lastName === "string" ? item.lastName.trim() : "";
+  const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string") : [];
+  const photoUrls = Array.isArray(item.photoUrls) ? item.photoUrls.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
+  const mainPhotoUrl = typeof item.mainPhotoUrl === "string" && item.mainPhotoUrl.length > 0 ? item.mainPhotoUrl : photoUrls[0];
+
+  if (!id || !name || !mainPhotoUrl || interests.length === 0) {
+    return null;
+  }
+
+  const location = typeof item.location === "object" && item.location !== null ? item.location as Record<string, unknown> : null;
+  const latitude = typeof location?.latitude === "number" ? location.latitude : 52.2297;
+  const longitude = typeof location?.longitude === "number" ? location.longitude : 21.0122;
+  const locationAvailable = typeof location?.latitude === "number" && typeof location?.longitude === "number";
+  const socialsRecord = typeof item.socials === "object" && item.socials !== null ? item.socials as Record<string, unknown> : {};
+  const socials = Object.entries(socialsRecord)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0)
+    .map(([label, value]) => ({ label, value }));
+
+  return {
+    id,
+    name,
+    surname,
+    age: typeof item.age === "number" ? Math.max(18, Math.min(99, Math.round(item.age))) : 18,
+    city: typeof item.city === "string" && item.city.trim() ? item.city.trim() : "Twoja okolica",
+    bio: typeof item.bio === "string" && item.bio.trim() ? item.bio.trim() : "Nowy profil w Spark. Poznajcie sie przez wspolne zainteresowania.",
+    distance: locationAvailable ? "w poblizu" : "Twoja okolica",
+    latitude,
+    longitude,
+    locationAvailable,
+    image: { uri: mainPhotoUrl },
+    photos: (photoUrls.length > 0 ? photoUrls : [mainPhotoUrl]).map((uri) => ({ uri })),
+    interests,
+    featuredInterests: interests.slice(0, 3),
+    socials,
+    premium: item.isPro === true,
+    desiredAgeMin: typeof item.desiredAgeMin === "number" ? item.desiredAgeMin : 18,
+    desiredAgeMax: typeof item.desiredAgeMax === "number" ? item.desiredAgeMax : 99,
+    heightCm: typeof item.heightCm === "number" ? item.heightCm : undefined,
+    weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined
+  };
+}
 function degreesToRadians(value: number) {
   return (value * Math.PI) / 180;
 }
 
 function getApproxDistanceLabel(userLocation: UserLocation | null, profile: MatchProfile) {
+  if (profile.locationAvailable === false) {
+    return profile.city || "Twoja okolica";
+  }
+
   if (!userLocation) {
     return profile.distance;
   }
@@ -379,6 +444,10 @@ function getApproxDistanceLabel(userLocation: UserLocation | null, profile: Matc
 }
 
 function getDistanceKm(userLocation: UserLocation | null, profile: MatchProfile) {
+  if (profile.locationAvailable === false) {
+    return 25;
+  }
+
   if (!userLocation) {
     return Number(profile.distance.replace(/[^0-9]/g, "")) || 25;
   }
@@ -403,15 +472,22 @@ function scoreProfileMatch(params: {
 }) {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
-  const interestBase = Math.max(3, Math.min(15, params.selectedInterests.length || params.profile.interests.length || 3));
-  const interestPercent = Math.round((sharedInterests.length / interestBase) * 100);
-  const visibilityBoost = params.profile.premium ? 4 : 0;
-  const score = Math.max(12, Math.min(99, interestPercent + visibilityBoost));
+  const interestScore = params.selectedInterests.length > 0 ? Math.min(52, sharedInterests.length * 17) : 26;
+  const distanceScore = distanceKm <= 5 ? 24 : distanceKm <= 15 ? 18 : distanceKm <= 35 ? 12 : 6;
+  const ageGap = Math.abs(params.profile.age - params.userAge);
+  const ageScore = ageGap <= 3 ? 15 : ageGap <= 7 ? 11 : ageGap <= 12 ? 7 : 3;
+  const inTheirRange =
+    params.userAge >= (params.profile.desiredAgeMin ?? 18) &&
+    params.userAge <= (params.profile.desiredAgeMax ?? 99);
+  const preferenceScore = inTheirRange ? 7 : 2;
+  const completenessScore = Math.min(4, params.profile.socials.length * 2);
+  const score = Math.max(32, Math.min(98, interestScore + distanceScore + ageScore + preferenceScore + completenessScore));
   const reasons = [
-    `${Math.max(1, Math.round(distanceKm))} km`,
-    `${params.profile.age} lat`,
-    sharedInterests.length > 0 ? sharedInterests.slice(0, 3).join(" + ") : "odkryj nowe zainteresowania",
-    ...(visibilityBoost > 0 ? ["boost Pro"] : [])
+    sharedInterests.length > 0
+      ? `${sharedInterests.length} wspolne: ${sharedInterests.slice(0, 2).join(" + ")}`
+      : "profil spoza Twojej banki",
+    `${Math.max(1, Math.round(distanceKm))} km od Ciebie`,
+    inTheirRange ? "pasujesz do preferowanego wieku" : "warto poznac bliżej"
   ];
 
   return { score, reasons, sharedInterests };
@@ -436,7 +512,6 @@ function AppContent() {
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
-  const [mode, setMode] = useState<Mode>("classic");
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
@@ -447,8 +522,10 @@ function AppContent() {
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady);
-  const [profileIndex, setProfileIndex] = useState(0);
+  const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
+  const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
+  const [matchCelebrationProfile, setMatchCelebrationProfile] = useState<MatchProfile | null>(null);
   const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
@@ -460,6 +537,10 @@ function AppContent() {
   const [userAge, setUserAge] = useState(18);
   const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
   const [bottomNavHidden, setBottomNavHidden] = useState(false);
+  const [remoteProfiles, setRemoteProfiles] = useState<MatchProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profileFeedError, setProfileFeedError] = useState<string | null>(null);
+  const [profileReloadKey, setProfileReloadKey] = useState(0);
 
   const [, googleResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
     clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
@@ -469,12 +550,19 @@ function AppContent() {
   });
 
   const isCompact = width < 380;
+  const profileQueryKey = selectedInterests.slice(0, 10).sort().join("|");
+  const availableProfiles = useMemo(
+    () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
+    [remoteProfiles]
+  );
   const profileName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twoj profil";
   const sortedProfiles = useMemo(
     () =>
-      matchProfiles
+      availableProfiles
         .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
-        .filter((profile) => selectedInterests.length === 0 || profile.interests.some((interest) => selectedInterests.includes(interest)))
+        .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
+        .filter((profile) => !profile.heightCm || (profile.heightCm >= discoverFilters.minHeight && profile.heightCm <= discoverFilters.maxHeight))
+        .filter((profile) => !profile.weightKg || (profile.weightKg >= discoverFilters.minWeight && profile.weightKg <= discoverFilters.maxWeight))
         .filter((profile) => !discoverFilters.nearbyOnly || getDistanceKm(userLocation, profile) <= 25)
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
@@ -488,20 +576,22 @@ function AppContent() {
           };
         })
         .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0)),
-    [blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
+    [availableProfiles, blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
   );
-  const visibleProfiles = sortedProfiles.length > 0 ? sortedProfiles : matchProfiles;
-  const activeProfile = visibleProfiles[profileIndex % visibleProfiles.length];
-  const activeProfileWithDistance = useMemo(
-    () => ({
-      ...activeProfile,
-      distance: getApproxDistanceLabel(userLocation, activeProfile)
-    }),
-    [activeProfile, userLocation]
-  );
-  const activeProfileKey = getProfileKey(activeProfile);
-  const hasMatchedActiveProfile = matchedProfileKeys.includes(activeProfileKey);
-  const hasRequestedActiveProfile = chatRequestKeys.includes(activeProfileKey);
+  const discoverProfiles = sortedProfiles.filter((profile) => {
+    const key = getProfileKey(profile);
+    return (
+      !likedProfileKeys.includes(key) &&
+      !passedProfileKeys.includes(key) &&
+      !matchedProfileKeys.includes(key) &&
+      !chatRequestKeys.includes(key)
+    );
+  });
+  const activeProfile = discoverProfiles[0] ?? null;
+  const nextProfile = discoverProfiles[1] ?? null;
+  const activeProfileKey = activeProfile ? getProfileKey(activeProfile) : null;
+  const hasMatchedActiveProfile = activeProfileKey ? matchedProfileKeys.includes(activeProfileKey) : false;
+  const hasRequestedActiveProfile = activeProfileKey ? chatRequestKeys.includes(activeProfileKey) : false;
   const canContinue = selectedInterests.length >= 3 && (intent === "Randki" ? ageBand === "18+" : ageBand !== null);
 
   const contentPadding = useMemo(
@@ -590,6 +680,69 @@ function AppContent() {
     };
   }, [authDone, locationStatus, onboarded, userLocation]);
 
+  useEffect(() => {
+    if (!authDone || !onboarded || !appUser || selectedInterests.length === 0) {
+      return;
+    }
+
+    let mounted = true;
+    setProfilesLoading(true);
+    setProfileFeedError(null);
+
+    Promise.all([
+      findProfilesByInterest(selectedInterests),
+      findOutgoingProfileSwipes(appUser.uid),
+      findMatchThreadsForUser(appUser.uid)
+    ])
+      .then(([profileDocuments, swipeDocuments, matchDocuments]) => {
+        if (!mounted) {
+          return;
+        }
+
+        const mappedProfiles = profileDocuments
+          .filter((item) => item.id !== appUser.uid)
+          .map((item) => mapRemoteProfile(item as Record<string, unknown>))
+          .filter((profile): profile is MatchProfile => Boolean(profile));
+        const likedKeys = swipeDocuments
+          .filter((item) => item.status === "liked")
+          .map((item) => String(item.toProfileKey));
+        const passedKeys = swipeDocuments
+          .filter((item) => item.status === "passed")
+          .map((item) => String(item.toProfileKey));
+        const matchedKeys = matchDocuments.flatMap((item) =>
+          Array.isArray(item.memberUids)
+            ? item.memberUids.filter((uid): uid is string => typeof uid === "string" && uid !== appUser.uid)
+            : []
+        );
+
+        setRemoteProfiles(mappedProfiles);
+        setLikedProfileKeys((keys) => Array.from(new Set([...keys, ...likedKeys.filter((key) => !matchedKeys.includes(key))])));
+        setPassedProfileKeys((keys) => Array.from(new Set([...keys, ...passedKeys])));
+        setMatchedProfileKeys((keys) => Array.from(new Set([...keys, ...matchedKeys])));
+        setChatThreads((threads) => {
+          const nextThreads = { ...threads };
+          matchedKeys.forEach((profileKey) => {
+            nextThreads[profileKey] = nextThreads[profileKey] ?? { profileKey, status: "matched", messages: [] };
+          });
+          return nextThreads;
+        });
+      })
+      .catch((error) => {
+        if (mounted) {
+          setRemoteProfiles([]);
+          setProfileFeedError(error instanceof Error ? error.message : "Nie udalo sie pobrac profili.");
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setProfilesLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [appUser, authDone, onboarded, profileQueryKey, profileReloadKey]);
   function seedDemoMatchState() {
     const matchedKey = getProfileKey(matchProfiles[0]);
     const requestKey = getProfileKey(matchProfiles[3]);
@@ -653,7 +806,7 @@ function AppContent() {
 
   async function saveProfileToFirestore() {
     if (!appUser) {
-      return;
+      return false;
     }
 
     try {
@@ -678,8 +831,10 @@ function AppContent() {
         privateProfile,
         socials: {}
       });
+      return true;
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
+      return false;
     }
   }
 
@@ -724,56 +879,105 @@ function AppContent() {
 
   function refreshDiscovery() {
     tap();
-    setProfileIndex((value) => (visibleProfiles.length > 0 ? (value + 1) % visibleProfiles.length : 0));
-    Alert.alert("Odkrywaj", "Odswiezono profile i kolejnosc kart.");
+    setPassedProfileKeys([]);
+    setProfileReloadKey((value) => value + 1);
   }
 
-  async function handleSwipe(action: SwipeAction) {
+  async function handleSwipe(action: SwipeAction): Promise<SwipeOutcome> {
+    const targetProfile = activeProfile;
+    const targetKey = activeProfileKey;
+
+    if (!targetProfile || !targetKey) {
+      return "cancelled";
+    }
+
     tap();
 
     if (action === "superlike") {
       if (!revenueCat.isPro) {
         await revenueCat.presentPaywallIfNeeded();
-        return;
+        return "cancelled";
       }
 
       if (superlikesRemaining <= 0) {
-        Alert.alert("Superlike", "Limit 10 zjawiskowych Superlike w tym miesiącu jest już wykorzystany.");
-        return;
+        Alert.alert("SparkLike", "Miesieczny limit SparkLike zostal wykorzystany.");
+        return "cancelled";
       }
 
       setSuperlikesRemaining((value) => Math.max(0, value - 1));
     }
 
-    if (action === "like" || action === "superlike") {
-      setMatchedProfileKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
-      setSelectedChatKey(activeProfileKey);
-      setChatThreads((threads) => ({
-        ...threads,
-        [activeProfileKey]: threads[activeProfileKey] ?? {
-          profileKey: activeProfileKey,
-          status: "matched",
-          messages: [
-            { id: `${Date.now()}-match`, from: "them", text: "Match! Mozecie juz pisac.", time: "teraz" }
-          ]
-        }
-      }));
-      if (appUser) {
-        createMatchThread({
-          matchId: getThreadId(appUser.uid, activeProfileKey),
-          memberUids: [appUser.uid, activeProfileKey],
-          createdByUid: appUser.uid,
-          source: "mutual-like"
-        }).catch(() => undefined);
-      }
-      Alert.alert("Match", `Ty i ${activeProfile.name} polubiliście się. Możecie teraz pisać.`);
+    if (appUser) {
+      recordProfileSwipe({
+        swipeId: getThreadId(appUser.uid, targetKey),
+        fromUid: appUser.uid,
+        toProfileKey: targetKey,
+        direction: action,
+        matchScore: targetProfile.matchScore
+      }).catch(() => undefined);
     }
 
-    trackSwipeAd();
-    setProfileIndex((value) => value + 1);
-  }
+    if (action === "pass") {
+      setPassedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
+      trackSwipeAd();
+      return "passed";
+    }
 
+    let isMutualMatch = Boolean(targetProfile.likedYou);
+
+    if (!isMutualMatch && appUser && targetProfile.id) {
+      try {
+        isMutualMatch = await hasIncomingProfileLike({
+          swipeId: getThreadId(targetKey, appUser.uid),
+          fromUid: targetKey,
+          toUid: appUser.uid
+        });
+      } catch {
+        isMutualMatch = false;
+      }
+    }
+
+    if (!isMutualMatch) {
+      setLikedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
+      trackSwipeAd();
+      return "liked";
+    }
+
+    setLikedProfileKeys((keys) => keys.filter((key) => key !== targetKey));
+    setMatchedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
+    setSelectedChatKey(targetKey);
+    setChatThreads((threads) => ({
+      ...threads,
+      [targetKey]: threads[targetKey] ?? {
+        profileKey: targetKey,
+        status: "matched",
+        messages: [
+          { id: `${Date.now()}-match`, from: "them", text: "To match! Mozecie teraz napisac do siebie.", time: "teraz" }
+        ]
+      }
+    }));
+
+    if (appUser) {
+      createMatchThread({
+        matchId: getThreadId(appUser.uid, targetKey),
+        memberUids: [appUser.uid, targetKey],
+        createdByUid: appUser.uid,
+        source: "mutual-like"
+      }).catch(() => undefined);
+    }
+
+    if (process.env.EXPO_OS === "ios") {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    setMatchCelebrationProfile(targetProfile);
+    trackSwipeAd();
+    return "matched";
+  }
   async function sendPremiumChatRequest() {
+    if (!activeProfile || !activeProfileKey) {
+      return;
+    }
+
     tap();
 
     if (!revenueCat.isPro) {
@@ -853,6 +1057,8 @@ function AppContent() {
 
   function blockProfile(profileKey: string) {
     setBlockedProfileKeys((keys) => (keys.includes(profileKey) ? keys : [...keys, profileKey]));
+    setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
+    setPassedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
     setMatchedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
     setChatRequestKeys((keys) => keys.filter((key) => key !== profileKey));
     setChatThreads((threads) => ({
@@ -898,13 +1104,15 @@ function AppContent() {
       setAppUser(null);
       setAuthDone(false);
       setOnboarded(false);
+      setLikedProfileKeys([]);
+      setPassedProfileKeys([]);
       setMatchedProfileKeys([]);
+      setMatchCelebrationProfile(null);
       setChatRequestKeys([]);
       setBlockedProfileKeys([]);
       setChatThreads({});
       setSelectedChatKey(null);
       setTab("discover");
-      setMode("classic");
       Alert.alert("Konto usunięte", "Konto i główny profil zostały usunięte.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nie udało się usunąć konta.";
@@ -994,11 +1202,11 @@ function AppContent() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.scroll, tab === "discover" && styles.discoverScroll, contentPadding]}
       >
-        {tab === "discover" && (
+        {tab === "discover" && activeProfile && (
           <DiscoverScreen
-            mode={mode}
-            setMode={setMode}
-            profile={activeProfileWithDistance}
+            profile={activeProfile}
+            nextProfile={nextProfile}
+            remainingCount={discoverProfiles.length}
             hasPro={revenueCat.isPro}
             requestProAccess={revenueCat.presentPaywallIfNeeded}
             onSwipe={handleSwipe}
@@ -1010,19 +1218,36 @@ function AppContent() {
             superlikesRemaining={superlikesRemaining}
             selectedInterests={selectedInterests}
             setSelectedInterests={setSelectedInterests}
-            userAge={userAge}
-            setUserAge={setUserAge}
             discoverFilters={discoverFilters}
             setDiscoverFilters={setDiscoverFilters}
             screenMinHeight={discoverMinHeight}
-            onReportProfile={(reason) => reportProfile(activeProfileKey, reason)}
+            onReportProfile={(reason) => activeProfileKey && reportProfile(activeProfileKey, reason)}
             onRefresh={refreshDiscovery}
             onChromeHiddenChange={setBottomNavHidden}
           />
         )}
-        {tab === "matches" && <MatchesScreen matchedProfileKeys={matchedProfileKeys} chatRequestKeys={chatRequestKeys} />}
+        {tab === "discover" && !activeProfile && (
+          <DiscoverEmptyState
+            screenMinHeight={discoverMinHeight}
+            likedCount={likedProfileKeys.length}
+            loading={profilesLoading}
+            error={profileFeedError}
+            onRefresh={refreshDiscovery}
+            onOpenMatches={() => setTab("matches")}
+          />
+        )}
+        {tab === "matches" && (
+          <MatchesScreen
+            profiles={availableProfiles}
+            matchedProfileKeys={matchedProfileKeys}
+            likedProfileKeys={likedProfileKeys}
+            chatRequestKeys={chatRequestKeys}
+            onOpenMessages={() => setTab("messages")}
+          />
+        )}
         {tab === "messages" && (
           <MessagesScreen
+            profiles={availableProfiles}
             matchedProfileKeys={matchedProfileKeys}
             chatRequestKeys={chatRequestKeys}
             chatThreads={chatThreads}
@@ -1060,10 +1285,19 @@ function AppContent() {
             openPremium={() => setTab("premium")}
             openCustomerCenter={revenueCat.openCustomerCenter}
             openSafety={() => setTab("safety")}
+            onSave={saveProfileToFirestore}
           />
         )}
         <SparkAdBanner enabled={!revenueCat.isPro && adsReady && tab !== "premium"} placement={tab} />
       </ScrollView>
+      <MatchCelebration
+        profile={matchCelebrationProfile}
+        onContinue={() => setMatchCelebrationProfile(null)}
+        onOpenChat={() => {
+          setMatchCelebrationProfile(null);
+          setTab("messages");
+        }}
+      />
       {!bottomNavHidden && (
         <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { bottom: Math.max(insets.bottom - 2, 6) }]}>
         {[
@@ -1429,9 +1663,9 @@ function OnboardingScreen({
   );
 }
 function DiscoverScreen({
-  mode,
-  setMode,
   profile,
+  nextProfile,
+  remainingCount,
   hasPro,
   requestProAccess,
   onSwipe,
@@ -1443,8 +1677,6 @@ function DiscoverScreen({
   superlikesRemaining,
   selectedInterests,
   setSelectedInterests,
-  userAge,
-  setUserAge,
   discoverFilters,
   setDiscoverFilters,
   screenMinHeight,
@@ -1452,12 +1684,12 @@ function DiscoverScreen({
   onRefresh,
   onChromeHiddenChange
 }: {
-  mode: Mode;
-  setMode: (value: Mode) => void;
   profile: MatchProfile;
+  nextProfile: MatchProfile | null;
+  remainingCount: number;
   hasPro: boolean;
   requestProAccess: () => Promise<boolean>;
-  onSwipe: (action: SwipeAction) => void;
+  onSwipe: (action: SwipeAction) => Promise<SwipeOutcome>;
   onPremiumChatRequest: () => void;
   onOpenMessages: () => void;
   reporterName: string;
@@ -1466,8 +1698,6 @@ function DiscoverScreen({
   superlikesRemaining: number;
   selectedInterests: string[];
   setSelectedInterests: (value: string[]) => void;
-  userAge: number;
-  setUserAge: (value: number) => void;
   discoverFilters: DiscoverFilters;
   setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   screenMinHeight: number;
@@ -1475,16 +1705,14 @@ function DiscoverScreen({
   onRefresh: () => void;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
-  void userAge;
-  void setUserAge;
-  void superlikesRemaining;
-
   const [reportOpen, setReportOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [swipeBusy, setSwipeBusy] = useState(false);
+  const [swipeFeedback, setSwipeFeedback] = useState<string | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeMotion = useRef(new Animated.Value(0)).current;
   const profileKey = getProfileKey(profile);
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
@@ -1497,6 +1725,7 @@ function DiscoverScreen({
   ];
   const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
   const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
+  const swipeScale = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.96, 1, 0.96] });
   const passLabelOpacity = swipeMotion.interpolate({ inputRange: [-260, -80, 0], outputRange: [1, 0.55, 0], extrapolate: "clamp" });
   const matchLabelOpacity = swipeMotion.interpolate({ inputRange: [0, 80, 260], outputRange: [0, 0.55, 1], extrapolate: "clamp" });
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
@@ -1510,6 +1739,14 @@ function DiscoverScreen({
     swipeMotion.setValue(0);
     setSwipeBusy(false);
   }, [profileKey, swipeMotion]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimer.current) {
+        clearTimeout(feedbackTimer.current);
+      }
+    };
+  }, []);
 
   async function runProAction(action: () => void | Promise<void>, locked: boolean) {
     if (locked) {
@@ -1530,18 +1767,70 @@ function DiscoverScreen({
     setSwipeBusy(true);
     const direction = action === "pass" ? -1 : 1;
     Animated.timing(swipeMotion, {
-      toValue: direction * 420,
-      duration: 240,
+      toValue: direction * 460,
+      duration: 230,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true
     }).start(({ finished }) => {
       if (finished) {
-        void onSwipe(action);
+        void onSwipe(action).then((outcome) => {
+          const feedback =
+            outcome === "liked"
+              ? "Polubienie wyslane"
+              : outcome === "passed"
+                ? "Profil pominiety"
+                : outcome === "matched"
+                  ? "To match!"
+                  : null;
+
+          if (feedback) {
+            setSwipeFeedback(feedback);
+            if (feedbackTimer.current) {
+              clearTimeout(feedbackTimer.current);
+            }
+            feedbackTimer.current = setTimeout(() => setSwipeFeedback(null), 1500);
+          }
+        });
       }
       swipeMotion.setValue(0);
       setSwipeBusy(false);
     });
   }
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          !swipeBusy && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderMove: (_, gesture) => {
+          swipeMotion.setValue(gesture.dx);
+        },
+        onPanResponderRelease: (_, gesture) => {
+          const shouldCommit = Math.abs(gesture.dx) > 96 || Math.abs(gesture.vx) > 0.55;
+
+          if (shouldCommit) {
+            void runSwipeAction(gesture.dx < 0 ? "pass" : "like");
+            return;
+          }
+
+          Animated.spring(swipeMotion, {
+            toValue: 0,
+            speed: 20,
+            bounciness: 7,
+            useNativeDriver: true
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(swipeMotion, {
+            toValue: 0,
+            speed: 20,
+            bounciness: 7,
+            useNativeDriver: true
+          }).start();
+        }
+      }),
+    [profileKey, swipeBusy, swipeMotion]
+  );
 
   function updatePreference(key: keyof DiscoverFilters, value: number | boolean) {
     setDiscoverFilters((current) => ({ ...current, [key]: value }));
@@ -1583,6 +1872,11 @@ function DiscoverScreen({
     }
 
     onPremiumChatRequest();
+  }
+
+  function handlePreviewPass() {
+    setPreviewOpen(false);
+    void runSwipeAction("pass");
   }
 
   function handlePreviewLike() {
@@ -1630,7 +1924,7 @@ function DiscoverScreen({
 
   return (
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}> 
-      <TopBar eyebrow="Odkrywaj" title="Profile" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
+      <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
       <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.discoverSummaryBar}>
         {preferenceSummary.map((item) => (
           <View key={item.text} style={styles.discoverSummaryPill}>
@@ -1641,24 +1935,44 @@ function DiscoverScreen({
       </Pressable>
 
       <View style={styles.stitchMainCanvas}>
-        <Animated.View style={[styles.swipeCardMotion, { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }] }]}>
+        {nextProfile && (
+          <View pointerEvents="none" style={styles.nextProfileCard}>
+            <ProfileCard profile={nextProfile} compact />
+          </View>
+        )}
+        <Animated.View
+          {...panResponder.panHandlers}
+          style={[
+            styles.swipeCardMotion,
+            { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
+          ]}
+        >
           <ProfileCard profile={profile} onOpenPreview={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
           <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
-            <Text style={styles.swipeCueText}>ODRZUC</Text>
+            <Text style={styles.swipeCueText}>POMIN</Text>
           </Animated.View>
-          <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, { opacity: matchLabelOpacity }]}>
-            <Text style={styles.swipeCueText}>MATCH</Text>
+          <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, styles.swipeCueLike, { opacity: matchLabelOpacity }]}>
+            <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIE</Text>
           </Animated.View>
         </Animated.View>
+        <View pointerEvents="none" style={styles.deckCounter}>
+          <Text style={styles.deckCounterText}>{remainingCount} w kolejce</Text>
+        </View>
+        {swipeFeedback && (
+          <View pointerEvents="none" style={styles.swipeFeedback}>
+            <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
+            <Text style={styles.swipeFeedbackText}>{swipeFeedback}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.stitchBottomPanel}>
         <View style={styles.stitchFabDock} pointerEvents="box-none">
-          <SwipeFab label="Odrzuc" icon="close" onPress={() => void runSwipeAction("pass")} />
-          <SwipeFab label="Profil" icon="account" small onPress={() => setPreviewOpen(true)} />
-          <SwipeFab label="SPARKLIKE" icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro)} />
+          <SwipeFab label="Pomin" icon="close" onPress={() => void runSwipeAction("pass")} />
+          <SwipeFab label="Szczegoly" icon="account" small onPress={() => setPreviewOpen(true)} />
+          <SwipeFab label="SPARKLIKE" sublabel={`${superlikesRemaining}/10`} icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro)} />
           <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile)} />
-          <SwipeFab label="Match" icon="heart" onPress={() => void runSwipeAction("like")} />
+          <SwipeFab label="Lubie" icon="heart" onPress={() => void runSwipeAction("like")} />
         </View>
       </View>
 
@@ -1667,8 +1981,10 @@ function DiscoverScreen({
           profile={profile}
           viewerInterests={selectedInterests}
           onClose={() => setPreviewOpen(false)}
+          onPass={handlePreviewPass}
           onLike={handlePreviewLike}
           onMessage={handlePreviewMessage}
+          canViewSocials={hasMatchedProfile}
         />
       )}
 
@@ -1831,7 +2147,7 @@ function ProfileCard({ profile, onOpenPreview, onReport, compact = false }: { pr
             return (
               <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}> 
                 <SocialIcon label={social.label} size={13} />
-                <Text style={styles.socialPillText} selectable>{social.value}</Text>
+                <Text style={styles.socialPillText} selectable>{social.label}</Text>
               </View>
             );
           })}
@@ -1845,101 +2161,186 @@ function ProfilePreviewSheet({
   profile,
   viewerInterests,
   onClose,
+  onPass,
   onLike,
-  onMessage
+  onMessage,
+  canViewSocials
 }: {
   profile: MatchProfile;
   viewerInterests: string[];
   onClose: () => void;
+  onPass: () => void;
   onLike: () => void;
   onMessage: () => void;
+  canViewSocials: boolean;
 }) {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const [photoIndex, setPhotoIndex] = useState(0);
   const photos = getProfileGallery(profile);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
-  const matchBase = Math.max(3, Math.min(15, viewerInterests.length || profile.interests.length || 3));
-  const matchPercent = Math.max(12, Math.min(99, Math.round((sharedInterests.length / matchBase) * 100) + (profile.premium ? 4 : 0)));
-  const photoWidth = Math.min(width - 32, 430);
+  const matchPercent = profile.matchScore ?? Math.max(36, Math.min(96, 48 + sharedInterests.length * 12));
+  const matchReasons = profile.matchReasons ?? [profile.distance, `${sharedInterests.length} wspolne zainteresowania`];
+  const photoWidth = Math.min(width - 24, 500);
   const local = StyleSheet.create({
-    overlay: { position: "absolute", top: -8, right: 0, bottom: 0, left: 0, zIndex: 120, backgroundColor: "#050507" },
-    sheet: { flex: 1, gap: 14, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16, backgroundColor: "#050507" },
-    header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
-    kicker: { color: colors.primary, fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
-    title: { marginTop: 3, color: colors.ink, fontSize: 25, lineHeight: 31, fontWeight: "900" },
-    close: { width: 44, height: 44, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)" },
-    content: { gap: 14, paddingBottom: 10 },
-    scroller: { marginHorizontal: -16 },
-    photo: { width: photoWidth, aspectRatio: 4 / 5, marginHorizontal: 16, borderRadius: 28, overflow: "hidden", backgroundColor: "#111" },
+    root: { flex: 1, backgroundColor: "#050507" },
+    header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 10, backgroundColor: "rgba(5,5,7,0.72)" },
+    headerTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+    headerButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    content: { gap: 18, paddingHorizontal: 12 },
+    gallery: { position: "relative", alignSelf: "center", overflow: "hidden", borderRadius: 28, backgroundColor: "#111", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" },
+    photo: { width: photoWidth, aspectRatio: 4 / 5, backgroundColor: "#111" },
+    photoCounter: { position: "absolute", top: 14, right: 14, minHeight: 30, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(5,5,7,0.72)" },
+    photoCounterText: { color: "#fff", fontSize: 11, fontWeight: "900", fontVariant: ["tabular-nums"] },
+    dots: { position: "absolute", left: 0, right: 0, bottom: 14, flexDirection: "row", justifyContent: "center", gap: 6 },
+    dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.42)" },
+    dotActive: { width: 18, backgroundColor: colors.primary },
+    identity: { gap: 8, paddingHorizontal: 4 },
+    statusRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
+    status: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: "hidden", color: "#fff", backgroundColor: "rgba(66,217,130,0.18)", borderWidth: 1, borderColor: "rgba(66,217,130,0.34)", fontSize: 10, fontWeight: "900" },
+    proStatus: { color: colors.gold, backgroundColor: "rgba(255,189,89,0.12)", borderColor: "rgba(255,189,89,0.28)" },
+    title: { color: colors.ink, fontSize: 29, lineHeight: 35, fontWeight: "900" },
+    subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+    subtitleText: { color: "#e4bdc3", fontSize: 13, fontWeight: "800" },
     metrics: { flexDirection: "row", gap: 8 },
-    metric: { flex: 1, minHeight: 70, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-    metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900" },
-    metricLabel: { marginTop: 2, color: colors.muted, fontSize: 10, textAlign: "center", fontWeight: "800" },
-    bio: { color: "#e4bdc3", fontSize: 14, lineHeight: 21, fontWeight: "700" },
-    section: { gap: 9 },
-    sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: "900" },
+    metric: { flex: 1, minHeight: 76, gap: 3, alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900", fontVariant: ["tabular-nums"] },
+    metricLabel: { color: colors.muted, fontSize: 10, textAlign: "center", fontWeight: "800" },
+    section: { gap: 10, paddingHorizontal: 4 },
+    sectionTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
+    sectionHint: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
+    reasonList: { gap: 8 },
+    reason: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.14)" },
+    reasonText: { flex: 1, color: "#f0d3dd", fontSize: 12, lineHeight: 17, fontWeight: "800" },
+    bio: { color: "#ecd8e1", fontSize: 15, lineHeight: 23, fontWeight: "600" },
     wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, overflow: "hidden", borderWidth: 1, fontSize: 12, fontWeight: "900" },
-    socials: { gap: 8 },
-    social: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    socialList: { gap: 8 },
+    social: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    socialIcon: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.1)" },
     socialLabel: { color: colors.ink, fontSize: 12, fontWeight: "900" },
-    socialValue: { color: colors.muted, fontSize: 12, fontWeight: "800" },
-    actions: { flexDirection: "row", gap: 10 },
-    like: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: colors.primary },
-    likeText: { color: "#fff", fontSize: 14, fontWeight: "900" },
-    message: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
-    messageText: { color: colors.primary, fontSize: 14, fontWeight: "900" }
+    socialValue: { marginTop: 2, color: colors.muted, fontSize: 11, fontWeight: "800" },
+    actions: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingTop: 10, backgroundColor: "rgba(5,5,7,0.94)", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
+    actionRound: { width: 50, height: 50, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    like: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: colors.primary, boxShadow: "0 14px 32px rgba(255,45,141,0.3)" },
+    likeText: { color: "#fff", fontSize: 14, fontWeight: "900" }
   });
 
   return (
-    <View style={local.overlay}>
-      <View style={local.sheet}>
-        <View style={local.header}>
-          <View style={styles.fill}>
-            <Text style={local.kicker} selectable>Podglad profilu</Text>
-            <Text style={local.title} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={onClose} style={local.close}>
-            <MaterialCommunityIcons name="close" size={22} color={colors.ink} />
+    <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+      <LinearGradient colors={["#050507", "#13070f", "#050507"]} style={local.root}>
+        <StatusBar style="light" />
+        <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} style={local.headerButton}>
+            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
           </Pressable>
+          <Text style={local.headerTitle} selectable>Profil</Text>
+          <View style={local.headerButton}>
+            <MaterialCommunityIcons name="shield-check" size={21} color={colors.green} />
+          </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.content}>
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={local.scroller}>
-            {photos.map((photo, index) => (
-              <Image key={index} source={photo} style={local.photo} contentFit="contain" />
-            ))}
-          </ScrollView>
-
-          <View style={local.metrics}>
-            <View style={local.metric}><Text style={local.metricValue} selectable>{matchPercent}%</Text><Text style={local.metricLabel} selectable>match z tagow</Text></View>
-            <View style={local.metric}><Text style={local.metricValue} selectable>{profile.age}</Text><Text style={local.metricLabel} selectable>wiek</Text></View>
-            <View style={local.metric}><Text style={local.metricValue} selectable>{profile.distance}</Text><Text style={local.metricLabel} selectable>odleglosc</Text></View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={[
+            local.content,
+            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + 80 }
+          ]}
+        >
+          <View style={[local.gallery, { width: photoWidth }]}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              bounces={false}
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(event) => setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / photoWidth))}
+            >
+              {photos.map((photo, index) => (
+                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: "#111" }} contentFit="cover" transition={180} />
+              ))}
+            </ScrollView>
+            <View style={local.photoCounter}>
+              <Text style={local.photoCounterText}>{photoIndex + 1}/{photos.length}</Text>
+            </View>
+            <View style={local.dots}>
+              {photos.map((_, index) => <View key={index} style={[local.dot, index === photoIndex && local.dotActive]} />)}
+            </View>
           </View>
 
-          <Text style={local.bio} selectable>{profile.bio}</Text>
+          <View style={local.identity}>
+            <View style={local.statusRow}>
+              <Text style={local.status}>ZWERYFIKOWANY PROFIL</Text>
+              {profile.premium && <Text style={[local.status, local.proStatus]}>SPARK PRO</Text>}
+              <Text style={[local.status, { color: colors.primary, backgroundColor: colors.primarySoft, borderColor: colors.line }]}>{matchPercent}% DOPASOWANIA</Text>
+            </View>
+            <Text style={local.title} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+            <View style={local.subtitle}>
+              <MaterialCommunityIcons name="map-marker" size={17} color={colors.primary} />
+              <Text style={local.subtitleText} selectable>{profile.city} · {profile.distance}</Text>
+              {profile.heightCm && <Text style={local.subtitleText} selectable>· {profile.heightCm} cm</Text>}
+            </View>
+          </View>
+
+          <View style={local.metrics}>
+            <View style={local.metric}><Text style={local.metricValue}>{matchPercent}%</Text><Text style={local.metricLabel}>dopasowanie</Text></View>
+            <View style={local.metric}><Text style={local.metricValue}>{sharedInterests.length}</Text><Text style={local.metricLabel}>wspolne tagi</Text></View>
+            <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odleglosc</Text></View>
+          </View>
 
           <View style={local.section}>
-            <Text style={local.sectionTitle} selectable>Wspolne zainteresowania</Text>
-            <View style={local.wrap}>
-              {(sharedInterests.length > 0 ? sharedInterests : getFeaturedInterests(profile)).slice(0, 6).map((interest, index) => {
-                const theme = getInterestTheme(interest, index);
+            <Text style={local.sectionTitle} selectable>Dlaczego pasujecie</Text>
+            <View style={local.reasonList}>
+              {matchReasons.slice(0, 3).map((reason) => (
+                <View key={reason} style={local.reason}>
+                  <MaterialCommunityIcons name="star-four-points" size={17} color={colors.primary} />
+                  <Text style={local.reasonText} selectable>{reason}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
 
-                return <Text key={interest} style={[local.chip, { backgroundColor: theme.soft, color: theme.text, borderColor: theme.border }]} selectable>{interest}</Text>;
+          <View style={local.section}>
+            <Text style={local.sectionTitle} selectable>O mnie</Text>
+            <Text style={local.bio} selectable>{profile.bio}</Text>
+          </View>
+
+          <View style={local.section}>
+            <Text style={local.sectionTitle} selectable>Zainteresowania</Text>
+            <Text style={local.sectionHint} selectable>Wspolne tagi sa oznaczone mocniejszym kolorem.</Text>
+            <View style={local.wrap}>
+              {profile.interests.map((interest, index) => {
+                const theme = getInterestTheme(interest, index);
+                const shared = sharedInterests.includes(interest);
+                return (
+                  <Text
+                    key={interest}
+                    style={[
+                      local.chip,
+                      { backgroundColor: shared ? theme.active : theme.soft, color: shared ? "#fff" : theme.text, borderColor: theme.border }
+                    ]}
+                    selectable
+                  >
+                    {interest}
+                  </Text>
+                );
               })}
             </View>
           </View>
 
           {profile.socials.length > 0 && (
             <View style={local.section}>
-              <Text style={local.sectionTitle} selectable>Sociale</Text>
-              <View style={local.socials}>
+              <Text style={local.sectionTitle} selectable>Social media</Text>
+              <Text style={local.sectionHint} selectable>Dane kontaktowe sa chronione do momentu matcha.</Text>
+              <View style={local.socialList}>
                 {profile.socials.map((social) => (
                   <View key={social.label} style={local.social}>
-                    <SocialIcon label={social.label} size={18} />
+                    <View style={local.socialIcon}><SocialIcon label={social.label} size={17} /></View>
                     <View style={styles.fill}>
                       <Text style={local.socialLabel} selectable>{social.label}</Text>
-                      <Text style={local.socialValue} selectable>{social.value}</Text>
+                      <Text style={local.socialValue} selectable>{canViewSocials ? social.value : "Widoczne po matchu"}</Text>
                     </View>
+                    {!canViewSocials && <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
                   </View>
                 ))}
               </View>
@@ -1947,21 +2348,22 @@ function ProfilePreviewSheet({
           )}
         </ScrollView>
 
-        <View style={local.actions}>
-          <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
-            <MaterialCommunityIcons name="heart" size={20} color="#fff" />
-            <Text style={local.likeText}>Match</Text>
+        <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Pomin profil" onPress={onPass} style={local.actionRound}>
+            <MaterialCommunityIcons name="close" size={25} color={colors.ink} />
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={onMessage} style={local.message}>
-            <MaterialCommunityIcons name="message-text" size={20} color={colors.primary} />
-            <Text style={local.messageText}>Napisz</Text>
+          <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
+            <MaterialCommunityIcons name="heart" size={21} color="#fff" />
+            <Text style={local.likeText}>Polub profil</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Napisz" onPress={onMessage} style={local.actionRound}>
+            <MaterialCommunityIcons name="message-text" size={22} color={colors.primary} />
           </Pressable>
         </View>
-      </View>
-    </View>
+      </LinearGradient>
+    </Modal>
   );
 }
-
 function SwipeFab({
   label,
   sublabel,
@@ -1997,51 +2399,203 @@ function SwipeFab({
   );
 }
 
-function MatchesScreen({
-  matchedProfileKeys,
-  chatRequestKeys
+function DiscoverEmptyState({
+  screenMinHeight,
+  likedCount,
+  loading,
+  error,
+  onRefresh,
+  onOpenMatches
 }: {
-  matchedProfileKeys: string[];
-  chatRequestKeys: string[];
+  screenMinHeight: number;
+  likedCount: number;
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+  onOpenMatches: () => void;
 }) {
-  const visibleProfiles = matchProfiles.filter((profile) => {
+  return (
+    <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
+      <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" />
+      <View style={styles.discoverEmptyBody}>
+        <View style={styles.discoverEmptyIcon}>
+          {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
+        </View>
+        <Text style={styles.discoverEmptyTitle} selectable>{loading ? "Szukamy profili" : error ? "Nie udalo sie pobrac profili" : "To wszystko na teraz"}</Text>
+        <Text style={styles.discoverEmptyText} selectable>
+          {loading ? "Dopasowujemy osoby do Twoich zainteresowan i preferencji." : error ? "Sprawdz polaczenie i sprobuj odswiezyc liste." : "Nie pokazujemy ponownie profili, ktore juz oceniles. Wroc pozniej albo przywroc pominiete karty."}
+        </Text>
+        {!loading && likedCount > 0 && (
+          <View style={styles.discoverEmptyStat}>
+            <MaterialCommunityIcons name="heart-outline" size={18} color={colors.primary} />
+            <Text style={styles.discoverEmptyStatText} selectable>{likedCount} polubien czeka na wzajemnosc</Text>
+          </View>
+        )}
+        {!loading && (
+          <>
+            <Pressable accessibilityRole="button" onPress={onRefresh} style={styles.primaryButton}>
+              <MaterialCommunityIcons name="refresh" size={19} color="#fff" />
+              <Text style={styles.primaryButtonText}>{error ? "Sprobuj ponownie" : "Pokaz pominiete ponownie"}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={onOpenMatches} style={styles.secondaryButtonWide}>
+              <Text style={styles.secondaryButtonText}>Przejdz do matchy</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function MatchCelebration({
+  profile,
+  onContinue,
+  onOpenChat
+}: {
+  profile: MatchProfile | null;
+  onContinue: () => void;
+  onOpenChat: () => void;
+}) {
+  if (!profile) {
+    return null;
+  }
+
+  return (
+    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onContinue}>
+      <View style={styles.matchCelebrationBackdrop}>
+        <LinearGradient colors={["rgba(44,7,28,0.98)", "rgba(5,5,7,0.99)"]} style={styles.matchCelebrationCard}>
+          <View style={styles.matchCelebrationGlow} />
+          <View style={styles.matchCelebrationIcon}>
+            <MaterialCommunityIcons name="heart-multiple" size={34} color="#fff" />
+          </View>
+          <Text style={styles.matchCelebrationKicker} selectable>WZAJEMNE POLUBIENIE</Text>
+          <Text style={styles.matchCelebrationTitle} selectable>To match!</Text>
+          <Text style={styles.matchCelebrationText} selectable>
+            Ty i {profile.name} polubiliscie sie. Rozmowa jest juz odblokowana.
+          </Text>
+          <Image source={profile.image} style={styles.matchCelebrationPhoto} contentFit="cover" />
+          <Pressable accessibilityRole="button" onPress={onOpenChat} style={styles.matchCelebrationPrimary}>
+            <MaterialCommunityIcons name="message-text" size={20} color="#fff" />
+            <Text style={styles.matchCelebrationPrimaryText}>Napisz teraz</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onContinue} style={styles.matchCelebrationSecondary}>
+            <Text style={styles.matchCelebrationSecondaryText}>Odkrywaj dalej</Text>
+          </Pressable>
+        </LinearGradient>
+      </View>
+    </Modal>
+  );
+}
+
+function MatchesScreen({
+  profiles,
+  matchedProfileKeys,
+  likedProfileKeys,
+  chatRequestKeys,
+  onOpenMessages
+}: {
+  profiles: MatchProfile[];
+  matchedProfileKeys: string[];
+  likedProfileKeys: string[];
+  chatRequestKeys: string[];
+  onOpenMessages: () => void;
+}) {
+  const matchedProfiles = profiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile)));
+  const pendingLikes = profiles.filter((profile) => {
     const key = getProfileKey(profile);
-    return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key);
+    return likedProfileKeys.includes(key) && !matchedProfileKeys.includes(key);
   });
+  const pendingRequests = profiles.filter((profile) => {
+    const key = getProfileKey(profile);
+    return chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
+  });
+  const isEmpty = matchedProfiles.length === 0 && pendingLikes.length === 0 && pendingRequests.length === 0;
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Match" title="Nowe iskry" left="<" right="+" />
-      {visibleProfiles.length === 0 ? (
-        <View style={styles.emptyStateCard}>
-          <Text style={styles.emptyStateTitle} selectable>Jeszcze bez matchy</Text>
-          <Text style={styles.emptyStateText} selectable>
-            Polub profil, a gdy druga osoba tez polubi Ciebie, rozmowa pojawi sie w wiadomosciach.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.matchGrid}>
-          {visibleProfiles.map((profile) => {
-            const key = getProfileKey(profile);
-            const isRequest = chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
+      <TopBar eyebrow="Relacje" title="Matche" left="heart-multiple" right="message-text" onRightPress={onOpenMessages} />
 
-            return (
-              <View key={key} style={styles.matchCard}>
+      <View style={styles.matchOverview}>
+        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{matchedProfiles.length}</Text><Text style={styles.matchOverviewLabel}>aktywnych</Text></View>
+        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingLikes.length}</Text><Text style={styles.matchOverviewLabel}>oczekuje</Text></View>
+        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prosby</Text></View>
+      </View>
+
+      {isEmpty && (
+        <View style={styles.emptyStateCard}>
+          <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="heart-outline" size={28} color={colors.primary} /></View>
+          <Text style={styles.emptyStateTitle} selectable>Jeszcze bez polubien</Text>
+          <Text style={styles.emptyStateText} selectable>Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, pojawi sie tutaj aktywny match.</Text>
+        </View>
+      )}
+
+      {matchedProfiles.length > 0 && (
+        <View style={styles.matchSection}>
+          <View style={styles.matchSectionHeader}>
+            <Text style={styles.matchSectionTitle} selectable>Aktywne matche</Text>
+            <Text style={styles.matchSectionCount}>{matchedProfiles.length}</Text>
+          </View>
+          <View style={styles.matchGrid}>
+            {matchedProfiles.map((profile) => (
+              <Pressable key={getProfileKey(profile)} accessibilityRole="button" onPress={onOpenMessages} style={styles.matchCard}>
                 <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
-                <Text style={styles.matchName} selectable>{profile.name}, {profile.age}</Text>
-                <Text style={styles.matchSubtitle} selectable>
-                  {isRequest ? "Prośba o chat wyslana" : profile.interests.slice(0, 2).join(" - ")}
-                </Text>
+                <View style={styles.matchCardCopy}>
+                  <Text style={styles.matchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text>
+                  <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie juz pisac</Text>
+                </View>
+                <View style={styles.matchActiveBadge}><MaterialCommunityIcons name="message-text" size={14} color="#fff" /></View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {pendingLikes.length > 0 && (
+        <View style={styles.matchSection}>
+          <View style={styles.matchSectionHeader}>
+            <Text style={styles.matchSectionTitle} selectable>Polubione profile</Text>
+            <Text style={styles.matchSectionCount}>{pendingLikes.length}</Text>
+          </View>
+          <View style={styles.pendingMatchList}>
+            {pendingLikes.map((profile) => (
+              <View key={getProfileKey(profile)} style={styles.pendingMatchRow}>
+                <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
+                <View style={styles.fill}>
+                  <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                  <Text style={styles.pendingMatchText} selectable>Oczekuje na wzajemne polubienie</Text>
+                </View>
+                <MaterialCommunityIcons name="clock-outline" size={20} color={colors.muted} />
               </View>
-            );
-          })}
+            ))}
+          </View>
+        </View>
+      )}
+
+      {pendingRequests.length > 0 && (
+        <View style={styles.matchSection}>
+          <View style={styles.matchSectionHeader}>
+            <Text style={styles.matchSectionTitle} selectable>Prosby o chat</Text>
+            <Text style={styles.matchSectionCount}>{pendingRequests.length}</Text>
+          </View>
+          <View style={styles.pendingMatchList}>
+            {pendingRequests.map((profile) => (
+              <View key={getProfileKey(profile)} style={styles.pendingMatchRow}>
+                <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
+                <View style={styles.fill}>
+                  <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                  <Text style={styles.pendingMatchText} selectable>Prosba wyslana, czeka na akceptacje</Text>
+                </View>
+                <MaterialCommunityIcons name="message-text-clock-outline" size={20} color={colors.primary} />
+              </View>
+            ))}
+          </View>
         </View>
       )}
     </View>
   );
 }
-
 function MessagesScreen({
+  profiles,
   matchedProfileKeys,
   chatRequestKeys,
   chatThreads,
@@ -2053,6 +2607,7 @@ function MessagesScreen({
   onBlockProfile,
   onReportProfile
 }: {
+  profiles: MatchProfile[];
   matchedProfileKeys: string[];
   chatRequestKeys: string[];
   chatThreads: Record<string, ChatThread>;
@@ -2064,14 +2619,9 @@ function MessagesScreen({
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
 }) {
-  void messageDraft;
-  void setMessageDraft;
-  void onSendMessage;
-  void onBlockProfile;
-  void onReportProfile;
-
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
-  const conversations = matchProfiles
+  const [searchQuery, setSearchQuery] = useState("");
+  const conversations = profiles
     .filter((profile) => {
       const key = getProfileKey(profile);
       return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key) || Boolean(chatThreads[key]);
@@ -2090,7 +2640,7 @@ function MessagesScreen({
         name: profile.name + " " + profile.surname[0] + ".",
         message: isBlocked
           ? "Profil zablokowany."
-          : lastMessage ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Premium prośba o chat czeka na akceptację."),
+          : lastMessage ?? (isMatched ? "Match aktywny - mozecie pisac." : thread?.introMessage ?? "Prosba o chat czeka na akceptacje."),
         time: isMatched ? "teraz" : "oczekuje",
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
@@ -2099,22 +2649,27 @@ function MessagesScreen({
   const requestConversations = conversations.filter((conversation) => conversation.status === "requested");
   const chatConversations = conversations.filter((conversation) => conversation.status !== "requested");
   const unreadChatsCount = chatConversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
-  const visibleConversations = messageView === "chats" ? chatConversations : requestConversations;
-  const selectedVisibleKey = visibleConversations.some((conversation) => conversation.key === selectedChatKey) ? selectedChatKey : null;
-  const emptyTitle = messageView === "chats" ? "Brak aktywnych chatów" : "Brak nowych próśb";
-  const emptyText = messageView === "chats"
-    ? "Chat pojawi się tutaj po matchu albo zaakceptowanej prośbie."
-    : "Pierwsze wiadomości od profili premium będą czekały tutaj osobno.";
+  const sourceConversations = messageView === "chats" ? chatConversations : requestConversations;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const visibleConversations = sourceConversations.filter((conversation) =>
+    !normalizedQuery || conversation.name.toLowerCase().includes(normalizedQuery) || conversation.message.toLowerCase().includes(normalizedQuery)
+  );
+  const selectedConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? null;
+  const emptyTitle = normalizedQuery ? "Brak wynikow" : messageView === "chats" ? "Brak aktywnych chatow" : "Brak nowych prosb";
+  const emptyText = normalizedQuery
+    ? "Sprobuj wpisac inne imie lub fragment wiadomosci."
+    : messageView === "chats"
+      ? "Chat pojawi sie tutaj po wzajemnym matchu."
+      : "Prosby o rozmowe czekaja tutaj osobno do czasu akceptacji.";
 
   function selectMessageView(nextView: "chats" | "requests") {
     setMessageView(nextView);
-    const nextList = nextView === "chats" ? chatConversations : requestConversations;
-    setSelectedChatKey(nextList[0]?.key ?? null);
+    setSelectedChatKey(null);
   }
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Wiadomości" title="Rozmowy" left="=" right="+" />
+      <TopBar eyebrow="Wiadomosci" title="Rozmowy" left="=" right="message-text" />
       <View style={styles.chatToggleRow}>
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
@@ -2123,28 +2678,41 @@ function MessagesScreen({
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
-          <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prośby</Text>
+          <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prosby</Text>
           <Text style={[styles.chatToggleCount, messageView === "requests" && styles.chatToggleCountActive]} selectable>{requestConversations.length}</Text>
         </Pressable>
       </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats" ? unreadChatsCount + " nieodczytane w chatach" : requestConversations.length + " prośby czekają osobno"}
+          {messageView === "chats" ? unreadChatsCount + " nieodczytane" : requestConversations.length + " oczekujace"}
         </Text>
       </View>
       <View style={styles.searchField}>
         <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
-        <TextInput placeholder={messageView === "chats" ? "Szukaj chatów" : "Szukaj próśb"} placeholderTextColor={colors.muted} style={styles.searchInput} />
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCorrect={false}
+          placeholder={messageView === "chats" ? "Szukaj chatow" : "Szukaj prosb"}
+          placeholderTextColor={colors.muted}
+          style={styles.searchInput}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Wyczysc wyszukiwanie" onPress={() => setSearchQuery("")}>
+            <MaterialCommunityIcons name="close-circle" size={19} color={colors.muted} />
+          </Pressable>
+        )}
       </View>
       {visibleConversations.length === 0 ? (
         <View style={styles.emptyStateCard}>
+          <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="message-outline" size={27} color={colors.primary} /></View>
           <Text style={styles.emptyStateTitle} selectable>{emptyTitle}</Text>
           <Text style={styles.emptyStateText} selectable>{emptyText}</Text>
         </View>
       ) : (
         <View style={styles.chatList}>
           {visibleConversations.map((conversation) => (
-            <Pressable key={conversation.key} onPress={() => setSelectedChatKey(conversation.key)} style={[styles.chatItem, selectedVisibleKey === conversation.key && styles.chatItemActive]}>
+            <Pressable key={conversation.key} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
               <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
               <View style={styles.fill}>
                 <Text style={styles.chatName} selectable>{conversation.name}</Text>
@@ -2158,10 +2726,161 @@ function MessagesScreen({
           ))}
         </View>
       )}
+
+      <ChatConversationModal
+        conversation={selectedConversation}
+        thread={selectedConversation ? chatThreads[selectedConversation.key] : undefined}
+        draft={messageDraft}
+        setDraft={setMessageDraft}
+        onClose={() => setSelectedChatKey(null)}
+        onSend={onSendMessage}
+        onBlock={onBlockProfile}
+        onReport={onReportProfile}
+      />
     </View>
   );
 }
 
+function ChatConversationModal({
+  conversation,
+  thread,
+  draft,
+  setDraft,
+  onClose,
+  onSend,
+  onBlock,
+  onReport
+}: {
+  conversation: { key: string; profile: MatchProfile; name: string; status: ChatStatus } | null;
+  thread?: ChatThread;
+  draft: string;
+  setDraft: (value: string) => void;
+  onClose: () => void;
+  onSend: (profileKey: string, text: string) => void;
+  onBlock: (profileKey: string) => void;
+  onReport: (profileKey: string) => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const messages = thread?.messages ?? [];
+  const canMessage = conversation?.status === "matched";
+  const local = StyleSheet.create({
+    root: { flex: 1, backgroundColor: "#050507" },
+    header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
+    back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
+    avatar: { width: 42, height: 42, borderRadius: 14, borderCurve: "continuous" },
+    name: { color: colors.ink, fontSize: 15, fontWeight: "900" },
+    status: { marginTop: 2, color: colors.green, fontSize: 10, fontWeight: "800" },
+    headerActions: { flexDirection: "row", gap: 7 },
+    headerAction: { width: 38, height: 38, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    messages: { flexGrow: 1, justifyContent: messages.length === 0 ? "center" : "flex-end", gap: 9, paddingHorizontal: 14, paddingVertical: 18 },
+    empty: { alignItems: "center", gap: 9, padding: 24 },
+    emptyIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+    emptyTitle: { color: colors.ink, fontSize: 17, fontWeight: "900", textAlign: "center" },
+    emptyText: { maxWidth: 300, color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "700" },
+    bubble: { maxWidth: "82%", paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18 },
+    bubbleMe: { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 6 },
+    bubbleThem: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.08)", borderBottomLeftRadius: 6 },
+    bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20, fontWeight: "600" },
+    bubbleTime: { marginTop: 4, color: "rgba(255,255,255,0.64)", fontSize: 9, fontWeight: "700", textAlign: "right" },
+    pending: { margin: 14, gap: 5, padding: 14, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.09)", borderWidth: 1, borderColor: "rgba(255,45,141,0.16)" },
+    pendingTitle: { color: colors.ink, fontSize: 13, fontWeight: "900" },
+    pendingText: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
+    composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(5,5,7,0.96)" },
+    input: { flex: 1, minHeight: 46, maxHeight: 110, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, color: colors.ink, backgroundColor: "rgba(255,255,255,0.07)", fontSize: 14 },
+    send: { width: 46, height: 46, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    sendDisabled: { opacity: 0.4 }
+  });
+
+  if (!conversation) {
+    return null;
+  }
+
+  const activeConversation = conversation;
+
+  function confirmBlock() {
+    Alert.alert("Zablokuj profil", `Czy na pewno chcesz zablokowac ${activeConversation.name}?`, [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Zablokuj", style: "destructive", onPress: () => { onBlock(activeConversation.key); onClose(); } }
+    ]);
+  }
+
+  function confirmReport() {
+    Alert.alert("Zglos profil", `Wyslac zgloszenie dotyczace ${activeConversation.name}?`, [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Zglos", onPress: () => onReport(activeConversation.key) }
+    ]);
+  }
+
+  function send() {
+    if (!draft.trim() || !canMessage) {
+      return;
+    }
+    onSend(activeConversation.key, draft);
+  }
+
+  return (
+    <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined} style={local.root}>
+        <StatusBar style="light" />
+        <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Wroc" onPress={onClose} style={local.back}>
+            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+          </Pressable>
+          <Image source={activeConversation.profile.image} style={local.avatar} contentFit="cover" />
+          <View style={styles.fill}>
+            <Text style={local.name} selectable>{activeConversation.name}</Text>
+            <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptacje"}</Text>
+          </View>
+          <View style={local.headerActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Zglos" onPress={confirmReport} style={local.headerAction}>
+              <MaterialCommunityIcons name="alert-outline" size={19} color={colors.primaryDeep} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Zablokuj" onPress={confirmBlock} style={local.headerAction}>
+              <MaterialCommunityIcons name="block-helper" size={18} color="#ff6b7a" />
+            </Pressable>
+          </View>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.messages} keyboardShouldPersistTaps="handled">
+          {messages.length === 0 ? (
+            <View style={local.empty}>
+              <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
+              <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmowe" : "Prosba oczekuje"}</Text>
+              <Text style={local.emptyText} selectable>{canMessage ? "Napisz pierwsza wiadomosc i nawiaz kontakt." : "Wiadomosci odblokuja sie po zaakceptowaniu prosby."}</Text>
+            </View>
+          ) : messages.map((message) => (
+            <View key={message.id} style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
+              <Text style={local.bubbleText} selectable>{message.text}</Text>
+              <Text style={local.bubbleTime}>{message.time}</Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        {!canMessage ? (
+          <View style={[local.pending, { marginBottom: Math.max(insets.bottom, 12) }]}>
+            <Text style={local.pendingTitle} selectable>Rozmowa jeszcze zablokowana</Text>
+            <Text style={local.pendingText} selectable>Druga osoba musi zaakceptowac prosbe albo odwzajemnic polubienie.</Text>
+          </View>
+        ) : (
+          <View style={[local.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              multiline
+              autoCorrect
+              placeholder="Napisz wiadomosc..."
+              placeholderTextColor={colors.muted}
+              style={local.input}
+            />
+            <Pressable accessibilityRole="button" accessibilityLabel="Wyslij" disabled={!draft.trim()} onPress={send} style={[local.send, !draft.trim() && local.sendDisabled]}>
+              <MaterialCommunityIcons name="send" size={20} color="#fff" />
+            </Pressable>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
 function PremiumScreen({
   premiumPlan,
   setPremiumPlan,
@@ -2320,7 +3039,8 @@ function ProfileScreen({
   hasPro,
   openPremium,
   openCustomerCenter,
-  openSafety
+  openSafety,
+  onSave
 }: {
   firstName: string;
   setFirstName: (value: string) => void;
@@ -2343,9 +3063,11 @@ function ProfileScreen({
   openPremium: () => void;
   openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
+  onSave: () => Promise<boolean>;
 }) {
+  const [saveBusy, setSaveBusy] = useState(false);
   const maxPhotos = hasPro ? 15 : 3;
-  const previewPhoto = profilePhotos[0] ?? profileImages[4];
+  const previewPhoto = profilePhotos[0] ?? brandLogoImage;
   const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
   const profileStatusRows = [
     [String(profilePhotos.length) + "/" + String(maxPhotos), "zdjęcia"],
@@ -2385,6 +3107,12 @@ function ProfileScreen({
     setProfilePhotos(next.slice(0, maxPhotos));
   }
 
+  async function handleSaveProfile() {
+    setSaveBusy(true);
+    const saved = await onSave();
+    setSaveBusy(false);
+    Alert.alert(saved ? "Profil zapisany" : "Nie udalo sie zapisac", saved ? "Zmiany sa juz widoczne w Twoim profilu." : "Sprawdz polaczenie i sprobuj ponownie.");
+  }
   return (
     <View style={styles.profileScreen}>
       <TopBar eyebrow="Profil" title="Twoja karta" left="shield-check" right={pushEnabled ? "bell" : "bell-outline"} onLeftPress={openSafety} onRightPress={() => setPushEnabled(!pushEnabled)} />
@@ -2503,8 +3231,13 @@ function ProfileScreen({
             }
           }}
         />
-        <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
+        <SettingRow label="Bezpieczenstwo" value="Otworz" onPress={openSafety} />
       </View>
+
+      <Pressable accessibilityRole="button" disabled={saveBusy} onPress={() => void handleSaveProfile()} style={[styles.primaryButton, saveBusy && styles.primaryButtonDisabled]}>
+        <MaterialCommunityIcons name="content-save" size={19} color="#fff" />
+        <Text style={styles.primaryButtonText}>{saveBusy ? "Zapisywanie..." : "Zapisz zmiany"}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -2770,7 +3503,7 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
         <View style={styles.safetyHeroIcon}><MaterialCommunityIcons name={"shield-heart" as any} size={28} color={colors.primaryDeep} /></View>
         <Text style={styles.safetyHeroTitle} selectable>Bezpieczne poznawanie ludzi</Text>
         <Text style={styles.safetyHeroText} selectable>
-          Każdy profil może zostać zgłoszony lub zablokowany. Te akcje powinny trafić do backendu moderacji przed publiczną premierą.
+          Każdy profil może zostać zgłoszony lub zablokowany. Zgloszenia trafiaja do moderacji, a blokada natychmiast ukrywa profil i przerywa kontakt.
         </Text>
       </View>
 
@@ -2847,6 +3580,14 @@ function getIconName(label: string) {
 }
 
 function IconButton({ label, onPress }: { label: string; onPress?: () => void }) {
+  if (!onPress) {
+    return (
+      <View style={[styles.iconButton, styles.iconButtonStatic]}>
+        <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
+      </View>
+    );
+  }
+
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.iconButton}>
       <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
@@ -2943,6 +3684,9 @@ const styles = StyleSheet.create({
     boxShadow: "0 0 120px rgba(255,45,141,0.32)"
   },
   scroll: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
     flexGrow: 1,
     gap: 18
   },
@@ -3346,6 +4090,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 58,
+    flexDirection: "row",
+    gap: 8,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -3412,10 +4158,62 @@ const styles = StyleSheet.create({
   discoverScreen: {
     flex: 1,
     width: "100%",
-    gap: 12,
-    paddingTop: 8,
+    gap: 10,
+    paddingTop: 2,
     paddingHorizontal: 0,
     paddingBottom: 0
+  },
+  discoverEmptyScreen: {
+    gap: 14
+  },
+  discoverEmptyBody: {
+    flex: 1,
+    maxWidth: 420,
+    width: "100%",
+    alignSelf: "center",
+    justifyContent: "center",
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 42
+  },
+  discoverEmptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,45,141,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  discoverEmptyTitle: {
+    color: colors.ink,
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "900"
+  },
+  discoverEmptyText: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "700"
+  },
+  discoverEmptyStat: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingHorizontal: 13,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,45,141,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.14)"
+  },
+  discoverEmptyStatText: {
+    flex: 1,
+    color: "#f0d3dd",
+    fontSize: 12,
+    fontWeight: "800"
   },
   stitchTopActions: {
     flexDirection: "row",
@@ -3509,12 +4307,24 @@ const styles = StyleSheet.create({
     color: "#fff"
   },
   stitchMainCanvas: {
+    position: "relative",
     flex: 1,
-    minHeight: 510,
+    minHeight: 460,
     justifyContent: "flex-end"
   },
   swipeCardMotion: {
-    flex: 1
+    flex: 1,
+    zIndex: 2
+  },
+  nextProfileCard: {
+    position: "absolute",
+    top: 12,
+    left: 10,
+    right: 10,
+    bottom: 14,
+    zIndex: 1,
+    opacity: 0.42,
+    transform: [{ scale: 0.965 }]
   },
   swipeCue: {
     position: "absolute",
@@ -3535,11 +4345,57 @@ const styles = StyleSheet.create({
     right: 24,
     transform: [{ rotate: "12deg" }]
   },
+  swipeCueLike: {
+    borderColor: colors.green,
+    backgroundColor: "rgba(8,32,20,0.78)"
+  },
   swipeCueText: {
     color: colors.primary,
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1.2
+  },
+  swipeCueTextLike: {
+    color: colors.green
+  },
+  deckCounter: {
+    position: "absolute",
+    right: 18,
+    bottom: 106,
+    zIndex: 8,
+    minHeight: 28,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "rgba(5,5,7,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)"
+  },
+  deckCounterText: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"]
+  },
+  swipeFeedback: {
+    position: "absolute",
+    top: 16,
+    alignSelf: "center",
+    zIndex: 30,
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,45,141,0.94)",
+    boxShadow: "0 12px 28px rgba(255,45,141,0.34)"
+  },
+  swipeFeedbackText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900"
   },
   stitchBottomPanel: {
     position: "absolute",
@@ -3853,7 +4709,7 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   topBar: {
-    minHeight: 72,
+    minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -3875,8 +4731,8 @@ const styles = StyleSheet.create({
     height: 18
   },
   iconButton: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -3884,6 +4740,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.28)",
     boxShadow: "0 10px 24px rgba(255,45,141,0.1)"
+  },
+  iconButtonStatic: {
+    opacity: 0.72,
+    backgroundColor: "rgba(18,18,24,0.54)"
   },
   iconButtonText: {
     color: colors.ink,
@@ -3926,7 +4786,7 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     flex: 1,
-    minHeight: 520,
+    minHeight: 450,
     maxHeight: 760,
     width: "100%",
     overflow: "hidden",
@@ -4385,36 +5245,138 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: "700"
   },
+  matchOverview: {
+    flexDirection: "row",
+    gap: 8
+  },
+  matchOverviewItem: {
+    flex: 1,
+    minHeight: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  matchOverviewValue: {
+    color: colors.primary,
+    fontSize: 21,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"]
+  },
+  matchOverviewLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  matchSection: {
+    gap: 10
+  },
+  matchSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 3
+  },
+  matchSectionTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  matchSectionCount: {
+    overflow: "hidden",
+    minWidth: 26,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    color: colors.primary,
+    backgroundColor: colors.primarySoft,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"]
+  },
   matchGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14
+    gap: 12
   },
   matchCard: {
+    position: "relative",
     width: "48%",
-    minHeight: 286,
     overflow: "hidden",
-    borderRadius: 28,
+    borderRadius: 22,
     borderCurve: "continuous",
     backgroundColor: colors.surfaceStrong,
-    boxShadow: "0 16px 34px rgba(99,51,61,0.08)"
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    boxShadow: "0 16px 34px rgba(0,0,0,0.26)"
   },
   matchImage: {
     width: "100%",
     aspectRatio: 4 / 5
   },
+  matchCardCopy: {
+    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 11
+  },
   matchName: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
     color: colors.ink,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900"
   },
   matchSubtitle: {
-    paddingHorizontal: 14,
-    paddingTop: 4,
     color: colors.muted,
-    fontSize: 13
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "700"
+  },
+  matchActiveBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    boxShadow: "0 8px 20px rgba(255,45,141,0.34)"
+  },
+  pendingMatchList: {
+    gap: 8
+  },
+  pendingMatchRow: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  pendingMatchAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 17,
+    borderCurve: "continuous"
+  },
+  pendingMatchName: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  pendingMatchText: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "700"
   },
   searchField: {
     minHeight: 52,
@@ -4715,6 +5677,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)",
     boxShadow: "0 16px 34px rgba(99,51,61,0.08)"
+  },
+  emptyStateIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft
   },
   emptyStateTitle: {
     color: colors.ink,
@@ -5530,7 +6500,101 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900"
   },
-  bottomNav: {
+  matchCelebrationBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "rgba(0,0,0,0.78)"
+  },
+  matchCelebrationCard: {
+    width: "100%",
+    maxWidth: 420,
+    alignItems: "center",
+    gap: 12,
+    overflow: "hidden",
+    paddingHorizontal: 22,
+    paddingTop: 28,
+    paddingBottom: 22,
+    borderRadius: 30,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.36)",
+    boxShadow: "0 28px 80px rgba(255,45,141,0.28)"
+  },
+  matchCelebrationGlow: {
+    position: "absolute",
+    top: -90,
+    width: 260,
+    height: 180,
+    borderRadius: 100,
+    backgroundColor: "rgba(255,45,141,0.28)",
+    boxShadow: "0 0 90px rgba(255,45,141,0.48)"
+  },
+  matchCelebrationIcon: {
+    width: 66,
+    height: 66,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    boxShadow: "0 12px 32px rgba(255,45,141,0.42)"
+  },
+  matchCelebrationKicker: {
+    color: colors.primaryDeep,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.1
+  },
+  matchCelebrationTitle: {
+    color: "#fff",
+    fontSize: 36,
+    lineHeight: 41,
+    fontWeight: "900"
+  },
+  matchCelebrationText: {
+    maxWidth: 320,
+    color: "#e8c7d5",
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: "center",
+    fontWeight: "700"
+  },
+  matchCelebrationPhoto: {
+    width: 126,
+    height: 158,
+    marginVertical: 4,
+    borderRadius: 24,
+    borderCurve: "continuous",
+    borderWidth: 3,
+    borderColor: colors.primary
+  },
+  matchCelebrationPrimary: {
+    width: "100%",
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  matchCelebrationPrimaryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  matchCelebrationSecondary: {
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18
+  },
+  matchCelebrationSecondaryText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "900"
+  },  bottomNav: {
     position: "absolute",
     left: 12,
     right: 12,

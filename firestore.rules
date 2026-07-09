@@ -39,6 +39,17 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    match /swipes/{swipeId} {
+      allow create, update: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toProfileKey is string
+        && request.resource.data.direction in ["pass", "like", "superlike"];
+      allow read: if signedIn() && (
+        resource.data.fromUid == request.auth.uid ||
+        resource.data.toProfileKey == request.auth.uid
+      );
+      allow delete: if false;
+    }
     match /matches/{matchId} {
       allow create: if signedIn()
         && request.auth.uid in request.resource.data.memberUids;

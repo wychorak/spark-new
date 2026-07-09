@@ -6,7 +6,6 @@ import {
   getDocs,
   increment,
   limit,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -152,7 +151,7 @@ export async function findProfilesByInterest(interests: string[]) {
   const profilesQuery = query(
     collection(currentDb, "users"),
     where("interests", "array-contains-any", interests.slice(0, 10)),
-    orderBy("updatedAt", "desc"),
+    where("privateProfile", "==", false),
     limit(25)
   );
 
@@ -176,6 +175,76 @@ export async function createReport(params: {
   });
 
   return reportRef.id;
+}
+
+export async function recordProfileSwipe(params: {
+  swipeId: string;
+  fromUid: string;
+  toProfileKey: string;
+  direction: "pass" | "like" | "superlike";
+  matchScore?: number;
+}) {
+  const currentDb = requireDb();
+  const swipeRef = doc(currentDb, "swipes", params.swipeId);
+
+  await setDoc(
+    swipeRef,
+    {
+      fromUid: params.fromUid,
+      toProfileKey: params.toProfileKey,
+      direction: params.direction,
+      status: params.direction === "pass" ? "passed" : "liked",
+      matchScore: params.matchScore ?? null,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  return swipeRef.id;
+}
+export async function hasIncomingProfileLike(params: {
+  swipeId: string;
+  fromUid: string;
+  toUid: string;
+}) {
+  const currentDb = requireDb();
+  const snapshot = await getDoc(doc(currentDb, "swipes", params.swipeId));
+
+  if (!snapshot.exists()) {
+    return false;
+  }
+
+  const data = snapshot.data();
+  return data.fromUid === params.fromUid && data.toProfileKey === params.toUid && data.status === "liked";
+}
+
+export async function findOutgoingProfileSwipes(fromUid: string) {
+  const currentDb = requireDb();
+  const snapshot = await getDocs(
+    query(collection(currentDb, "swipes"), where("fromUid", "==", fromUid), limit(250))
+  );
+
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as {
+    id: string;
+    fromUid: string;
+    toProfileKey: string;
+    status: "liked" | "passed";
+    direction: "pass" | "like" | "superlike";
+  }));
+}
+
+export async function findMatchThreadsForUser(uid: string) {
+  const currentDb = requireDb();
+  const snapshot = await getDocs(
+    query(collection(currentDb, "matches"), where("memberUids", "array-contains", uid), limit(100))
+  );
+
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as {
+    id: string;
+    memberUids: string[];
+    status: "matched" | "requested";
+  }));
 }
 
 export async function createMatchThread(params: {

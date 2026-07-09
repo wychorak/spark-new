@@ -9,8 +9,8 @@
           "arrayConfig": "CONTAINS"
         },
         {
-          "fieldPath": "updatedAt",
-          "order": "DESCENDING"
+          "fieldPath": "privateProfile",
+          "order": "ASCENDING"
         }
       ]
     }
