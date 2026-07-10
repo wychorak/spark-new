@@ -1,5 +1,8 @@
 import { useCallback } from "react";
 
+export function useGoogleMobileAds(_enabled: boolean) {
+  return false;
+}
 export function useSwipeInterstitialAds(_enabled: boolean) {
   return useCallback(() => undefined, []);
 }
