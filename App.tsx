@@ -3028,6 +3028,8 @@ function PremiumScreen({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const selectedPlan = premiumPlans.find((plan) => plan.id === premiumPlan) ?? premiumPlans[1];
   const hasPackages = revenueCat.packages.length > 0;
+  const getPlanPrice = (planId: SparkPlanId, fallback: string) => revenueCat.prices[planId] ?? (revenueCat.configured ? "-" : fallback);
+  const selectedPlanPrice = getPlanPrice(premiumPlan, selectedPlan.price);
   const primaryDisabled = busyAction !== null || revenueCat.isPro;
   const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
     weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Dobry start" },
@@ -3115,7 +3117,7 @@ function PremiumScreen({
             <Pressable key={plan.id} onPress={() => setPremiumPlan(plan.id)} style={[local.tierCard, active && local.tierActive]}>
               {card.badge ? <View style={local.bestRibbon}><Text style={local.bestText} numberOfLines={1}>{card.badge}</Text></View> : <View style={{ minHeight: 18 }} />}
               <Text style={[local.tierLabel, active && local.tierLabelActive]} numberOfLines={1} selectable>{card.label}</Text>
-              <Text style={local.tierPrice} numberOfLines={1} selectable>{plan.price}</Text>
+              <Text style={local.tierPrice} numberOfLines={1} selectable>{getPlanPrice(plan.id, plan.price)}</Text>
               <Text style={local.tierPeriod} numberOfLines={1} selectable>{card.period}</Text>
               <Text style={local.tierAccent} numberOfLines={1} selectable>{card.helper}</Text>
               <View style={[local.selectedPill, active && local.selectedPillActive]}>
@@ -3149,7 +3151,7 @@ function PremiumScreen({
       )}
       <Pressable disabled={primaryDisabled} onPress={buySelectedPlan} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
         <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
-        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Laczenie..." : !hasPackages ? "Otworz paywall Pro" : "Kontynuuj za " + selectedPlan.price}</Text>
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Laczenie..." : !hasPackages ? "Otworz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
       </Pressable>
     </View>
   );

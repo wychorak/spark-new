@@ -21,6 +21,7 @@ export type RevenueCatState = {
   isPro: boolean;
   customerInfo: null;
   packages: [];
+  prices: Partial<Record<SparkPlanId, string>>;
   error: string | null;
   refreshCustomerInfo: () => Promise<null>;
   purchasePlan: (planId: SparkPlanId) => Promise<RevenueCatActionResult>;
@@ -51,6 +52,7 @@ export function useRevenueCat(_appUserId: string | null): RevenueCatState {
       isPro: false,
       customerInfo: null,
       packages: [],
+      prices: {},
       error: null,
       refreshCustomerInfo,
       purchasePlan: unavailable,

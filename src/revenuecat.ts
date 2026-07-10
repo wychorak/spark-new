@@ -32,6 +32,7 @@ export type RevenueCatState = {
   isPro: boolean;
   customerInfo: CustomerInfo | null;
   packages: PurchasesPackage[];
+  prices: Partial<Record<SparkPlanId, string>>;
   error: string | null;
   refreshCustomerInfo: () => Promise<CustomerInfo | null>;
   purchasePlan: (planId: SparkPlanId) => Promise<RevenueCatActionResult>;
@@ -115,6 +116,13 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const previousUserId = useRef<string | null>(null);
+  const prices = useMemo(() => (
+    (Object.keys(revenueCatProductIds) as SparkPlanId[]).reduce<Partial<Record<SparkPlanId, string>>>((result, planId) => {
+      const product = matchPackageForPlan(packages, planId)?.product;
+      if (product?.priceString) result[planId] = product.priceString;
+      return result;
+    }, {})
+  ), [packages]);
 
   const refreshCustomerInfo = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -310,6 +318,7 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
       isPro: hasSparknewPro(customerInfo),
       customerInfo,
       packages,
+      prices,
       error,
       refreshCustomerInfo,
       purchasePlan,
@@ -324,6 +333,7 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
       isLoading,
       openCustomerCenter,
       packages,
+      prices,
       presentPaywallIfNeeded,
       purchasePlan,
       refreshCustomerInfo,
