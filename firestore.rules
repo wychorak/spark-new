@@ -24,6 +24,10 @@ service cloud.firestore {
     }
 
 
+
+    match /privateProfiles/{uid} {
+      allow read, create, update, delete: if isOwner(uid);
+    }
     match /accountDeletions/{uid} {
       allow create, update: if isOwner(uid)
         && request.resource.data.uid == request.auth.uid

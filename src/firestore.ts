@@ -17,6 +17,8 @@ export type UserProfileDocument = {
   uid: string;
   firstName: string;
   lastName: string;
+  profileNameMode?: "realName" | "nickname";
+  nickname?: string;
   email: string | null;
   displayName?: string | null;
   intent: string;
@@ -29,6 +31,10 @@ export type UserProfileDocument = {
   loginCount?: number;
   lastLoginAt?: unknown;
   city?: string;
+  country?: string;
+  desiredAgeMin?: number;
+  desiredAgeMax?: number;
+  requireCommonInterests?: boolean;
   location?: {
     latitude: number;
     longitude: number;
@@ -103,7 +109,7 @@ export async function recordUserLogin(params: {
             lastName,
             intent: "Randki",
             ageBand: params.authProvider === "demo" ? "18+" : null,
-            interests: ["Filmy", "Natura", "Kawa", "Sztuka"],
+            interests: [],
             premiumPlan: "free",
             privateProfile: false,
             onboardingComplete: false,
@@ -112,6 +118,25 @@ export async function recordUserLogin(params: {
     },
     { merge: true }
   );
+}
+
+export type UserPrivateSettingsDocument = {
+  birthDate?: string;
+};
+
+export async function upsertUserPrivateSettings(uid: string, settings: UserPrivateSettingsDocument) {
+  const currentDb = requireDb();
+  await setDoc(
+    doc(currentDb, "privateProfiles", uid),
+    { ...settings, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+export async function getUserPrivateSettings(uid: string) {
+  const currentDb = requireDb();
+  const snapshot = await getDoc(doc(currentDb, "privateProfiles", uid));
+  return snapshot.exists() ? (snapshot.data() as UserPrivateSettingsDocument) : null;
 }
 
 export async function getUserProfile(uid: string) {
@@ -128,6 +153,7 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
   const currentDb = requireDb();
   const deletionRef = doc(currentDb, "accountDeletions", params.uid);
   const profileRef = doc(currentDb, "users", params.uid);
+  const privateProfileRef = doc(currentDb, "privateProfiles", params.uid);
 
   await setDoc(
     deletionRef,
@@ -141,7 +167,7 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
     { merge: true }
   );
 
-  await deleteDoc(profileRef);
+  await Promise.all([deleteDoc(profileRef), deleteDoc(privateProfileRef)]);
 }
 
 export async function findProfilesByInterest(interests: string[]) {

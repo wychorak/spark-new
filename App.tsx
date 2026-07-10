@@ -39,16 +39,19 @@ import {
   findOutgoingProfileSwipes,
   findProfilesByInterest,
   getUserProfile,
+  getUserPrivateSettings,
   hasIncomingProfileLike,
   recordProfileSwipe,
   recordUserLogin,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
-  upsertUserProfile
+  upsertUserProfile,
+  upsertUserPrivateSettings
 } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
+import { uploadProfilePhotos } from "./src/profile-storage";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -141,12 +144,13 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
-type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
+type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; requireCommonInterests: boolean; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
 type AgeBand = "18+" | "under18" | null;
 type ProfilePhoto = number | string;
+type ProfileNameMode = "realName" | "nickname";
 type ChatStatus = "matched" | "requested" | "blocked";
 type SocialIconFamily = "fontAwesome" | "fontAwesome5" | "material";
 
@@ -163,6 +167,7 @@ type MatchProfile = {
   surname: string;
   age: number;
   city: string;
+  country?: string;
   bio: string;
   distance: string;
   latitude: number;
@@ -376,7 +381,10 @@ function getFeaturedInterests(profile: MatchProfile) {
 
 function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const id = typeof item.id === "string" ? item.id : null;
-  const name = typeof item.firstName === "string" ? item.firstName.trim() : "";
+  const nameMode = item.profileNameMode === "nickname" ? "nickname" : "realName";
+  const nickname = typeof item.nickname === "string" ? item.nickname.trim() : "";
+  const firstName = typeof item.firstName === "string" ? item.firstName.trim() : "";
+  const name = nameMode === "nickname" && nickname ? nickname : firstName;
   const surname = typeof item.lastName === "string" ? item.lastName.trim() : "";
   const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string") : [];
   const photoUrls = Array.isArray(item.photoUrls) ? item.photoUrls.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
@@ -401,6 +409,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     surname,
     age: typeof item.age === "number" ? Math.max(18, Math.min(99, Math.round(item.age))) : 18,
     city: typeof item.city === "string" && item.city.trim() ? item.city.trim() : "Twoja okolica",
+    country: typeof item.country === "string" && item.country.trim() ? item.country.trim() : undefined,
     bio: typeof item.bio === "string" && item.bio.trim() ? item.bio.trim() : "Nowy profil w Spark. Poznajcie sie przez wspolne zainteresowania.",
     distance: locationAvailable ? "w poblizu" : "Twoja okolica",
     latitude,
@@ -418,41 +427,39 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined
   };
 }
+function formatBirthDateInput(value: string) {
+  const digits = value.replace(/[^0-9]/g, "").slice(0, 8);
+  return [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)].filter(Boolean).join("-");
+}
+
+function calculateAge(birthDate: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return null;
+  const [year, month, day] = birthDate.split("-").map(Number);
+  const parsed = new Date(year, month - 1, day);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return null;
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+  return age >= 0 && age <= 120 ? age : null;
+}
+
+function getProfileDisplayName(mode: ProfileNameMode, nickname: string, firstName: string, lastName: string) {
+  if (mode === "nickname" && nickname.trim()) return nickname.trim();
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twoj profil";
+}
+
 function degreesToRadians(value: number) {
   return (value * Math.PI) / 180;
 }
 
 function getApproxDistanceLabel(userLocation: UserLocation | null, profile: MatchProfile) {
-  if (profile.locationAvailable === false) {
-    return profile.city || "Twoja okolica";
-  }
-
-  if (!userLocation) {
-    return profile.distance;
-  }
-
-  const earthRadiusKm = 6371;
-  const latitudeDelta = degreesToRadians(profile.latitude - userLocation.latitude);
-  const longitudeDelta = degreesToRadians(profile.longitude - userLocation.longitude);
-  const startLatitude = degreesToRadians(userLocation.latitude);
-  const endLatitude = degreesToRadians(profile.latitude);
-  const haversine =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDelta / 2) ** 2;
-  const distanceKm = 2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-
-  return `${Math.max(1, Math.round(distanceKm))} km`;
+  const distanceKm = getDistanceKm(userLocation, profile);
+  if (distanceKm === null) return [profile.city, profile.country].filter(Boolean).join(", ") || "Lokalizacja ukryta";
+  return Math.max(1, Math.round(distanceKm)) + " km";
 }
 
-function getDistanceKm(userLocation: UserLocation | null, profile: MatchProfile) {
-  if (profile.locationAvailable === false) {
-    return 25;
-  }
-
-  if (!userLocation) {
-    return Number(profile.distance.replace(/[^0-9]/g, "")) || 25;
-  }
-
+function getDistanceKm(userLocation: UserLocation | null, profile: MatchProfile): number | null {
+  if (!userLocation || profile.locationAvailable === false) return null;
   const earthRadiusKm = 6371;
   const latitudeDelta = degreesToRadians(profile.latitude - userLocation.latitude);
   const longitudeDelta = degreesToRadians(profile.longitude - userLocation.longitude);
@@ -461,7 +468,6 @@ function getDistanceKm(userLocation: UserLocation | null, profile: MatchProfile)
   const haversine =
     Math.sin(latitudeDelta / 2) ** 2 +
     Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDelta / 2) ** 2;
-
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
@@ -474,7 +480,7 @@ function scoreProfileMatch(params: {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
   const interestScore = params.selectedInterests.length > 0 ? Math.min(52, sharedInterests.length * 17) : 26;
-  const distanceScore = distanceKm <= 5 ? 24 : distanceKm <= 15 ? 18 : distanceKm <= 35 ? 12 : 6;
+  const distanceScore = distanceKm === null ? 8 : distanceKm <= 5 ? 24 : distanceKm <= 15 ? 18 : distanceKm <= 35 ? 12 : 6;
   const ageGap = Math.abs(params.profile.age - params.userAge);
   const ageScore = ageGap <= 3 ? 15 : ageGap <= 7 ? 11 : ageGap <= 12 ? 7 : 3;
   const inTheirRange =
@@ -487,7 +493,7 @@ function scoreProfileMatch(params: {
     sharedInterests.length > 0
       ? `${sharedInterests.length} wspolne: ${sharedInterests.slice(0, 2).join(" + ")}`
       : "profil spoza Twojej banki",
-    `${Math.max(1, Math.round(distanceKm))} km od Ciebie`,
+    distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie",
     inTheirRange ? "pasujesz do preferowanego wieku" : "warto poznac bliżej"
   ];
 
@@ -506,6 +512,9 @@ function AppContent() {
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [profileNameMode, setProfileNameMode] = useState<ProfileNameMode>("realName");
+  const [nickname, setNickname] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -514,7 +523,7 @@ function AppContent() {
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
-  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, requireCommonInterests: false, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
@@ -535,6 +544,8 @@ function AppContent() {
   const [messageDraft, setMessageDraft] = useState("");
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [userCity, setUserCity] = useState("");
+  const [userCountry, setUserCountry] = useState("");
   const [locationStatus, setLocationStatus] = useState<"idle" | "granted" | "denied">("idle");
   const [userAge, setUserAge] = useState(18);
   const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
@@ -557,7 +568,7 @@ function AppContent() {
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
     [remoteProfiles]
   );
-  const profileName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twoj profil";
+  const profileName = getProfileDisplayName(profileNameMode, nickname, firstName, lastName);
   const sortedProfiles = useMemo(
     () =>
       availableProfiles
@@ -565,7 +576,8 @@ function AppContent() {
         .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
         .filter((profile) => !profile.heightCm || (profile.heightCm >= discoverFilters.minHeight && profile.heightCm <= discoverFilters.maxHeight))
         .filter((profile) => !profile.weightKg || (profile.weightKg >= discoverFilters.minWeight && profile.weightKg <= discoverFilters.maxWeight))
-        .filter((profile) => !discoverFilters.nearbyOnly || getDistanceKm(userLocation, profile) <= 25)
+        .filter((profile) => !discoverFilters.nearbyOnly || (getDistanceKm(userLocation, profile) ?? Number.POSITIVE_INFINITY) <= 25)
+        .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
           const result = scoreProfileMatch({ profile, selectedInterests, userLocation, userAge });
@@ -594,7 +606,9 @@ function AppContent() {
   const activeProfileKey = activeProfile ? getProfileKey(activeProfile) : null;
   const hasMatchedActiveProfile = activeProfileKey ? matchedProfileKeys.includes(activeProfileKey) : false;
   const hasRequestedActiveProfile = activeProfileKey ? chatRequestKeys.includes(activeProfileKey) : false;
-  const canContinue = selectedInterests.length >= 3 && (intent === "Randki" ? ageBand === "18+" : ageBand !== null);
+  const derivedAge = calculateAge(birthDate);
+  const identityComplete = profileNameMode === "nickname" ? nickname.trim().length >= 2 : firstName.trim().length >= 2;
+  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 13 && (intent === "Randki" ? derivedAge >= 18 : true) && profilePhotos.length >= 1;
 
   const contentPadding = useMemo(
     () => ({
@@ -626,7 +640,7 @@ function AppContent() {
         }
 
         try {
-          const profile = await getUserProfile(user.uid);
+          const [profile, privateSettings] = await Promise.all([getUserProfile(user.uid), getUserPrivateSettings(user.uid)]);
 
           if (!mounted) {
             return;
@@ -638,9 +652,15 @@ function AppContent() {
           if (profile) {
             setFirstName(profile.firstName ?? "");
             setLastName(profile.lastName ?? "");
+            setProfileNameMode(profile.profileNameMode ?? "realName");
+            setNickname(profile.nickname ?? "");
+            setBirthDate(privateSettings?.birthDate ?? "");
             setIntent(profile.intent ?? "Randki");
             setAgeBand(profile.ageBand ?? null);
-            setUserAge(profile.age ?? 18);
+            setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
+            setUserCity(profile.city ?? "");
+            setUserCountry(profile.country ?? "");
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, requireCommonInterests: Boolean(profile.requireCommonInterests) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests : []);
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
             setPrivateProfile(Boolean(profile.privateProfile));
@@ -698,49 +718,41 @@ function AppContent() {
   }, [email, firstName, googleResponse, lastName]);
 
   useEffect(() => {
-    if (!authDone || !onboarded || userLocation || locationStatus === "denied") {
-      return;
-    }
-
+    if (!authDone || userLocation || locationStatus === "denied") return;
     let mounted = true;
 
     async function loadLocation() {
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
-
-        if (!mounted) {
-          return;
-        }
-
+        if (!mounted) return;
         if (permission.status !== Location.PermissionStatus.GRANTED) {
           setLocationStatus("denied");
           return;
         }
 
         setLocationStatus("granted");
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced
-        });
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const coordinates = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        let place: Location.LocationGeocodedAddress | undefined;
+        try {
+          place = (await Location.reverseGeocodeAsync(coordinates))[0];
+        } catch {
+          place = undefined;
+        }
 
         if (mounted) {
-          setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
+          setUserLocation(coordinates);
+          setUserCity(place?.city || place?.subregion || place?.region || "");
+          setUserCountry(place?.country || "");
         }
       } catch {
-        if (mounted) {
-          setLocationStatus("denied");
-        }
+        if (mounted) setLocationStatus("denied");
       }
     }
 
-    loadLocation();
-
-    return () => {
-      mounted = false;
-    };
-  }, [authDone, locationStatus, onboarded, userLocation]);
+    void loadLocation();
+    return () => { mounted = false; };
+  }, [authDone, locationStatus, userLocation]);
 
   useEffect(() => {
     if (!authDone || !onboarded || !appUser || selectedInterests.length === 0) {
@@ -872,17 +884,26 @@ function AppContent() {
     }
 
     try {
+      const persistedPhotos = await uploadProfilePhotos(appUser.uid, profilePhotos);
+      setProfilePhotos(persistedPhotos);
       await upsertUserProfile({
         uid: appUser.uid,
         firstName,
         lastName,
+        profileNameMode,
+        nickname: nickname.trim(),
         email: appUser.email ?? email,
         intent,
         ageBand,
-        age: userAge,
+        age: calculateAge(birthDate) ?? userAge,
         interests: selectedInterests,
-        photoUrls: profilePhotos.filter((photo): photo is string => typeof photo === "string"),
-        mainPhotoUrl: typeof profilePhotos[0] === "string" ? profilePhotos[0] : null,
+        photoUrls: persistedPhotos,
+        mainPhotoUrl: persistedPhotos[0] ?? null,
+        desiredAgeMin: discoverFilters.ageMin,
+        desiredAgeMax: discoverFilters.ageMax,
+        requireCommonInterests: discoverFilters.requireCommonInterests,
+        city: userCity,
+        country: userCountry,
         location: userLocation,
         premiumPlan: revenueCat.isPro ? premiumPlan : "free",
         isPro: revenueCat.isPro,
@@ -894,6 +915,7 @@ function AppContent() {
         onboardingComplete: true,
         socials: {}
       });
+      await upsertUserPrivateSettings(appUser.uid, { birthDate });
       return true;
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
@@ -1246,8 +1268,30 @@ function AppContent() {
         <OnboardingScreen
           intent={intent}
           setIntent={setIntent}
-          ageBand={ageBand}
-          setAgeBand={setAgeBand}
+          profileNameMode={profileNameMode}
+          setProfileNameMode={setProfileNameMode}
+          firstName={firstName}
+          setFirstName={setFirstName}
+          lastName={lastName}
+          setLastName={setLastName}
+          nickname={nickname}
+          setNickname={setNickname}
+          birthDate={birthDate}
+          onBirthDateChange={(value) => {
+            const formatted = formatBirthDateInput(value);
+            setBirthDate(formatted);
+            const age = calculateAge(formatted);
+            if (age !== null) {
+              setUserAge(age);
+              setAgeBand(age >= 18 ? "18+" : "under18");
+            }
+          }}
+          profilePhotos={profilePhotos}
+          setProfilePhotos={setProfilePhotos}
+          discoverFilters={discoverFilters}
+          setDiscoverFilters={setDiscoverFilters}
+          userCity={userCity}
+          userCountry={userCountry}
           selectedInterests={selectedInterests}
           setSelectedInterests={setSelectedInterests}
           canContinue={canContinue}
@@ -1256,8 +1300,8 @@ function AppContent() {
               return;
             }
             tap();
-            await saveProfileToFirestore();
-            setOnboarded(true);
+            const saved = await saveProfileToFirestore();
+            if (saved) setOnboarded(true);
           }}
         />
       </ScreenFrame>
@@ -1341,6 +1385,21 @@ function AppContent() {
             setFirstName={setFirstName}
             lastName={lastName}
             setLastName={setLastName}
+            profileNameMode={profileNameMode}
+            setProfileNameMode={setProfileNameMode}
+            nickname={nickname}
+            setNickname={setNickname}
+            birthDate={birthDate}
+            onBirthDateChange={(value) => {
+              const formatted = formatBirthDateInput(value);
+              setBirthDate(formatted);
+              const age = calculateAge(formatted);
+              if (age !== null) setUserAge(age);
+            }}
+            discoverFilters={discoverFilters}
+            setDiscoverFilters={setDiscoverFilters}
+            userCity={userCity}
+            userCountry={userCountry}
             email={email}
             selectedInterests={selectedInterests}
             setSelectedInterests={setSelectedInterests}
@@ -1620,117 +1679,98 @@ function AuthScreen({
 }
 
 function OnboardingScreen({
-  intent,
-  setIntent,
-  ageBand,
-  setAgeBand,
-  selectedInterests,
-  setSelectedInterests,
-  canContinue,
-  onContinue
+  intent, setIntent, profileNameMode, setProfileNameMode, firstName, setFirstName, lastName, setLastName,
+  nickname, setNickname, birthDate, onBirthDateChange, profilePhotos, setProfilePhotos,
+  discoverFilters, setDiscoverFilters, userCity, userCountry, selectedInterests, setSelectedInterests,
+  canContinue, onContinue
 }: {
-  intent: string;
-  setIntent: (value: string) => void;
-  ageBand: AgeBand;
-  setAgeBand: (value: AgeBand) => void;
-  selectedInterests: string[];
-  setSelectedInterests: (value: string[]) => void;
-  canContinue: boolean;
-  onContinue: () => void;
+  intent: string; setIntent: (value: string) => void;
+  profileNameMode: ProfileNameMode; setProfileNameMode: (value: ProfileNameMode) => void;
+  firstName: string; setFirstName: (value: string) => void; lastName: string; setLastName: (value: string) => void;
+  nickname: string; setNickname: (value: string) => void; birthDate: string; onBirthDateChange: (value: string) => void;
+  profilePhotos: ProfilePhoto[]; setProfilePhotos: (value: ProfilePhoto[]) => void;
+  discoverFilters: DiscoverFilters; setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
+  userCity: string; userCountry: string; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
+  canContinue: boolean; onContinue: () => void;
 }) {
   const [selectedIntents, setSelectedIntents] = useState([intent]);
+  const derivedAge = calculateAge(birthDate);
   const isDating = selectedIntents.includes("Randki");
 
   function toggleIntent(label: string) {
     const next = selectedIntents.includes(label) ? selectedIntents.filter((item) => item !== label) : [...selectedIntents, label];
-
-    if (next.length === 0) {
-      return;
-    }
-
+    if (next.length === 0) return;
     setSelectedIntents(next);
     setIntent(next.includes("Randki") ? "Randki" : next[0]);
+  }
 
-    if (next.includes("Randki") && ageBand === "under18") {
-      setAgeBand(null);
+  async function pickPhoto(index?: number) {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Zdjecia", "Nadaj dostep do galerii, aby utworzyc profil.");
+      return;
     }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 5], quality: 0.88 });
+    if (result.canceled || !result.assets[0]?.uri) return;
+    const next = [...profilePhotos];
+    if (index !== undefined) next[index] = result.assets[0].uri;
+    else if (next.length < 3) next.push(result.assets[0].uri);
+    setProfilePhotos(next.slice(0, 3));
   }
 
   return (
     <View style={styles.gapLg}>
-      <View style={styles.brand}>
-        <View style={styles.logoMark}>
-          <Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" />
+      <View style={styles.brandCompact}>
+        <View style={styles.logoMark}><Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" /></View>
+        <Text style={styles.eyebrow}>Ustawienie konta</Text>
+        <Text style={styles.screenHeroTitle}>Stworz swoj profil</Text>
+        <Text style={styles.lead}>Te dane zbuduja Twoja karte. Wszystko zmienisz pozniej w zakladce Profil.</Text>
+      </View>
+
+      <View style={styles.setupSection}>
+        <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="account-edit" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Jak mamy Cie pokazac?</Text><Text style={styles.panelText}>Wybierz prawdziwe imie albo nick.</Text></View></View>
+        <View style={styles.segmentedChoice}>
+          <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imie i nazwisko</Text></Pressable>
+          <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
-        <Text style={styles.eyebrow} selectable>Start profilu</Text>
-        <Text style={styles.screenHeroTitle} selectable>Wybierz swój cel</Text>
-        <Text style={styles.lead} selectable>Możesz zaznaczyć kilka opcji. Spark użyje ich do dopasowań, rozmów i rekomendacji profili.</Text>
+        {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imie" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
+        <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
+        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidlowa date urodzenia." : String(derivedAge) + " lat" + (isDating && derivedAge < 18 ? " - Randki sa dostepne od 18 lat." : "")}</Text>
+        {(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
-      <View style={styles.intentList}>
-        {[
-          ["Randki", "Chemia, rozmowy, spotkania", "heart-outline"],
-          ["Znajomi", "Kawa, planszówki, miasto", "coffee-outline"],
-          ["LGBT+ / Społeczność", "Grupy, wydarzenia, znajomości", "account-group-outline"]
-        ].map(([label, description, icon]) => {
-          const active = selectedIntents.includes(label);
-
-          return (
-            <Pressable
-              key={label}
-              accessibilityRole="button"
-              onPress={() => toggleIntent(label)}
-              style={[styles.intentCard, active && styles.intentCardActive]}
-            >
-              <View style={styles.intentIcon}>
-                <MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} />
-              </View>
-              <View style={styles.fill}>
-                <Text style={styles.intentTitle} selectable>{label}</Text>
-                <Text style={styles.intentDescription} selectable>{description}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
+      <View style={styles.setupSection}>
+        <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="image-multiple" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Zdjecia profilu</Text><Text style={styles.panelText}>Dodaj zdjecie glowne i opcjonalnie dwa dodatkowe. Format 4:5.</Text></View></View>
+        <View style={styles.onboardingPhotoGrid}>
+          {[0, 1, 2].map((index) => {
+            const photo = profilePhotos[index];
+            const source = typeof photo === "string" ? { uri: photo } : photo;
+            return <Pressable key={index} onPress={() => void pickPhoto(photo ? index : undefined)} style={styles.onboardingPhotoSlot}>{source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <MaterialCommunityIcons name="camera-plus" size={27} color={colors.primary} />}<Text style={styles.photoSlotBadge}>{index === 0 ? "Glowne" : "Foto " + (index + 1)}</Text></Pressable>;
+          })}
+        </View>
       </View>
 
-      <View style={styles.panelLiquid}>
-        <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Wybierz 3-15 tagów. Procent matcha liczymy głównie po wspólnych zainteresowaniach.</Text>
+      <View style={styles.setupSection}>
+        <Text style={styles.panelTitle}>Kogo chcesz poznac?</Text>
+        <View style={styles.intentList}>
+          {[["Randki", "Chemia, rozmowy, spotkania", "heart-outline"], ["Znajomi", "Kawa, planszowki, miasto", "coffee-outline"], ["LGBT+ / Spolecznosc", "Grupy, wydarzenia, znajomosci", "account-group-outline"]].map(([label, description, icon]) => {
+            const active = selectedIntents.includes(label);
+            return <Pressable key={label} onPress={() => toggleIntent(label)} style={[styles.intentCard, active && styles.intentCardActive]}><View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} /></View><View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text><Text style={styles.intentDescription}>{description}</Text></View></Pressable>;
+          })}
+        </View>
+        <Text style={styles.fieldLabel}>Preferowany wiek</Text>
+        <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax }))} />
+        <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspolnego zainteresowania</Text><Text style={styles.settingHint}>Opcjonalne. Ukryje profile bez wspolnych tagow.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
+      </View>
+
+      <View style={styles.setupSection}>
+        <Text style={styles.panelTitle}>Zainteresowania</Text>
+        <Text style={styles.panelText}>Wybierz 3-15. Kategorie pomagaja szybciej znalezc swoje klimaty.</Text>
         <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
 
-      <View style={styles.agePanel}>
-        <Text style={styles.panelTitle} selectable>Wiek i bezpieczeństwo</Text>
-        <Text style={styles.panelText} selectable>
-          Randki są tylko dla 18+. Dla znajomych i społeczności można wybrać tryb poniżej 18 lat.
-        </Text>
-        <View style={styles.ageChoiceRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setAgeBand("18+")}
-            style={[styles.ageChoice, ageBand === "18+" && styles.ageChoiceActive]}
-          >
-            <Text style={[styles.ageChoiceTitle, ageBand === "18+" && styles.ageChoiceTitleActive]} selectable>18+</Text>
-            <Text style={styles.ageChoiceText} selectable>Randki, znajomi i LGBT+</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isDating}
-            onPress={() => setAgeBand("under18")}
-            style={[styles.ageChoice, ageBand === "under18" && styles.ageChoiceActive, isDating && styles.ageChoiceDisabled]}
-          >
-            <Text style={[styles.ageChoiceTitle, ageBand === "under18" && styles.ageChoiceTitleActive]} selectable>Poniżej 18</Text>
-            <Text style={styles.ageChoiceText} selectable>Tylko znajomi i społeczność</Text>
-          </Pressable>
-        </View>
-        {isDating && ageBand !== "18+" && (
-          <Text style={styles.ageWarning} selectable>Tryb Randki wymaga potwierdzenia 18+.</Text>
-        )}
-      </View>
-
       <Pressable accessibilityRole="button" disabled={!canContinue} onPress={onContinue} style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{canContinue ? "Kontynuuj" : "Wybierz 3 tagi i ustaw wiek"}</Text>
+        <Text style={styles.primaryButtonText}>{canContinue ? "Zapisz profil i zaczynamy" : "Uzupelnij dane, zdjecie i 3 zainteresowania"}</Text>
       </Pressable>
     </View>
   );
@@ -2155,6 +2195,28 @@ function DiscoverScreen({
     </View>
   );
 }
+function AgeRangeControl({ min, max, onChange }: { min: number; max: number; onChange: (min: number, max: number) => void }) {
+  function adjust(side: "min" | "max", delta: number) {
+    if (side === "min") onChange(Math.max(18, Math.min(max, min + delta)), max);
+    else onChange(min, Math.min(99, Math.max(min, max + delta)));
+  }
+
+  return (
+    <View style={styles.ageRangeGrid}>
+      {([["Od", "min", min], ["Do", "max", max]] as const).map(([label, side, value]) => (
+        <View key={side} style={styles.ageRangeSide}>
+          <Text style={styles.fieldLabel}>{label}</Text>
+          <View style={styles.ageRangeButtons}>
+            <Pressable onPress={() => adjust(side, -1)} style={styles.ageRangeButton}><MaterialCommunityIcons name="minus" size={18} color={colors.ink} /></Pressable>
+            <Text style={styles.ageRangeValue}>{value}</Text>
+            <Pressable onPress={() => adjust(side, 1)} style={styles.ageRangeButton}><MaterialCommunityIcons name="plus" size={18} color={colors.ink} /></Pressable>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function PreferenceRange({ label, value, onMinus, onPlus }: { label: string; value: string; onMinus: () => void; onPlus: () => void }) {
   return (
     <View style={styles.preferenceRangeRow}>
@@ -3097,6 +3159,16 @@ function ProfileScreen({
   setFirstName,
   lastName,
   setLastName,
+  profileNameMode,
+  setProfileNameMode,
+  nickname,
+  setNickname,
+  birthDate,
+  onBirthDateChange,
+  discoverFilters,
+  setDiscoverFilters,
+  userCity,
+  userCountry,
   email,
   selectedInterests,
   setSelectedInterests,
@@ -3119,6 +3191,16 @@ function ProfileScreen({
   setFirstName: (value: string) => void;
   lastName: string;
   setLastName: (value: string) => void;
+  profileNameMode: ProfileNameMode;
+  setProfileNameMode: (value: ProfileNameMode) => void;
+  nickname: string;
+  setNickname: (value: string) => void;
+  birthDate: string;
+  onBirthDateChange: (value: string) => void;
+  discoverFilters: DiscoverFilters;
+  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
+  userCity: string;
+  userCountry: string;
   email: string;
   selectedInterests: string[];
   setSelectedInterests: (value: string[]) => void;
@@ -3245,16 +3327,14 @@ function ProfileScreen({
           </View>
           <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
         </View>
-        <View style={styles.nameRow}>
-          <TextField label="Imię" value={firstName} onChangeText={setFirstName} />
-          <TextField label="Nazwisko" value={lastName} onChangeText={setLastName} />
+        <View style={styles.segmentedChoice}>
+          <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imie i nazwisko</Text></Pressable>
+          <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
-        <TextField
-          label="Wiek"
-          value={String(userAge)}
-          onChangeText={(value) => setUserAge(Math.max(18, Math.min(99, Number(value.replace(/[^0-9]/g, "")) || 18)))}
-          keyboardType="numeric"
-        />
+        {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imie" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
+        <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
+        <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidlowa date." : String(calculateAge(birthDate)) + " lat"}</Text>
+        {(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
       <View style={styles.profileGalleryPanel}>
@@ -3285,9 +3365,15 @@ function ProfileScreen({
       </View>
 
       <View style={styles.panel}>
+        <Text style={styles.panelTitle} selectable>Preferencje dopasowan</Text>
+        <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax }))} />
+        <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspolnego zainteresowania</Text><Text style={styles.settingHint}>Pokazuj tylko profile z przynajmniej jednym wspolnym tagiem.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
+      </View>
+
+      <View style={styles.panel}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Wybierz 3-15 tagów. Pierwsze wybrane tagi pokazują się na karcie.</Text>
-        <SimpleInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
+        <Text style={styles.panelText} selectable>Wybierz 3-15 tagow w kategoriach. Pierwsze wybrane pokazuja sie na karcie.</Text>
+        <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
 
       <View style={styles.settingsList}>
@@ -4048,6 +4134,68 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900"
   },
+  ageRangeGrid: { flexDirection: "row", gap: 10 },
+  ageRangeSide: { flex: 1, gap: 7 },
+  ageRangeButtons: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)"
+  },
+  ageRangeButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
+  ageRangeValue: { color: colors.ink, fontSize: 17, fontWeight: "900" },
+  setupSection: {
+    gap: 13,
+    padding: 16,
+    borderRadius: 24,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(18,18,24,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)"
+  },
+  setupSectionHeading: { flexDirection: "row", alignItems: "center", gap: 11 },
+  setupIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft
+  },
+  segmentedChoice: {
+    flexDirection: "row",
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)"
+  },
+  segmentedChoiceItem: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13
+  },
+  segmentedChoiceItemActive: { backgroundColor: colors.primary },
+  segmentedChoiceText: { color: colors.muted, fontSize: 13, fontWeight: "800" },
+  segmentedChoiceTextActive: { color: "#fff" },
+  setupHelper: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  locationStatus: { flexDirection: "row", alignItems: "center", gap: 7 },
+  locationStatusText: { color: colors.ink, fontSize: 13, fontWeight: "800" },
+  onboardingPhotoGrid: { flexDirection: "row", gap: 10 },
+  onboardingPhotoSlot: {
+    flex: 1,
+    aspectRatio: 0.8,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  settingHint: { marginTop: 3, color: colors.muted, fontSize: 11, lineHeight: 15 },
   intentList: {
     gap: 12
   },
