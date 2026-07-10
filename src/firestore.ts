@@ -48,6 +48,8 @@ export type UserProfileDocument = {
   canSeeIncomingLikes?: boolean;
   canSendChatRequests?: boolean;
   privateProfile?: boolean;
+  isTestProfile?: boolean;
+  likedYou?: boolean;
   onboardingComplete?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -89,8 +91,8 @@ export async function recordUserLogin(params: {
   const profileRef = doc(currentDb, "users", params.uid);
   const existing = await getDoc(profileRef);
   const nameParts = (params.displayName ?? "").trim().split(/\s+/).filter(Boolean);
-  const firstName = params.fallbackFirstName || nameParts[0] || "Tester";
-  const lastName = params.fallbackLastName || nameParts.slice(1).join(" ") || "Spark";
+  const firstName = params.fallbackFirstName || nameParts[0] || (params.authProvider === "demo" ? "Tester" : "");
+  const lastName = params.fallbackLastName || nameParts.slice(1).join(" ") || (params.authProvider === "demo" ? "Spark" : "");
 
   await setDoc(
     profileRef,
@@ -170,6 +172,17 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
   await Promise.all([deleteDoc(profileRef), deleteDoc(privateProfileRef)]);
 }
 
+export async function findTestProfiles() {
+  const currentDb = requireDb();
+  const snapshot = await getDocs(
+    query(collection(currentDb, "users"), where("isTestProfile", "==", true), limit(10))
+  );
+
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...(item.data() as UserProfileDocument) }))
+    .filter((item) => item.privateProfile !== true);
+}
+
 export async function findProfilesByInterest(interests: string[]) {
   const currentDb = requireDb();
   if (interests.length === 0) {
@@ -211,6 +224,7 @@ export async function recordProfileSwipe(params: {
   toProfileKey: string;
   direction: "pass" | "like" | "superlike";
   matchScore?: number;
+  resetAtMs?: number;
 }) {
   const currentDb = requireDb();
   const swipeRef = doc(currentDb, "swipes", params.swipeId);
@@ -223,6 +237,7 @@ export async function recordProfileSwipe(params: {
       direction: params.direction,
       status: params.direction === "pass" ? "passed" : "liked",
       matchScore: params.matchScore ?? null,
+      resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp()
     },
@@ -253,13 +268,21 @@ export async function findOutgoingProfileSwipes(fromUid: string) {
     query(collection(currentDb, "swipes"), where("fromUid", "==", fromUid), limit(250))
   );
 
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as {
-    id: string;
-    fromUid: string;
-    toProfileKey: string;
-    status: "liked" | "passed";
-    direction: "pass" | "like" | "superlike";
-  }));
+  const now = Date.now();
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data();
+      const resetAtMs = typeof data.resetAt?.toMillis === "function" ? data.resetAt.toMillis() : null;
+      return { id: item.id, ...data, resetAtMs } as {
+        id: string;
+        fromUid: string;
+        toProfileKey: string;
+        status: "liked" | "passed";
+        direction: "pass" | "like" | "superlike";
+        resetAtMs: number | null;
+      };
+    })
+    .filter((item) => item.resetAtMs === null || item.resetAtMs > now);
 }
 
 export async function findMatchThreadsForUser(uid: string) {
@@ -268,11 +291,19 @@ export async function findMatchThreadsForUser(uid: string) {
     query(collection(currentDb, "matches"), where("memberUids", "array-contains", uid), limit(100))
   );
 
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as {
-    id: string;
-    memberUids: string[];
-    status: "matched" | "requested";
-  }));
+  const now = Date.now();
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data();
+      const resetAtMs = typeof data.resetAt?.toMillis === "function" ? data.resetAt.toMillis() : null;
+      return { id: item.id, ...data, resetAtMs } as {
+        id: string;
+        memberUids: string[];
+        status: "matched" | "requested";
+        resetAtMs: number | null;
+      };
+    })
+    .filter((item) => item.resetAtMs === null || item.resetAtMs > now);
 }
 
 export async function createMatchThread(params: {
@@ -280,6 +311,7 @@ export async function createMatchThread(params: {
   memberUids: string[];
   createdByUid: string;
   source: "mutual-like" | "premium-request";
+  resetAtMs?: number;
 }) {
   const currentDb = requireDb();
   const matchRef = doc(currentDb, "matches", params.matchId);
@@ -291,6 +323,7 @@ export async function createMatchThread(params: {
       createdByUid: params.createdByUid,
       source: params.source,
       status: params.source === "premium-request" ? "requested" : "matched",
+      resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     },
@@ -322,6 +355,7 @@ export async function createChatRequest(params: {
   fromUid: string;
   toProfileKey: string;
   introMessage: string;
+  resetAtMs?: number;
 }) {
   const currentDb = requireDb();
   const requestRef = doc(currentDb, "chatRequests", params.requestId);
@@ -332,6 +366,7 @@ export async function createChatRequest(params: {
       fromUid: params.fromUid,
       toProfileKey: params.toProfileKey,
       introMessage: params.introMessage.trim(),
+      resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       status: "pending",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
