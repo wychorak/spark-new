@@ -5,7 +5,7 @@
     "version": "0.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon main.png",
-    "scheme": ["sparkconnect", "com.sparknew.connect"],
+    "scheme": ["sparkconnect", "com.sparknew.connect", "rc-c14d769c6c"],
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
