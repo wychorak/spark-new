@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   GoogleAuthProvider,
+  onAuthStateChanged,
   signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
@@ -32,6 +33,11 @@ export function mapFirebaseUser(user: User): AppAuthUser {
     displayName: user.displayName,
     photoURL: user.photoURL
   };
+}
+
+export function observeAuthState(callback: (user: AppAuthUser | null) => void) {
+  const currentAuth = requireAuth();
+  return onAuthStateChanged(currentAuth, (user) => callback(user ? mapFirebaseUser(user) : null));
 }
 
 export async function signUpWithEmail(params: {

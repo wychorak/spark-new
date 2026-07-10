@@ -28,7 +28,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, observeAuthState, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   blockUser,
@@ -38,6 +38,7 @@ import {
   findMatchThreadsForUser,
   findOutgoingProfileSwipes,
   findProfilesByInterest,
+  getUserProfile,
   hasIncomingProfileLike,
   recordProfileSwipe,
   recordUserLogin,
@@ -501,6 +502,7 @@ function AppContent() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [authDone, setAuthDone] = useState(false);
+  const [authRestoring, setAuthRestoring] = useState(true);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -607,6 +609,66 @@ function AppContent() {
   useEffect(() => {
     setBottomNavHidden(false);
   }, [tab]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const unsubscribe = observeAuthState((user) => {
+      void (async () => {
+        if (!user) {
+          if (mounted) {
+            setAppUser(null);
+            setAuthDone(false);
+            setOnboarded(false);
+            setAuthRestoring(false);
+          }
+          return;
+        }
+
+        try {
+          const profile = await getUserProfile(user.uid);
+
+          if (!mounted) {
+            return;
+          }
+
+          setAppUser(user);
+          setEmail(user.email ?? "");
+
+          if (profile) {
+            setFirstName(profile.firstName ?? "");
+            setLastName(profile.lastName ?? "");
+            setIntent(profile.intent ?? "Randki");
+            setAgeBand(profile.ageBand ?? null);
+            setUserAge(profile.age ?? 18);
+            setSelectedInterests(Array.isArray(profile.interests) ? profile.interests : []);
+            setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
+            setPrivateProfile(Boolean(profile.privateProfile));
+            setOnboarded(Boolean(profile.onboardingComplete) || ((profile.interests?.length ?? 0) >= 3 && Boolean(profile.ageBand)));
+          } else {
+            setOnboarded(false);
+          }
+
+          setAuthDone(true);
+        } catch (error) {
+          if (mounted) {
+            setAuthError(error instanceof Error ? error.message : "Nie udalo sie przywrocic profilu.");
+            setAuthDone(true);
+            setOnboarded(false);
+          }
+        } finally {
+          if (mounted) {
+            setAuthRestoring(false);
+          }
+        }
+      })();
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const idToken = googleResponse?.type === "success" ? googleResponse.params.id_token : undefined;
@@ -829,6 +891,7 @@ function AppContent() {
         canSeeIncomingLikes: revenueCat.isPro,
         canSendChatRequests: revenueCat.isPro,
         privateProfile,
+        onboardingComplete: true,
         socials: {}
       });
       return true;
@@ -1127,6 +1190,16 @@ function AppContent() {
       { text: "Usuń", style: "destructive", onPress: () => void performDeleteAccount() }
     ]);
   }
+  if (authRestoring) {
+    return (
+      <ScreenFrame contentPadding={contentPadding}>
+        <View style={styles.authRestore}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </ScreenFrame>
+    );
+  }
+
   if (!authDone) {
     return (
       <ScreenFrame contentPadding={contentPadding}>
@@ -3640,6 +3713,12 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  authRestore: {
+    flex: 1,
+    minHeight: 320,
+    alignItems: "center",
+    justifyContent: "center"
+  },
   root: {
     flex: 1,
     overflow: "hidden"

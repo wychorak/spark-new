@@ -42,6 +42,7 @@ export type UserProfileDocument = {
   canSeeIncomingLikes?: boolean;
   canSendChatRequests?: boolean;
   privateProfile?: boolean;
+  onboardingComplete?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -105,6 +106,7 @@ export async function recordUserLogin(params: {
             interests: ["Filmy", "Natura", "Kawa", "Sztuka"],
             premiumPlan: "free",
             privateProfile: false,
+            onboardingComplete: false,
             createdAt: serverTimestamp()
           })
     },
