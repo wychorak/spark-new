@@ -31,7 +31,16 @@ workflows:
 
       - name: Set iOS build number
         script: |
-          node -e "const fs=require('fs'); const buildNumber=String(process.env.CM_BUILD_NUMBER||process.env.BUILD_NUMBER||'2'); const app=JSON.parse(fs.readFileSync('app.json','utf8')); app.expo.ios=app.expo.ios||{}; app.expo.ios.buildNumber=buildNumber; fs.writeFileSync('app.json', JSON.stringify(app,null,2)+'\n'); console.log('Using iOS build number', buildNumber);"
+          LATEST_BUILD_NUMBER="$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || printf '0')"
+          case "$LATEST_BUILD_NUMBER" in
+            ''|*[!0-9]*) LATEST_BUILD_NUMBER=0 ;;
+          esac
+          NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          CM_NUMBER="${CM_BUILD_NUMBER:-0}"
+          if [ "$CM_NUMBER" -gt "$NEXT_BUILD_NUMBER" ]; then
+            NEXT_BUILD_NUMBER="$CM_NUMBER"
+          fi
+          node -e "const fs=require('fs'); const app=JSON.parse(fs.readFileSync('app.json','utf8')); app.expo.ios=app.expo.ios||{}; app.expo.ios.buildNumber=process.argv[1]; fs.writeFileSync('app.json', JSON.stringify(app,null,2)+'\n'); console.log('Using iOS build number', process.argv[1]);" "$NEXT_BUILD_NUMBER"
 
       - name: Generate iOS project from Expo
         script: |
@@ -58,6 +67,12 @@ workflows:
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
 
     publishing:
+      email:
+        recipients:
+          - wychor234@gmail.com
+        notify:
+          success: true
+          failure: true
       app_store_connect:
         auth: integration
-        submit_to_testflight: false
+        submit_to_testflight: true
