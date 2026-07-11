@@ -523,6 +523,28 @@ function getConversationId(uid: string, profileKey: string) {
   return [uid, profileKey].sort().join("_").replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
+async function pickImageFromLibrary() {
+  try {
+    const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
+    const permission = existing.granted ? existing : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Dostep do zdjec", "Spark potrzebuje dostepu do Zdjec, aby dodac zdjecie profilowe.", [
+        { text: "Anuluj", style: "cancel" },
+        { text: "Otworz ustawienia", onPress: () => { void Linking.openSettings(); } }
+      ]);
+      return null;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [4, 5], quality: 0.88 });
+    return result.canceled ? null : result.assets[0]?.uri ?? null;
+  } catch {
+    Alert.alert("Galeria", "Nie udalo sie otworzyc galerii. Sprawdz ustawienia Zdjec dla Spark.", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Otworz ustawienia", onPress: () => { void Linking.openSettings(); } }
+    ]);
+    return null;
+  }
+}
+
 function AppContent() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -1830,16 +1852,11 @@ function OnboardingScreen({
   }
 
   async function pickPhoto(index?: number) {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Zdjecia", "Nadaj dostep do galerii, aby utworzyc profil.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [4, 5], quality: 0.88 });
-    if (result.canceled || !result.assets[0]?.uri) return;
+    const uri = await pickImageFromLibrary();
+    if (!uri) return;
     const next = [...profilePhotos];
-    if (index !== undefined) next[index] = result.assets[0].uri;
-    else if (next.length < 3) next.push(result.assets[0].uri);
+    if (index !== undefined) next[index] = uri;
+    else if (next.length < 3) next.push(uri);
     setProfilePhotos(next.slice(0, 3));
   }
 
@@ -3385,28 +3402,14 @@ function ProfileScreen({
       return;
     }
 
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("ZdjÄ™cia", "Nadaj dostÄ™p do galerii, aby dodaÄ‡ zdjÄ™cie profilowe.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 0.88
-    });
-
-    if (result.canceled || !result.assets[0]?.uri) {
-      return;
-    }
+    const uri = await pickImageFromLibrary();
+    if (!uri) return;
 
     const next = [...profilePhotos];
     if (index !== undefined) {
-      next[index] = result.assets[0].uri;
+      next[index] = uri;
     } else {
-      next.push(result.assets[0].uri);
+      next.push(uri);
     }
     setProfilePhotos(next.slice(0, maxPhotos));
   }

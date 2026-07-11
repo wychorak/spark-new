@@ -13,7 +13,8 @@
       "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Spark uses your location to show approximate distance to nearby profiles."
+        "NSLocationWhenInUseUsageDescription": "Spark uses your location to show approximate distance to nearby profiles.",
+        "NSPhotoLibraryUsageDescription": "Spark needs access to your photos so you can add profile pictures."
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
