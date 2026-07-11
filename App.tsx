@@ -149,7 +149,7 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
-type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; requireCommonInterests: boolean; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
+type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; requireCommonInterests: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -564,7 +564,7 @@ function AppContent() {
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
-  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, requireCommonInterests: false, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, requireCommonInterests: false, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
@@ -618,7 +618,8 @@ function AppContent() {
         .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
         .filter((profile) => !profile.heightCm || (profile.heightCm >= discoverFilters.minHeight && profile.heightCm <= discoverFilters.maxHeight))
         .filter((profile) => !profile.weightKg || (profile.weightKg >= discoverFilters.minWeight && profile.weightKg <= discoverFilters.maxWeight))
-        .filter((profile) => !discoverFilters.nearbyOnly || (getDistanceKm(userLocation, profile) ?? Number.POSITIVE_INFINITY) <= 25)
+        .filter((profile) => { const distance = getDistanceKm(userLocation, profile); return distance === null || distance <= discoverFilters.maxDistanceKm; })
+        .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
@@ -702,7 +703,7 @@ function AppContent() {
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
-            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, requireCommonInterests: Boolean(profile.requireCommonInterests) }));
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests : []);
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
             setPrivateProfile(Boolean(profile.privateProfile));
@@ -1029,6 +1030,8 @@ function AppContent() {
         mainPhotoUrl: persistedPhotos[0] ?? null,
         desiredAgeMin: discoverFilters.ageMin,
         desiredAgeMax: discoverFilters.ageMax,
+        maxDistanceKm: discoverFilters.maxDistanceKm,
+        desiredInterests: discoverFilters.targetInterests,
         requireCommonInterests: discoverFilters.requireCommonInterests,
         city: userCity,
         country: userCountry,
@@ -1483,6 +1486,7 @@ function AppContent() {
             screenMinHeight={discoverMinHeight}
             onReportProfile={(reason) => activeProfileKey && reportProfile(activeProfileKey, reason)}
             onRefresh={refreshDiscovery}
+            onSavePreferences={async () => { await saveProfileToFirestore(); }}
             onChromeHiddenChange={setBottomNavHidden}
           />
         )}
@@ -1937,6 +1941,7 @@ function DiscoverScreen({
   screenMinHeight,
   onReportProfile,
   onRefresh,
+  onSavePreferences,
   onChromeHiddenChange
 }: {
   profile: MatchProfile;
@@ -1958,6 +1963,7 @@ function DiscoverScreen({
   screenMinHeight: number;
   onReportProfile: (reason?: string) => void;
   onRefresh: () => void;
+  onSavePreferences: () => Promise<void>;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
@@ -1975,7 +1981,7 @@ function DiscoverScreen({
   const preferenceSummary = [
     { icon: "map-marker", text: profile.distance },
     { icon: "calendar", text: `${discoverFilters.ageMin}-${discoverFilters.ageMax} lat` },
-    { icon: "tag-heart", text: `${selectedInterests.length}/15 tagow` },
+    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} szukanych tematow` : "dowolne zainteresowania" },
     { icon: "human-male-height", text: `${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm` }
   ];
   const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
@@ -2286,10 +2292,16 @@ function DiscoverScreen({
                 <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
               </View>
               <PreferenceRange label="Wiek" value={`${discoverFilters.ageMin}-${discoverFilters.ageMax} lat`} onMinus={() => shiftRange("ageMin", "ageMax", -1, 18, 70)} onPlus={() => shiftRange("ageMin", "ageMax", 1, 18, 70)} />
+              <PreferenceRange label="Maksymalna odległość" value={`do ${discoverFilters.maxDistanceKm} km`} onMinus={() => updatePreference("maxDistanceKm", Math.max(5, discoverFilters.maxDistanceKm - 10))} onPlus={() => updatePreference("maxDistanceKm", Math.min(500, discoverFilters.maxDistanceKm + 10))} />
               <PreferenceRange label="Wzrost" value={`${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm`} onMinus={() => shiftRange("minHeight", "maxHeight", -5, 140, 220)} onPlus={() => shiftRange("minHeight", "maxHeight", 5, 140, 220)} />
               <PreferenceRange label="Waga" value={`${discoverFilters.minWeight}-${discoverFilters.maxWeight} kg`} onMinus={() => shiftRange("minWeight", "maxWeight", -5, 40, 150)} onPlus={() => shiftRange("minWeight", "maxWeight", 5, 40, 150)} />
+              <View style={styles.setupSection}>
+                <Text style={styles.settingLabel}>Szukane zainteresowania</Text>
+                <Text style={styles.settingHint}>Opcjonalne. Pokazuj osoby z przynajmniej jednym wybranym tematem.</Text>
+                <CategorizedInterestPicker selected={discoverFilters.targetInterests} onToggle={(item) => setDiscoverFilters((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
+              </View>
               <View style={styles.preferenceToggleRow}>
-                <Pressable accessibilityRole="button" onPress={() => updatePreference("nearbyOnly", !discoverFilters.nearbyOnly)} style={[styles.preferenceToggle, discoverFilters.nearbyOnly && styles.preferenceToggleActive]}>
+                <Pressable accessibilityRole="button" onPress={() => setDiscoverFilters((current) => ({ ...current, nearbyOnly: !current.nearbyOnly, maxDistanceKm: !current.nearbyOnly ? Math.min(current.maxDistanceKm, 25) : current.maxDistanceKm }))} style={[styles.preferenceToggle, discoverFilters.nearbyOnly && styles.preferenceToggleActive]}>
                   <MaterialCommunityIcons name="map-marker-radius" size={17} color={discoverFilters.nearbyOnly ? "#fff" : colors.primary} />
                   <Text style={[styles.preferenceToggleText, discoverFilters.nearbyOnly && styles.preferenceToggleTextActive]}>Blisko mnie</Text>
                 </Pressable>
@@ -2299,7 +2311,7 @@ function DiscoverScreen({
                 </Pressable>
               </View>
             </ScrollView>
-            <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportSendButton}>
+            <Pressable accessibilityRole="button" onPress={() => { void onSavePreferences().then(() => setPreferencesOpen(false)); }} style={styles.reportSendButton}>
               <Text style={styles.reportSendText}>Zastosuj preferencje</Text>
             </Pressable>
           </View>

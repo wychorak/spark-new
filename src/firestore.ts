@@ -37,6 +37,8 @@ export type UserProfileDocument = {
   country?: string;
   desiredAgeMin?: number;
   desiredAgeMax?: number;
+  maxDistanceKm?: number;
+  desiredInterests?: string[];
   requireCommonInterests?: boolean;
   location?: {
     latitude: number;
