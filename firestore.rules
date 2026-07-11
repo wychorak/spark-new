@@ -10,6 +10,28 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function validMatch(data) {
+      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid'])
+        && data.memberUids is list && data.memberUids.size() == 2
+        && data.createdByUid is string && data.createdByUid in data.memberUids
+        && data.source in ['mutual-like', 'premium-request']
+        && data.status in ['matched', 'requested', 'rejected', 'blocked'];
+    }
+
+    function validMessage(data) {
+      return data.keys().hasOnly(['senderUid', 'text', 'createdAt'])
+        && data.senderUid == request.auth.uid
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000;
+    }
+
+    function validReport(data) {
+      return data.keys().hasOnly(['reporterUid', 'targetUid', 'reason', 'context', 'status', 'createdAt'])
+        && data.reporterUid == request.auth.uid
+        && data.targetUid is string
+        && data.reason is string && data.reason.size() > 0 && data.reason.size() <= 200
+        && data.status == 'open';
+    }
+
     match /users/{uid} {
       allow create: if isOwner(uid);
       allow update, delete: if isOwner(uid);
@@ -18,7 +40,10 @@ service cloud.firestore {
       );
 
       match /blocks/{blockedUid} {
-        allow read, create, delete: if isOwner(uid);
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['blockedUid', 'createdAt'])
+          && request.resource.data.blockedUid == blockedUid;
         allow update: if false;
       }
     }
@@ -36,10 +61,7 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if signedIn()
-        && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.targetUid is string
-        && request.resource.data.reason is string;
+      allow create: if signedIn() && validReport(request.resource.data);
       allow read, update, delete: if false;
     }
 
@@ -56,9 +78,21 @@ service cloud.firestore {
     }
     match /matches/{matchId} {
       allow create: if signedIn()
-        && request.auth.uid in request.resource.data.memberUids;
-      allow read, update: if signedIn()
-        && request.auth.uid in resource.data.memberUids;
+        && request.auth.uid in request.resource.data.memberUids
+        && request.resource.data.createdByUid == request.auth.uid
+        && validMatch(request.resource.data);
+      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.memberUids
+        && validMatch(request.resource.data)
+        && request.resource.data.memberUids == resource.data.memberUids
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          (resource.data.status == 'requested' && request.auth.uid != resource.data.createdByUid && request.resource.data.status in ['matched', 'rejected']) ||
+          (resource.data.status == 'requested' && request.resource.data.status == 'blocked') ||
+          (resource.data.status == 'matched' && request.resource.data.status == 'blocked')
+        );
       allow delete: if false;
     }
 
@@ -73,8 +107,12 @@ service cloud.firestore {
     }
 
     match /messages/{threadId}/items/{messageId} {
-      allow read, create: if signedIn()
+      allow read: if signedIn()
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids;
+      allow create: if signedIn()
+        && get(/databases/$(database)/documents/matches/$(threadId)).data.status == 'matched'
+        && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids
+        && validMessage(request.resource.data);
       allow update, delete: if false;
     }
   }

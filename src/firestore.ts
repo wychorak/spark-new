@@ -6,9 +6,12 @@ import {
   getDocs,
   increment,
   limit,
+  onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "./firebase";
@@ -311,6 +314,7 @@ export async function createMatchThread(params: {
   memberUids: string[];
   createdByUid: string;
   source: "mutual-like" | "premium-request";
+  introMessage?: string;
   resetAtMs?: number;
 }) {
   const currentDb = requireDb();
@@ -322,6 +326,7 @@ export async function createMatchThread(params: {
       memberUids: params.memberUids,
       createdByUid: params.createdByUid,
       source: params.source,
+      introMessage: params.introMessage?.trim() ?? null,
       status: params.source === "premium-request" ? "requested" : "matched",
       resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       createdAt: serverTimestamp(),
@@ -377,12 +382,66 @@ export async function createChatRequest(params: {
   return requestRef.id;
 }
 
-export async function blockUser(params: { blockerUid: string; blockedUid: string }) {
-  const currentDb = requireDb();
-  const blockRef = doc(currentDb, "users", params.blockerUid, "blocks", params.blockedUid);
+export type RealtimeChatThread = {
+  id: string;
+  memberUids: string[];
+  createdByUid: string;
+  status: "matched" | "requested";
+  introMessage?: string;
+  messages: Array<{ id: string; senderUid: string; text: string; createdAtMs: number | null }>;
+};
 
-  await setDoc(blockRef, {
-    blockedUid: params.blockedUid,
-    createdAt: serverTimestamp()
-  });
+export function observeUserChats(uid: string, onChange: (threads: RealtimeChatThread[]) => void, onError?: (error: Error) => void) {
+  const currentDb = requireDb();
+  const threadDocuments = new Map<string, Omit<RealtimeChatThread, "messages">>();
+  const threadMessages = new Map<string, RealtimeChatThread["messages"]>();
+  const messageUnsubscribers = new Map<string, () => void>();
+  const emit = () => onChange(Array.from(threadDocuments.values()).map((thread) => ({ ...thread, messages: threadMessages.get(thread.id) ?? [] })));
+
+  const unsubscribeMatches = onSnapshot(
+    query(collection(currentDb, "matches"), where("memberUids", "array-contains", uid), limit(100)),
+    (snapshot) => {
+      const activeIds = new Set<string>();
+      snapshot.docs.forEach((item) => {
+        const data = item.data();
+        const resetAtMs = typeof data.resetAt?.toMillis === "function" ? data.resetAt.toMillis() : null;
+        if ((resetAtMs !== null && resetAtMs <= Date.now()) || (data.status !== "matched" && data.status !== "requested")) return;
+        activeIds.add(item.id);
+        threadDocuments.set(item.id, { id: item.id, memberUids: Array.isArray(data.memberUids) ? data.memberUids : [], createdByUid: String(data.createdByUid ?? ""), status: data.status, introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined });
+        if (!messageUnsubscribers.has(item.id)) {
+          messageUnsubscribers.set(item.id, onSnapshot(
+            query(collection(currentDb, "messages", item.id, "items"), orderBy("createdAt", "desc"), limit(100)),
+            (messageSnapshot) => {
+              threadMessages.set(item.id, messageSnapshot.docs.map((messageItem) => { const message = messageItem.data(); return { id: messageItem.id, senderUid: String(message.senderUid ?? ""), text: String(message.text ?? ""), createdAtMs: typeof message.createdAt?.toMillis === "function" ? message.createdAt.toMillis() : null }; }).reverse());
+              emit();
+            },
+            (error) => onError?.(error)
+          ));
+        }
+      });
+      Array.from(threadDocuments.keys()).forEach((threadId) => { if (activeIds.has(threadId)) return; threadDocuments.delete(threadId); threadMessages.delete(threadId); messageUnsubscribers.get(threadId)?.(); messageUnsubscribers.delete(threadId); });
+      emit();
+    },
+    (error) => onError?.(error)
+  );
+  return () => { unsubscribeMatches(); messageUnsubscribers.forEach((unsubscribe) => unsubscribe()); };
+}
+
+export function observeBlockedProfileKeys(uid: string, onChange: (profileKeys: string[]) => void, onError?: (error: Error) => void) {
+  const currentDb = requireDb();
+  return onSnapshot(collection(currentDb, "users", uid, "blocks"), (snapshot) => onChange(snapshot.docs.map((item) => String(item.data().blockedUid ?? item.id))), (error) => onError?.(error));
+}
+
+export async function acceptChatRequest(threadId: string, uid: string) {
+  await updateDoc(doc(requireDb(), "matches", threadId), { status: "matched", acceptedByUid: uid, updatedAt: serverTimestamp() });
+}
+
+export async function rejectChatRequest(threadId: string, uid: string) {
+  await updateDoc(doc(requireDb(), "matches", threadId), { status: "rejected", rejectedByUid: uid, updatedAt: serverTimestamp() });
+}
+
+export async function blockUser(params: { blockerUid: string; blockedUid: string; threadId?: string }) {
+  const currentDb = requireDb();
+  await setDoc(doc(currentDb, "users", params.blockerUid, "blocks", params.blockedUid), { blockedUid: params.blockedUid, createdAt: serverTimestamp() });
+  if (params.threadId) await updateDoc(doc(currentDb, "matches", params.threadId), { status: "blocked", blockedByUid: params.blockerUid, updatedAt: serverTimestamp() });
 }

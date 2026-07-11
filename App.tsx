@@ -31,6 +31,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { deleteCurrentUserAccount, observeAuthState, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
+  acceptChatRequest,
   blockUser,
   createChatRequest,
   createMatchThread,
@@ -42,8 +43,11 @@ import {
   getUserProfile,
   getUserPrivateSettings,
   hasIncomingProfileLike,
+  observeBlockedProfileKeys,
+  observeUserChats,
   recordProfileSwipe,
   recordUserLogin,
+  rejectChatRequest,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
   upsertUserProfile,
@@ -157,6 +161,9 @@ type SocialIconFamily = "fontAwesome" | "fontAwesome5" | "material";
 
 type ChatThread = {
   profileKey: string;
+  threadId?: string;
+  createdByUid?: string;
+  requestDirection?: "incoming" | "outgoing";
   status: ChatStatus;
   introMessage?: string;
   messages: Array<{ id: string; from: "me" | "them"; text: string; time: string }>;
@@ -512,6 +519,10 @@ function getThreadId(uid: string | null | undefined, profileKey: string) {
   return `${uid || "local"}_${profileKey}`.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
+function getConversationId(uid: string, profileKey: string) {
+  return [uid, profileKey].sort().join("_").replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
 function AppContent() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -836,6 +847,54 @@ function AppContent() {
       mounted = false;
     };
   }, [appUser, authDone, onboarded, profileQueryKey, profileReloadKey]);
+
+  useEffect(() => {
+    if (!appUser || !authDone || !onboarded) return undefined;
+
+    const unsubscribeChats = observeUserChats(appUser.uid, (realtimeThreads) => {
+      const nextThreads: Record<string, ChatThread> = {};
+      const matchedKeys: string[] = [];
+      const requestedKeys: string[] = [];
+
+      realtimeThreads.forEach((thread) => {
+        const profileKey = thread.memberUids.find((uid) => uid !== appUser.uid);
+        if (!profileKey) return;
+        if (thread.status === "matched") matchedKeys.push(profileKey);
+        if (thread.status === "requested") requestedKeys.push(profileKey);
+        nextThreads[profileKey] = {
+          profileKey,
+          threadId: thread.id,
+          createdByUid: thread.createdByUid,
+          requestDirection: thread.createdByUid === appUser.uid ? "outgoing" : "incoming",
+          status: thread.status,
+          introMessage: thread.introMessage,
+          messages: thread.messages.map((message) => ({
+            id: message.id,
+            from: message.senderUid === appUser.uid ? "me" : "them",
+            text: message.text,
+            time: message.createdAtMs ? new Date(message.createdAtMs).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "teraz"
+          }))
+        };
+      });
+
+      setChatThreads(nextThreads);
+      setMatchedProfileKeys(matchedKeys);
+      setChatRequestKeys(requestedKeys);
+
+      const conversationProfileKeys = Array.from(new Set([...matchedKeys, ...requestedKeys]));
+      void Promise.all(conversationProfileKeys.map((profileKey) => getUserProfile(profileKey))).then((documents) => {
+        const profiles = documents.map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null).filter((profile): profile is MatchProfile => Boolean(profile));
+        setRemoteProfiles((current) => {
+          const profileMap = new Map(current.map((profile) => [getProfileKey(profile), profile]));
+          profiles.forEach((profile) => profileMap.set(getProfileKey(profile), profile));
+          return Array.from(profileMap.values());
+        });
+      }).catch(() => undefined);
+    }, (error) => setProfileFeedError(error.message));
+    const unsubscribeBlocks = observeBlockedProfileKeys(appUser.uid, setBlockedProfileKeys, (error) => setProfileFeedError(error.message));
+    return () => { unsubscribeChats(); unsubscribeBlocks(); };
+  }, [appUser, authDone, onboarded]);
+
   useEffect(() => {
     if (!nextTestResetAt) return undefined;
 
@@ -1092,7 +1151,7 @@ function AppContent() {
 
     if (appUser) {
       createMatchThread({
-        matchId: getThreadId(appUser.uid, targetKey),
+        matchId: getConversationId(appUser.uid, targetKey),
         memberUids: [appUser.uid, targetKey],
         createdByUid: appUser.uid,
         source: "mutual-like",
@@ -1150,7 +1209,8 @@ function AppContent() {
         resetAtMs: activeProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
       }).catch(() => undefined);
       createMatchThread({
-        matchId: getThreadId(appUser.uid, activeProfileKey),
+        matchId: getConversationId(appUser.uid, activeProfileKey),
+        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
         memberUids: [appUser.uid, activeProfileKey],
         createdByUid: appUser.uid,
         source: "premium-request",
@@ -1184,11 +1244,25 @@ function AppContent() {
 
     if (appUser) {
       sendChatMessage({
-        threadId: getThreadId(appUser.uid, profileKey),
+        threadId: thread.threadId ?? getConversationId(appUser.uid, profileKey),
         senderUid: appUser.uid,
         text: message
       }).catch(() => undefined);
     }
+  }
+
+  async function acceptRequest(profileKey: string) {
+    const thread = chatThreads[profileKey];
+    if (!appUser || !thread?.threadId || thread.requestDirection !== "incoming") return;
+    try { await acceptChatRequest(thread.threadId, appUser.uid); }
+    catch { Alert.alert("Prosba o chat", "Nie udalo sie zaakceptowac prosby. Sprobuj ponownie."); }
+  }
+
+  async function rejectRequest(profileKey: string) {
+    const thread = chatThreads[profileKey];
+    if (!appUser || !thread?.threadId || thread.requestDirection !== "incoming") return;
+    try { await rejectChatRequest(thread.threadId, appUser.uid); setSelectedChatKey(null); }
+    catch { Alert.alert("Prosba o chat", "Nie udalo sie odrzucic prosby. Sprobuj ponownie."); }
   }
 
   function blockProfile(profileKey: string) {
@@ -1208,7 +1282,7 @@ function AppContent() {
       setSelectedChatKey(null);
     }
     if (appUser) {
-      blockUser({ blockerUid: appUser.uid, blockedUid: profileKey }).catch(() => undefined);
+      blockUser({ blockerUid: appUser.uid, blockedUid: profileKey, threadId: chatThreads[profileKey]?.threadId }).catch(() => undefined);
     }
   }
 
@@ -1420,6 +1494,8 @@ function AppContent() {
             messageDraft={messageDraft}
             setMessageDraft={setMessageDraft}
             onSendMessage={sendMessageToProfile}
+            onAcceptRequest={acceptRequest}
+            onRejectRequest={rejectRequest}
             onBlockProfile={blockProfile}
             onReportProfile={reportProfile}
           />
@@ -2788,6 +2864,8 @@ function MessagesScreen({
   messageDraft,
   setMessageDraft,
   onSendMessage,
+  onAcceptRequest,
+  onRejectRequest,
   onBlockProfile,
   onReportProfile
 }: {
@@ -2800,6 +2878,8 @@ function MessagesScreen({
   messageDraft: string;
   setMessageDraft: (value: string) => void;
   onSendMessage: (profileKey: string, text: string) => void;
+  onAcceptRequest: (profileKey: string) => void;
+  onRejectRequest: (profileKey: string) => void;
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
 }) {
@@ -2816,7 +2896,7 @@ function MessagesScreen({
       const isMatched = matchedProfileKeys.includes(key) || thread?.status === "matched";
       const isBlocked = thread?.status === "blocked";
       const lastMessage = thread?.messages[thread.messages.length - 1]?.text;
-      const unreadCount = thread?.status === "matched" ? thread.messages.filter((message) => message.from === "them").length : 0;
+      const unreadCount = 0;
 
       return {
         key,
@@ -2868,7 +2948,7 @@ function MessagesScreen({
       </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats" ? unreadChatsCount + " nieodczytane" : requestConversations.length + " oczekujace"}
+          {messageView === "chats" ? chatConversations.length + " aktywne" : requestConversations.length + " oczekujace"}
         </Text>
       </View>
       <View style={styles.searchField}>
@@ -2918,6 +2998,8 @@ function MessagesScreen({
         setDraft={setMessageDraft}
         onClose={() => setSelectedChatKey(null)}
         onSend={onSendMessage}
+        onAccept={onAcceptRequest}
+        onReject={onRejectRequest}
         onBlock={onBlockProfile}
         onReport={onReportProfile}
       />
@@ -2932,6 +3014,8 @@ function ChatConversationModal({
   setDraft,
   onClose,
   onSend,
+  onAccept,
+  onReject,
   onBlock,
   onReport
 }: {
@@ -2941,8 +3025,10 @@ function ChatConversationModal({
   setDraft: (value: string) => void;
   onClose: () => void;
   onSend: (profileKey: string, text: string) => void;
+  onAccept: (profileKey: string) => void;
+  onReject: (profileKey: string) => void;
   onBlock: (profileKey: string) => void;
-  onReport: (profileKey: string) => void;
+  onReport: (profileKey: string, reason?: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const messages = thread?.messages ?? [];
@@ -2969,6 +3055,10 @@ function ChatConversationModal({
     pending: { margin: 14, gap: 5, padding: 14, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.09)", borderWidth: 1, borderColor: "rgba(255,45,141,0.16)" },
     pendingTitle: { color: colors.ink, fontSize: 13, fontWeight: "900" },
     pendingText: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
+    pendingActions: { flexDirection: "row", gap: 8, marginTop: 8 },
+    acceptButton: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.primary },
+    rejectButton: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "rgba(255,255,255,0.08)" },
+    requestButtonText: { color: "#fff", fontSize: 12, fontWeight: "900" },
     composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(5,5,7,0.96)" },
     input: { flex: 1, minHeight: 46, maxHeight: 110, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, color: colors.ink, backgroundColor: "rgba(255,255,255,0.07)", fontSize: 14 },
     send: { width: 46, height: 46, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
@@ -2989,9 +3079,11 @@ function ChatConversationModal({
   }
 
   function confirmReport() {
-    Alert.alert("Zglos profil", `Wyslac zgloszenie dotyczace ${activeConversation.name}?`, [
-      { text: "Anuluj", style: "cancel" },
-      { text: "Zglos", onPress: () => onReport(activeConversation.key) }
+    Alert.alert("Powod zgloszenia", `Co jest nie tak z profilem ${activeConversation.name}?`, [
+      { text: "Spam", onPress: () => onReport(activeConversation.key, "Spam lub reklamy") },
+      { text: "Nekanie", onPress: () => onReport(activeConversation.key, "Nekanie lub obrazliwe wiadomosci") },
+      { text: "Falszywy profil", onPress: () => onReport(activeConversation.key, "Falszywy profil") },
+      { text: "Anuluj", style: "cancel" }
     ]);
   }
 
@@ -3043,7 +3135,13 @@ function ChatConversationModal({
         {!canMessage ? (
           <View style={[local.pending, { marginBottom: Math.max(insets.bottom, 12) }]}>
             <Text style={local.pendingTitle} selectable>Rozmowa jeszcze zablokowana</Text>
-            <Text style={local.pendingText} selectable>Druga osoba musi zaakceptowac prosbe albo odwzajemnic polubienie.</Text>
+            <Text style={local.pendingText} selectable>{thread?.requestDirection === "incoming" ? "Ta osoba chce rozpoczac rozmowe z Toba." : "Druga osoba musi zaakceptowac prosbe albo odwzajemnic polubienie."}</Text>
+            {thread?.requestDirection === "incoming" && (
+              <View style={local.pendingActions}>
+                <Pressable onPress={() => onReject(activeConversation.key)} style={local.rejectButton}><Text style={local.requestButtonText}>Odrzuc</Text></Pressable>
+                <Pressable onPress={() => onAccept(activeConversation.key)} style={local.acceptButton}><Text style={local.requestButtonText}>Akceptuj</Text></Pressable>
+              </View>
+            )}
           </View>
         ) : (
           <View style={[local.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
