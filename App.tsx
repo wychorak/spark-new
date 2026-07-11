@@ -1759,7 +1759,7 @@ function OnboardingScreen({
       Alert.alert("Zdjecia", "Nadaj dostep do galerii, aby utworzyc profil.");
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 5], quality: 0.88 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [4, 5], quality: 0.88 });
     if (result.canceled || !result.assets[0]?.uri) return;
     const next = [...profilePhotos];
     if (index !== undefined) next[index] = result.assets[0].uri;
@@ -3294,7 +3294,7 @@ function ProfileScreen({
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [4, 5],
       quality: 0.88
