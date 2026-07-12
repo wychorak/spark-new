@@ -1475,6 +1475,9 @@ function AppContent() {
             onSwipe={handleSwipe}
             onPremiumChatRequest={sendPremiumChatRequest}
             onOpenMessages={() => setTab("messages")}
+            onOpenMatches={() => setTab("matches")}
+            onOpenProfile={() => setTab("profile")}
+            onOpenSafety={() => setTab("safety")}
             reporterName={profileName}
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
@@ -1930,6 +1933,9 @@ function DiscoverScreen({
   onSwipe,
   onPremiumChatRequest,
   onOpenMessages,
+  onOpenMatches,
+  onOpenProfile,
+  onOpenSafety,
   reporterName,
   hasMatchedProfile,
   hasRequestedProfile,
@@ -1952,6 +1958,9 @@ function DiscoverScreen({
   onSwipe: (action: SwipeAction) => Promise<SwipeOutcome>;
   onPremiumChatRequest: () => void;
   onOpenMessages: () => void;
+  onOpenMatches: () => void;
+  onOpenProfile: () => void;
+  onOpenSafety: () => void;
   reporterName: string;
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
@@ -2264,10 +2273,27 @@ function DiscoverScreen({
             </View>
             <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onRefresh(); }} style={styles.reportSendButton}>
               <MaterialCommunityIcons name="refresh" size={18} color="#fff" />
-              <Text style={styles.reportSendText}>Odswiez profile</Text>
+              <Text style={styles.reportSendText}>Odswiez feed</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); setPreferencesOpen(true); }} style={styles.secondaryButtonWide}>
-              <Text style={styles.secondaryButtonText}>Preferencje i filtry</Text>
+              <MaterialCommunityIcons name="tune-variant" size={18} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Filtry i preferencje</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMatches(); }} style={styles.secondaryButtonWide}>
+              <MaterialCommunityIcons name="heart-multiple" size={18} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Matche</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMessages(); }} style={styles.secondaryButtonWide}>
+              <MaterialCommunityIcons name="message-text" size={18} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Wiadomosci</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenProfile(); }} style={styles.secondaryButtonWide}>
+              <MaterialCommunityIcons name="account-circle" size={18} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Moj profil</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenSafety(); }} style={styles.secondaryButtonWide}>
+              <MaterialCommunityIcons name="shield-check" size={18} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Bezpieczenstwo</Text>
             </Pressable>
           </View>
         </View>
@@ -3528,11 +3554,6 @@ function ProfileScreen({
         </View>
       </View>
 
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle} selectable>Preferencje dopasowan</Text>
-        <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax }))} />
-        <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspolnego zainteresowania</Text><Text style={styles.settingHint}>Pokazuj tylko profile z przynajmniej jednym wspolnym tagiem.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
-      </View>
 
       <View style={styles.panel}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
