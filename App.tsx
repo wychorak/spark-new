@@ -361,6 +361,18 @@ function toggleListItem(items: string[], item: string) {
   return items.includes(item) ? items.filter((value) => value !== item) : [...items, item];
 }
 
+const legacyTextReplacements: Record<string, string> = {
+  "Ä…": "ą", "Ä‡": "ć", "Ä™": "ę", "Ĺ‚": "ł", "Ĺ„": "ń", "Ăł": "ó", "Ĺ›": "ś", "Ĺş": "ź", "ĹĽ": "ż",
+  "Ä„": "Ą", "Ä†": "Ć", "Ä": "Ę", "Ĺ": "Ł", "Ĺ": "Ń", "Ă“": "Ó", "Ĺš": "Ś", "Ĺą": "Ź", "Ĺ»": "Ż",
+  "â€˘": "•", "Â·": "·", "Krak w": "Kraków", "G ry": "Góry", "g ry": "góry"
+};
+
+function repairLegacyText(value: string) {
+  return Object.entries(legacyTextReplacements).reduce(
+    (result, [broken, corrected]) => result.split(broken).join(corrected),
+    value
+  );
+}
 function getInterestTheme(item: string, index = 0) {
   const fallbackThemes = [
     { soft: "rgba(255,45,141,0.12)", active: "#ff2d8d", border: "rgba(255,45,141,0.28)", text: "#ff9ac8" },
@@ -394,11 +406,11 @@ function getFeaturedInterests(profile: MatchProfile) {
 function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const id = typeof item.id === "string" ? item.id : null;
   const nameMode = item.profileNameMode === "nickname" ? "nickname" : "realName";
-  const nickname = typeof item.nickname === "string" ? item.nickname.trim() : "";
-  const firstName = typeof item.firstName === "string" ? item.firstName.trim() : "";
+  const nickname = typeof item.nickname === "string" ? repairLegacyText(item.nickname.trim()) : "";
+  const firstName = typeof item.firstName === "string" ? repairLegacyText(item.firstName.trim()) : "";
   const name = nameMode === "nickname" && nickname ? nickname : firstName;
-  const surname = typeof item.lastName === "string" ? item.lastName.trim() : "";
-  const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string") : [];
+  const surname = typeof item.lastName === "string" ? repairLegacyText(item.lastName.trim()) : "";
+  const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string").map(repairLegacyText) : [];
   const photoUrls = Array.isArray(item.photoUrls) ? item.photoUrls.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
   const mainPhotoUrl = typeof item.mainPhotoUrl === "string" && item.mainPhotoUrl.length > 0 ? item.mainPhotoUrl : photoUrls[0];
 
@@ -413,16 +425,16 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const socialsRecord = typeof item.socials === "object" && item.socials !== null ? item.socials as Record<string, unknown> : {};
   const socials = Object.entries(socialsRecord)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0)
-    .map(([label, value]) => ({ label, value }));
+    .map(([label, value]) => ({ label: repairLegacyText(label), value: repairLegacyText(value) }));
 
   return {
     id,
     name,
     surname,
     age: typeof item.age === "number" ? Math.max(18, Math.min(99, Math.round(item.age))) : 18,
-    city: typeof item.city === "string" && item.city.trim() ? item.city.trim() : "Twoja okolica",
-    country: typeof item.country === "string" && item.country.trim() ? item.country.trim() : undefined,
-    bio: typeof item.bio === "string" && item.bio.trim() ? item.bio.trim() : "Nowy profil w Spark. Poznajcie sie przez wspolne zainteresowania.",
+    city: typeof item.city === "string" && item.city.trim() ? repairLegacyText(item.city.trim()) : "Twoja okolica",
+    country: typeof item.country === "string" && item.country.trim() ? repairLegacyText(item.country.trim()) : undefined,
+    bio: typeof item.bio === "string" && item.bio.trim() ? repairLegacyText(item.bio.trim()) : "Nowy profil w Spark. Poznajcie się przez wspólne zainteresowania.",
     distance: locationAvailable ? "w poblizu" : "Twoja okolica",
     latitude,
     longitude,
@@ -704,10 +716,10 @@ function AppContent() {
           setEmail(user.email ?? "");
 
           if (profile) {
-            setFirstName(profile.firstName ?? "");
-            setLastName(profile.lastName ?? "");
+            setFirstName(repairLegacyText(profile.firstName ?? ""));
+            setLastName(repairLegacyText(profile.lastName ?? ""));
             setProfileNameMode(profile.profileNameMode ?? "realName");
-            setNickname(profile.nickname ?? "");
+            setNickname(repairLegacyText(profile.nickname ?? ""));
             setBirthDate(privateSettings?.birthDate ?? "");
             setIntent(profile.intent ?? "Randki");
             setAgeBand(profile.ageBand ?? null);
@@ -715,7 +727,7 @@ function AppContent() {
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
             setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), proOnly: Boolean(profile.proOnly) }));
-            setSelectedInterests(Array.isArray(profile.interests) ? profile.interests : []);
+            setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
             setPrivateProfile(Boolean(profile.privateProfile));
             setOnboarded(Boolean(profile.onboardingComplete) || ((profile.interests?.length ?? 0) >= 3 && Boolean(profile.ageBand)));
@@ -726,7 +738,7 @@ function AppContent() {
           setAuthDone(true);
         } catch (error) {
           if (mounted) {
-            setAuthError(error instanceof Error ? error.message : "Nie udalo sie przywrocic profilu.");
+            setAuthError(error instanceof Error ? error.message : "Nie udało się przywrócić profilu.");
             setAuthDone(true);
             setOnboarded(false);
           }
@@ -932,7 +944,7 @@ function AppContent() {
       .catch((error) => {
         if (mounted) {
           setRemoteProfiles([]);
-          setProfileFeedError(error instanceof Error ? error.message : "Nie udalo sie pobrac profili.");
+          setProfileFeedError(error instanceof Error ? error.message : "Nie udało się pobrać profili.");
         }
       })
       .finally(() => {
@@ -1028,7 +1040,7 @@ function AppContent() {
       [requestKey]: threads[requestKey] ?? {
         profileKey: requestKey,
         status: "requested",
-        introMessage: "Hej, widze wspolne klimaty. Masz ochote pogadac?",
+        introMessage: "Hej, widzę wspólne klimaty. Masz ochotę pogadać?",
         messages: []
       }
     }));
@@ -1045,12 +1057,12 @@ function AppContent() {
     try {
       const normalizedEmail = email.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
-        setAuthError("Podaj prawidlowy adres email.");
+        setAuthError("Podaj prawidłowy adres email.");
         return;
       }
 
       if (authMode === "register" && password.length < 8) {
-        setAuthError("Haslo musi miec co najmniej 8 znakow.");
+        setAuthError("Hasło musi mieć co najmniej 8 znaków.");
         return;
       }
 
@@ -1294,7 +1306,7 @@ function AppContent() {
         profileKey: targetKey,
         status: "matched",
         messages: [
-          { id: `${Date.now()}-match`, from: "them", text: "To match! Mozecie teraz napisac do siebie.", time: "teraz" }
+          { id: `${Date.now()}-match`, from: "them", text: "To match! Możecie teraz napisać do siebie.", time: "teraz" }
         ]
       }
     }));
@@ -1337,7 +1349,7 @@ function AppContent() {
     try {
       await createMatchThread({
         matchId: getConversationId(appUser.uid, activeProfileKey),
-        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
+        introMessage: "Hej, mamy wspólne zainteresowania. Chcesz pogadać?",
         memberUids: [appUser.uid, activeProfileKey],
         createdByUid: appUser.uid,
         source: "premium-request",
@@ -1358,7 +1370,7 @@ function AppContent() {
         createdByUid: appUser.uid,
         requestDirection: "outgoing",
         status: "requested",
-        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
+        introMessage: "Hej, mamy wspólne zainteresowania. Chcesz pogadać?",
         messages: []
       }
     }));
@@ -1399,14 +1411,14 @@ function AppContent() {
     const thread = chatThreads[profileKey];
     if (!appUser || !thread?.threadId || thread.requestDirection !== "incoming") return;
     try { await acceptChatRequest(thread.threadId, appUser.uid); }
-    catch { Alert.alert("Prosba o chat", "Nie udalo sie zaakceptowac prosby. Sprobuj ponownie."); }
+    catch { Alert.alert("Prosba o chat", "Nie udało się zaakceptować prośby. Spróbuj ponownie."); }
   }
 
   async function rejectRequest(profileKey: string) {
     const thread = chatThreads[profileKey];
     if (!appUser || !thread?.threadId || thread.requestDirection !== "incoming") return;
     try { await rejectChatRequest(thread.threadId, appUser.uid); setSelectedChatKey(null); }
-    catch { Alert.alert("Prosba o chat", "Nie udalo sie odrzucic prosby. Sprobuj ponownie."); }
+    catch { Alert.alert("Prosba o chat", "Nie udało się odrzucić prośby. Spróbuj ponownie."); }
   }
 
   async function blockProfile(profileKey: string) {
@@ -1937,7 +1949,7 @@ function AuthScreen({
         <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
         {authMode === "register" && (
           <>
-            <TextField label="Powtorz haslo" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+            <TextField label="Powtórz hasło" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
             <View style={styles.legalConsent}>
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: legalAccepted }} onPress={() => setLegalAccepted((value) => !value)} style={[styles.legalCheckbox, legalAccepted && styles.legalCheckboxActive]}>
                 {legalAccepted && <MaterialCommunityIcons name="check" size={16} color="#fff" />}
@@ -2035,54 +2047,54 @@ function OnboardingScreen({
       <View style={styles.brandCompact}>
         <View style={styles.logoMark}><Image source={brandLogoImage} style={styles.logoImage} contentFit="cover" /></View>
         <Text style={styles.eyebrow}>Ustawienie konta</Text>
-        <Text style={styles.screenHeroTitle}>Stworz swoj profil</Text>
-        <Text style={styles.lead}>Te dane zbuduja Twoja karte. Wszystko zmienisz pozniej w zakladce Profil.</Text>
+        <Text style={styles.screenHeroTitle}>Stwórz swój profil</Text>
+        <Text style={styles.lead}>Te dane zbudują Twoją kartę. Wszystko zmienisz później w zakładce Profil.</Text>
       </View>
 
       <View style={styles.setupSection}>
-        <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="account-edit" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Jak mamy Cie pokazac?</Text><Text style={styles.panelText}>Wybierz prawdziwe imie albo nick.</Text></View></View>
+        <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="account-edit" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Jak mamy Cię pokazać?</Text><Text style={styles.panelText}>Wybierz prawdziwe imię albo nick.</Text></View></View>
         <View style={styles.segmentedChoice}>
-          <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imie i nazwisko</Text></Pressable>
+          <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imię i nazwisko</Text></Pressable>
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
-        {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imie" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
+        {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
-        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidlowa date urodzenia." : String(derivedAge) + " lat" + (isDating && derivedAge < 18 ? " - Randki sa dostepne od 18 lat." : "")}</Text>
-        {(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
+        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : String(derivedAge) + " lat" + (isDating && derivedAge < 18 ? " - Randki sa dostepne od 18 lat." : "")}</Text>
+        {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
       <View style={styles.setupSection}>
-        <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="image-multiple" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Zdjecia profilu</Text><Text style={styles.panelText}>Dodaj zdjecie glowne i opcjonalnie dwa dodatkowe. Format 4:5.</Text></View></View>
+        <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="image-multiple" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Zdjęcia profilu</Text><Text style={styles.panelText}>Dodaj zdjęcie główne i opcjonalnie dwa dodatkowe. Format 4:5.</Text></View></View>
         <View style={styles.onboardingPhotoGrid}>
           {[0, 1, 2].map((index) => {
             const photo = profilePhotos[index];
             const source = typeof photo === "string" ? { uri: photo } : photo;
-            return <Pressable key={index} onPress={() => void pickPhoto(photo ? index : undefined)} style={styles.onboardingPhotoSlot}>{source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <MaterialCommunityIcons name="camera-plus" size={27} color={colors.primary} />}<Text style={styles.photoSlotBadge}>{index === 0 ? "Glowne" : "Foto " + (index + 1)}</Text></Pressable>;
+            return <Pressable key={index} onPress={() => void pickPhoto(photo ? index : undefined)} style={styles.onboardingPhotoSlot}>{source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <MaterialCommunityIcons name="camera-plus" size={27} color={colors.primary} />}<Text style={styles.photoSlotBadge}>{index === 0 ? "Główne" : "Foto " + (index + 1)}</Text></Pressable>;
           })}
         </View>
       </View>
 
       <View style={styles.setupSection}>
-        <Text style={styles.panelTitle}>Kogo chcesz poznac?</Text>
+        <Text style={styles.panelTitle}>Kogo chcesz poznać?</Text>
         <View style={styles.intentList}>
-          {[["Randki", "Chemia, rozmowy, spotkania", "heart-outline"], ["Znajomi", "Kawa, planszowki, miasto", "coffee-outline"], ["LGBT+ / Spolecznosc", "Grupy, wydarzenia, znajomosci", "account-group-outline"]].map(([label, description, icon]) => {
+          {[["Randki", "Chemia, rozmowy, spotkania", "heart-outline"], ["Znajomi", "Kawa, planszówki, miasto", "coffee-outline"], ["LGBT+ / Społeczność", "Grupy, wydarzenia, znajomości", "account-group-outline"]].map(([label, description, icon]) => {
             const active = selectedIntents.includes(label);
             return <Pressable key={label} onPress={() => toggleIntent(label)} style={[styles.intentCard, active && styles.intentCardActive]}><View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} /></View><View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text><Text style={styles.intentDescription}>{description}</Text></View></Pressable>;
           })}
         </View>
         <Text style={styles.fieldLabel}>Preferowany wiek</Text>
         <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax }))} />
-        <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspolnego zainteresowania</Text><Text style={styles.settingHint}>Opcjonalne. Ukryje profile bez wspolnych tagow.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
+        <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspólnego zainteresowania</Text><Text style={styles.settingHint}>Opcjonalne. Ukryje profile bez wspólnych tagów.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
       </View>
 
       <View style={styles.setupSection}>
         <Text style={styles.panelTitle}>Zainteresowania</Text>
-        <Text style={styles.panelText}>Wybierz 3-15. Kategorie pomagaja szybciej znalezc swoje klimaty.</Text>
+        <Text style={styles.panelText}>Wybierz 3-15. Kategorie pomagają szybciej znaleźć swoje klimaty.</Text>
         <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
 
       <Pressable accessibilityRole="button" disabled={!canContinue} onPress={onContinue} style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{canContinue ? "Zapisz profil i zaczynamy" : "Uzupelnij dane, zdjecie i 3 zainteresowania"}</Text>
+        <Text style={styles.primaryButtonText}>{canContinue ? "Zapisz profil i zaczynamy" : "Uzupełnij dane, zdjęcie i 3 zainteresowania"}</Text>
       </Pressable>
     </View>
   );
@@ -2204,9 +2216,9 @@ function DiscoverScreen({
         void onSwipe(action).then((outcome) => {
           const feedback =
             outcome === "liked"
-              ? "Polubienie wyslane"
+              ? "Polubienie wysłane"
               : outcome === "passed"
-                ? "Profil pominiety"
+                ? "Profil pominięty"
                 : outcome === "matched"
                   ? "To match!"
                   : null;
@@ -2339,7 +2351,7 @@ function DiscoverScreen({
   }
 
   return (
-    <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}> 
+    <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
       <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
       <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.discoverSummaryBar}>
         {preferenceSummary.map((item) => (
@@ -2363,7 +2375,7 @@ function DiscoverScreen({
             { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
           ]}
         >
-          <ProfileCard profile={profile} onOpenPreview={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
+          <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
           <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
             <Text style={styles.swipeCueText}>POMIN</Text>
           </Animated.View>
@@ -2384,11 +2396,11 @@ function DiscoverScreen({
 
       <View style={styles.stitchBottomPanel}>
         <View style={styles.stitchFabDock} pointerEvents="box-none">
-          <SwipeFab label="Pomin" icon="close" onPress={() => void runSwipeAction("pass")} />
-          <SwipeFab label="Szczegoly" icon="account" small onPress={() => setPreviewOpen(true)} />
+          <SwipeFab label="Pomiń" icon="close" onPress={() => void runSwipeAction("pass")} />
+          <SwipeFab label="Szczegóły" icon="account" small onPress={() => setPreviewOpen(true)} />
           <SwipeFab label="SPARKLIKE" sublabel={`${superlikesRemaining}/10`} icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro)} />
           <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile)} />
-          <SwipeFab label="Lubie" icon="heart" onPress={() => void runSwipeAction("like")} />
+          <SwipeFab label="Lubię" icon="heart" onPress={() => void runSwipeAction("like")} />
         </View>
       </View>
 
@@ -2694,11 +2706,11 @@ function DiscoveryPreferencesModal({
   );
 }
 
-function ProfileCard({ profile, onOpenPreview, onReport, compact = false }: { profile: MatchProfile; onOpenPreview?: () => void; onReport?: () => void; compact?: boolean }) {
+function ProfileCard({ profile, onReport, compact = false }: { profile: MatchProfile; onReport?: () => void; compact?: boolean }) {
   const featuredInterests = getFeaturedInterests(profile);
 
   return (
-    <Pressable accessibilityRole="button" onPress={onOpenPreview} style={[styles.profileCard, compact && styles.profileCardCompact]}>
+    <View style={[styles.profileCard, compact && styles.profileCardCompact]}>
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
       <LinearGradient colors={["transparent", "rgba(0,0,0,0.48)", "rgba(0,0,0,0.94)"]} locations={[0, 0.48, 1]} style={styles.cardShade} />
       {onReport && (
@@ -2739,7 +2751,7 @@ function ProfileCard({ profile, onOpenPreview, onReport, compact = false }: { pr
             const icon = getSocialIcon(social.label);
 
             return (
-              <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}> 
+              <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}>
                 <SocialIcon label={social.label} size={13} />
                 <Text style={styles.socialPillText} selectable>{social.label}</Text>
               </View>
@@ -2747,7 +2759,7 @@ function ProfileCard({ profile, onOpenPreview, onReport, compact = false }: { pr
           })}
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -2943,7 +2955,7 @@ function ProfilePreviewSheet({
         </ScrollView>
 
         <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Pomin profil" onPress={onPass} style={local.actionRound}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Pomiń profil" onPress={onPass} style={local.actionRound}>
             <MaterialCommunityIcons name="close" size={25} color={colors.ink} />
           </Pressable>
           <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
@@ -3037,9 +3049,9 @@ function DiscoverEmptyState({
         <View style={styles.discoverEmptyIcon}>
           {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
         </View>
-        <Text style={styles.discoverEmptyTitle} selectable>{loading ? "Szukamy profili" : error ? "Nie udalo sie pobrac profili" : "To wszystko na teraz"}</Text>
+        <Text style={styles.discoverEmptyTitle} selectable>{loading ? "Szukamy profili" : error ? "Nie udało się pobrać profili" : "To wszystko na teraz"}</Text>
         <Text style={styles.discoverEmptyText} selectable>
-          {loading ? "Dopasowujemy osoby do Twoich zainteresowan i preferencji." : error ? "Sprawdz polaczenie i sprobuj odswiezyc liste." : "Nie pokazujemy ponownie profili, ktore juz oceniles. Wroc pozniej albo przywroc pominiete karty."}
+          {loading ? "Dopasowujemy osoby do Twoich zainteresowan i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
         </Text>
         {!loading && likedCount > 0 && (
           <View style={styles.discoverEmptyStat}>
@@ -3051,7 +3063,7 @@ function DiscoverEmptyState({
           <>
             <Pressable accessibilityRole="button" onPress={onRefresh} style={styles.primaryButton}>
               <MaterialCommunityIcons name="refresh" size={19} color="#fff" />
-              <Text style={styles.primaryButtonText}>{error ? "Sprobuj ponownie" : "Pokaz pominiete ponownie"}</Text>
+              <Text style={styles.primaryButtonText}>{error ? "Spróbuj ponownie" : "Pokaż pominięte ponownie"}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={onOpenMatches} style={styles.secondaryButtonWide}>
               <Text style={styles.secondaryButtonText}>Przejdz do matchy</Text>
@@ -3279,7 +3291,7 @@ function MessagesScreen({
         name: profile.name + " " + profile.surname[0] + ".",
         message: isBlocked
           ? "Profil zablokowany."
-          : lastMessage ?? (isMatched ? "Match aktywny - mozecie pisac." : thread?.introMessage ?? "Prosba o chat czeka na akceptacje."),
+          : lastMessage ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Prosba o chat czeka na akceptacje."),
         time: isMatched ? "teraz" : "oczekuje",
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
@@ -3294,12 +3306,12 @@ function MessagesScreen({
     !normalizedQuery || conversation.name.toLowerCase().includes(normalizedQuery) || conversation.message.toLowerCase().includes(normalizedQuery)
   );
   const selectedConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? null;
-  const emptyTitle = normalizedQuery ? "Brak wynikow" : messageView === "chats" ? "Brak aktywnych chatow" : "Brak nowych prosb";
+  const emptyTitle = normalizedQuery ? "Brak wynikow" : messageView === "chats" ? "Brak aktywnych chatów" : "Brak nowych prosb";
   const emptyText = normalizedQuery
-    ? "Sprobuj wpisac inne imie lub fragment wiadomosci."
+    ? "Spróbuj wpisać inne imię lub fragment wiadomości."
     : messageView === "chats"
       ? "Chat pojawi sie tutaj po wzajemnym matchu."
-      : "Prosby o rozmowe czekaja tutaj osobno do czasu akceptacji.";
+      : "Prośby o rozmowę czekają tutaj osobno do czasu akceptacji.";
 
   function selectMessageView(nextView: "chats" | "requests") {
     setMessageView(nextView);
@@ -3308,7 +3320,7 @@ function MessagesScreen({
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Wiadomosci" title="Rozmowy" left="=" right="message-text" />
+      <TopBar eyebrow="Wiadomości" title="Rozmowy" left="=" right="message-text" />
       <View style={styles.chatToggleRow}>
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
@@ -3332,7 +3344,7 @@ function MessagesScreen({
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
-          placeholder={messageView === "chats" ? "Szukaj chatow" : "Szukaj prosb"}
+          placeholder={messageView === "chats" ? "Szukaj chatów" : "Szukaj prosb"}
           placeholderTextColor={colors.muted}
           style={styles.searchInput}
         />
@@ -3456,7 +3468,7 @@ function ChatConversationModal({
   function confirmReport() {
     Alert.alert("Powod zgloszenia", `Co jest nie tak z profilem ${activeConversation.name}?`, [
       { text: "Spam", onPress: () => onReport(activeConversation.key, "Spam lub reklamy") },
-      { text: "Nekanie", onPress: () => onReport(activeConversation.key, "Nekanie lub obrazliwe wiadomosci") },
+      { text: "Nekanie", onPress: () => onReport(activeConversation.key, "Nękanie lub obraźliwe wiadomości") },
       { text: "Falszywy profil", onPress: () => onReport(activeConversation.key, "Falszywy profil") },
       { text: "Anuluj", style: "cancel" }
     ]);
@@ -3497,7 +3509,7 @@ function ChatConversationModal({
             <View style={local.empty}>
               <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
               <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmowe" : "Prosba oczekuje"}</Text>
-              <Text style={local.emptyText} selectable>{canMessage ? "Napisz pierwsza wiadomosc i nawiaz kontakt." : "Wiadomosci odblokuja sie po zaakceptowaniu prosby."}</Text>
+              <Text style={local.emptyText} selectable>{canMessage ? "Napisz pierwsza wiadomosc i nawiaz kontakt." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
             </View>
           ) : messages.map((message) => (
             <View key={message.id} style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
@@ -3510,7 +3522,7 @@ function ChatConversationModal({
         {!canMessage ? (
           <View style={[local.pending, { marginBottom: Math.max(insets.bottom, 12) }]}>
             <Text style={local.pendingTitle} selectable>Rozmowa jeszcze zablokowana</Text>
-            <Text style={local.pendingText} selectable>{thread?.requestDirection === "incoming" ? "Ta osoba chce rozpoczac rozmowe z Toba." : "Druga osoba musi zaakceptowac prosbe albo odwzajemnic polubienie."}</Text>
+            <Text style={local.pendingText} selectable>{thread?.requestDirection === "incoming" ? "Ta osoba chce rozpoczac rozmowe z Toba." : "Druga osoba musi zaakceptować prośbę albo odwzajemnić polubienie."}</Text>
             {thread?.requestDirection === "incoming" && (
               <View style={local.pendingActions}>
                 <Pressable onPress={() => onReject(activeConversation.key)} style={local.rejectButton}><Text style={local.requestButtonText}>Odrzuc</Text></Pressable>
@@ -3673,7 +3685,7 @@ function PremiumScreen({
       )}
       <Pressable disabled={primaryDisabled} onPress={buySelectedPlan} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
         <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
-        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Laczenie..." : !hasPackages ? "Otworz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Laczenie..." : !hasPackages ? "Otwórz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
       </Pressable>
     </View>
   );
@@ -3770,7 +3782,7 @@ function ProfileScreen({
     setSaveBusy(true);
     const saved = await onSave();
     setSaveBusy(false);
-    Alert.alert(saved ? "Profil zapisany" : "Nie udalo sie zapisac", saved ? "Zmiany sa juz widoczne w Twoim profilu." : "Sprawdz polaczenie i sprobuj ponownie.");
+    Alert.alert(saved ? "Profil zapisany" : "Nie udało się zapisać", saved ? "Zmiany sa juz widoczne w Twoim profilu." : "Sprawdź połączenie i spróbuj ponownie.");
   }
   return (
     <View style={styles.profileScreen}>
@@ -3832,13 +3844,13 @@ function ProfileScreen({
           <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
         </View>
         <View style={styles.segmentedChoice}>
-          <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imie i nazwisko</Text></Pressable>
+          <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imię i nazwisko</Text></Pressable>
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
-        {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imie" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
+        {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
-        <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidlowa date." : String(calculateAge(birthDate)) + " lat"}</Text>
-        {(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
+        <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : String(calculateAge(birthDate)) + " lat"}</Text>
+        {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
       <View style={styles.profileGalleryPanel}>
@@ -3846,7 +3858,7 @@ function ProfileScreen({
           <View style={styles.fill}>
             <Text style={styles.panelTitle} selectable>Zdjęcia</Text>
             <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjec - format 4:5</Text>
-            <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdjec aktywny" : "Spark Pro odblokuje do 15 zdjec"}</Text>
+            <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdjęć aktywny" : "Spark Pro odblokuje do 15 zdjęć"}</Text>
           </View>
           <Pressable onPress={() => (profilePhotos.length >= maxPhotos && !hasPro ? openPremium() : pickProfilePhoto())} style={styles.photoAddButton}>
             <MaterialCommunityIcons name={profilePhotos.length >= maxPhotos ? "lock" : "plus"} size={16} color="#fff" />
@@ -3888,7 +3900,7 @@ function ProfileScreen({
             }
           }}
         />
-        <SettingRow label="Bezpieczenstwo" value="Otworz" onPress={openSafety} />
+        <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
       </View>
 
       <Pressable accessibilityRole="button" disabled={saveBusy} onPress={() => void handleSaveProfile()} style={[styles.primaryButton, saveBusy && styles.primaryButtonDisabled]}>
@@ -4119,7 +4131,7 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
     },
     {
       title: "Zablokuj uzytkownika",
-      body: "Ukryj profil, przerwij match i zablokuj wiadomosci.",
+      body: "Ukryj profil, przerwij match i zablokuj wiadomości.",
       cta: "W feedzie",
       onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostępne na karcie profilu i w wiadomościach.")
     },
@@ -4132,13 +4144,13 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
     {
       title: "Prywatnosc i dane",
       body: "Polityka prywatnosci, dane konta, lokalizacja i reklamy.",
-      cta: "Otworz",
+      cta: "Otwórz",
       onPress: () => openLegalDocument("Polityka prywatnosci", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
     },
     {
       title: "Regulamin",
       body: "Warunki korzystania, platnosci premium i zasady konta.",
-      cta: "Otworz",
+      cta: "Otwórz",
       onPress: () => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")
     }
   ];
