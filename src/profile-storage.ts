@@ -1,4 +1,4 @@
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "./firebase";
 
 type ProfilePhoto = number | string;
@@ -53,4 +53,36 @@ export async function uploadProfilePhotos(uid: string, photos: ProfilePhoto[]) {
       return getDownloadURL(photoRef);
     })
   );
+}
+function getOwnedStoragePath(uid: string, value: ProfilePhoto) {
+  if (typeof value !== "string") return null;
+  const expectedPrefix = `users/${uid}/profile/`;
+
+  try {
+    if (value.startsWith("gs://")) {
+      const path = value.replace(/^gs:\/\/[^/]+\//, "");
+      return path.startsWith(expectedPrefix) ? path : null;
+    }
+
+    const url = new URL(value);
+    const encodedPath = url.pathname.match(/\/o\/([^/]+)$/)?.[1];
+    if (!encodedPath) return null;
+    const path = decodeURIComponent(encodedPath);
+    return path.startsWith(expectedPrefix) ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteProfilePhotos(uid: string, photos: ProfilePhoto[]) {
+  const currentStorage = storage;
+  if (!currentStorage) return;
+  const paths = Array.from(new Set(photos.map((photo) => getOwnedStoragePath(uid, photo)).filter((path): path is string => Boolean(path))));
+  await Promise.all(paths.map(async (path) => {
+    try {
+      await deleteObject(ref(currentStorage, path));
+    } catch (error: any) {
+      if (error?.code !== "storage/object-not-found") throw error;
+    }
+  }));
 }

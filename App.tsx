@@ -31,7 +31,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, observeAuthState, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, observeAuthState, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   acceptChatRequest,
@@ -59,7 +59,7 @@ import {
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
-import { uploadProfilePhotos } from "./src/profile-storage";
+import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
 
 
 const colors = {
@@ -156,7 +156,7 @@ const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, r
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
-type AgeBand = "18+" | "under18" | null;
+type AgeBand = "18+" | null;
 type ProfilePhoto = number | string;
 type ProfileNameMode = "realName" | "nickname";
 type ChatStatus = "matched" | "requested" | "blocked";
@@ -674,7 +674,7 @@ function AppContent() {
   const hasRequestedActiveProfile = activeProfileKey ? chatRequestKeys.includes(activeProfileKey) : false;
   const derivedAge = calculateAge(birthDate);
   const identityComplete = profileNameMode === "nickname" ? nickname.trim().length >= 2 : firstName.trim().length >= 2;
-  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 13 && (intent === "Randki" ? derivedAge >= 18 : true) && profilePhotos.length >= 1;
+  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 18 && profilePhotos.length >= 1;
 
   const contentPadding = useMemo(
     () => ({
@@ -1474,9 +1474,10 @@ function AppContent() {
     }
 
     try {
+      await ensureRecentLoginForAccountDeletion();
+      await deleteProfilePhotos(appUser.uid, profilePhotos);
       await requestAccountDeletionAndDeleteProfile({
-        uid: appUser.uid,
-        email: appUser.email ?? email
+        uid: appUser.uid
       });
       await deleteCurrentUserAccount();
 
@@ -1581,7 +1582,7 @@ function AppContent() {
             const age = calculateAge(formatted);
             if (age !== null) {
               setUserAge(age);
-              setAgeBand(age >= 18 ? "18+" : "under18");
+              setAgeBand(age >= 18 ? "18+" : null);
             }
           }}
           profilePhotos={profilePhotos}
@@ -2024,7 +2025,6 @@ function OnboardingScreen({
 }) {
   const [selectedIntents, setSelectedIntents] = useState([intent]);
   const derivedAge = calculateAge(birthDate);
-  const isDating = selectedIntents.includes("Randki");
 
   function toggleIntent(label: string) {
     const next = selectedIntents.includes(label) ? selectedIntents.filter((item) => item !== label) : [...selectedIntents, label];
@@ -2059,7 +2059,7 @@ function OnboardingScreen({
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
-        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : String(derivedAge) + " lat" + (isDating && derivedAge < 18 ? " - Randki sa dostepne od 18 lat." : "")}</Text>
+        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : String(derivedAge) + " lat" + (derivedAge < 18 ? " - Spark jest dostępny od 18 lat." : "")}</Text>
         {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
@@ -4189,9 +4189,9 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
       </View>
 
       <View style={styles.deleteCard}>
-        <Text style={styles.deleteTitle} selectable>Usuniecie konta w aplikacji</Text>
+        <Text style={styles.deleteTitle} selectable>Usunięcie konta w aplikacji</Text>
         <Text style={styles.deleteText} selectable>
-          Usunie konto Firebase Auth, glowny profil Firestore i zapisze request do kolejki retencji danych.
+          Usunie konto, zdjęcia, profil, polubienia, matche, wiadomości i blokady. Tej operacji nie można cofnąć.
         </Text>
         <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={styles.deleteAccountButton}>
           <Text style={styles.deleteAccountButtonText}>Usuń konto</Text>

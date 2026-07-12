@@ -1,12 +1,12 @@
 # Regulamin Spark
 
-Ostatnia aktualizacja: 5 lipca 2026
+Ostatnia aktualizacja: 13 lipca 2026
 
 Korzystając ze Spark, akceptujesz te warunki. Kontakt: sparkapp@gmail.com.
 
 ## Konto i wiek
 
-Funkcje randkowe są przeznaczone dla osób pełnoletnich. Osoby poniżej 18 lat nie powinny korzystać z trybu randkowego. Użytkownik odpowiada za prawdziwość danych profilu i za bezpieczeństwo swojego konta.
+Spark jest przeznaczony wyłącznie dla osób, które ukończyły 18 lat. Osoby niepełnoletnie nie mogą tworzyć konta ani korzystać z aplikacji. Użytkownik odpowiada za prawdziwość danych profilu i bezpieczeństwo swojego konta.
 
 ## Zachowanie użytkowników
 

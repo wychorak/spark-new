@@ -1,12 +1,12 @@
 # Polityka prywatności Spark
 
-Ostatnia aktualizacja: 5 lipca 2026
+Ostatnia aktualizacja: 13 lipca 2026
 
 Spark pomaga poznawać osoby w okolicy na podstawie profilu, lokalizacji przybliżonej i wspólnych zainteresowań. Kontakt w sprawach prywatności: sparkapp@gmail.com.
 
 ## Jakie dane przetwarzamy
 
-Przetwarzamy dane konta, takie jak adres e-mail, imię, nazwisko lub pseudonim, wiek, zdjęcia, opis profilu, zainteresowania, preferencje wyszukiwania, przybliżoną lokalizację, polubienia, matche, wiadomości, zgłoszenia i blokady. Dane zakupów premium obsługuje RevenueCat oraz sklep Apple lub Google. Reklamy mogą być obsługiwane przez Google Mobile Ads.
+Przetwarzamy dane konta, takie jak adres e-mail, imię, nazwisko lub pseudonim, datę urodzenia i wyliczony wiek, zdjęcia, opis profilu, zainteresowania, preferencje wyszukiwania, przybliżoną lokalizację, polubienia, matche, wiadomości, zgłoszenia i blokady. Dane zakupów premium obsługuje RevenueCat oraz sklep Apple lub Google. Reklamy mogą być obsługiwane przez Google Mobile Ads.
 
 ## Po co używamy danych
 
@@ -18,7 +18,7 @@ Lokalizacja służy do wyświetlania przybliżonej odległości i dopasowania pr
 
 ## Usunięcie konta
 
-Konto możesz usunąć w aplikacji w sekcji profilu i bezpieczeństwa. Usuwamy konto logowania oraz główny profil, a dane wymagające retencji trafiają do kolejki usunięcia zgodnie z obowiązkami bezpieczeństwa i rozliczeń.
+Konto możesz usunąć w aplikacji w sekcji profilu i bezpieczeństwa. Po potwierdzeniu usuwamy konto logowania, profil, zdjęcia, polubienia, matche, wiadomości oraz blokady. Zachowujemy jedynie minimalny zapis techniczny wniosku o usunięcie. Zgłoszenia dotyczące bezpieczeństwa możemy zachować przez okres niezbędny do przeciwdziałania nadużyciom, realizacji obowiązków prawnych i rozliczalności.
 
 ## Udostępnianie danych
 

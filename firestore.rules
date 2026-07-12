@@ -76,7 +76,8 @@ service cloud.firestore {
     match /accountDeletions/{uid} {
       allow create, update: if isOwner(uid)
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.status == "requested";
+        && request.resource.data.status == "requested"
+        && request.resource.data.keys().hasOnly(["uid", "reason", "status", "requestedAt"]);
       allow read, delete: if false;
     }
 
@@ -94,7 +95,9 @@ service cloud.firestore {
         resource.data.fromUid == request.auth.uid ||
         resource.data.toProfileKey == request.auth.uid
       );
-      allow delete: if false;
+      allow delete: if signedIn() && (
+        resource.data.fromUid == request.auth.uid || resource.data.toProfileKey == request.auth.uid
+      );
     }
     match /matches/{matchId} {
       allow create: if signedIn()
@@ -113,7 +116,7 @@ service cloud.firestore {
           (resource.data.status == 'requested' && request.resource.data.status == 'blocked') ||
           (resource.data.status == 'matched' && request.resource.data.status == 'blocked')
         );
-      allow delete: if false;
+      allow delete: if signedIn() && request.auth.uid in resource.data.memberUids;
     }
 
 
@@ -124,7 +127,9 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/matches/$(threadId)).data.status == 'matched'
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids
         && validMessage(request.resource.data);
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids;
     }
   }
 }

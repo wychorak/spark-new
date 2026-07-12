@@ -25,7 +25,7 @@ export type UserProfileDocument = {
   email: string | null;
   displayName?: string | null;
   intent: string;
-  ageBand?: "18+" | "under18" | null;
+  ageBand?: "18+" | null;
   age?: number | null;
   interests: string[];
   photoUrls?: string[];
@@ -174,7 +174,6 @@ export async function getUserProfile(uid: string) {
 
 export async function requestAccountDeletionAndDeleteProfile(params: {
   uid: string;
-  email: string | null;
   reason?: string;
 }) {
   const currentDb = requireDb();
@@ -186,17 +185,37 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
     deletionRef,
     {
       uid: params.uid,
-      email: params.email,
       reason: params.reason ?? "in-app-delete-account",
       status: "requested",
       requestedAt: serverTimestamp()
-    },
-    { merge: true }
+    }
   );
+  const [blocksSnapshot, outgoingSwipes, incomingSwipes, matchesSnapshot] = await Promise.all([
+    getDocs(collection(currentDb, "users", params.uid, "blocks")),
+    getDocs(query(collection(currentDb, "swipes"), where("fromUid", "==", params.uid))),
+    getDocs(query(collection(currentDb, "swipes"), where("toProfileKey", "==", params.uid))),
+    getDocs(query(collection(currentDb, "matches"), where("memberUids", "array-contains", params.uid)))
+  ]);
+
+  const messageSnapshots = await Promise.all(
+    matchesSnapshot.docs.map((matchDocument) => getDocs(collection(currentDb, "messages", matchDocument.id, "items")))
+  );
+  const swipeDocuments = Array.from(
+    new Map([...outgoingSwipes.docs, ...incomingSwipes.docs].map((item) => [item.id, item])).values()
+  );
+
+  await Promise.all(
+    messageSnapshots.flatMap((snapshot) => snapshot.docs.map((item) => deleteDoc(item.ref)))
+  );
+  await Promise.all([
+    ...matchesSnapshot.docs.map((item) => deleteDoc(item.ref)),
+    ...blocksSnapshot.docs.map((item) => deleteDoc(item.ref)),
+    ...swipeDocuments.map((item) => deleteDoc(item.ref))
+  ]);
+
 
   await Promise.all([deleteDoc(profileRef), deleteDoc(privateProfileRef)]);
 }
-
 export async function findTestProfiles() {
   const currentDb = requireDb();
   const snapshot = await getDocs(

@@ -1,6 +1,6 @@
 # Zasady społeczności Spark
 
-Spark ma być miejscem bezpiecznego poznawania ludzi. Zasady obowiązują w profilach, zdjęciach, wiadomościach i zgłoszeniach.
+Spark jest społecznością wyłącznie dla osób pełnoletnich i ma być miejscem bezpiecznego poznawania ludzi. Zasady obowiązują w profilach, zdjęciach, wiadomościach i zgłoszeniach.
 
 ## Najważniejsze zasady
 

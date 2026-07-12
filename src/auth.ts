@@ -91,6 +91,19 @@ export async function signOutUser() {
   await signOut(currentAuth);
 }
 
+export async function ensureRecentLoginForAccountDeletion() {
+  const currentUser = requireAuth().currentUser;
+  if (!currentUser) {
+    throw new Error("Brak zalogowanego użytkownika.");
+  }
+
+  const token = await currentUser.getIdTokenResult();
+  const authenticatedAt = Date.parse(token.authTime);
+  const fourMinutes = 4 * 60 * 1000;
+  if (!Number.isFinite(authenticatedAt) || Date.now() - authenticatedAt > fourMinutes) {
+    throw new Error("Ze względów bezpieczeństwa wyloguj się, zaloguj ponownie i wtedy usuń konto.");
+  }
+}
 export async function deleteCurrentUserAccount() {
   const currentAuth = requireAuth();
   const currentUser = currentAuth.currentUser;
@@ -103,7 +116,7 @@ export async function deleteCurrentUserAccount() {
     await deleteUser(currentUser);
   } catch (error: any) {
     if (error?.code === "auth/requires-recent-login") {
-      throw new Error("Zaloguj sie ponownie i sprobuj usunac konto jeszcze raz.");
+      throw new Error("Zaloguj się ponownie i spróbuj usunąć konto jeszcze raz.");
     }
 
     throw error;
