@@ -150,6 +150,7 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number };
+const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -564,7 +565,7 @@ function AppContent() {
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
-  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ proOnly: false, requireCommonInterests: false, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>(createDefaultDiscoverFilters);
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
@@ -1067,20 +1068,22 @@ function AppContent() {
     }
   }
 
-  async function saveDiscoveryPreferences(): Promise<boolean> {
+  async function saveDiscoveryPreferences(nextFilters: DiscoverFilters): Promise<boolean> {
     if (!appUser) {
       return false;
     }
 
     try {
       await updateUserDiscoveryPreferences(appUser.uid, {
-        desiredAgeMin: discoverFilters.ageMin,
-        desiredAgeMax: discoverFilters.ageMax,
-        maxDistanceKm: discoverFilters.maxDistanceKm,
-        desiredInterests: discoverFilters.targetInterests,
-        requireCommonInterests: discoverFilters.requireCommonInterests,
-        proOnly: discoverFilters.proOnly
+        desiredAgeMin: nextFilters.ageMin,
+        desiredAgeMax: nextFilters.ageMax,
+        maxDistanceKm: nextFilters.maxDistanceKm,
+        desiredInterests: nextFilters.targetInterests,
+        requireCommonInterests: nextFilters.requireCommonInterests,
+        proOnly: nextFilters.proOnly
       });
+      setDiscoverFilters(nextFilters);
+      setProfileReloadKey((value) => value + 1);
       return true;
     } catch {
       Alert.alert("Preferencje", "Nie uda\u0142o si\u0119 zapisa\u0107 preferencji. Spr\u00f3buj ponownie.");
@@ -1547,9 +1550,7 @@ function AppContent() {
             hasRequestedProfile={hasRequestedActiveProfile}
             superlikesRemaining={superlikesRemaining}
             selectedInterests={selectedInterests}
-            setSelectedInterests={setSelectedInterests}
             discoverFilters={discoverFilters}
-            setDiscoverFilters={setDiscoverFilters}
             screenMinHeight={discoverMinHeight}
             onReportProfile={async (reason) => activeProfileKey ? reportProfile(activeProfileKey, reason) : false}
             onRefresh={refreshDiscovery}
@@ -1569,7 +1570,6 @@ function AppContent() {
             onOpenProfile={() => setTab("profile")}
             onOpenSafety={() => setTab("safety")}
             discoverFilters={discoverFilters}
-            setDiscoverFilters={setDiscoverFilters}
             onSavePreferences={saveDiscoveryPreferences}
             onChromeHiddenChange={setBottomNavHidden}
           />
@@ -1620,7 +1620,6 @@ function AppContent() {
               if (age !== null) setUserAge(age);
             }}
             discoverFilters={discoverFilters}
-            setDiscoverFilters={setDiscoverFilters}
             userCity={userCity}
             userCountry={userCountry}
             email={email}
@@ -2012,9 +2011,7 @@ function DiscoverScreen({
   hasRequestedProfile,
   superlikesRemaining,
   selectedInterests,
-  setSelectedInterests,
   discoverFilters,
-  setDiscoverFilters,
   screenMinHeight,
   onReportProfile,
   onRefresh,
@@ -2037,13 +2034,11 @@ function DiscoverScreen({
   hasRequestedProfile: boolean;
   superlikesRemaining: number;
   selectedInterests: string[];
-  setSelectedInterests: (value: string[]) => void;
   discoverFilters: DiscoverFilters;
-  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   screenMinHeight: number;
   onReportProfile: (reason?: string) => Promise<boolean>;
   onRefresh: () => void;
-  onSavePreferences: () => Promise<boolean>;
+  onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
@@ -2172,21 +2167,6 @@ function DiscoverScreen({
     [profileKey, swipeBusy, swipeMotion]
   );
 
-  function updatePreference(key: keyof DiscoverFilters, value: number | boolean) {
-    setDiscoverFilters((current) => ({ ...current, [key]: value }));
-  }
-
-  function shiftRange(minKey: keyof DiscoverFilters, maxKey: keyof DiscoverFilters, delta: number, floor: number, ceiling: number) {
-    setDiscoverFilters((current) => {
-      const min = current[minKey] as number;
-      const max = current[maxKey] as number;
-      return {
-        ...current,
-        [minKey]: Math.max(floor, Math.min(ceiling - 1, min + delta)),
-        [maxKey]: Math.max(floor + 1, Math.min(ceiling, max + delta))
-      };
-    });
-  }
 
   async function promptProFeature(kind: "superlike" | "message", action: () => void | Promise<void>, locked: boolean) {
     if (locked) {
@@ -2331,85 +2311,25 @@ function DiscoverScreen({
         />
       )}
 
-      {menuOpen && (
-        <View style={styles.reportOverlay}>
-          <Pressable style={styles.reportBackdrop} onPress={() => setMenuOpen(false)} />
-          <View style={styles.reportSheet}>
-            <View style={styles.reportSheetHeader}>
-              <View style={styles.fill}>
-                <Text style={styles.reportTitle} selectable>Menu odkrywania</Text>
-                <Text style={styles.reportSubtitle} selectable>Szybkie akcje bez wychodzenia z kart.</Text>
-              </View>
-              <Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.reportCloseButton}>
-                <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
-              </Pressable>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onRefresh(); }} style={styles.reportSendButton}>
-              <MaterialCommunityIcons name="refresh" size={18} color="#fff" />
-              <Text style={styles.reportSendText}>Odswiez feed</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); setPreferencesOpen(true); }} style={styles.secondaryButtonWide}>
-              <MaterialCommunityIcons name="tune-variant" size={18} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Filtry i preferencje</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMatches(); }} style={styles.secondaryButtonWide}>
-              <MaterialCommunityIcons name="heart-multiple" size={18} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Matche</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMessages(); }} style={styles.secondaryButtonWide}>
-              <MaterialCommunityIcons name="message-text" size={18} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Wiadomosci</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenProfile(); }} style={styles.secondaryButtonWide}>
-              <MaterialCommunityIcons name="account-circle" size={18} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Moj profil</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenSafety(); }} style={styles.secondaryButtonWide}>
-              <MaterialCommunityIcons name="shield-check" size={18} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Bezpieczenstwo</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
+      <DiscoveryMenuModal
+        visible={menuOpen}
+        filters={discoverFilters}
+        onClose={() => setMenuOpen(false)}
+        onOpenPreferences={() => setPreferencesOpen(true)}
+        onRefresh={onRefresh}
+        onOpenMatches={onOpenMatches}
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+        onOpenSafety={onOpenSafety}
+      />
 
-      {preferencesOpen && (
-        <View style={styles.reportOverlay}>
-          <Pressable style={styles.reportBackdrop} onPress={() => setPreferencesOpen(false)} />
-          <View style={styles.preferenceSheet}>
-            <View style={styles.reportSheetHeader}>
-              <View style={styles.fill}>
-                <Text style={styles.reportTitle} selectable>Preferencje odkrywania</Text>
-                <Text style={styles.reportSubtitle} selectable>Dopasuj osoby po zainteresowaniach, wieku i odleglosci.</Text>
-              </View>
-              <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportCloseButton}>
-                <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
-              </Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.preferenceScroll}>
-              <PreferenceRange label="Wiek" value={`${discoverFilters.ageMin}-${discoverFilters.ageMax} lat`} onMinus={() => shiftRange("ageMin", "ageMax", -1, 18, 70)} onPlus={() => shiftRange("ageMin", "ageMax", 1, 18, 70)} />
-              <PreferenceRange label="Maksymalna odległość" value={`do ${discoverFilters.maxDistanceKm} km`} onMinus={() => updatePreference("maxDistanceKm", Math.max(5, discoverFilters.maxDistanceKm - 10))} onPlus={() => updatePreference("maxDistanceKm", Math.min(500, discoverFilters.maxDistanceKm + 10))} />
-              <View style={styles.setupSection}>
-                <Text style={styles.settingLabel}>Szukane zainteresowania</Text>
-                <Text style={styles.settingHint}>Opcjonalne. Pokazuj osoby z przynajmniej jednym wybranym tematem.</Text>
-                <CategorizedInterestPicker selected={discoverFilters.targetInterests} onToggle={(item) => setDiscoverFilters((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
-              </View>
-              <View style={styles.preferenceToggleRow}>
-                <Pressable accessibilityRole="button" onPress={() => updatePreference("requireCommonInterests", !discoverFilters.requireCommonInterests)} style={[styles.preferenceToggle, discoverFilters.requireCommonInterests && styles.preferenceToggleActive]}>
-                  <MaterialCommunityIcons name="tag-heart" size={17} color={discoverFilters.requireCommonInterests ? "#fff" : colors.primary} />
-                  <Text style={[styles.preferenceToggleText, discoverFilters.requireCommonInterests && styles.preferenceToggleTextActive]}>Wspolne tagi</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={() => updatePreference("proOnly", !discoverFilters.proOnly)} style={[styles.preferenceToggle, discoverFilters.proOnly && styles.preferenceToggleActive]}>
-                  <MaterialCommunityIcons name="crown" size={17} color={discoverFilters.proOnly ? "#fff" : colors.primary} />
-                  <Text style={[styles.preferenceToggleText, discoverFilters.proOnly && styles.preferenceToggleTextActive]}>Tylko Pro</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-            <Pressable accessibilityRole="button" onPress={async () => { if (await onSavePreferences()) setPreferencesOpen(false); }} style={styles.reportSendButton}>
-              <Text style={styles.reportSendText}>Zastosuj preferencje</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
+      <DiscoveryPreferencesModal
+        visible={preferencesOpen}
+        filters={discoverFilters}
+        onClose={() => setPreferencesOpen(false)}
+        onApply={onSavePreferences}
+      />
+
       {reportOpen && (
         <View style={styles.reportOverlay}>
           <Pressable style={styles.reportBackdrop} onPress={() => setReportOpen(false)} />
@@ -2464,24 +2384,223 @@ function AgeRangeControl({ min, max, onChange }: { min: number; max: number; onC
   );
 }
 
-function PreferenceRange({ label, value, onMinus, onPlus }: { label: string; value: string; onMinus: () => void; onPlus: () => void }) {
+function countActiveDiscoverFilters(filters: DiscoverFilters) {
+  const defaults = createDefaultDiscoverFilters();
+  return [
+    filters.ageMin !== defaults.ageMin || filters.ageMax !== defaults.ageMax,
+    filters.maxDistanceKm !== defaults.maxDistanceKm,
+    filters.targetInterests.length > 0,
+    filters.requireCommonInterests,
+    filters.proOnly
+  ].filter(Boolean).length;
+}
+
+function DiscoveryMenuModal({
+  visible,
+  filters,
+  onClose,
+  onOpenPreferences,
+  onRefresh,
+  onOpenMatches,
+  onOpenMessages,
+  onOpenProfile,
+  onOpenSafety
+}: {
+  visible: boolean;
+  filters: DiscoverFilters;
+  onClose: () => void;
+  onOpenPreferences: () => void;
+  onRefresh: () => void;
+  onOpenMatches: () => void;
+  onOpenMessages: () => void;
+  onOpenProfile: () => void;
+  onOpenSafety: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const activeFilters = countActiveDiscoverFilters(filters);
+  const menuItems = [
+    { icon: "cards-heart", label: "Odkrywaj", hint: "Wróć do kart", active: true, action: onClose },
+    { icon: "heart-multiple", label: "Matche", hint: "Polubienia i nowe iskry", action: onOpenMatches },
+    { icon: "message-text", label: "Wiadomości", hint: "Aktywne i oczekujące", action: onOpenMessages },
+    { icon: "account-circle", label: "Twój profil", hint: "Zdjęcia, dane i zainteresowania", action: onOpenProfile }
+  ];
+
+  function run(action: () => void) {
+    onClose();
+    action();
+  }
+
   return (
-    <View style={styles.preferenceRangeRow}>
-      <View style={styles.fill}>
-        <Text style={styles.preferenceLabel} selectable>{label}</Text>
-        <Text style={styles.preferenceValue} selectable>{value}</Text>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={onClose}>
+      <View style={styles.discoveryModalRoot}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij menu" onPress={onClose} style={styles.discoveryModalBackdrop} />
+        <View style={[styles.discoveryDrawer, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 18) }]}>
+          <View style={styles.discoveryDrawerHeader}>
+            <View style={styles.discoveryDrawerBrand}>
+              <View style={styles.discoveryDrawerLogo}><Image source={headerLogoImage} style={styles.discoveryDrawerLogoImage} contentFit="contain" /></View>
+              <View style={styles.fill}>
+                <Text style={styles.discoveryDrawerEyebrow}>SPARK</Text>
+                <Text style={styles.discoveryDrawerTitle}>Twoje centrum</Text>
+              </View>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij menu" onPress={onClose} style={styles.discoveryDrawerClose}>
+              <MaterialCommunityIcons name="close" size={21} color={colors.ink} />
+            </Pressable>
+          </View>
+
+          <View style={styles.discoveryDrawerNav}>
+            {menuItems.map((item) => (
+              <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={item.label} onPress={() => run(item.action)} style={({ pressed }) => [styles.discoveryMenuRow, item.active && styles.discoveryMenuRowActive, pressed && styles.controlPressed]}>
+                <View style={[styles.discoveryMenuIcon, item.active && styles.discoveryMenuIconActive]}>
+                  <MaterialCommunityIcons name={item.icon as any} size={21} color={item.active ? "#fff" : colors.primary} />
+                </View>
+                <View style={styles.fill}>
+                  <Text style={[styles.discoveryMenuLabel, item.active && styles.discoveryMenuLabelActive]}>{item.label}</Text>
+                  <Text style={styles.discoveryMenuHint}>{item.hint}</Text>
+                </View>
+                {item.active ? <View style={styles.discoveryMenuActiveDot} /> : <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />}
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.discoveryDrawerDivider} />
+          <Pressable accessibilityRole="button" onPress={() => run(onOpenPreferences)} style={({ pressed }) => [styles.discoveryMenuUtility, pressed && styles.controlPressed]}>
+            <MaterialCommunityIcons name="tune-variant" size={20} color={colors.primary} />
+            <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Preferencje odkrywania</Text><Text style={styles.discoveryMenuHint}>Wiek, dystans i zainteresowania</Text></View>
+            {activeFilters > 0 && <View style={styles.discoveryFilterCount}><Text style={styles.discoveryFilterCountText}>{activeFilters}</Text></View>}
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => run(onRefresh)} style={({ pressed }) => [styles.discoveryMenuUtility, pressed && styles.controlPressed]}>
+            <MaterialCommunityIcons name="refresh" size={20} color={colors.primary} />
+            <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Odśwież feed</Text><Text style={styles.discoveryMenuHint}>Pobierz profile ponownie</Text></View>
+          </Pressable>
+
+          <View style={styles.fill} />
+          <Pressable accessibilityRole="button" onPress={() => run(onOpenSafety)} style={({ pressed }) => [styles.discoverySafetyRow, pressed && styles.controlPressed]}>
+            <View style={styles.discoverySafetyIcon}><MaterialCommunityIcons name="shield-check" size={20} color={colors.green} /></View>
+            <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Bezpieczeństwo</Text><Text style={styles.discoveryMenuHint}>Zgłoszenia, blokady i zasady</Text></View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
+          </Pressable>
+        </View>
       </View>
-      <View style={styles.preferenceStepper}>
-        <Pressable accessibilityRole="button" onPress={onMinus} style={styles.preferenceStepButton}>
-          <MaterialCommunityIcons name="minus" size={18} color={colors.ink} />
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={onPlus} style={styles.preferenceStepButton}>
-          <MaterialCommunityIcons name="plus" size={18} color={colors.ink} />
-        </Pressable>
-      </View>
-    </View>
+    </Modal>
   );
 }
+
+function DiscoveryPreferencesModal({
+  visible,
+  filters,
+  onClose,
+  onApply
+}: {
+  visible: boolean;
+  filters: DiscoverFilters;
+  onClose: () => void;
+  onApply: (nextFilters: DiscoverFilters) => Promise<boolean>;
+}) {
+  const insets = useSafeAreaInsets();
+  const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests] }));
+  const [saving, setSaving] = useState(false);
+  const activeFilters = countActiveDiscoverFilters(draft);
+  const distanceOptions = [25, 50, 100, 250, 500];
+
+  useEffect(() => {
+    if (visible) {
+      setDraft({ ...filters, targetInterests: [...filters.targetInterests] });
+      setSaving(false);
+    }
+  }, [filters, visible]);
+
+  async function applyFilters() {
+    if (saving) return;
+    setSaving(true);
+    const saved = await onApply(draft);
+    setSaving(false);
+    if (saved) onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={onClose}>
+      <View style={[styles.discoveryModalRoot, styles.discoveryFilterModalRoot]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij preferencje" onPress={onClose} style={styles.discoveryModalBackdrop} />
+        <View style={[styles.discoveryFilterSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+          <View style={styles.discoverySheetHandle} />
+          <View style={styles.discoveryFilterHeader}>
+            <View style={styles.fill}>
+              <Text style={styles.discoveryFilterEyebrow}>DOPASUJ FEED</Text>
+              <Text style={styles.discoveryFilterTitle}>Kogo chcesz poznać?</Text>
+              <Text style={styles.discoveryFilterSubtitle}>Zmiany zobaczysz dopiero po ich zastosowaniu.</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij preferencje" onPress={onClose} style={styles.discoveryDrawerClose}>
+              <MaterialCommunityIcons name="close" size={21} color={colors.ink} />
+            </Pressable>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.discoveryFilterScroll} keyboardShouldPersistTaps="handled">
+            <View style={styles.discoveryFilterSection}>
+              <View style={styles.discoveryFilterSectionHeader}>
+                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="calendar-range" size={19} color={colors.primary} /></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Przedział wieku</Text><Text style={styles.discoveryFilterSectionHint}>Wybierz osobno dolną i górną granicę.</Text></View>
+              </View>
+              <AgeRangeControl min={draft.ageMin} max={draft.ageMax} onChange={(ageMin, ageMax) => setDraft((current) => ({ ...current, ageMin, ageMax }))} />
+            </View>
+
+            <View style={styles.discoveryFilterSection}>
+              <View style={styles.discoveryFilterSectionHeader}>
+                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="map-marker-radius" size={19} color={colors.primary} /></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Maksymalna odległość</Text><Text style={styles.discoveryFilterSectionHint}>Profile bez dokładnej lokalizacji nadal mogą się pojawić.</Text></View>
+              </View>
+              <View style={styles.discoveryDistanceGrid}>
+                {distanceOptions.map((distance) => {
+                  const selected = draft.maxDistanceKm === distance;
+                  return (
+                    <Pressable key={distance} accessibilityRole="button" onPress={() => setDraft((current) => ({ ...current, maxDistanceKm: distance }))} style={({ pressed }) => [styles.discoveryDistanceOption, selected && styles.discoveryDistanceOptionActive, pressed && styles.controlPressed]}>
+                      <Text style={[styles.discoveryDistanceText, selected && styles.discoveryDistanceTextActive]}>{distance === 500 ? "Cały kraj" : `${distance} km`}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.discoveryFilterSection}>
+              <View style={styles.discoveryFilterSectionHeader}>
+                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="tune-vertical" size={19} color={colors.primary} /></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Sposób dopasowania</Text><Text style={styles.discoveryFilterSectionHint}>Opcjonalne filtry zawężające wyniki.</Text></View>
+              </View>
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.requireCommonInterests }} onPress={() => setDraft((current) => ({ ...current, requireCommonInterests: !current.requireCommonInterests }))} style={({ pressed }) => [styles.discoveryFilterToggleRow, pressed && styles.controlPressed]}>
+                <View style={styles.fill}><Text style={styles.discoveryFilterToggleTitle}>Wymagaj wspólnego zainteresowania</Text><Text style={styles.discoveryFilterToggleHint}>Pokaż osoby z przynajmniej jednym wspólnym tagiem.</Text></View>
+                <Switch pointerEvents="none" value={draft.requireCommonInterests} trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.primary }} thumbColor="#fff" />
+              </Pressable>
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.proOnly }} onPress={() => setDraft((current) => ({ ...current, proOnly: !current.proOnly }))} style={({ pressed }) => [styles.discoveryFilterToggleRow, pressed && styles.controlPressed]}>
+                <View style={styles.fill}><Text style={styles.discoveryFilterToggleTitle}>Tylko profile Spark Pro</Text><Text style={styles.discoveryFilterToggleHint}>Zawęź feed do aktywnych kont premium.</Text></View>
+                <Switch pointerEvents="none" value={draft.proOnly} trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.primary }} thumbColor="#fff" />
+              </Pressable>
+            </View>
+
+            <View style={styles.discoveryFilterSection}>
+              <View style={styles.discoveryFilterSectionHeader}>
+                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="tag-heart" size={19} color={colors.primary} /></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukane zainteresowania</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetInterests.length ? `${draft.targetInterests.length}/10 wybranych` : "Opcjonalne. Kategorie są domyślnie zwinięte."}</Text></View>
+              </View>
+              <CategorizedInterestPicker selected={draft.targetInterests} onToggle={(item) => setDraft((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
+            </View>
+          </ScrollView>
+
+          <View style={styles.discoveryFilterFooter}>
+            <Pressable accessibilityRole="button" disabled={saving} onPress={() => setDraft(createDefaultDiscoverFilters())} style={({ pressed }) => [styles.discoveryResetButton, pressed && styles.controlPressed]}>
+              <MaterialCommunityIcons name="backup-restore" size={18} color={colors.ink} />
+              <Text style={styles.discoveryResetText}>Resetuj</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={saving} onPress={() => void applyFilters()} style={({ pressed }) => [styles.discoveryApplyButton, saving && styles.primaryButtonDisabled, pressed && styles.controlPressed]}>
+              {saving ? <ActivityIndicator size="small" color="#fff" /> : <MaterialCommunityIcons name="check" size={19} color="#fff" />}
+              <Text style={styles.discoveryApplyText}>{saving ? "Zapisywanie" : activeFilters ? `Pokaż profile (${activeFilters})` : "Pokaż profile"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function ProfileCard({ profile, onOpenPreview, onReport, compact = false }: { profile: MatchProfile; onOpenPreview?: () => void; onReport?: () => void; compact?: boolean }) {
   const featuredInterests = getFeaturedInterests(profile);
 
@@ -2792,7 +2911,6 @@ function DiscoverEmptyState({
   onOpenProfile,
   onOpenSafety,
   discoverFilters,
-  setDiscoverFilters,
   onSavePreferences,
   onChromeHiddenChange
 }: {
@@ -2806,8 +2924,7 @@ function DiscoverEmptyState({
   onOpenProfile: () => void;
   onOpenSafety: () => void;
   discoverFilters: DiscoverFilters;
-  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
-  onSavePreferences: () => Promise<boolean>;
+  onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -2819,17 +2936,6 @@ function DiscoverEmptyState({
     return () => onChromeHiddenChange?.(false);
   }, [onChromeHiddenChange, overlayOpen]);
 
-  function updatePreference(key: keyof DiscoverFilters, value: number | boolean) {
-    setDiscoverFilters((current) => ({ ...current, [key]: value }));
-  }
-
-  function shiftRange(delta: number) {
-    setDiscoverFilters((current) => ({
-      ...current,
-      ageMin: Math.max(18, Math.min(69, current.ageMin + delta)),
-      ageMax: Math.max(19, Math.min(70, current.ageMax + delta))
-    }));
-  }
 
   return (
     <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
@@ -2861,52 +2967,24 @@ function DiscoverEmptyState({
         )}
       </View>
 
-      {menuOpen && (
-        <View style={styles.reportOverlay}>
-          <Pressable style={styles.reportBackdrop} onPress={() => setMenuOpen(false)} />
-          <View style={styles.reportSheet}>
-            <View style={styles.reportSheetHeader}>
-              <View style={styles.fill}>
-                <Text style={styles.reportTitle} selectable>Menu odkrywania</Text>
-                <Text style={styles.reportSubtitle} selectable>Szybkie akcje bez wychodzenia z feedu.</Text>
-              </View>
-              <Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.reportCloseButton}><MaterialCommunityIcons name="close" size={20} color={colors.ink} /></Pressable>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onRefresh(); }} style={styles.reportSendButton}><MaterialCommunityIcons name="refresh" size={18} color="#fff" /><Text style={styles.reportSendText}>Odswiez feed</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); setPreferencesOpen(true); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="tune-variant" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Filtry i preferencje</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMatches(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="heart-multiple" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Matche</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMessages(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="message-text" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Wiadomosci</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenProfile(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="account-circle" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Moj profil</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenSafety(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="shield-check" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Bezpieczenstwo</Text></Pressable>
-          </View>
-        </View>
-      )}
+      <DiscoveryMenuModal
+        visible={menuOpen}
+        filters={discoverFilters}
+        onClose={() => setMenuOpen(false)}
+        onOpenPreferences={() => setPreferencesOpen(true)}
+        onRefresh={onRefresh}
+        onOpenMatches={onOpenMatches}
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+        onOpenSafety={onOpenSafety}
+      />
 
-      {preferencesOpen && (
-        <View style={styles.reportOverlay}>
-          <Pressable style={styles.reportBackdrop} onPress={() => setPreferencesOpen(false)} />
-          <View style={styles.preferenceSheet}>
-            <View style={styles.reportSheetHeader}>
-              <View style={styles.fill}><Text style={styles.reportTitle} selectable>Preferencje odkrywania</Text><Text style={styles.reportSubtitle} selectable>Wiek, odleglosc i szukane zainteresowania.</Text></View>
-              <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportCloseButton}><MaterialCommunityIcons name="close" size={20} color={colors.ink} /></Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.preferenceScroll}>
-              <PreferenceRange label="Wiek" value={`${discoverFilters.ageMin}-${discoverFilters.ageMax} lat`} onMinus={() => shiftRange(-1)} onPlus={() => shiftRange(1)} />
-              <PreferenceRange label="Maksymalna odległość" value={`do ${discoverFilters.maxDistanceKm} km`} onMinus={() => updatePreference("maxDistanceKm", Math.max(5, discoverFilters.maxDistanceKm - 10))} onPlus={() => updatePreference("maxDistanceKm", Math.min(500, discoverFilters.maxDistanceKm + 10))} />
-              <View style={styles.setupSection}>
-                <Text style={styles.settingLabel}>Szukane zainteresowania</Text>
-                <Text style={styles.settingHint}>Opcjonalne. Pokazuj osoby z przynajmniej jednym wybranym tematem.</Text>
-                <CategorizedInterestPicker selected={discoverFilters.targetInterests} onToggle={(item) => setDiscoverFilters((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
-              </View>
-              <View style={styles.preferenceToggleRow}>
-                <Pressable accessibilityRole="button" onPress={() => updatePreference("requireCommonInterests", !discoverFilters.requireCommonInterests)} style={[styles.preferenceToggle, discoverFilters.requireCommonInterests && styles.preferenceToggleActive]}><MaterialCommunityIcons name="tag-heart" size={17} color={discoverFilters.requireCommonInterests ? "#fff" : colors.primary} /><Text style={[styles.preferenceToggleText, discoverFilters.requireCommonInterests && styles.preferenceToggleTextActive]}>Wspolne tagi</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => updatePreference("proOnly", !discoverFilters.proOnly)} style={[styles.preferenceToggle, discoverFilters.proOnly && styles.preferenceToggleActive]}><MaterialCommunityIcons name="crown" size={17} color={discoverFilters.proOnly ? "#fff" : colors.primary} /><Text style={[styles.preferenceToggleText, discoverFilters.proOnly && styles.preferenceToggleTextActive]}>Tylko Pro</Text></Pressable>
-              </View>
-            </ScrollView>
-            <Pressable accessibilityRole="button" onPress={async () => { if (await onSavePreferences()) setPreferencesOpen(false); }} style={styles.reportSendButton}><Text style={styles.reportSendText}>Zastosuj preferencje</Text></Pressable>
-          </View>
-        </View>
-      )}
+      <DiscoveryPreferencesModal
+        visible={preferencesOpen}
+        filters={discoverFilters}
+        onClose={() => setPreferencesOpen(false)}
+        onApply={onSavePreferences}
+      />
     </View>
   );
 }
@@ -3519,7 +3597,6 @@ function ProfileScreen({
   birthDate,
   onBirthDateChange,
   discoverFilters,
-  setDiscoverFilters,
   userCity,
   userCountry,
   email,
@@ -3551,7 +3628,6 @@ function ProfileScreen({
   birthDate: string;
   onBirthDateChange: (value: string) => void;
   discoverFilters: DiscoverFilters;
-  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   userCity: string;
   userCountry: string;
   email: string;
@@ -5107,93 +5183,361 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "800"
   },
-  preferenceSheet: {
-    maxHeight: "88%",
-    gap: 14,
-    padding: 16,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    backgroundColor: "rgba(12,12,17,0.98)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.2)"
+  controlPressed: {
+    opacity: 0.74,
+    transform: [{ scale: 0.985 }]
   },
-  preferenceScroll: {
-    gap: 12,
-    paddingBottom: 8
-  },
-  preferenceSection: {
-    gap: 10,
-    padding: 12,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
-  },
-  preferenceLabel: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: "900"
-  },
-  preferenceValue: {
-    marginTop: 3,
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: "900"
-  },
-  preferenceRangeRow: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
-  },
-  preferenceStepper: {
-    flexDirection: "row",
-    gap: 8
-  },
-  preferenceStepButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)"
-  },
-  preferenceToggleRow: {
-    flexDirection: "row",
-    gap: 10
-  },
-  preferenceToggle: {
+  discoveryModalRoot: {
     flex: 1,
-    minHeight: 48,
+    flexDirection: "row",
+    backgroundColor: "transparent"
+  },
+  discoveryModalBackdrop: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(2,2,5,0.7)"
+  },
+  discoveryDrawer: {
+    width: "86%",
+    maxWidth: 370,
+    height: "100%",
+    zIndex: 2,
+    paddingHorizontal: 18,
+    backgroundColor: "#0b0a0f",
+    borderRightWidth: 1,
+    borderRightColor: "rgba(255,45,141,0.2)",
+    boxShadow: "18px 0 54px rgba(0,0,0,0.52)"
+  },
+  discoveryDrawerHeader: {
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 18
+  },
+  discoveryDrawerBrand: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11
+  },
+  discoveryDrawerLogo: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
     justifyContent: "center",
-    gap: 7,
-    borderRadius: 999,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,45,141,0.13)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.24)"
+  },
+  discoveryDrawerLogoImage: {
+    width: 30,
+    height: 30
+  },
+  discoveryDrawerEyebrow: {
+    color: colors.primary,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "900"
+  },
+  discoveryDrawerTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "900"
+  },
+  discoveryDrawerClose: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)"
   },
-  preferenceToggleActive: {
-    backgroundColor: colors.primary,
+  discoveryDrawerNav: {
+    gap: 5
+  },
+  discoveryMenuRow: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    paddingHorizontal: 10,
+    borderRadius: 18
+  },
+  discoveryMenuRowActive: {
+    backgroundColor: "rgba(255,45,141,0.11)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  discoveryMenuIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.055)"
+  },
+  discoveryMenuIconActive: {
+    backgroundColor: colors.primary
+  },
+  discoveryMenuLabel: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "900"
+  },
+  discoveryMenuLabelActive: {
+    color: "#fff"
+  },
+  discoveryMenuHint: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "700"
+  },
+  discoveryMenuActiveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  discoveryDrawerDivider: {
+    height: 1,
+    marginVertical: 14,
+    backgroundColor: "rgba(255,255,255,0.08)"
+  },
+  discoveryMenuUtility: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 10,
+    borderRadius: 16
+  },
+  discoveryFilterCount: {
+    minWidth: 26,
+    height: 26,
+    paddingHorizontal: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  discoveryFilterCountText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  discoverySafetyRow: {
+    minHeight: 66,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(76,208,142,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(76,208,142,0.14)"
+  },
+  discoverySafetyIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: "rgba(76,208,142,0.1)"
+  },
+  discoveryFilterModalRoot: {
+    alignItems: "stretch",
+    justifyContent: "flex-end"
+  },
+  discoveryFilterSheet: {
+    width: "100%",
+    maxHeight: "93%",
+    zIndex: 2,
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: "#0c0b11",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)",
+    boxShadow: "0 -20px 54px rgba(0,0,0,0.48)"
+  },
+  discoverySheetHandle: {
+    width: 42,
+    height: 4,
+    alignSelf: "center",
+    marginBottom: 11,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.22)"
+  },
+  discoveryFilterHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingHorizontal: 2,
+    paddingBottom: 14
+  },
+  discoveryFilterEyebrow: {
+    color: colors.primary,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "900"
+  },
+  discoveryFilterTitle: {
+    marginTop: 2,
+    color: colors.ink,
+    fontSize: 23,
+    lineHeight: 28,
+    fontWeight: "900"
+  },
+  discoveryFilterSubtitle: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700"
+  },
+  discoveryFilterScroll: {
+    gap: 4,
+    paddingBottom: 14
+  },
+  discoveryFilterSection: {
+    gap: 12,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.075)"
+  },
+  discoveryFilterSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  discoveryFilterSectionIcon: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "rgba(255,45,141,0.1)"
+  },
+  discoveryFilterSectionTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "900"
+  },
+  discoveryFilterSectionHint: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "700"
+  },
+  discoveryDistanceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  discoveryDistanceOption: {
+    minWidth: 82,
+    minHeight: 42,
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  discoveryDistanceOptionActive: {
+    backgroundColor: "rgba(255,45,141,0.16)",
     borderColor: colors.primary
   },
-  preferenceToggleText: {
+  discoveryDistanceText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  discoveryDistanceTextActive: {
+    color: "#fff"
+  },
+  discoveryFilterToggleRow: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.045)"
+  },
+  discoveryFilterToggleTitle: {
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "900"
+  },
+  discoveryFilterToggleHint: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "700"
+  },
+  discoveryFilterFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingTop: 11,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)"
+  },
+  discoveryResetButton: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 15,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)"
+  },
+  discoveryResetText: {
     color: colors.ink,
     fontSize: 12,
     fontWeight: "900"
   },
-  preferenceToggleTextActive: {
-    color: "#fff"
+  discoveryApplyButton: {
+    minHeight: 52,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 17,
+    backgroundColor: colors.primary,
+    boxShadow: "0 14px 32px rgba(255,45,141,0.27)"
   },
-  reportOverlay: {
+  discoveryApplyText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900"
+  },  reportOverlay: {
     position: "absolute",
     top: 0,
     right: 0,
@@ -7176,7 +7520,8 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     fontWeight: "900"
-  },  bottomNav: {
+  },
+  bottomNav: {
     position: "absolute",
     left: 12,
     right: 12,
