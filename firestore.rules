@@ -29,6 +29,7 @@ service cloud.firestore {
         && data.reporterUid == request.auth.uid
         && data.targetUid is string
         && data.reason is string && data.reason.size() > 0 && data.reason.size() <= 200
+        && data.context is string && data.context.size() <= 4000
         && data.status == 'open';
     }
 
@@ -96,15 +97,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /chatRequests/{requestId} {
-      allow create: if signedIn()
-        && request.resource.data.fromUid == request.auth.uid
-        && request.resource.data.toProfileKey is string
-        && request.resource.data.introMessage is string;
-      allow read, update: if signedIn()
-        && resource.data.fromUid == request.auth.uid;
-      allow delete: if false;
-    }
 
     match /messages/{threadId}/items/{messageId} {
       allow read: if signedIn()

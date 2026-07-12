@@ -40,6 +40,7 @@ export type UserProfileDocument = {
   maxDistanceKm?: number;
   desiredInterests?: string[];
   requireCommonInterests?: boolean;
+  proOnly?: boolean;
   location?: {
     latitude: number;
     longitude: number;
@@ -80,6 +81,25 @@ export async function upsertUserProfile(profile: UserProfileDocument) {
       createdAt: existing.exists() ? existing.data().createdAt : serverTimestamp(),
       updatedAt: serverTimestamp()
     },
+    { merge: true }
+  );
+}
+
+export type DiscoveryPreferencesDocument = {
+  desiredAgeMin: number;
+  desiredAgeMax: number;
+  maxDistanceKm: number;
+  desiredInterests: string[];
+  requireCommonInterests: boolean;
+  proOnly: boolean;
+};
+
+export async function updateUserDiscoveryPreferences(uid: string, preferences: DiscoveryPreferencesDocument) {
+  const currentDb = requireDb();
+
+  await setDoc(
+    doc(currentDb, "users", uid),
+    { ...preferences, updatedAt: serverTimestamp() },
     { merge: true }
   );
 }
@@ -357,32 +377,6 @@ export async function sendChatMessage(params: {
   return messageRef.id;
 }
 
-export async function createChatRequest(params: {
-  requestId: string;
-  fromUid: string;
-  toProfileKey: string;
-  introMessage: string;
-  resetAtMs?: number;
-}) {
-  const currentDb = requireDb();
-  const requestRef = doc(currentDb, "chatRequests", params.requestId);
-
-  await setDoc(
-    requestRef,
-    {
-      fromUid: params.fromUid,
-      toProfileKey: params.toProfileKey,
-      introMessage: params.introMessage.trim(),
-      resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
-      status: "pending",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-
-  return requestRef.id;
-}
 
 export type RealtimeChatThread = {
   id: string;

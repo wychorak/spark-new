@@ -33,7 +33,6 @@ import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   acceptChatRequest,
   blockUser,
-  createChatRequest,
   createMatchThread,
   createReport,
   findMatchThreadsForUser,
@@ -50,6 +49,7 @@ import {
   rejectChatRequest,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
+  updateUserDiscoveryPreferences,
   upsertUserProfile,
   upsertUserPrivateSettings
 } from "./src/firestore";
@@ -149,7 +149,7 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
-type DiscoverFilters = { nearbyOnly: boolean; proOnly: boolean; requireCommonInterests: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number; minHeight: number; maxHeight: number; minWeight: number; maxWeight: number };
+type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number };
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -564,7 +564,7 @@ function AppContent() {
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
-  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ nearbyOnly: false, proOnly: false, requireCommonInterests: false, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35, minHeight: 140, maxHeight: 210, minWeight: 40, maxWeight: 130 });
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>({ proOnly: false, requireCommonInterests: false, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
   const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
@@ -616,8 +616,7 @@ function AppContent() {
       availableProfiles
         .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
         .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
-        .filter((profile) => !profile.heightCm || (profile.heightCm >= discoverFilters.minHeight && profile.heightCm <= discoverFilters.maxHeight))
-        .filter((profile) => !profile.weightKg || (profile.weightKg >= discoverFilters.minWeight && profile.weightKg <= discoverFilters.maxWeight))
+
         .filter((profile) => { const distance = getDistanceKm(userLocation, profile); return distance === null || distance <= discoverFilters.maxDistanceKm; })
         .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
@@ -703,7 +702,7 @@ function AppContent() {
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
-            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests) }));
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), proOnly: Boolean(profile.proOnly) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests : []);
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
             setPrivateProfile(Boolean(profile.privateProfile));
@@ -1033,6 +1032,7 @@ function AppContent() {
         maxDistanceKm: discoverFilters.maxDistanceKm,
         desiredInterests: discoverFilters.targetInterests,
         requireCommonInterests: discoverFilters.requireCommonInterests,
+        proOnly: discoverFilters.proOnly,
         city: userCity,
         country: userCountry,
         location: userLocation,
@@ -1050,6 +1050,27 @@ function AppContent() {
       return true;
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
+      return false;
+    }
+  }
+
+  async function saveDiscoveryPreferences(): Promise<boolean> {
+    if (!appUser) {
+      return false;
+    }
+
+    try {
+      await updateUserDiscoveryPreferences(appUser.uid, {
+        desiredAgeMin: discoverFilters.ageMin,
+        desiredAgeMax: discoverFilters.ageMax,
+        maxDistanceKm: discoverFilters.maxDistanceKm,
+        desiredInterests: discoverFilters.targetInterests,
+        requireCommonInterests: discoverFilters.requireCommonInterests,
+        proOnly: discoverFilters.proOnly
+      });
+      return true;
+    } catch {
+      Alert.alert("Preferencje", "Nie uda\u0142o si\u0119 zapisa\u0107 preferencji. Spr\u00f3buj ponownie.");
       return false;
     }
   }
@@ -1120,18 +1141,26 @@ function AppContent() {
         return "cancelled";
       }
 
-      setSuperlikesRemaining((value) => Math.max(0, value - 1));
     }
 
     if (appUser) {
-      recordProfileSwipe({
-        swipeId: getThreadId(appUser.uid, targetKey),
-        fromUid: appUser.uid,
-        toProfileKey: targetKey,
-        direction: action,
-        matchScore: targetProfile.matchScore,
-        resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
-      }).catch(() => undefined);
+      try {
+        await recordProfileSwipe({
+          swipeId: getThreadId(appUser.uid, targetKey),
+          fromUid: appUser.uid,
+          toProfileKey: targetKey,
+          direction: action,
+          matchScore: targetProfile.matchScore,
+          resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
+        });
+      } catch {
+        Alert.alert("Swipe", "Nie uda\u0142o si\u0119 zapisa\u0107 decyzji. Spr\u00f3buj ponownie.");
+        return "cancelled";
+      }
+    }
+
+    if (action === "superlike") {
+      setSuperlikesRemaining((value) => Math.max(0, value - 1));
     }
 
     if (action === "pass") {
@@ -1160,6 +1189,21 @@ function AppContent() {
       return "liked";
     }
 
+    if (appUser) {
+      try {
+        await createMatchThread({
+          matchId: getConversationId(appUser.uid, targetKey),
+          memberUids: [appUser.uid, targetKey],
+          createdByUid: appUser.uid,
+          source: "mutual-like",
+          resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
+        });
+      } catch {
+        Alert.alert("Match", "Nie uda\u0142o si\u0119 utworzy\u0107 matchu. Spr\u00f3buj ponownie.");
+        return "cancelled";
+      }
+    }
+
     setLikedProfileKeys((keys) => keys.filter((key) => key !== targetKey));
     setMatchedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
     setSelectedChatKey(targetKey);
@@ -1173,16 +1217,6 @@ function AppContent() {
         ]
       }
     }));
-
-    if (appUser) {
-      createMatchThread({
-        matchId: getConversationId(appUser.uid, targetKey),
-        memberUids: [appUser.uid, targetKey],
-        createdByUid: appUser.uid,
-        source: "mutual-like",
-        resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
-      }).catch(() => undefined);
-    }
 
     if (process.env.EXPO_OS === "ios") {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1204,45 +1238,50 @@ function AppContent() {
     }
 
     if (hasMatchedActiveProfile) {
-      Alert.alert("Chat", `Masz już match z ${activeProfile.name}. Rozmowa jest odblokowana.`);
+      Alert.alert("Chat", "Masz ju\u017c match z " + activeProfile.name + ". Rozmowa jest odblokowana.");
       setTab("messages");
       return;
     }
 
     if (hasRequestedActiveProfile) {
-      Alert.alert("Prośba wysłana", `Jedna prośba o chat do ${activeProfile.name} już czeka na akceptację.`);
+      Alert.alert("Pro\u015bba wys\u0142ana", "Jedna pro\u015bba o chat do " + activeProfile.name + " ju\u017c czeka na akceptacj\u0119.");
       return;
     }
 
-    setChatRequestKeys((keys) => [...keys, activeProfileKey]);
-    setSelectedChatKey(activeProfileKey);
-    setChatThreads((threads) => ({
-      ...threads,
-      [activeProfileKey]: {
-        profileKey: activeProfileKey,
-        status: "requested",
-        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
-        messages: []
-      }
-    }));
-    if (appUser) {
-      createChatRequest({
-        requestId: getThreadId(appUser.uid, activeProfileKey),
-        fromUid: appUser.uid,
-        toProfileKey: activeProfileKey,
-        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
-        resetAtMs: activeProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
-      }).catch(() => undefined);
-      createMatchThread({
+    if (!appUser) {
+      Alert.alert("Chat", "Zaloguj si\u0119 ponownie, aby wys\u0142a\u0107 pro\u015bb\u0119.");
+      return;
+    }
+
+    try {
+      await createMatchThread({
         matchId: getConversationId(appUser.uid, activeProfileKey),
         introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
         memberUids: [appUser.uid, activeProfileKey],
         createdByUid: appUser.uid,
         source: "premium-request",
         resetAtMs: activeProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
-      }).catch(() => undefined);
+      });
+    } catch {
+      Alert.alert("Pro\u015bba o chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 pro\u015bby. Spr\u00f3buj ponownie.");
+      return;
     }
-    Alert.alert("Prośba o chat", `Wysłano jedną premium prośbę do ${activeProfile.name}.`);
+
+    setChatRequestKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
+    setSelectedChatKey(activeProfileKey);
+    setChatThreads((threads) => ({
+      ...threads,
+      [activeProfileKey]: {
+        profileKey: activeProfileKey,
+        threadId: getConversationId(appUser.uid, activeProfileKey),
+        createdByUid: appUser.uid,
+        requestDirection: "outgoing",
+        status: "requested",
+        introMessage: "Hej, mamy wspolne zainteresowania. Chcesz pogadac?",
+        messages: []
+      }
+    }));
+    Alert.alert("Pro\u015bba o chat", "Wys\u0142ano pro\u015bb\u0119 do " + activeProfile.name + ".");
   }
 
   async function sendMessageToProfile(profileKey: string, text: string) {
@@ -1254,25 +1293,24 @@ function AppContent() {
 
     const thread = chatThreads[profileKey];
     if (!thread || thread.status !== "matched") {
-      Alert.alert("Chat", "Wiadomości są dostępne po matchu albo po zaakceptowaniu prośby.");
+      Alert.alert("Chat", "Wiadomo\u015bci s\u0105 dost\u0119pne po matchu albo po zaakceptowaniu pro\u015bby.");
       return;
     }
 
-    setChatThreads((threads) => ({
-      ...threads,
-      [profileKey]: {
-        ...thread,
-        messages: [...thread.messages, { id: `${Date.now()}-me`, from: "me", text: message, time: "teraz" }]
-      }
-    }));
-    setMessageDraft("");
+    if (!appUser) {
+      Alert.alert("Chat", "Zaloguj si\u0119 ponownie, aby wys\u0142a\u0107 wiadomo\u015b\u0107.");
+      return;
+    }
 
-    if (appUser) {
-      sendChatMessage({
+    try {
+      await sendChatMessage({
         threadId: thread.threadId ?? getConversationId(appUser.uid, profileKey),
         senderUid: appUser.uid,
         text: message
-      }).catch(() => undefined);
+      });
+      setMessageDraft("");
+    } catch {
+      Alert.alert("Chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
     }
   }
 
@@ -1290,7 +1328,16 @@ function AppContent() {
     catch { Alert.alert("Prosba o chat", "Nie udalo sie odrzucic prosby. Sprobuj ponownie."); }
   }
 
-  function blockProfile(profileKey: string) {
+  async function blockProfile(profileKey: string) {
+    if (appUser) {
+      try {
+        await blockUser({ blockerUid: appUser.uid, blockedUid: profileKey, threadId: chatThreads[profileKey]?.threadId });
+      } catch {
+        Alert.alert("Blokada", "Nie uda\u0142o si\u0119 zablokowa\u0107 profilu. Spr\u00f3buj ponownie.");
+        return;
+      }
+    }
+
     setBlockedProfileKeys((keys) => (keys.includes(profileKey) ? keys : [...keys, profileKey]));
     setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
     setPassedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
@@ -1306,23 +1353,27 @@ function AppContent() {
     if (selectedChatKey === profileKey) {
       setSelectedChatKey(null);
     }
-    if (appUser) {
-      blockUser({ blockerUid: appUser.uid, blockedUid: profileKey, threadId: chatThreads[profileKey]?.threadId }).catch(() => undefined);
-    }
   }
 
-  function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomość") {
-    if (appUser) {
-      createReport({
+  async function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomo\u015b\u0107"): Promise<boolean> {
+    if (!appUser) {
+      Alert.alert("Zg\u0142oszenie", "Zaloguj si\u0119 ponownie, aby wys\u0142a\u0107 zg\u0142oszenie.");
+      return false;
+    }
+
+    try {
+      await createReport({
         reporterUid: appUser.uid,
         targetUid: profileKey,
-        reason,
-        context: "Spark app report"
-      }).catch(() => undefined);
+        reason: reason.slice(0, 200),
+        context: reason
+      });
+      return true;
+    } catch {
+      Alert.alert("Zg\u0142oszenie", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 zg\u0142oszenia. Spr\u00f3buj ponownie.");
+      return false;
     }
   }
-
-
   async function performDeleteAccount() {
     if (!appUser) {
       Alert.alert("Usuń konto", "Musisz być zalogowany, aby usunąć konto.");
@@ -1487,9 +1538,9 @@ function AppContent() {
             discoverFilters={discoverFilters}
             setDiscoverFilters={setDiscoverFilters}
             screenMinHeight={discoverMinHeight}
-            onReportProfile={(reason) => activeProfileKey && reportProfile(activeProfileKey, reason)}
+            onReportProfile={async (reason) => activeProfileKey ? reportProfile(activeProfileKey, reason) : false}
             onRefresh={refreshDiscovery}
-            onSavePreferences={async () => { await saveProfileToFirestore(); }}
+            onSavePreferences={saveDiscoveryPreferences}
             onChromeHiddenChange={setBottomNavHidden}
           />
         )}
@@ -1970,9 +2021,9 @@ function DiscoverScreen({
   discoverFilters: DiscoverFilters;
   setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   screenMinHeight: number;
-  onReportProfile: (reason?: string) => void;
+  onReportProfile: (reason?: string) => Promise<boolean>;
   onRefresh: () => void;
-  onSavePreferences: () => Promise<void>;
+  onSavePreferences: () => Promise<boolean>;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
@@ -1988,10 +2039,9 @@ function DiscoverScreen({
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
   const preferenceSummary = [
-    { icon: "map-marker", text: profile.distance },
+    { icon: "map-marker", text: `do ${discoverFilters.maxDistanceKm} km` },
     { icon: "calendar", text: `${discoverFilters.ageMin}-${discoverFilters.ageMax} lat` },
-    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} szukanych tematow` : "dowolne zainteresowania" },
-    { icon: "human-male-height", text: `${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm` }
+    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} szukanych tematow` : "dowolne zainteresowania" }
   ];
   const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
   const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
@@ -2180,7 +2230,10 @@ function DiscoverScreen({
       description
     ].join("\n");
 
-    onReportProfile(body);
+    if (!(await onReportProfile(body))) {
+      return;
+    }
+
     setReportOpen(false);
     setReportText("");
 
@@ -2306,30 +2359,24 @@ function DiscoverScreen({
             <View style={styles.reportSheetHeader}>
               <View style={styles.fill}>
                 <Text style={styles.reportTitle} selectable>Preferencje odkrywania</Text>
-                <Text style={styles.reportSubtitle} selectable>Dopasuj osoby po zainteresowaniach, wieku, wzroście i wadze.</Text>
+                <Text style={styles.reportSubtitle} selectable>Dopasuj osoby po zainteresowaniach, wieku i odleglosci.</Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportCloseButton}>
                 <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
               </Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.preferenceScroll}>
-              <View style={styles.preferenceSection}>
-                <Text style={styles.preferenceLabel} selectable>Zainteresowania</Text>
-                <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
-              </View>
               <PreferenceRange label="Wiek" value={`${discoverFilters.ageMin}-${discoverFilters.ageMax} lat`} onMinus={() => shiftRange("ageMin", "ageMax", -1, 18, 70)} onPlus={() => shiftRange("ageMin", "ageMax", 1, 18, 70)} />
               <PreferenceRange label="Maksymalna odległość" value={`do ${discoverFilters.maxDistanceKm} km`} onMinus={() => updatePreference("maxDistanceKm", Math.max(5, discoverFilters.maxDistanceKm - 10))} onPlus={() => updatePreference("maxDistanceKm", Math.min(500, discoverFilters.maxDistanceKm + 10))} />
-              <PreferenceRange label="Wzrost" value={`${discoverFilters.minHeight}-${discoverFilters.maxHeight} cm`} onMinus={() => shiftRange("minHeight", "maxHeight", -5, 140, 220)} onPlus={() => shiftRange("minHeight", "maxHeight", 5, 140, 220)} />
-              <PreferenceRange label="Waga" value={`${discoverFilters.minWeight}-${discoverFilters.maxWeight} kg`} onMinus={() => shiftRange("minWeight", "maxWeight", -5, 40, 150)} onPlus={() => shiftRange("minWeight", "maxWeight", 5, 40, 150)} />
               <View style={styles.setupSection}>
                 <Text style={styles.settingLabel}>Szukane zainteresowania</Text>
                 <Text style={styles.settingHint}>Opcjonalne. Pokazuj osoby z przynajmniej jednym wybranym tematem.</Text>
                 <CategorizedInterestPicker selected={discoverFilters.targetInterests} onToggle={(item) => setDiscoverFilters((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
               </View>
               <View style={styles.preferenceToggleRow}>
-                <Pressable accessibilityRole="button" onPress={() => setDiscoverFilters((current) => ({ ...current, nearbyOnly: !current.nearbyOnly, maxDistanceKm: !current.nearbyOnly ? Math.min(current.maxDistanceKm, 25) : current.maxDistanceKm }))} style={[styles.preferenceToggle, discoverFilters.nearbyOnly && styles.preferenceToggleActive]}>
-                  <MaterialCommunityIcons name="map-marker-radius" size={17} color={discoverFilters.nearbyOnly ? "#fff" : colors.primary} />
-                  <Text style={[styles.preferenceToggleText, discoverFilters.nearbyOnly && styles.preferenceToggleTextActive]}>Blisko mnie</Text>
+                <Pressable accessibilityRole="button" onPress={() => updatePreference("requireCommonInterests", !discoverFilters.requireCommonInterests)} style={[styles.preferenceToggle, discoverFilters.requireCommonInterests && styles.preferenceToggleActive]}>
+                  <MaterialCommunityIcons name="tag-heart" size={17} color={discoverFilters.requireCommonInterests ? "#fff" : colors.primary} />
+                  <Text style={[styles.preferenceToggleText, discoverFilters.requireCommonInterests && styles.preferenceToggleTextActive]}>Wspolne tagi</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button" onPress={() => updatePreference("proOnly", !discoverFilters.proOnly)} style={[styles.preferenceToggle, discoverFilters.proOnly && styles.preferenceToggleActive]}>
                   <MaterialCommunityIcons name="crown" size={17} color={discoverFilters.proOnly ? "#fff" : colors.primary} />
@@ -2337,7 +2384,7 @@ function DiscoverScreen({
                 </Pressable>
               </View>
             </ScrollView>
-            <Pressable accessibilityRole="button" onPress={() => { void onSavePreferences().then(() => setPreferencesOpen(false)); }} style={styles.reportSendButton}>
+            <Pressable accessibilityRole="button" onPress={async () => { if (await onSavePreferences()) setPreferencesOpen(false); }} style={styles.reportSendButton}>
               <Text style={styles.reportSendText}>Zastosuj preferencje</Text>
             </Pressable>
           </View>
