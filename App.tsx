@@ -805,16 +805,29 @@ function AppContent() {
     setProfilesLoading(true);
     setProfileFeedError(null);
 
-    Promise.all([
+    Promise.allSettled([
       findProfilesByInterest(selectedInterests),
       findTestProfiles(),
       findOutgoingProfileSwipes(appUser.uid),
       findMatchThreadsForUser(appUser.uid)
     ])
-      .then(([profileDocuments, testProfileDocuments, swipeDocuments, matchDocuments]) => {
+      .then(([profilesResult, testProfilesResult, swipesResult, matchesResult]) => {
         if (!mounted) {
           return;
         }
+
+        const profileDocuments = profilesResult.status === "fulfilled" ? profilesResult.value : [];
+        const testProfileDocuments = testProfilesResult.status === "fulfilled" ? testProfilesResult.value : [];
+        const swipeDocuments = swipesResult.status === "fulfilled" ? swipesResult.value : [];
+        const matchDocuments = matchesResult.status === "fulfilled" ? matchesResult.value : [];
+
+        if (profilesResult.status === "rejected" && testProfilesResult.status === "rejected") {
+          setRemoteProfiles([]);
+          setProfileFeedError("Nie udało się pobrać profili. Spróbuj odświeżyć listę.");
+          return;
+        }
+
+        setProfileFeedError(null);
 
         const profileMap = new Map<string, Record<string, unknown>>();
         [...profileDocuments, ...testProfileDocuments].forEach((item) => {
@@ -1552,6 +1565,13 @@ function AppContent() {
             error={profileFeedError}
             onRefresh={refreshDiscovery}
             onOpenMatches={() => setTab("matches")}
+            onOpenMessages={() => setTab("messages")}
+            onOpenProfile={() => setTab("profile")}
+            onOpenSafety={() => setTab("safety")}
+            discoverFilters={discoverFilters}
+            setDiscoverFilters={setDiscoverFilters}
+            onSavePreferences={saveDiscoveryPreferences}
+            onChromeHiddenChange={setBottomNavHidden}
           />
         )}
         {tab === "matches" && (
@@ -2767,7 +2787,14 @@ function DiscoverEmptyState({
   loading,
   error,
   onRefresh,
-  onOpenMatches
+  onOpenMatches,
+  onOpenMessages,
+  onOpenProfile,
+  onOpenSafety,
+  discoverFilters,
+  setDiscoverFilters,
+  onSavePreferences,
+  onChromeHiddenChange
 }: {
   screenMinHeight: number;
   likedCount: number;
@@ -2775,10 +2802,38 @@ function DiscoverEmptyState({
   error: string | null;
   onRefresh: () => void;
   onOpenMatches: () => void;
+  onOpenMessages: () => void;
+  onOpenProfile: () => void;
+  onOpenSafety: () => void;
+  discoverFilters: DiscoverFilters;
+  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
+  onSavePreferences: () => Promise<boolean>;
+  onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const overlayOpen = menuOpen || preferencesOpen;
+
+  useEffect(() => {
+    onChromeHiddenChange?.(overlayOpen);
+    return () => onChromeHiddenChange?.(false);
+  }, [onChromeHiddenChange, overlayOpen]);
+
+  function updatePreference(key: keyof DiscoverFilters, value: number | boolean) {
+    setDiscoverFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  function shiftRange(delta: number) {
+    setDiscoverFilters((current) => ({
+      ...current,
+      ageMin: Math.max(18, Math.min(69, current.ageMin + delta)),
+      ageMax: Math.max(19, Math.min(70, current.ageMax + delta))
+    }));
+  }
+
   return (
     <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
-      <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" />
+      <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
       <View style={styles.discoverEmptyBody}>
         <View style={styles.discoverEmptyIcon}>
           {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
@@ -2805,6 +2860,53 @@ function DiscoverEmptyState({
           </>
         )}
       </View>
+
+      {menuOpen && (
+        <View style={styles.reportOverlay}>
+          <Pressable style={styles.reportBackdrop} onPress={() => setMenuOpen(false)} />
+          <View style={styles.reportSheet}>
+            <View style={styles.reportSheetHeader}>
+              <View style={styles.fill}>
+                <Text style={styles.reportTitle} selectable>Menu odkrywania</Text>
+                <Text style={styles.reportSubtitle} selectable>Szybkie akcje bez wychodzenia z feedu.</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.reportCloseButton}><MaterialCommunityIcons name="close" size={20} color={colors.ink} /></Pressable>
+            </View>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onRefresh(); }} style={styles.reportSendButton}><MaterialCommunityIcons name="refresh" size={18} color="#fff" /><Text style={styles.reportSendText}>Odswiez feed</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); setPreferencesOpen(true); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="tune-variant" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Filtry i preferencje</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMatches(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="heart-multiple" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Matche</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenMessages(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="message-text" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Wiadomosci</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenProfile(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="account-circle" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Moj profil</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMenuOpen(false); onOpenSafety(); }} style={styles.secondaryButtonWide}><MaterialCommunityIcons name="shield-check" size={18} color={colors.primary} /><Text style={styles.secondaryButtonText}>Bezpieczenstwo</Text></Pressable>
+          </View>
+        </View>
+      )}
+
+      {preferencesOpen && (
+        <View style={styles.reportOverlay}>
+          <Pressable style={styles.reportBackdrop} onPress={() => setPreferencesOpen(false)} />
+          <View style={styles.preferenceSheet}>
+            <View style={styles.reportSheetHeader}>
+              <View style={styles.fill}><Text style={styles.reportTitle} selectable>Preferencje odkrywania</Text><Text style={styles.reportSubtitle} selectable>Wiek, odleglosc i szukane zainteresowania.</Text></View>
+              <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(false)} style={styles.reportCloseButton}><MaterialCommunityIcons name="close" size={20} color={colors.ink} /></Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.preferenceScroll}>
+              <PreferenceRange label="Wiek" value={`${discoverFilters.ageMin}-${discoverFilters.ageMax} lat`} onMinus={() => shiftRange(-1)} onPlus={() => shiftRange(1)} />
+              <PreferenceRange label="Maksymalna odległość" value={`do ${discoverFilters.maxDistanceKm} km`} onMinus={() => updatePreference("maxDistanceKm", Math.max(5, discoverFilters.maxDistanceKm - 10))} onPlus={() => updatePreference("maxDistanceKm", Math.min(500, discoverFilters.maxDistanceKm + 10))} />
+              <View style={styles.setupSection}>
+                <Text style={styles.settingLabel}>Szukane zainteresowania</Text>
+                <Text style={styles.settingHint}>Opcjonalne. Pokazuj osoby z przynajmniej jednym wybranym tematem.</Text>
+                <CategorizedInterestPicker selected={discoverFilters.targetInterests} onToggle={(item) => setDiscoverFilters((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
+              </View>
+              <View style={styles.preferenceToggleRow}>
+                <Pressable accessibilityRole="button" onPress={() => updatePreference("requireCommonInterests", !discoverFilters.requireCommonInterests)} style={[styles.preferenceToggle, discoverFilters.requireCommonInterests && styles.preferenceToggleActive]}><MaterialCommunityIcons name="tag-heart" size={17} color={discoverFilters.requireCommonInterests ? "#fff" : colors.primary} /><Text style={[styles.preferenceToggleText, discoverFilters.requireCommonInterests && styles.preferenceToggleTextActive]}>Wspolne tagi</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => updatePreference("proOnly", !discoverFilters.proOnly)} style={[styles.preferenceToggle, discoverFilters.proOnly && styles.preferenceToggleActive]}><MaterialCommunityIcons name="crown" size={17} color={discoverFilters.proOnly ? "#fff" : colors.primary} /><Text style={[styles.preferenceToggleText, discoverFilters.proOnly && styles.preferenceToggleTextActive]}>Tylko Pro</Text></Pressable>
+              </View>
+            </ScrollView>
+            <Pressable accessibilityRole="button" onPress={async () => { if (await onSavePreferences()) setPreferencesOpen(false); }} style={styles.reportSendButton}><Text style={styles.reportSendText}>Zastosuj preferencje</Text></Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -3743,8 +3845,8 @@ function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: str
 
 function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    interestCategories.reduce<Record<string, boolean>>((state, category, index) => {
-      state[category.title] = index < 2;
+    interestCategories.reduce<Record<string, boolean>>((state, category) => {
+      state[category.title] = false;
       return state;
     }, {})
   );

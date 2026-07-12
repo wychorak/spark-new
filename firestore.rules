@@ -37,7 +37,7 @@ service cloud.firestore {
       allow create: if isOwner(uid);
       allow update, delete: if isOwner(uid);
       allow read: if signedIn() && (
-        resource.data.privateProfile != true || isOwner(uid)
+        resource.data.privateProfile != true || resource.data.isTestProfile == true || isOwner(uid)
       );
 
       match /blocks/{blockedUid} {
