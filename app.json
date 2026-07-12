@@ -8,7 +8,8 @@
     "scheme": ["sparkconnect", "com.sparknew.connect", "rc-c14d769c6c"],
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.sparknew.connect",
       "buildNumber": "3",
       "infoPlist": {
@@ -37,6 +38,8 @@
     },
     "plugins": [
       "expo-web-browser",
+      "expo-apple-authentication",
+      "@react-native-google-signin/google-signin",
       [
         "expo-location",
         {
@@ -46,7 +49,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Spark uses your selected photos to build your dating and friends profile."
+          "photosPermission": "Spark uses your selected photos to build your dating and friends profile.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [

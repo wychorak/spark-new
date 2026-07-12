@@ -112,11 +112,18 @@ export function useGoogleMobileAds(enabled: boolean) {
 
   return canRequestAds;
 }
+const productionAdUnitIds = {
+  ios: "ca-app-pub-8263324816746737/9299047738",
+  android: "ca-app-pub-8263324816746737/1021936619",
+  iosInterstitial: "ca-app-pub-8263324816746737/4491619788",
+  androidInterstitial: "ca-app-pub-8263324816746737/8708854948"
+};
+
 const adUnitIds = {
-  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || TestIds.BANNER,
-  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || TestIds.BANNER,
-  iosInterstitial: process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID || TestIds.INTERSTITIAL,
-  androidInterstitial: process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID || TestIds.INTERSTITIAL
+  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.ios),
+  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.android),
+  iosInterstitial: process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID || (__DEV__ ? TestIds.INTERSTITIAL : productionAdUnitIds.iosInterstitial),
+  androidInterstitial: process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID || (__DEV__ ? TestIds.INTERSTITIAL : productionAdUnitIds.androidInterstitial)
 };
 
 function getBannerUnitId() {

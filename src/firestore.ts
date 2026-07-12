@@ -108,7 +108,7 @@ export async function recordUserLogin(params: {
   uid: string;
   email: string | null;
   displayName: string | null;
-  authProvider: "email" | "google" | "demo";
+  authProvider: "email" | "google" | "apple" | "demo";
   fallbackFirstName?: string;
   fallbackLastName?: string;
 }) {

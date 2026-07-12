@@ -33,9 +33,28 @@ service cloud.firestore {
         && data.status == 'open';
     }
 
+    function protectedProfileFieldsUnchanged() {
+      return request.resource.data.get('isPro', false) == resource.data.get('isPro', false)
+        && request.resource.data.get('premiumPlan', 'free') == resource.data.get('premiumPlan', 'free')
+        && request.resource.data.get('profilePhotoLimit', 3) == resource.data.get('profilePhotoLimit', 3)
+        && request.resource.data.get('proVisibilityBoost', 'standard') == resource.data.get('proVisibilityBoost', 'standard')
+        && request.resource.data.get('canSeeIncomingLikes', false) == resource.data.get('canSeeIncomingLikes', false)
+        && request.resource.data.get('canSendChatRequests', false) == resource.data.get('canSendChatRequests', false)
+        && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
+        && request.resource.data.get('likedYou', false) == resource.data.get('likedYou', false);
+    }
+
     match /users/{uid} {
-      allow create: if isOwner(uid);
-      allow update, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.get('isPro', false) == false
+        && request.resource.data.get('isTestProfile', false) == false
+        && request.resource.data.get('likedYou', false) == false;
+      allow update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && resource.data.uid == uid
+        && protectedProfileFieldsUnchanged();
+      allow delete: if isOwner(uid);
       allow read: if signedIn() && (
         resource.data.privateProfile != true || resource.data.isTestProfile == true || isOwner(uid)
       );

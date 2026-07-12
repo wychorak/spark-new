@@ -2,7 +2,9 @@ import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import * as Google from "expo-auth-session/providers/google";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import * as WebBrowser from "expo-web-browser";
@@ -18,6 +20,7 @@ import {
   Linking,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,7 +31,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, observeAuthState, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, observeAuthState, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   acceptChatRequest,
@@ -58,7 +61,6 @@ import { SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./sr
 import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 import { uploadProfilePhotos } from "./src/profile-storage";
 
-WebBrowser.maybeCompleteAuthSession();
 
 const colors = {
   background: "#050507",
@@ -460,6 +462,13 @@ function getProfileDisplayName(mode: ProfileNameMode, nickname: string, firstNam
   return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twoj profil";
 }
 
+function getApproximatePublicLocation(location: UserLocation | null): UserLocation | null {
+  if (!location) return null;
+  return {
+    latitude: Math.round(location.latitude * 100) / 100,
+    longitude: Math.round(location.longitude * 100) / 100
+  };
+}
 function degreesToRadians(value: number) {
   return (value * Math.PI) / 180;
 }
@@ -526,21 +535,29 @@ function getConversationId(uid: string, profileKey: string) {
 
 async function pickImageFromLibrary() {
   try {
-    const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
-    const permission = existing.granted ? existing : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Dostep do zdjec", "Spark potrzebuje dostepu do Zdjec, aby dodac zdjecie profilowe.", [
-        { text: "Anuluj", style: "cancel" },
-        { text: "Otworz ustawienia", onPress: () => { void Linking.openSettings(); } }
-      ]);
-      return null;
+    if (Platform.OS === "android") {
+      const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
+      const permission = existing.granted ? existing : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Dostęp do zdjęć", "Nadaj Spark dostęp do zdjęć, aby dodać zdjęcie profilowe.", [
+          { text: "Anuluj", style: "cancel" },
+          { text: "Otwórz ustawienia", onPress: () => { void Linking.openSettings(); } }
+        ]);
+        return null;
+      }
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [4, 5], quality: 0.88 });
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 0.88
+    });
     return result.canceled ? null : result.assets[0]?.uri ?? null;
   } catch {
-    Alert.alert("Galeria", "Nie udalo sie otworzyc galerii. Sprawdz ustawienia Zdjec dla Spark.", [
+    Alert.alert("Galeria", "Nie udało się otworzyć galerii. Spróbuj ponownie lub sprawdź ustawienia Spark.", [
       { text: "Anuluj", style: "cancel" },
-      { text: "Otworz ustawienia", onPress: () => { void Linking.openSettings(); } }
+      { text: "Otwórz ustawienia", onPress: () => { void Linking.openSettings(); } }
     ]);
     return null;
   }
@@ -566,7 +583,6 @@ function AppContent() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>(createDefaultDiscoverFilters);
-  const [pushEnabled, setPushEnabled] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
@@ -597,13 +613,8 @@ function AppContent() {
   const [profileFeedError, setProfileFeedError] = useState<string | null>(null);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
   const [nextTestResetAt, setNextTestResetAt] = useState<number | null>(null);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
 
-  const [, googleResponse, promptGoogleSignIn] = Google.useIdTokenAuthRequest({
-    clientId: googleClientIds.webClientId ?? "firebase-not-configured.apps.googleusercontent.com",
-    iosClientId: googleClientIds.iosClientId,
-    androidClientId: googleClientIds.androidClientId,
-    webClientId: googleClientIds.webClientId
-  });
 
   const isCompact = width < 380;
   const profileQueryKey = selectedInterests.slice(0, 10).sort().join("|");
@@ -734,31 +745,82 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    const idToken = googleResponse?.type === "success" ? googleResponse.params.id_token : undefined;
+    if (Platform.OS === "web" || !isGoogleSignInConfigured) return;
 
-    if (!idToken) {
-      return;
-    }
+    GoogleSignin.configure({
+      webClientId: googleClientIds.webClientId,
+      iosClientId: googleClientIds.iosClientId,
+      offlineAccess: false
+    });
+  }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    AppleAuthentication.isAvailableAsync().then(setAppleSignInAvailable).catch(() => setAppleSignInAvailable(false));
+  }, []);
+
+  async function finishSocialSignIn(user: AppAuthUser, provider: "google" | "apple", fallbackFirstName = "", fallbackLastName = "") {
+    await recordUserLogin({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      authProvider: provider,
+      fallbackFirstName,
+      fallbackLastName
+    });
+    setAppUser(user);
+    setEmail(user.email ?? email);
+    setAuthDone(true);
+  }
+
+  async function handleGoogleSignIn() {
     setAuthBusy(true);
     setAuthError(null);
-    signInWithGoogleIdToken(idToken)
-      .then(async (user) => {
-        await recordUserLogin({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          authProvider: "google",
-          fallbackFirstName: firstName,
-          fallbackLastName: lastName
-        });
-        setAppUser(user);
-        setEmail(user.email ?? email);
-        setAuthDone(true);
-      })
-      .catch((error: Error) => setAuthError(error.message))
-      .finally(() => setAuthBusy(false));
-  }, [email, firstName, googleResponse, lastName]);
+
+    try {
+      if (Platform.OS === "android") {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+      const response = await GoogleSignin.signIn();
+      if (response.type !== "success") return;
+      const idToken = response.data.idToken;
+      if (!idToken) throw new Error("Google nie zwrócił tokenu logowania.");
+      const user = await signInWithGoogleIdToken(idToken);
+      await finishSocialSignIn(user, "google", response.data.user.givenName ?? "", response.data.user.familyName ?? "");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Nie udało się zalogować przez Google.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setAuthBusy(true);
+    setAuthError(null);
+
+    try {
+      const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._";
+      const bytes = await Crypto.getRandomBytesAsync(32);
+      const rawNonce = Array.from(bytes, (byte) => charset[byte % charset.length]).join("");
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL
+        ],
+        nonce: hashedNonce
+      });
+      if (!credential.identityToken) throw new Error("Apple nie zwrócił tokenu logowania.");
+      const user = await signInWithAppleIdToken(credential.identityToken, rawNonce);
+      await finishSocialSignIn(user, "apple", credential.fullName?.givenName ?? "", credential.fullName?.familyName ?? "");
+    } catch (error) {
+      if ((error as { code?: string })?.code !== "ERR_REQUEST_CANCELED") {
+        setAuthError(error instanceof Error ? error.message : "Nie udało się zalogować przez Apple.");
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!authDone || userLocation || locationStatus === "denied") return;
@@ -1020,6 +1082,15 @@ function AppContent() {
     }
   }
 
+  async function handlePasswordReset() {
+    setAuthError(null);
+    try {
+      await requestPasswordReset(email);
+      Alert.alert("Sprawdź pocztę", "Wysłaliśmy link do ustawienia nowego hasła.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Nie udało się wysłać linku resetującego.");
+    }
+  }
   async function saveProfileToFirestore() {
     if (!appUser) {
       return false;
@@ -1049,13 +1120,7 @@ function AppContent() {
         proOnly: discoverFilters.proOnly,
         city: userCity,
         country: userCountry,
-        location: userLocation,
-        premiumPlan: revenueCat.isPro ? premiumPlan : "free",
-        isPro: revenueCat.isPro,
-        profilePhotoLimit: revenueCat.isPro ? 15 : 3,
-        proVisibilityBoost: revenueCat.isPro ? "priority" : "standard",
-        canSeeIncomingLikes: revenueCat.isPro,
-        canSendChatRequests: revenueCat.isPro,
+        location: getApproximatePublicLocation(userLocation),
         privateProfile,
         onboardingComplete: true,
         socials: {}
@@ -1456,14 +1521,22 @@ function AppContent() {
           firebaseReady={isFirebaseConfigured}
           firebaseMissingConfig={firebaseConfigStatus.missingConfig}
           googleReady={isGoogleSignInConfigured}
+          appleReady={appleSignInAvailable}
           onContinue={() => {
             tap();
             handleEmailAuth();
           }}
           onGoogle={() => {
             tap();
-            setAuthError(null);
-            promptGoogleSignIn();
+            void handleGoogleSignIn();
+          }}
+          onApple={() => {
+            tap();
+            void handleAppleSignIn();
+          }}
+          onForgotPassword={() => {
+            tap();
+            void handlePasswordReset();
           }}
           showDemoLogin={showDemoLogin}
           onDemoAccount={() => {
@@ -1629,8 +1702,6 @@ function AppContent() {
             setUserAge={setUserAge}
             profilePhotos={profilePhotos}
             setProfilePhotos={setProfilePhotos}
-            pushEnabled={pushEnabled}
-            setPushEnabled={setPushEnabled}
             privateProfile={privateProfile}
             setPrivateProfile={setPrivateProfile}
             profileName={profileName}
@@ -1797,9 +1868,12 @@ function AuthScreen({
   firebaseReady,
   firebaseMissingConfig,
   googleReady,
+  appleReady,
   showDemoLogin,
   onContinue,
   onGoogle,
+  onApple,
+  onForgotPassword,
   onDemoAccount
 }: {
   authMode: AuthMode;
@@ -1815,9 +1889,12 @@ function AuthScreen({
   firebaseReady: boolean;
   firebaseMissingConfig: string[];
   googleReady: boolean;
+  appleReady: boolean;
   showDemoLogin: boolean;
   onContinue: () => void;
   onGoogle: () => void;
+  onApple: () => void;
+  onForgotPassword: () => void;
   onDemoAccount: () => void;
 }) {
   const [legalAccepted, setLegalAccepted] = useState(false);
@@ -1877,15 +1954,31 @@ function AuthScreen({
           </>
         )}
         <Pressable accessibilityRole="button" disabled={submitDisabled} onPress={onContinue} style={[styles.primaryButton, submitDisabled && styles.primaryButtonDisabled]}>
-          <Text style={styles.primaryButtonText}>{authBusy ? "�?ączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
+          <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
         </Pressable>
+        {authMode === "login" && (
+          <Pressable accessibilityRole="button" disabled={authBusy} onPress={onForgotPassword} style={styles.forgotPasswordButton}>
+            <Text style={styles.forgotPasswordText}>Nie pamiętasz hasła?</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.socialLoginGrid}>
-        <Pressable disabled={!firebaseReady || !googleReady || authBusy} onPress={onGoogle} style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}>
+        <Pressable accessibilityRole="button" disabled={!firebaseReady || !googleReady || authBusy} onPress={onGoogle} style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}>
           <FontAwesome name="google" size={18} color="#fff" />
           <Text style={styles.socialLoginText}>Kontynuuj z Google</Text>
         </Pressable>
+        {Platform.OS === "ios" && appleReady && (
+          <View style={authBusy ? styles.socialLoginButtonDisabled : undefined} pointerEvents={authBusy ? "none" : "auto"}>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={8}
+              style={styles.appleLoginButton}
+              onPress={onApple}
+            />
+          </View>
+        )}
       </View>
 
       {showDemoLogin && (
@@ -3606,8 +3699,6 @@ function ProfileScreen({
   setUserAge,
   profilePhotos,
   setProfilePhotos,
-  pushEnabled,
-  setPushEnabled,
   privateProfile,
   setPrivateProfile,
   profileName,
@@ -3637,8 +3728,6 @@ function ProfileScreen({
   setUserAge: (value: number) => void;
   profilePhotos: ProfilePhoto[];
   setProfilePhotos: (value: ProfilePhoto[]) => void;
-  pushEnabled: boolean;
-  setPushEnabled: (value: boolean) => void;
   privateProfile: boolean;
   setPrivateProfile: (value: boolean) => void;
   profileName: string;
@@ -3685,7 +3774,7 @@ function ProfileScreen({
   }
   return (
     <View style={styles.profileScreen}>
-      <TopBar eyebrow="Profil" title="Twoja karta" left="shield-check" right={pushEnabled ? "bell" : "bell-outline"} onLeftPress={openSafety} onRightPress={() => setPushEnabled(!pushEnabled)} />
+      <TopBar eyebrow="Profil" title="Twoja karta" left="shield-check" right="account-circle" onLeftPress={openSafety} />
 
       <View style={styles.profileIdentitySection}>
         <View style={styles.profileIdentityTop}>
@@ -3787,7 +3876,6 @@ function ProfileScreen({
       </View>
 
       <View style={styles.settingsList}>
-        <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Powiadomienia push</Text><Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: colors.green }} /></View>
         <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
         <SettingRow label="Spark Pro" value={hasPro ? "Aktywne" : "Zobacz"} onPress={openPremium} />
         <SettingRow
@@ -4466,8 +4554,22 @@ const styles = StyleSheet.create({
   legalLinkRow: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
   legalLink: { color: colors.primaryDeep, fontSize: 12, lineHeight: 17, fontWeight: "900" },
   socialLoginGrid: {
-    flexDirection: "row",
+    flexDirection: "column",
     gap: 10
+  },
+  forgotPasswordButton: {
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8
+  },
+  forgotPasswordText: {
+    color: colors.primaryDeep,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  appleLoginButton: {
+    width: "100%",
+    height: 52
   },
   socialLoginButton: {
     flex: 1,

@@ -2,9 +2,11 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   GoogleAuthProvider,
+  OAuthProvider,
   onAuthStateChanged,
   signInWithCredential,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   updateProfile,
   User
@@ -62,10 +64,24 @@ export async function signInWithEmail(email: string, password: string) {
   const credential = await signInWithEmailAndPassword(currentAuth, email, password);
   return mapFirebaseUser(credential.user);
 }
+export async function requestPasswordReset(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
+    throw new Error("Podaj prawidłowy adres email.");
+  }
+  await sendPasswordResetEmail(requireAuth(), normalizedEmail);
+}
 
 export async function signInWithGoogleIdToken(idToken: string) {
   const currentAuth = requireAuth();
   const credential = GoogleAuthProvider.credential(idToken);
+  const result = await signInWithCredential(currentAuth, credential);
+  return mapFirebaseUser(result.user);
+}
+export async function signInWithAppleIdToken(idToken: string, rawNonce: string) {
+  const currentAuth = requireAuth();
+  const provider = new OAuthProvider("apple.com");
+  const credential = provider.credential({ idToken, rawNonce });
   const result = await signInWithCredential(currentAuth, credential);
   return mapFirebaseUser(result.user);
 }
