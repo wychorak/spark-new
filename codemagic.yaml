@@ -49,7 +49,7 @@ workflows:
 
       - name: Validate generated Podfile
         script: |
-          node -e "const fs=require('fs'); const podfile=fs.readFileSync('ios/Podfile','utf8'); if (!podfile.includes('use_modular_headers!')) throw new Error('Missing modular headers in generated ios/Podfile');"
+          node -e "const fs=require('fs'); const props=JSON.parse(fs.readFileSync('ios/Podfile.properties.json','utf8')); if (props['ios.useFrameworks'] !== 'static') throw new Error('Missing static iOS frameworks configuration');"
 
       - name: Install CocoaPods
         script: |

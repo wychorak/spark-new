@@ -147,6 +147,14 @@
     "plugins": [
       "expo-web-browser",
       "expo-apple-authentication",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
       "@react-native-google-signin/google-signin",
       [
         "expo-location",

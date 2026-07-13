@@ -18,9 +18,7 @@ function readJson(relativePath) {
 }
 
 const appJsonSource = read('app.json');
-const appConfigSource = read('app.config.js');
 const codemagicSource = read('codemagic.yaml');
-const { addModularHeadersToPodfile } = require(path.join(root, 'app.config.js'));
 const app = JSON.parse(appJsonSource).expo;
 const packageJson = readJson('package.json');
 const firebaseRc = readJson('.firebaserc');
@@ -42,10 +40,9 @@ check(firebaseRc.projects?.default === 'spark-70b03', 'Default Firebase project 
 check(app.ios?.bundleIdentifier === 'com.sparknew.connect', 'Unexpected iOS bundle identifier.');
 check(app.android?.package === 'com.sparknew.connect', 'Unexpected Android package identifier.');
 check(app.ios?.usesAppleSignIn === true, 'Sign in with Apple must be enabled.');
-check(appConfigSource.includes('withPodfile') && appConfigSource.includes('use_modular_headers!'), 'iOS Podfile must enable modular headers for Swift Firebase dependencies.');
-const modularPodfile = addModularHeadersToPodfile("platform :ios, '15.1'\nprepare_react_native_project!\n");
-check(modularPodfile.includes('use_modular_headers!') && addModularHeadersToPodfile(modularPodfile) === modularPodfile, 'iOS modular-header Podfile transform must be effective and idempotent.');
-check(codemagicSource.includes("podfile.includes('use_modular_headers!')"), 'Codemagic must verify the generated iOS Podfile before installing pods.');
+const buildPropertiesPlugin = app.plugins?.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-build-properties');
+check(buildPropertiesPlugin?.[1]?.ios?.useFrameworks === 'static', 'iOS must use Firebase-supported static frameworks.');
+check(codemagicSource.includes("props['ios.useFrameworks'] !== 'static'"), 'Codemagic must verify static iOS frameworks before installing pods.');
 check(app.plugins?.includes('expo-apple-authentication'), 'Apple Authentication Expo plugin is missing.');
 check(app.ios?.infoPlist?.NSPhotoLibraryUsageDescription?.length > 20, 'iOS photo-library usage description is missing.');
 check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS location usage description is missing.');
@@ -90,6 +87,7 @@ check(icon.toString('ascii', 1, 4) === 'PNG', 'App icon is not a PNG.');
 check(icon.readUInt32BE(16) === 1024 && icon.readUInt32BE(20) === 1024, 'App icon must be 1024x1024.');
 check(icon[25] === 2, 'App icon must be opaque RGB without an alpha channel.');
 check(packageJson.dependencies?.['expo-apple-authentication'], 'Apple Authentication dependency is missing.');
+check(packageJson.dependencies?.['expo-build-properties'], 'Expo build properties dependency is missing.');
 check(packageJson.dependencies?.['react-native-purchases'], 'RevenueCat dependency is missing.');
 check(packageJson.dependencies?.['react-native-google-mobile-ads'], 'Google Mobile Ads dependency is missing.');
 
