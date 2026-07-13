@@ -71,6 +71,9 @@ check(appSource.includes('deleteCurrentUserAccount') && appSource.includes('requ
 check(!appSource.includes('AppleAuthentication') && !appSource.includes('GoogleSignin') && !appSource.includes('signInWithGoogleIdToken'), 'Third-party login code must remain removed for App Review compliance.');
 check(appSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/') && authSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/'), 'Email validation regex must reject whitespace and require a domain suffix.');
 check(appSource.includes('showCurrentBanner ? 92 : 0'), 'Discover layout must reserve space for the native ad banner.');
+check(!appSource.includes('process.env.EXPO_OS') && appSource.includes('behavior={Platform.OS === "ios" ? "padding" : undefined}'), 'Native iOS behavior must use reliable Platform detection.');
+check(appSource.includes('style={styles.discoveryDrawerScrollView}') && appSource.includes('contentContainerStyle={styles.discoveryDrawerScroll}'), 'Discovery drawer must remain scrollable on compact iPhones.');
+check(appSource.includes('confirmRemovePhoto(index: number)') && appSource.includes('style={styles.photoRemoveButton}'), 'Profile photo removal controls are missing.');
 check(appSource.includes('getProfileKey(profile) !== appUser?.uid'), 'Discovery feed must exclude the signed-in user.');
 check(appSource.includes('LocationControl') && appSource.includes('Location.getForegroundPermissionsAsync()') && appSource.includes('updateCurrentLocation(true)'), 'Location permission must be contextual and user initiated.');
 check(appSource.includes('openAdsPrivacyOptions'), 'In-app ad privacy settings entry is missing.');

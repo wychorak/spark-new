@@ -355,7 +355,7 @@ const premiumPlans = [
 ] satisfies Array<{ id: SparkPlanId; title: string; price: string; accent: string; features: string[] }>;
 
 function tap() {
-  if (process.env.EXPO_OS === "ios") {
+  if (Platform.OS === "ios") {
     Haptics.selectionAsync();
   }
 }
@@ -1389,7 +1389,7 @@ function AppContent() {
       }
     }));
 
-    if (process.env.EXPO_OS === "ios") {
+    if (Platform.OS === "ios") {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     setMatchCelebrationProfile(targetProfile);
@@ -1433,7 +1433,7 @@ function AppContent() {
         }
       }));
       setMatchCelebrationProfile(profile);
-      if (process.env.EXPO_OS === "ios") {
+      if (Platform.OS === "ios") {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
@@ -2174,6 +2174,15 @@ function OnboardingScreen({
     setProfilePhotos(next.slice(0, 3));
   }
 
+  function removePhoto(index: number) {
+    if (profilePhotos.length <= 1) {
+      Alert.alert("Zdj\u0119cia", "Profil musi mie\u0107 co najmniej jedno zdj\u0119cie.");
+      return;
+    }
+
+    setProfilePhotos(profilePhotos.filter((_, photoIndex) => photoIndex !== index));
+  }
+
   return (
     <View style={styles.gapLg}>
       <View style={styles.brandCompact}>
@@ -2201,7 +2210,25 @@ function OnboardingScreen({
           {[0, 1, 2].map((index) => {
             const photo = profilePhotos[index];
             const source = typeof photo === "string" ? { uri: photo } : photo;
-            return <Pressable key={index} onPress={() => void pickPhoto(photo ? index : undefined)} style={styles.onboardingPhotoSlot}>{source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <MaterialCommunityIcons name="camera-plus" size={27} color={colors.primary} />}<Text style={styles.photoSlotBadge}>{index === 0 ? "Główne" : "Foto " + (index + 1)}</Text></Pressable>;
+            return (
+              <Pressable key={index} onPress={() => void pickPhoto(photo ? index : undefined)} style={styles.onboardingPhotoSlot}>
+                {source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <MaterialCommunityIcons name="camera-plus" size={27} color={colors.primary} />}
+                {photo && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Usu\u0144 zdj\u0119cie"
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      removePhoto(index);
+                    }}
+                    style={styles.photoRemoveButton}
+                  >
+                    <MaterialCommunityIcons name="close" size={16} color="#fff" />
+                  </Pressable>
+                )}
+                <Text style={styles.photoSlotBadge}>{index === 0 ? "G\u0142\u00f3wne" : "Foto " + (index + 1)}</Text>
+              </Pressable>
+            );
           })}
         </View>
       </View>
@@ -2704,6 +2731,12 @@ function DiscoveryMenuModal({
             </Pressable>
           </View>
 
+          <ScrollView
+            style={styles.discoveryDrawerScrollView}
+            contentContainerStyle={styles.discoveryDrawerScroll}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
           <View style={styles.discoveryDrawerNav}>
             {menuItems.map((item) => (
               <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={item.label} onPress={() => run(item.action)} style={({ pressed }) => [styles.discoveryMenuRow, item.active && styles.discoveryMenuRowActive, pressed && styles.controlPressed]}>
@@ -2730,7 +2763,7 @@ function DiscoveryMenuModal({
             <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Odśwież feed</Text><Text style={styles.discoveryMenuHint}>Pobierz profile ponownie</Text></View>
           </Pressable>
 
-          <View style={styles.fill} />
+          <View style={styles.discoveryDrawerSpacer} />
           <Pressable accessibilityRole="button" onPress={() => run(onSignOut)} style={({ pressed }) => [styles.discoveryMenuUtility, pressed && styles.controlPressed]}>
             <MaterialCommunityIcons name="logout" size={20} color={colors.primary} />
             <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Wyloguj się</Text><Text style={styles.discoveryMenuHint}>Zakończ sesję na tym urządzeniu</Text></View>
@@ -2740,6 +2773,7 @@ function DiscoveryMenuModal({
             <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Bezpieczeństwo</Text><Text style={styles.discoveryMenuHint}>Zgłoszenia, blokady i zasady</Text></View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
           </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -3528,7 +3562,7 @@ function MessagesScreen({
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Wiadomości" title="Rozmowy" left="=" right="message-text" />
+      <TopBar eyebrow="Wiadomości" title="Rozmowy" left="message-text-outline" right="account-group-outline" />
       <View style={styles.chatToggleRow}>
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
@@ -3691,7 +3725,7 @@ function ChatConversationModal({
 
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined} style={local.root}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style="light" />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Wroc" onPress={onClose} style={local.back}>
@@ -4037,6 +4071,26 @@ function ProfileScreen({
     setProfilePhotos(next.slice(0, maxPhotos));
   }
 
+  function confirmRemovePhoto(index: number) {
+    if (profilePhotos.length <= 1) {
+      Alert.alert("Zdj\u0119cia", "Profil musi mie\u0107 co najmniej jedno zdj\u0119cie.");
+      return;
+    }
+
+    Alert.alert(
+      "Usu\u0144 zdj\u0119cie",
+      index === 0 ? "Nast\u0119pne zdj\u0119cie stanie si\u0119 g\u0142\u00f3wnym." : "Czy chcesz usun\u0105\u0107 to zdj\u0119cie?",
+      [
+        { text: "Anuluj", style: "cancel" },
+        {
+          text: "Usu\u0144",
+          style: "destructive",
+          onPress: () => setProfilePhotos(profilePhotos.filter((_, photoIndex) => photoIndex !== index))
+        }
+      ]
+    );
+  }
+
   async function handleSaveProfile() {
     setSaveBusy(true);
     const saved = await onSave();
@@ -4134,6 +4188,19 @@ function ProfileScreen({
             return (
               <Pressable key={index} onPress={() => pickProfilePhoto(image ? index : undefined)} style={styles.photoSlot}>
                 {source ? <Image source={source} style={styles.photoSlotImage} contentFit="cover" /> : <View style={styles.photoEmptyState}><MaterialCommunityIcons name="camera-plus" size={24} color={colors.primary} /></View>}
+                {image && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Usu\u0144 zdj\u0119cie"
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      confirmRemovePhoto(index);
+                    }}
+                    style={styles.photoRemoveButton}
+                  >
+                    <MaterialCommunityIcons name="close" size={16} color="#fff" />
+                  </Pressable>
+                )}
                 <Text style={styles.photoSlotBadge} selectable>{index === 0 ? "Główne" : image ? "Foto " + (index + 1) : "Dodaj"}</Text>
               </Pressable>
             );
@@ -5594,6 +5661,17 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: "rgba(255,45,141,0.2)",
     boxShadow: "18px 0 54px rgba(0,0,0,0.52)"
+  },
+  discoveryDrawerScrollView: {
+    flex: 1
+  },
+  discoveryDrawerScroll: {
+    flexGrow: 1,
+    paddingBottom: 2
+  },
+  discoveryDrawerSpacer: {
+    flexGrow: 1,
+    minHeight: 12
   },
   discoveryDrawerHeader: {
     minHeight: 72,
@@ -7361,6 +7439,20 @@ const styles = StyleSheet.create({
   photoSlotImage: {
     width: "100%",
     height: "100%"
+  },
+  photoRemoveButton: {
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 30,
+    height: 30,
+    zIndex: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "rgba(12,10,14,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)"
   },
   photoEmptyText: {
     color: colors.primaryDeep,
