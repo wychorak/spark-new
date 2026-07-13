@@ -63,8 +63,12 @@ workflows:
       - name: Build IPA
         script: |
           xcode-project build-ipa \
+            --log-stream stdout \
+            --verbose \
+            --disable-xcpretty \
             --workspace ios/Spark.xcworkspace \
-            --scheme Spark
+            --scheme Spark \
+            --archive-flags="-destination 'generic/platform=iOS'"
 
     artifacts:
       - build/ios/ipa/*.ipa
