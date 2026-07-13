@@ -127,6 +127,10 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
 
   const existingPublic = await getDoc(publicProfileRef);
   const existingData = existingPublic.exists() ? existingPublic.data() : {};
+  const publicPhotoUrls = (profile.photoUrls ?? []).filter((url): url is string => typeof url === "string").slice(0, claimIsPro ? 15 : 3);
+  const publicMainPhotoUrl = typeof profile.mainPhotoUrl === "string" && publicPhotoUrls.includes(profile.mainPhotoUrl)
+    ? profile.mainPhotoUrl
+    : publicPhotoUrls[0] ?? null;
   await setDoc(publicProfileRef, {
     uid,
     firstName: profile.firstName,
@@ -137,8 +141,8 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     ageBand: profile.ageBand ?? null,
     age: profile.age ?? null,
     interests: profile.interests,
-    photoUrls: profile.photoUrls ?? [],
-    mainPhotoUrl: profile.mainPhotoUrl ?? null,
+    photoUrls: publicPhotoUrls,
+    mainPhotoUrl: publicMainPhotoUrl,
     city: profile.city ?? "",
     country: profile.country ?? "",
     location: getApproximatePublicLocation(profile.location),

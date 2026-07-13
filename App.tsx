@@ -141,10 +141,6 @@ function getSocialIcon(label: string): { family: SocialIconFamily; name: string;
     return { family: "fontAwesome", name: "spotify", color: "#1ed760", backgroundColor: "rgba(30,215,96,0.15)" };
   }
 
-  if (normalized.includes("linkedin")) {
-    return { family: "fontAwesome", name: "linkedin", color: "#70b7ff", backgroundColor: "rgba(112,183,255,0.15)" };
-  }
-
   return { family: "material", name: "link-variant", color: colors.primaryDeep, backgroundColor: colors.primarySoft };
 }
 
@@ -312,8 +308,7 @@ const matchProfiles: MatchProfile[] = [
     heightCm: 184,
     weightKg: 78,
     socials: [
-      { label: "Spotify", value: "Kuba live set" },
-      { label: "LinkedIn", value: "kuba-zielinski" }
+      { label: "Spotify", value: "Kuba live set" }
     ]
   },
   {
@@ -436,7 +431,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const locationAvailable = typeof location?.latitude === "number" && typeof location?.longitude === "number";
   const socialsRecord = typeof item.socials === "object" && item.socials !== null ? item.socials as Record<string, unknown> : {};
   const socials = Object.entries(socialsRecord)
-    .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0 && !entry[0].toLowerCase().includes("linkedin"))
     .map(([label, value]) => ({ label: repairLegacyText(label), value: repairLegacyText(value) }));
 
   return {
@@ -631,6 +626,7 @@ function AppContent() {
   const [userCity, setUserCity] = useState("");
   const [userCountry, setUserCountry] = useState("");
   const [locationStatus, setLocationStatus] = useState<"idle" | "granted" | "denied">("idle");
+  const [locationBusy, setLocationBusy] = useState(false);
   const [userAge, setUserAge] = useState(18);
   const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
   const [bottomNavHidden, setBottomNavHidden] = useState(false);
@@ -656,6 +652,7 @@ function AppContent() {
   const sortedProfiles = useMemo(
     () =>
       availableProfiles
+        .filter((profile) => getProfileKey(profile) !== appUser?.uid)
         .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
         .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
 
@@ -677,7 +674,7 @@ function AppContent() {
           ((right.matchScore ?? 0) + (right.premium ? 5 : 0)) -
           ((left.matchScore ?? 0) + (left.premium ? 5 : 0))
         ),
-    [availableProfiles, blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
+    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -858,42 +855,59 @@ function AppContent() {
     }
   }
 
-  useEffect(() => {
-    if (!authDone || userLocation || locationStatus === "denied") return;
-    let mounted = true;
+  async function updateCurrentLocation(requestPermission: boolean) {
+    if (locationBusy) return false;
+    setLocationBusy(true);
 
-    async function loadLocation() {
-      try {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (!mounted) return;
-        if (permission.status !== Location.PermissionStatus.GRANTED) {
-          setLocationStatus("denied");
-          return;
-        }
+    try {
+      const permission = requestPermission
+        ? await Location.requestForegroundPermissionsAsync()
+        : await Location.getForegroundPermissionsAsync();
 
-        setLocationStatus("granted");
-        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const coordinates = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-        let place: Location.LocationGeocodedAddress | undefined;
-        try {
-          place = (await Location.reverseGeocodeAsync(coordinates))[0];
-        } catch {
-          place = undefined;
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        setLocationStatus(permission.status === Location.PermissionStatus.DENIED ? "denied" : "idle");
+        if (requestPermission) {
+          Alert.alert(
+            "Lokalizacja jest opcjonalna",
+            "Mo\u017cesz korzysta\u0107 ze Spark bez lokalizacji. Aby pokazywa\u0107 przybli\u017con\u0105 odleg\u0142o\u015b\u0107, w\u0142\u0105cz dost\u0119p w ustawieniach.",
+            [
+              { text: "Nie teraz", style: "cancel" },
+              { text: "Otw\u00f3rz ustawienia", onPress: () => { void Linking.openSettings(); } }
+            ]
+          );
         }
-
-        if (mounted) {
-          setUserLocation(coordinates);
-          setUserCity(place?.city || place?.subregion || place?.region || "");
-          setUserCountry(place?.country || "");
-        }
-      } catch {
-        if (mounted) setLocationStatus("denied");
+        return false;
       }
-    }
 
-    void loadLocation();
-    return () => { mounted = false; };
-  }, [authDone, locationStatus, userLocation]);
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coordinates = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      let place: Location.LocationGeocodedAddress | undefined;
+      try {
+        place = (await Location.reverseGeocodeAsync(coordinates))[0];
+      } catch {
+        place = undefined;
+      }
+
+      setLocationStatus("granted");
+      setUserLocation(coordinates);
+      setUserCity(place?.city || place?.subregion || place?.region || "");
+      setUserCountry(place?.country || "");
+      return true;
+    } catch {
+      setLocationStatus("denied");
+      if (requestPermission) {
+        Alert.alert("Lokalizacja", "Nie uda\u0142o si\u0119 pobra\u0107 lokalizacji. Spr\u00f3buj ponownie lub sprawd\u017a ustawienia Spark.");
+      }
+      return false;
+    } finally {
+      setLocationBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!authDone || userLocation) return;
+    void updateCurrentLocation(false);
+  }, [authDone, userLocation]);
 
   useEffect(() => {
     if (!authDone || !onboarded || !appUser || selectedInterests.length === 0) {
@@ -1795,6 +1809,9 @@ function AppContent() {
           setDiscoverFilters={setDiscoverFilters}
           userCity={userCity}
           userCountry={userCountry}
+          locationStatus={locationStatus}
+          locationBusy={locationBusy}
+          onRequestLocation={() => { void updateCurrentLocation(true); }}
           selectedInterests={selectedInterests}
           setSelectedInterests={setSelectedInterests}
           canContinue={canContinue}
@@ -1919,6 +1936,9 @@ function AppContent() {
             discoverFilters={discoverFilters}
             userCity={userCity}
             userCountry={userCountry}
+            locationStatus={locationStatus}
+            locationBusy={locationBusy}
+            onRequestLocation={() => { void updateCurrentLocation(true); }}
             email={email}
             selectedInterests={selectedInterests}
             setSelectedInterests={setSelectedInterests}
@@ -2219,10 +2239,26 @@ function AuthScreen({
   );
 }
 
+function LocationControl({ city, country, status, busy, onPress }: { city: string; country: string; status: "idle" | "granted" | "denied"; busy: boolean; onPress: () => void }) {
+  const place = [city, country].filter(Boolean).join(", ");
+  const label = busy ? "Pobieranie lokalizacji..." : place ? "Od\u015bwie\u017c lokalizacj\u0119" : status === "denied" ? "W\u0142\u0105cz lokalizacj\u0119 w ustawieniach" : "U\u017cyj mojej lokalizacji";
+
+  return (
+    <View style={styles.locationControl}>
+      {place ? <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{place}</Text></View> : null}
+      <Pressable accessibilityRole="button" disabled={busy} onPress={onPress} style={({ pressed }) => [styles.locationAction, busy && styles.primaryButtonDisabled, pressed && styles.controlPressed]}>
+        {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <MaterialCommunityIcons name="crosshairs-gps" size={18} color={colors.primary} />}
+        <Text style={styles.locationActionText}>{label}</Text>
+      </Pressable>
+      <Text style={styles.locationPrivacyText}>Opcjonalne. Publicznie pokazujemy tylko przybli\u017con\u0105 odleg\u0142o\u015b\u0107 oraz miasto lub kraj.</Text>
+    </View>
+  );
+}
+
 function OnboardingScreen({
   intent, setIntent, profileNameMode, setProfileNameMode, firstName, setFirstName, lastName, setLastName,
   nickname, setNickname, birthDate, onBirthDateChange, profilePhotos, setProfilePhotos,
-  discoverFilters, setDiscoverFilters, userCity, userCountry, selectedInterests, setSelectedInterests,
+  discoverFilters, setDiscoverFilters, userCity, userCountry, locationStatus, locationBusy, onRequestLocation, selectedInterests, setSelectedInterests,
   canContinue, onContinue
 }: {
   intent: string; setIntent: (value: string) => void;
@@ -2231,7 +2267,7 @@ function OnboardingScreen({
   nickname: string; setNickname: (value: string) => void; birthDate: string; onBirthDateChange: (value: string) => void;
   profilePhotos: ProfilePhoto[]; setProfilePhotos: (value: ProfilePhoto[]) => void;
   discoverFilters: DiscoverFilters; setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
-  userCity: string; userCountry: string; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
+  userCity: string; userCountry: string; locationStatus: "idle" | "granted" | "denied"; locationBusy: boolean; onRequestLocation: () => void; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
   canContinue: boolean; onContinue: () => void;
 }) {
   const [selectedIntent, setSelectedIntent] = useState(intent);
@@ -2269,7 +2305,7 @@ function OnboardingScreen({
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : derivedAge < 18 ? String(derivedAge) + " lat - Spark jest dostępny od 18 lat." : derivedAge > 99 ? "Sprawdź rok urodzenia." : String(derivedAge) + " lat"}</Text>
-        {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
+        <LocationControl city={userCity} country={userCountry} status={locationStatus} busy={locationBusy} onPress={onRequestLocation} />
       </View>
 
       <View style={styles.setupSection}>
@@ -3902,7 +3938,8 @@ function PremiumScreen({
     restoreButton: { minHeight: 44, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
     restoreText: { color: colors.ink, fontSize: 13, fontWeight: "900" },
     legalRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18 },
-    legalText: { color: colors.muted, fontSize: 11, fontWeight: "800", textDecorationLine: "underline" }
+    legalText: { color: colors.muted, fontSize: 11, fontWeight: "800", textDecorationLine: "underline" },
+    billingText: { paddingHorizontal: 10, color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: "center", fontWeight: "700" }
   });
 
   async function activateSelectedPlan() {
@@ -3997,13 +4034,21 @@ function PremiumScreen({
         <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : revenueCat.isLoading ? "Ładowanie pakietów..." : busyAction === "purchase" ? "Łączenie..." : !hasPackages ? "Otwórz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
       </Pressable>
 
+      {!revenueCat.isPro && (
+        <Text style={local.billingText} selectable>
+          {premiumPlan === "lifetime"
+            ? "Plan Lifetime jest zakupem jednorazowym bez automatycznego odnawiania."
+            : "Subskrypcja odnawia si\u0119 automatycznie, je\u015bli nie anulujesz jej co najmniej 24 godziny przed ko\u0144cem okresu. Op\u0142ata zostanie pobrana z konta Apple ID. Subskrypcj\u0105 mo\u017cesz zarz\u0105dza\u0107 w ustawieniach App Store."}
+        </Text>
+      )}
+
       <View style={local.footerActions}>
         <Pressable accessibilityRole="button" disabled={busyAction !== null} onPress={() => void restorePro()} style={local.restoreButton}>
           <Text style={local.restoreText}>{busyAction === "restore" ? "Przywracanie..." : "Przywróć zakupy"}</Text>
         </Pressable>
         <View style={local.legalRow}>
           <Pressable onPress={() => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")}><Text style={local.legalText}>Regulamin</Text></Pressable>
-          <Pressable onPress={() => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_URL")}><Text style={local.legalText}>Polityka prywatności</Text></Pressable>
+          <Pressable onPress={() => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")}><Text style={local.legalText}>Polityka prywatności</Text></Pressable>
         </View>
       </View>
     </View>
@@ -4023,6 +4068,9 @@ function ProfileScreen({
   discoverFilters,
   userCity,
   userCountry,
+  locationStatus,
+  locationBusy,
+  onRequestLocation,
   email,
   selectedInterests,
   setSelectedInterests,
@@ -4052,6 +4100,9 @@ function ProfileScreen({
   discoverFilters: DiscoverFilters;
   userCity: string;
   userCountry: string;
+  locationStatus: "idle" | "granted" | "denied";
+  locationBusy: boolean;
+  onRequestLocation: () => void;
   email: string;
   selectedInterests: string[];
   setSelectedInterests: (value: string[]) => void;
@@ -4071,10 +4122,12 @@ function ProfileScreen({
 }) {
   const [saveBusy, setSaveBusy] = useState(false);
   const maxPhotos = hasPro ? 15 : 3;
+  const visiblePhotoCount = Math.min(profilePhotos.length, maxPhotos);
+  const hiddenPhotoCount = Math.max(0, profilePhotos.length - maxPhotos);
   const previewPhoto = profilePhotos[0] ?? brandLogoImage;
   const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
   const profileStatusRows = [
-    [String(profilePhotos.length) + "/" + String(maxPhotos), "zdjęcia"],
+    [String(visiblePhotoCount) + "/" + String(maxPhotos), "zdjęcia"],
     [String(selectedInterests.length) + "/15", "tagi"],
     [hasPro ? "Pro" : "Free", "plan"]
   ];
@@ -4171,15 +4224,15 @@ function ProfileScreen({
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
-        {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
+        <LocationControl city={userCity} country={userCountry} status={locationStatus} busy={locationBusy} onPress={onRequestLocation} />
       </View>
 
       <View style={styles.profileGalleryPanel}>
         <View style={styles.profileGalleryHeader}>
           <View style={styles.fill}>
             <Text style={styles.panelTitle} selectable>Zdjęcia</Text>
-            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjęć - format 4:5</Text>
-            <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdjęć aktywny" : "Spark Pro odblokuje do 15 zdjęć"}</Text>
+            <Text style={styles.photoFormatHint} selectable>{visiblePhotoCount}/{maxPhotos} zdjęć - format 4:5</Text>
+            <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdj\u0119\u0107 aktywny" : hiddenPhotoCount > 0 ? `${hiddenPhotoCount} zdj\u0119\u0107 zachowanych - odblokuj Pro, aby je ponownie pokaza\u0107` : "Spark Pro odblokuje do 15 zdj\u0119\u0107"}</Text>
           </View>
           <Pressable onPress={() => (profilePhotos.length >= maxPhotos && !hasPro ? openPremium() : pickProfilePhoto())} style={styles.photoAddButton}>
             <MaterialCommunityIcons name={profilePhotos.length >= maxPhotos ? "lock" : "plus"} size={16} color="#fff" />
@@ -5077,8 +5130,12 @@ const styles = StyleSheet.create({
   segmentedChoiceText: { color: colors.muted, fontSize: 13, fontWeight: "800" },
   segmentedChoiceTextActive: { color: "#fff" },
   setupHelper: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  locationControl: { gap: 8, marginTop: 4 },
   locationStatus: { flexDirection: "row", alignItems: "center", gap: 7 },
   locationStatusText: { color: colors.ink, fontSize: 13, fontWeight: "800" },
+  locationAction: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  locationActionText: { color: colors.ink, fontSize: 13, fontWeight: "900", textAlign: "center" },
+  locationPrivacyText: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
   onboardingPhotoGrid: { flexDirection: "row", gap: 10 },
   onboardingPhotoSlot: {
     flex: 1,

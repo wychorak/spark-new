@@ -48,6 +48,9 @@ service cloud.firestore {
         && data.createdByUid is string && data.createdByUid in data.memberUids
         && data.source in ['mutual-like', 'premium-request']
         && data.status in ['matched', 'requested', 'rejected', 'blocked']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (data.get('resetAt', null) == null || data.resetAt is timestamp)
         && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500));
     }
 
@@ -72,7 +75,7 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/users/$(otherUid)/blocks/$(request.auth.uid))
         && (
           (data.source == 'mutual-like' && data.status == 'matched' && hasLike(request.auth.uid, otherUid) && hasLike(otherUid, request.auth.uid)) ||
-          (data.source == 'premium-request' && data.status == 'requested')
+          (data.source == 'premium-request' && data.status == 'requested' && hasRevenueCatPro())
         );
     }
 
@@ -132,7 +135,8 @@ service cloud.firestore {
         && data.ageBand == '18+'
         && data.age is number && data.age >= 18 && data.age <= 99
         && data.interests is list && data.interests.size() >= 3 && data.interests.size() <= 15
-        && data.photoUrls is list && data.photoUrls.size() >= 1 && data.photoUrls.size() <= 15
+        && data.photoUrls is list && data.photoUrls.size() >= 1
+        && data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)
         && (
           data.mainPhotoUrl == null
           || (data.mainPhotoUrl is string && data.mainPhotoUrl.size() <= 2048 && data.mainPhotoUrl in data.photoUrls)
@@ -254,11 +258,24 @@ service cloud.firestore {
         && validMatch(request.resource.data)
         && request.resource.data.memberUids == resource.data.memberUids
         && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.source == resource.data.source
+        && request.resource.data.get('introMessage', null) == resource.data.get('introMessage', null)
+        && request.resource.data.get('resetAt', null) == resource.data.get('resetAt', null)
         && request.resource.data.createdAt == resource.data.createdAt
         && (
-          (resource.data.status == 'requested' && request.auth.uid != resource.data.createdByUid && request.resource.data.status in ['matched', 'rejected']) ||
-          (resource.data.status == 'requested' && request.resource.data.status == 'blocked') ||
-          (resource.data.status == 'matched' && request.resource.data.status == 'blocked')
+          (
+            resource.data.status == 'requested'
+            && request.auth.uid != resource.data.createdByUid
+            && (
+              (request.resource.data.status == 'matched' && request.resource.data.acceptedByUid == request.auth.uid)
+              || (request.resource.data.status == 'rejected' && request.resource.data.rejectedByUid == request.auth.uid)
+            )
+          )
+          || (
+            resource.data.status in ['requested', 'matched']
+            && request.resource.data.status == 'blocked'
+            && request.resource.data.blockedByUid == request.auth.uid
+          )
         );
       allow delete: if signedIn() && request.auth.uid in resource.data.memberUids;
     }
