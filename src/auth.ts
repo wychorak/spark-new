@@ -2,7 +2,9 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   GoogleAuthProvider,
+  OAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInWithCredential,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -10,7 +12,7 @@ import {
   updateProfile,
   User
 } from "firebase/auth";
-import { auth, isFirebaseConfigured } from "./firebase";
+import { auth, firebaseAuthRestConfig, isFirebaseConfigured } from "./firebase";
 
 export type AppAuthUser = {
   uid: string;
@@ -91,6 +93,72 @@ export async function signInWithGoogleIdToken(idToken: string) {
   const credential = GoogleAuthProvider.credential(idToken);
   const result = await signInWithCredential(currentAuth, credential);
   return mapFirebaseUser(result.user);
+}
+
+export async function signInWithAppleIdToken(params: {
+  idToken: string;
+  rawNonce: string;
+  displayName?: string;
+}) {
+  try {
+    const currentAuth = requireAuth();
+    const provider = new OAuthProvider("apple.com");
+    const credential = provider.credential({
+      idToken: params.idToken,
+      rawNonce: params.rawNonce
+    });
+    const result = await signInWithCredential(currentAuth, credential);
+
+    if (params.displayName && !result.user.displayName) {
+      await updateProfile(result.user, { displayName: params.displayName });
+    }
+
+    return mapFirebaseUser(result.user);
+  } catch (error) {
+    throw new Error(getFirebaseAuthErrorMessage(error, "Nie uda\u0142o si\u0119 zalogowa\u0107 przez Apple."));
+  }
+}
+
+export function currentUserUsesAppleSignIn() {
+  return Boolean(requireAuth().currentUser?.providerData.some((provider) => provider.providerId === "apple.com"));
+}
+
+export async function reauthenticateAndRevokeApple(params: {
+  idToken: string;
+  rawNonce: string;
+  authorizationCode: string;
+}) {
+  const currentAuth = requireAuth();
+  const currentUser = currentAuth.currentUser;
+  if (!currentUser) throw new Error("Brak zalogowanego u\u017cytkownika.");
+
+  const provider = new OAuthProvider("apple.com");
+  const credential = provider.credential({
+    idToken: params.idToken,
+    rawNonce: params.rawNonce
+  });
+  await reauthenticateWithCredential(currentUser, credential);
+
+  const firebaseIdToken = await currentUser.getIdToken(true);
+  const response = await fetch(
+    "https://identitytoolkit.googleapis.com/v2/accounts:revokeToken?key=" +
+      encodeURIComponent(firebaseAuthRestConfig.apiKey),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "apple.com",
+        tokenType: "CODE",
+        token: params.authorizationCode,
+        idToken: firebaseIdToken,
+        redirectUri: "https://" + firebaseAuthRestConfig.authDomain + "/__/auth/handler"
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Nie uda\u0142o si\u0119 uniewa\u017cni\u0107 dost\u0119pu Apple. Spr\u00f3buj ponownie.");
+  }
 }
 
 export async function requestPasswordReset(email: string) {

@@ -124,7 +124,8 @@
             ]
           }
         ]
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.sparknew.connect",
@@ -153,6 +154,7 @@
           }
         }
       ],
+      "expo-apple-authentication",
       "@react-native-google-signin/google-signin",
       [
         "expo-location",

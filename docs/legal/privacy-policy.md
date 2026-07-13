@@ -18,7 +18,7 @@ Lokalizacja służy do wyświetlania przybliżonej odległości i dopasowania pr
 
 ## Usunięcie konta
 
-Konto możesz usunąć w aplikacji w sekcji profilu i bezpieczeństwa. Po potwierdzeniu usuwamy konto logowania, profil, zdjęcia, polubienia, matche, wiadomości oraz blokady. Zachowujemy jedynie minimalny zapis techniczny wniosku o usunięcie. Zgłoszenia dotyczące bezpieczeństwa możemy zachować przez okres niezbędny do przeciwdziałania nadużyciom, realizacji obowiązków prawnych i rozliczalności.
+Konto mo\u017cesz usun\u0105\u0107 w aplikacji w sekcji profilu i bezpiecze\u0144stwa. Po potwierdzeniu usuwamy konto logowania, profil, zdj\u0119cia, polubienia, matche i wiadomo\u015bci. Minimalny zapis techniczny wniosku, zg\u0142oszenia, identyfikatory blokad i zapisy rozliczeniowe mog\u0105 by\u0107 zachowane wy\u0142\u0105cznie przez okres niezb\u0119dny do przeciwdzia\u0142ania nadu\u017cyciom, realizacji obowi\u0105zk\u00f3w prawnych oraz obs\u0142ugi zakup\u00f3w.
 
 ## Udostępnianie danych
 

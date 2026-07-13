@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 import Purchases, {
   LOG_LEVEL,
@@ -115,7 +115,6 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const previousUserId = useRef<string | null>(null);
   const prices = useMemo(() => (
     (Object.keys(revenueCatProductIds) as SparkPlanId[]).reduce<Partial<Record<SparkPlanId, string>>>((result, planId) => {
       const product = matchPackageForPlan(packages, planId)?.product;
@@ -199,23 +198,21 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
       return;
     }
 
-    const previous = previousUserId.current;
-    previousUserId.current = appUserId;
-
     async function syncIdentity() {
       try {
-        if (!previous && appUserId) {
-          const result = await Purchases.logIn(appUserId);
-          setCustomerInfo(result.customerInfo);
-        } else if (previous && !appUserId) {
-          const info = await Purchases.getCustomerInfo();
-          if (!info.originalAppUserId.startsWith("$RCAnonymousID:")) {
-            await Purchases.logOut();
+        const revenueCatUserId = await Purchases.getAppUserID();
+        const isAnonymous = revenueCatUserId.startsWith("$RCAnonymousID:");
+
+        if (!appUserId) {
+          if (!isAnonymous) {
+            setCustomerInfo(await Purchases.logOut());
+          } else {
+            await refreshCustomerInfo();
           }
+        } else if (revenueCatUserId === appUserId) {
           await refreshCustomerInfo();
-        } else if (previous && appUserId && previous !== appUserId) {
-          const info = await Purchases.getCustomerInfo();
-          if (!info.originalAppUserId.startsWith("$RCAnonymousID:")) {
+        } else {
+          if (!isAnonymous) {
             await Purchases.logOut();
           }
           const result = await Purchases.logIn(appUserId);

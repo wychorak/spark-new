@@ -36,6 +36,10 @@ export const isFirebaseConfigured = missingConfig.length === 0;
 export const firebaseConfigStatus = {
   missingConfig
 };
+export const firebaseAuthRestConfig = {
+  apiKey: firebaseConfig.apiKey,
+  authDomain: firebaseConfig.authDomain
+};
 
 export const firebaseApp = isFirebaseConfigured
   ? getApps().length

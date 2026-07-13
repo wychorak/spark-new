@@ -1,5 +1,7 @@
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { BlurView } from "expo-blur";
+import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -29,8 +31,9 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, requestPasswordReset, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { currentUserUsesAppleSignIn, deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
+import { findModerationViolation } from "./src/content-moderation";
 import {
   acceptChatRequest,
   blockUser,
@@ -605,6 +608,7 @@ function AppContent() {
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady);
@@ -784,6 +788,13 @@ function AppContent() {
       iosClientId: googleClientIds.iosClientId,
       offlineAccess: false
     });
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    void AppleAuthentication.isAvailableAsync()
+      .then(setAppleSignInAvailable)
+      .catch(() => setAppleSignInAvailable(false));
   }, []);
 
   async function updateCurrentLocation(requestPermission: boolean) {
@@ -1140,6 +1151,68 @@ function AppContent() {
       if (!authenticated) {
         setAuthRestoring(false);
       }
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setAuthBusy(true);
+    setAuthError(null);
+    let authenticated = false;
+
+    try {
+      if (Platform.OS !== "ios") {
+        throw new Error("Logowanie Apple jest dost\u0119pne na iPhonie.");
+      }
+
+      const rawNonce = Crypto.randomUUID();
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce
+      );
+      const response = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL
+        ],
+        nonce: hashedNonce
+      });
+
+      if (!response.identityToken) {
+        throw new Error("Apple nie zwr\u00f3ci\u0142 tokenu logowania.");
+      }
+
+      const displayName = [
+        response.fullName?.givenName,
+        response.fullName?.familyName
+      ].filter(Boolean).join(" ");
+
+      setAuthRestoring(true);
+      const user = await signInWithAppleIdToken({
+        idToken: response.identityToken,
+        rawNonce,
+        displayName
+      });
+      authenticated = true;
+      setEmail(user.email ?? response.email ?? "");
+
+      await recordUserLogin({
+        uid: user.uid,
+        email: user.email ?? response.email,
+        displayName: user.displayName || displayName || null,
+        authProvider: "apple",
+        fallbackFirstName: response.fullName?.givenName ?? "",
+        fallbackLastName: response.fullName?.familyName ?? ""
+      }).catch(() => undefined);
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : "";
+      if (code !== "ERR_REQUEST_CANCELED") {
+        setAuthError(error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 zalogowa\u0107 przez Apple.");
+      }
+    } finally {
+      setAuthBusy(false);
+      if (!authenticated) setAuthRestoring(false);
     }
   }
 
@@ -1558,6 +1631,12 @@ function AppContent() {
       return;
     }
 
+    const moderationViolation = findModerationViolation(message);
+    if (moderationViolation) {
+      Alert.alert("Wiadomo\u015b\u0107 zablokowana", moderationViolation);
+      return;
+    }
+
     const thread = chatThreads[profileKey];
     if (!thread || thread.status !== "matched") {
       Alert.alert("Chat", "Wiadomo\u015bci s\u0105 dost\u0119pne po matchu albo po zaakceptowaniu pro\u015bby.");
@@ -1629,11 +1708,20 @@ function AppContent() {
     }
 
     try {
+      const thread = chatThreads[profileKey];
       await createReport({
         reporterUid: appUser.uid,
         targetUid: profileKey,
         reason: reason.slice(0, 200),
-        context: reason
+        context: JSON.stringify({
+          source: thread?.threadId ? "chat" : "profile",
+          threadId: thread?.threadId ?? null,
+          recentMessages: (thread?.messages ?? []).slice(-5).map((message) => ({
+            from: message.from,
+            text: message.text.slice(0, 500),
+            time: message.time
+          }))
+        }).slice(0, 4000)
       });
       return true;
     } catch {
@@ -1667,7 +1755,24 @@ function AppContent() {
     }
 
     try {
-      await ensureRecentLoginForAccountDeletion();
+      if (currentUserUsesAppleSignIn()) {
+        const rawNonce = Crypto.randomUUID();
+        const hashedNonce = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          rawNonce
+        );
+        const credential = await AppleAuthentication.signInAsync({ nonce: hashedNonce });
+        if (!credential.identityToken || !credential.authorizationCode) {
+          throw new Error("Apple nie zwr\u00f3ci\u0142 danych potrzebnych do usuni\u0119cia konta.");
+        }
+        await reauthenticateAndRevokeApple({
+          idToken: credential.identityToken,
+          rawNonce,
+          authorizationCode: credential.authorizationCode
+        });
+      } else {
+        await ensureRecentLoginForAccountDeletion();
+      }
       await deleteProfilePhotos(appUser.uid, profilePhotos);
       await requestAccountDeletionAndDeleteProfile({
         uid: appUser.uid
@@ -1694,11 +1799,23 @@ function AppContent() {
     }
   }
 
+  async function openSubscriptionManagementBeforeDeletion() {
+    const result = await revenueCat.openCustomerCenter();
+    if (!result.ok) {
+      Alert.alert("Subskrypcje", "Nie uda\u0142o si\u0119 otworzy\u0107 zarz\u0105dzania subskrypcj\u0105. Otw\u00f3rz Ustawienia iPhone > Apple ID > Subskrypcje.");
+    }
+  }
+
   function confirmDeleteAccount() {
-    Alert.alert("Usuń konto", "To trwale usunie konto, profil, zdjęcia, matche i wiadomości. Tej akcji nie można cofnąć.", [
-      { text: "Anuluj", style: "cancel" },
-      { text: "Usuń", style: "destructive", onPress: () => void performDeleteAccount() }
-    ]);
+    Alert.alert(
+      "Usu\u0144 konto",
+      "To trwale usunie konto, profil, zdj\u0119cia, matche i wiadomo\u015bci. Usuni\u0119cie konta nie anuluje aktywnej subskrypcji Apple. Tej akcji nie mo\u017cna cofn\u0105\u0107.",
+      [
+        { text: "Anuluj", style: "cancel" },
+        { text: "Zarz\u0105dzaj subskrypcj\u0105", onPress: () => void openSubscriptionManagementBeforeDeletion() },
+        { text: "Usu\u0144 teraz", style: "destructive", onPress: () => void performDeleteAccount() }
+      ]
+    );
   }
   if (authRestoring) {
     return (
@@ -1727,6 +1844,7 @@ function AppContent() {
           firebaseReady={isFirebaseConfigured}
           firebaseMissingConfig={firebaseConfigStatus.missingConfig}
           googleReady={isGoogleSignInConfigured}
+          appleReady={appleSignInAvailable}
           onContinue={() => {
             tap();
             handleEmailAuth();
@@ -1734,6 +1852,10 @@ function AppContent() {
           onGoogle={() => {
             tap();
             void handleGoogleSignIn();
+          }}
+          onApple={() => {
+            tap();
+            void handleAppleSignIn();
           }}
           onForgotPassword={() => {
             tap();
@@ -2082,9 +2204,11 @@ function AuthScreen({
   firebaseReady,
   firebaseMissingConfig,
   googleReady,
+  appleReady,
   showDemoLogin,
   onContinue,
   onGoogle,
+  onApple,
   onForgotPassword,
   onDemoAccount
 }: {
@@ -2101,14 +2225,17 @@ function AuthScreen({
   firebaseReady: boolean;
   firebaseMissingConfig: string[];
   googleReady: boolean;
+  appleReady: boolean;
   showDemoLogin: boolean;
   onContinue: () => void;
   onGoogle: () => void;
+  onApple: () => void;
   onForgotPassword: () => void;
   onDemoAccount: () => void;
 }) {
   const [legalAccepted, setLegalAccepted] = useState(false);
   const submitDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
+  const socialDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
   return (
     <View style={styles.gapLg}>
       <View style={styles.brandCompact}>
@@ -2174,11 +2301,23 @@ function AuthScreen({
       </View>
 
       <View style={styles.socialLoginGrid}>
+        {appleReady && (
+          <View pointerEvents={socialDisabled ? "none" : "auto"} style={socialDisabled && styles.socialLoginButtonDisabled}>
+            <AppleAuthentication.AppleAuthenticationButton
+              accessibilityLabel="Kontynuuj z Apple"
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={18}
+              onPress={onApple}
+              style={styles.appleLoginButton}
+            />
+          </View>
+        )}
         <Pressable
           accessibilityRole="button"
-          disabled={!firebaseReady || !googleReady || authBusy}
+          disabled={socialDisabled || !googleReady}
           onPress={onGoogle}
-          style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}
+          style={[styles.socialLoginButton, (socialDisabled || !googleReady) && styles.socialLoginButtonDisabled]}
         >
           <FontAwesome name="google" size={18} color="#fff" />
           <Text style={styles.socialLoginText}>Kontynuuj z Google</Text>
@@ -4609,7 +4748,7 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
       <View style={styles.deleteCard}>
         <Text style={styles.deleteTitle} selectable>Usunięcie konta w aplikacji</Text>
         <Text style={styles.deleteText} selectable>
-          Usunie konto, zdjęcia, profil, polubienia, matche, wiadomości i blokady. Tej operacji nie można cofnąć.
+          Usunie konto, zdj\u0119cia, profil, polubienia, matche i wiadomo\u015bci. Minimalne dane bezpiecze\u0144stwa i rozlicze\u0144 mog\u0105 zosta\u0107 zachowane zgodnie z polityk\u0105 prywatno\u015bci.
         </Text>
         <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={styles.deleteAccountButton}>
           <Text style={styles.deleteAccountButtonText}>Usuń konto</Text>
@@ -4999,6 +5138,10 @@ const styles = StyleSheet.create({
   socialLoginGrid: {
     flexDirection: "column",
     gap: 10
+  },
+  appleLoginButton: {
+    width: "100%",
+    height: 50
   },
   socialLoginButton: {
     flex: 1,

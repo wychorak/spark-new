@@ -15,6 +15,11 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('moderationStatus', 'active') != 'suspended';
     }
 
+    function allowedUserText(text) {
+      return text is string
+        && !text.lower().matches('.*(porn|porno|nudes?|onlyfans|escort|prostytucj|sekskamera|zgwalce|zabije cie|heil hitler).*');
+    }
+
     function hasRevenueCatPro() {
       return signedIn()
         && request.auth.token.get('activeEntitlements', []) is list
@@ -51,7 +56,7 @@ service cloud.firestore {
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
         && (data.get('resetAt', null) == null || data.resetAt is timestamp)
-        && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500));
+        && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500 && allowedUserText(data.introMessage)));
     }
 
     function otherMember(data) {
@@ -93,7 +98,8 @@ service cloud.firestore {
     function validMessage(data) {
       return data.keys().hasOnly(['senderUid', 'text', 'createdAt'])
         && data.senderUid == request.auth.uid
-        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000;
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
+        && allowedUserText(data.text);
     }
 
     function validReport(data) {
