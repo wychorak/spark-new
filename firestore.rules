@@ -17,8 +17,8 @@ service cloud.firestore {
 
     function hasRevenueCatPro() {
       return signedIn()
-        && request.auth.token.get('revenueCatEntitlements', []) is list
-        && 'Sparknew Pro' in request.auth.token.get('revenueCatEntitlements', []);
+        && request.auth.token.get('activeEntitlements', []) is list
+        && 'Sparknew Pro' in request.auth.token.get('activeEntitlements', []);
     }
 
     function validPremiumUsageUpdate() {

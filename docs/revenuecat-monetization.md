@@ -121,7 +121,7 @@ const result = await revenueCat.restorePurchases();
 
 ## Bezpieczna synchronizacja Pro z Firebase
 
-Korona Pro, boost profilu, przychodzące polubienia i miesięczny limit SparkLike korzystają z claimu `revenueCatEntitlements`. Claim ustawia oficjalne rozszerzenie RevenueCat dla Firebase; sam publiczny klucz SDK w aplikacji nie może bezpiecznie nadawać tych uprawnień.
+Korona Pro, boost profilu, przychodzące polubienia i miesięczny limit SparkLike korzystają z claimu `activeEntitlements`. Claim ustawia oficjalne rozszerzenie RevenueCat dla Firebase; sam publiczny klucz SDK w aplikacji nie może bezpiecznie nadawać tych uprawnień.
 
 Stan projektu sprawdzony 13 lipca 2026: rozszerzenie nie jest jeszcze zainstalowane w `spark-70b03`.
 
@@ -130,7 +130,7 @@ Stan projektu sprawdzony 13 lipca 2026: rozszerzenie nie jest jeszcze zainstalow
 3. Włącz Firebase Authentication custom claims: `ENABLED`.
 4. W RevenueCat przejdź do `Integrations > Firebase`, wygeneruj shared secret i wklej go podczas instalacji.
 5. Po instalacji skopiuj Trigger URL z Firebase Functions do integracji Firebase w RevenueCat i zapisz.
-6. Wyślij testowe zdarzenie, a następnie potwierdź, że token użytkownika zawiera `revenueCatEntitlements: ["Sparknew Pro"]`.
+6. Wyślij testowe zdarzenie, a następnie potwierdź, że token użytkownika zawiera `activeEntitlements: ["Sparknew Pro"]`.
 
 Reguły Firestore pozwalają pokazać publiczny status Pro i listę przychodzących polubień tylko wtedy, gdy ten zweryfikowany claim istnieje. SparkLike jest liczony transakcyjnie w dokumencie użytkownika i resetuje się według miesiąca UTC.
 

@@ -98,7 +98,7 @@ export async function getRevenueCatEntitlements(forceRefresh = false) {
   }
 
   const token = await currentUser.getIdTokenResult(forceRefresh);
-  const entitlements = token.claims.revenueCatEntitlements;
+  const entitlements = token.claims.activeEntitlements;
 
   return Array.isArray(entitlements)
     ? entitlements.filter((value): value is string => typeof value === "string")

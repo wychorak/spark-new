@@ -93,7 +93,7 @@ async function getVerifiedProClaim(uid: string) {
   if (!currentUser || currentUser.uid !== uid) return false;
 
   const token = await currentUser.getIdTokenResult();
-  const entitlements = token.claims.revenueCatEntitlements;
+  const entitlements = token.claims.activeEntitlements;
   return Array.isArray(entitlements) && entitlements.includes("Sparknew Pro");
 }
 

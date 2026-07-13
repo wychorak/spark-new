@@ -52,6 +52,7 @@ check(googleSource.includes('defaultGoogleClientIds') && googleSource.includes('
 check(revenueCatSource.includes('__DEV__ ? "test_') && revenueCatSource.includes('!apiKey.startsWith("test_")'), 'RevenueCat simulated key guard is missing.');
 check(adsSource.includes('showPrivacyOptionsForm') && adsSource.includes('requestNonPersonalizedAdsOnly: true'), 'Ad consent/privacy protections are incomplete.');
 check(rulesSource.includes('hasRevenueCatPro()') && rulesSource.includes('validPremiumUsageUpdate()'), 'Premium Firestore protections are missing.');
+check(rulesSource.includes('activeEntitlements') && !rulesSource.includes('revenueCatEntitlements'), 'RevenueCat Firebase claim name must be activeEntitlements.');
 check(storageRulesSource.includes('request.resource.size < 8 * 1024 * 1024') && storageRulesSource.includes("contentType.matches('image/.*')"), 'Profile photo storage validation is missing.');
 check(firestoreSource.includes('getApproximatePublicLocation(profile.location)'), 'Public profile location must be rounded before publishing.');
 check(!/\bemail\s*:/.test(publicProfileSync), 'Public profile sync must not expose email.');
