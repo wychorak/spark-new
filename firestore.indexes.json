@@ -1,7 +1,7 @@
 {
   "indexes": [
     {
-      "collectionGroup": "users",
+      "collectionGroup": "publicProfiles",
       "queryScope": "COLLECTION",
       "fields": [
         {

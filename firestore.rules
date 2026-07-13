@@ -10,12 +10,55 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function activeUser() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('moderationStatus', 'active') != 'suspended';
+    }
+
     function validMatch(data) {
       return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid'])
         && data.memberUids is list && data.memberUids.size() == 2
+        && data.memberUids[0] != data.memberUids[1]
         && data.createdByUid is string && data.createdByUid in data.memberUids
         && data.source in ['mutual-like', 'premium-request']
-        && data.status in ['matched', 'requested', 'rejected', 'blocked'];
+        && data.status in ['matched', 'requested', 'rejected', 'blocked']
+        && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500));
+    }
+
+    function otherMember(data) {
+      return data.memberUids[0] == request.auth.uid ? data.memberUids[1] : data.memberUids[0];
+    }
+
+    function hasLike(fromUid, toUid) {
+      return exists(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid))
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.fromUid == fromUid
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.toProfileKey == toUid
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.status == 'liked';
+    }
+
+    function validMatchCreation(data, matchId) {
+      let otherUid = otherMember(data);
+      return request.auth.uid in data.memberUids
+        && data.createdByUid == request.auth.uid
+        && (matchId == request.auth.uid + '_' + otherUid || matchId == otherUid + '_' + request.auth.uid)
+        && exists(/databases/$(database)/documents/publicProfiles/$(otherUid))
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(otherUid))
+        && !exists(/databases/$(database)/documents/users/$(otherUid)/blocks/$(request.auth.uid))
+        && (
+          (data.source == 'mutual-like' && data.status == 'matched' && hasLike(request.auth.uid, otherUid) && hasLike(otherUid, request.auth.uid)) ||
+          (data.source == 'premium-request' && data.status == 'requested')
+        );
+    }
+
+    function validSwipe(data, swipeId) {
+      return data.keys().hasOnly(['fromUid', 'toProfileKey', 'direction', 'status', 'matchScore', 'resetAt', 'updatedAt', 'createdAt'])
+        && data.fromUid == request.auth.uid
+        && data.toProfileKey is string
+        && data.toProfileKey != request.auth.uid
+        && swipeId == request.auth.uid + '_' + data.toProfileKey
+        && data.direction in ['pass', 'like', 'superlike']
+        && data.status == (data.direction == 'pass' ? 'passed' : 'liked')
+        && exists(/databases/$(database)/documents/publicProfiles/$(data.toProfileKey));
     }
 
     function validMessage(data) {
@@ -41,7 +84,27 @@ service cloud.firestore {
         && request.resource.data.get('canSeeIncomingLikes', false) == resource.data.get('canSeeIncomingLikes', false)
         && request.resource.data.get('canSendChatRequests', false) == resource.data.get('canSendChatRequests', false)
         && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
-        && request.resource.data.get('likedYou', false) == resource.data.get('likedYou', false);
+        && request.resource.data.get('likedYou', false) == resource.data.get('likedYou', false)
+        && request.resource.data.get('moderationStatus', 'active') == resource.data.get('moderationStatus', 'active');
+    }
+    function validPublicProfile(data, uid) {
+      return data.keys().hasOnly([
+          'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent',
+          'ageBand', 'age', 'interests', 'photoUrls', 'mainPhotoUrl',
+          'desiredAgeMin', 'desiredAgeMax', 'city', 'country', 'location',
+          'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
+        ])
+        && data.uid == uid
+        && data.ageBand == '18+'
+        && data.age is number && data.age >= 18
+        && data.interests is list && data.interests.size() >= 3
+        && data.photoUrls is list && data.photoUrls.size() >= 1;
+    }
+
+    function protectedPublicFieldsUnchanged() {
+      return request.resource.data.get('isPro', false) == resource.data.get('isPro', false)
+        && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     match /users/{uid} {
@@ -49,15 +112,14 @@ service cloud.firestore {
         && request.resource.data.uid == uid
         && request.resource.data.get('isPro', false) == false
         && request.resource.data.get('isTestProfile', false) == false
-        && request.resource.data.get('likedYou', false) == false;
+        && request.resource.data.get('likedYou', false) == false
+        && request.resource.data.get('moderationStatus', 'active') == 'active';
       allow update: if isOwner(uid)
         && request.resource.data.uid == uid
         && resource.data.uid == uid
         && protectedProfileFieldsUnchanged();
       allow delete: if isOwner(uid);
-      allow read: if signedIn() && (
-        resource.data.privateProfile != true || resource.data.isTestProfile == true || isOwner(uid)
-      );
+      allow read: if isOwner(uid);
 
       match /blocks/{blockedUid} {
         allow read, delete: if isOwner(uid);
@@ -69,6 +131,17 @@ service cloud.firestore {
     }
 
 
+    match /publicProfiles/{uid} {
+      allow read: if signedIn();
+      allow create: if isOwner(uid)
+        && validPublicProfile(request.resource.data, uid)
+        && request.resource.data.get('isPro', false) == false
+        && request.resource.data.get('isTestProfile', false) == false;
+      allow update: if isOwner(uid)
+        && validPublicProfile(request.resource.data, uid)
+        && protectedPublicFieldsUnchanged();
+      allow delete: if isOwner(uid);
+    }
 
     match /privateProfiles/{uid} {
       allow read, create, update, delete: if isOwner(uid);
@@ -87,10 +160,7 @@ service cloud.firestore {
     }
 
     match /swipes/{swipeId} {
-      allow create, update: if signedIn()
-        && request.resource.data.fromUid == request.auth.uid
-        && request.resource.data.toProfileKey is string
-        && request.resource.data.direction in ["pass", "like", "superlike"];
+      allow create, update: if activeUser() && validSwipe(request.resource.data, swipeId);
       allow read: if signedIn() && (
         resource.data.fromUid == request.auth.uid ||
         resource.data.toProfileKey == request.auth.uid
@@ -100,10 +170,9 @@ service cloud.firestore {
       );
     }
     match /matches/{matchId} {
-      allow create: if signedIn()
-        && request.auth.uid in request.resource.data.memberUids
-        && request.resource.data.createdByUid == request.auth.uid
-        && validMatch(request.resource.data);
+      allow create: if activeUser()
+        && validMatch(request.resource.data)
+        && validMatchCreation(request.resource.data, matchId);
       allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow update: if signedIn()
         && request.auth.uid in resource.data.memberUids
@@ -123,7 +192,7 @@ service cloud.firestore {
     match /messages/{threadId}/items/{messageId} {
       allow read: if signedIn()
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids;
-      allow create: if signedIn()
+      allow create: if activeUser()
         && get(/databases/$(database)/documents/matches/$(threadId)).data.status == 'matched'
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids
         && validMessage(request.resource.data);

@@ -14,8 +14,8 @@
       "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Spark uses your location to show approximate distance to nearby profiles.",
-        "NSPhotoLibraryUsageDescription": "Spark needs access to your photos so you can add profile pictures."
+        "NSLocationWhenInUseUsageDescription": "Spark używa lokalizacji, aby pokazywać przybliżoną odległość do profili w pobliżu.",
+        "NSPhotoLibraryUsageDescription": "Spark umożliwia wybranie zdjęć, które chcesz dodać do swojego profilu."
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
@@ -43,13 +43,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Spark uses your location to show approximate distance to nearby profiles."
+          "locationWhenInUsePermission": "Spark używa lokalizacji, aby pokazywać przybliżoną odległość do profili w pobliżu."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Spark uses your selected photos to build your dating and friends profile.",
+          "photosPermission": "Spark używa wybranych przez Ciebie zdjęć do utworzenia profilu.",
           "cameraPermission": false,
           "microphonePermission": false
         }
@@ -61,8 +61,7 @@
           "iosAppId": "ca-app-pub-8263324816746737~3188934953",
           "delayAppMeasurementInit": true,
           "optimizeInitialization": true,
-          "optimizeAdLoading": true,
-          "userTrackingUsageDescription": "Spark moze uzywac identyfikatora urzadzenia do mierzenia i dopasowania reklam."
+          "optimizeAdLoading": true
         }
       ],
       [
@@ -71,11 +70,7 @@
           "image": "./assets/photologo.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#050507",
-          "dark": {
-            "image": "./assets/photologo.png",
-            "backgroundColor": "#050507"
-          }
+          "backgroundColor": "#050507"
         }
       ]
     ],

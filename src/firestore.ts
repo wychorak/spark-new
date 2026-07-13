@@ -54,6 +54,7 @@ export type UserProfileDocument = {
   canSeeIncomingLikes?: boolean;
   canSendChatRequests?: boolean;
   privateProfile?: boolean;
+  moderationStatus?: "active" | "suspended";
   isTestProfile?: boolean;
   likedYou?: boolean;
   onboardingComplete?: boolean;
@@ -67,6 +68,59 @@ function requireDb() {
   }
 
   return db;
+}
+
+export async function syncPublicUserProfile(uid: string) {
+  const currentDb = requireDb();
+  const accountSnapshot = await getDoc(doc(currentDb, "users", uid));
+  const publicProfileRef = doc(currentDb, "publicProfiles", uid);
+
+  if (!accountSnapshot.exists()) {
+    await deleteDoc(publicProfileRef);
+    return;
+  }
+
+  const profile = accountSnapshot.data() as UserProfileDocument;
+  const isPublishable =
+    profile.privateProfile !== true &&
+    profile.moderationStatus !== "suspended" &&
+    profile.onboardingComplete === true &&
+    profile.ageBand === "18+" &&
+    typeof profile.age === "number" &&
+    profile.age >= 18 &&
+    Array.isArray(profile.interests) &&
+    profile.interests.length >= 3 &&
+    Array.isArray(profile.photoUrls) &&
+    profile.photoUrls.length >= 1;
+  if (!isPublishable) {
+    await deleteDoc(publicProfileRef);
+    return;
+  }
+
+  const existingPublic = await getDoc(publicProfileRef);
+  const existingData = existingPublic.exists() ? existingPublic.data() : {};
+  await setDoc(publicProfileRef, {
+    uid,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    profileNameMode: profile.profileNameMode ?? "realName",
+    nickname: profile.nickname ?? "",
+    intent: profile.intent,
+    ageBand: profile.ageBand ?? null,
+    age: profile.age ?? null,
+    interests: profile.interests,
+    photoUrls: profile.photoUrls ?? [],
+    mainPhotoUrl: profile.mainPhotoUrl ?? null,
+    desiredAgeMin: profile.desiredAgeMin ?? 18,
+    desiredAgeMax: profile.desiredAgeMax ?? 99,
+    city: profile.city ?? "",
+    country: profile.country ?? "",
+    location: profile.location ?? null,
+    isPro: existingData.isPro === true,
+    isTestProfile: existingData.isTestProfile === true,
+    createdAt: existingPublic.exists() ? existingData.createdAt : serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
 }
 
 export async function upsertUserProfile(profile: UserProfileDocument) {
@@ -83,6 +137,7 @@ export async function upsertUserProfile(profile: UserProfileDocument) {
     },
     { merge: true }
   );
+  await syncPublicUserProfile(profile.uid);
 }
 
 export type DiscoveryPreferencesDocument = {
@@ -180,6 +235,7 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
   const deletionRef = doc(currentDb, "accountDeletions", params.uid);
   const profileRef = doc(currentDb, "users", params.uid);
   const privateProfileRef = doc(currentDb, "privateProfiles", params.uid);
+  const publicProfileRef = doc(currentDb, "publicProfiles", params.uid);
 
   await setDoc(
     deletionRef,
@@ -214,17 +270,15 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
   ]);
 
 
-  await Promise.all([deleteDoc(profileRef), deleteDoc(privateProfileRef)]);
+  await Promise.all([deleteDoc(publicProfileRef), deleteDoc(profileRef), deleteDoc(privateProfileRef)]);
 }
 export async function findTestProfiles() {
   const currentDb = requireDb();
   const snapshot = await getDocs(
-    query(collection(currentDb, "users"), where("isTestProfile", "==", true), limit(10))
+    query(collection(currentDb, "publicProfiles"), where("isTestProfile", "==", true), limit(10))
   );
 
-  return snapshot.docs
-    .map((item) => ({ id: item.id, ...(item.data() as UserProfileDocument) }))
-    .filter((item) => item.privateProfile !== true);
+  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as UserProfileDocument) }));
 }
 
 export async function findProfilesByInterest(interests: string[]) {
@@ -234,9 +288,8 @@ export async function findProfilesByInterest(interests: string[]) {
   }
 
   const profilesQuery = query(
-    collection(currentDb, "users"),
+    collection(currentDb, "publicProfiles"),
     where("interests", "array-contains-any", interests.slice(0, 10)),
-    where("privateProfile", "==", false),
     limit(25)
   );
 

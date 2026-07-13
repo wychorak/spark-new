@@ -11,12 +11,12 @@ function readLocalPhoto(uri: string): Promise<Blob> {
     request.onload = () => {
       const succeeded = request.status === 0 || (request.status >= 200 && request.status < 300);
       if (!succeeded || !request.response) {
-        reject(new Error("Nie udalo sie odczytac wybranego zdjecia."));
+        reject(new Error("Nie udało się odczytać wybranego zdjęcia."));
         return;
       }
       resolve(request.response);
     };
-    request.onerror = () => reject(new Error("Nie udalo sie odczytac wybranego zdjecia."));
+    request.onerror = () => reject(new Error("Nie udało się odczytać wybranego zdjęcia."));
     request.open("GET", uri, true);
     request.send();
   });
@@ -29,7 +29,7 @@ function getPhotoMetadata(blob: Blob) {
   const extension = subtype === "jpeg" ? "jpg" : subtype;
 
   if (blob.size > MAX_PROFILE_PHOTO_BYTES) {
-    throw new Error("Zdjecie jest za duze. Wybierz plik ponizej 8 MB.");
+    throw new Error("Zdjęcie jest za duże. Wybierz plik poniżej 8 MB.");
   }
 
   return { contentType: fileType, extension };

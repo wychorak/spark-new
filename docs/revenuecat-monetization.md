@@ -119,13 +119,6 @@ const result = await revenueCat.restorePurchases();
 - RevenueCat public SDK key is configured in env. Use only public mobile SDK keys in the app, never secret API keys.
 - Never put RevenueCat secret API keys in the mobile app.
 
-## Development Build
+## TestFlight Build
 
-```powershell
-npx expo prebuild
-npx eas-cli@latest build -p ios --profile development
-npx eas-cli@latest build -p android --profile development
-npx expo start --dev-client
-```
-
-After changing `app.json` native plugin config, rebuild the dev client.
+Natywne moduły RevenueCat i AdMob testuj w IPA z workflow Codemagic `ios-testflight`. Po każdej zmianie pluginów w `app.json` wykonaj nowy build; podgląd webowy i Expo Go nie potwierdzają zachowania StoreKit ani reklam iOS.

@@ -52,6 +52,7 @@ import {
   rejectChatRequest,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
+  syncPublicUserProfile,
   updateUserDiscoveryPreferences,
   upsertUserProfile,
   upsertUserPrivateSettings
@@ -78,11 +79,12 @@ const colors = {
 
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "sparkapp@gmail.com";
 const legalLinks = {
-  privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/privacy-policy.md",
-  terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/terms.md",
-  community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://raw.githubusercontent.com/wychorak/spark-new/main/docs/legal/community-guidelines.md"
+  privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "https://spark-new-legal.vercel.app/privacy",
+  terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://spark-new-legal.vercel.app/terms",
+  community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://spark-new-legal.vercel.app/community-guidelines"
 };
 const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
+const includeTestProfiles = __DEV__ && process.env.EXPO_PUBLIC_SHOW_TEST_PROFILES === "true";
 
 function openLegalDocument(title: string, url: string, envName: string) {
   if (!url) {
@@ -207,7 +209,7 @@ type UserLocation = {
 
 const interestCategories = [
   { title: "Popularne", icon: "heart", items: ["Filmy", "Natura", "Muzyka", "Kawa", "Sport", "Sztuka", "Podróże", "Gaming", "Książki", "Kuchnia", "Fotografia", "Tech", "Joga", "Koncerty", "Planszówki", "LGBT+"] },
-  { title: "Lifestyle", icon: "sparkles", items: ["Moda", "Streetwear", "Siłownia", "Bieganie", "Zdrowe jedzenie", "Gotowanie", "Kawiarnie", "Nocne spacery", "Tatuaże", "Samorozwój", "Minimalizm", "Anime"] },
+  { title: "Lifestyle", icon: "creation", items: ["Moda", "Streetwear", "Siłownia", "Bieganie", "Zdrowe jedzenie", "Gotowanie", "Kawiarnie", "Nocne spacery", "Tatuaże", "Samorozwój", "Minimalizm", "Anime"] },
   { title: "Sport i ruch", icon: "run", items: ["Piłka nożna", "Koszykówka", "Tenis", "Rower", "Taniec", "Pilates", "Wspinaczka", "Góry", "Basen", "Sztuki walki", "Skate", "Snowboard"] },
   { title: "Kultura", icon: "palette", items: ["Teatr", "Muzea", "Design", "Architektura", "Kino studyjne", "Seriale", "Podcasty", "Poezja", "Manga", "Komiksy", "Psychologia", "Historia"] },
   { title: "Tech i gry", icon: "controller", items: ["AI", "Startupy", "Programowanie", "UX/UI", "Crypto", "Minecraft", "Valorant", "League of Legends", "Counter-Strike", "Fortnite", "Nintendo", "PlayStation"] },
@@ -435,7 +437,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     city: typeof item.city === "string" && item.city.trim() ? repairLegacyText(item.city.trim()) : "Twoja okolica",
     country: typeof item.country === "string" && item.country.trim() ? repairLegacyText(item.country.trim()) : undefined,
     bio: typeof item.bio === "string" && item.bio.trim() ? repairLegacyText(item.bio.trim()) : "Nowy profil w Spark. Poznajcie się przez wspólne zainteresowania.",
-    distance: locationAvailable ? "w poblizu" : "Twoja okolica",
+    distance: locationAvailable ? "w pobliżu" : "Twoja okolica",
     latitude,
     longitude,
     locationAvailable,
@@ -471,7 +473,7 @@ function calculateAge(birthDate: string) {
 
 function getProfileDisplayName(mode: ProfileNameMode, nickname: string, firstName: string, lastName: string) {
   if (mode === "nickname" && nickname.trim()) return nickname.trim();
-  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twoj profil";
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || "Twój profil";
 }
 
 function getApproximatePublicLocation(location: UserLocation | null): UserLocation | null {
@@ -524,10 +526,10 @@ function scoreProfileMatch(params: {
   const score = Math.max(32, Math.min(98, interestScore + distanceScore + ageScore + preferenceScore + completenessScore));
   const reasons = [
     sharedInterests.length > 0
-      ? `${sharedInterests.length} wspolne: ${sharedInterests.slice(0, 2).join(" + ")}`
-      : "profil spoza Twojej banki",
+      ? `${sharedInterests.length} wspólne: ${sharedInterests.slice(0, 2).join(" + ")}`
+      : "profil spoza Twojej bańki",
     distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie",
-    inTheirRange ? "pasujesz do preferowanego wieku" : "warto poznac bliżej"
+    inTheirRange ? "pasujesz do preferowanego wieku" : "warto poznać bliżej"
   ];
 
   return { score, reasons, sharedInterests };
@@ -707,6 +709,7 @@ function AppContent() {
 
         try {
           const [profile, privateSettings] = await Promise.all([getUserProfile(user.uid), getUserPrivateSettings(user.uid)]);
+          if (profile) await syncPublicUserProfile(user.uid);
 
           if (!mounted) {
             return;
@@ -882,7 +885,7 @@ function AppContent() {
 
     Promise.allSettled([
       findProfilesByInterest(selectedInterests),
-      findTestProfiles(),
+      includeTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       findMatchThreadsForUser(appUser.uid)
     ])
@@ -896,7 +899,7 @@ function AppContent() {
         const swipeDocuments = swipesResult.status === "fulfilled" ? swipesResult.value : [];
         const matchDocuments = matchesResult.status === "fulfilled" ? matchesResult.value : [];
 
-        if (profilesResult.status === "rejected" && testProfilesResult.status === "rejected") {
+        if (profilesResult.status === "rejected") {
           setRemoteProfiles([]);
           setProfileFeedError("Nie udało się pobrać profili. Spróbuj odświeżyć listę.");
           return;
@@ -1230,7 +1233,7 @@ function AppContent() {
       }
 
       if (superlikesRemaining <= 0) {
-        Alert.alert("SparkLike", "Miesieczny limit SparkLike zostal wykorzystany.");
+        Alert.alert("SparkLike", "Miesięczny limit SparkLike został wykorzystany.");
         return "cancelled";
       }
 
@@ -1411,14 +1414,14 @@ function AppContent() {
     const thread = chatThreads[profileKey];
     if (!appUser || !thread?.threadId || thread.requestDirection !== "incoming") return;
     try { await acceptChatRequest(thread.threadId, appUser.uid); }
-    catch { Alert.alert("Prosba o chat", "Nie udało się zaakceptować prośby. Spróbuj ponownie."); }
+    catch { Alert.alert("Prośba o chat", "Nie udało się zaakceptować prośby. Spróbuj ponownie."); }
   }
 
   async function rejectRequest(profileKey: string) {
     const thread = chatThreads[profileKey];
     if (!appUser || !thread?.threadId || thread.requestDirection !== "incoming") return;
     try { await rejectChatRequest(thread.threadId, appUser.uid); setSelectedChatKey(null); }
-    catch { Alert.alert("Prosba o chat", "Nie udało się odrzucić prośby. Spróbuj ponownie."); }
+    catch { Alert.alert("Prośba o chat", "Nie udało się odrzucić prośby. Spróbuj ponownie."); }
   }
 
   async function blockProfile(profileKey: string) {
@@ -1502,7 +1505,7 @@ function AppContent() {
   }
 
   function confirmDeleteAccount() {
-    Alert.alert("Usuń konto", "To usunie konto logowania i główny profil. Tej akcji nie można cofnąć.", [
+    Alert.alert("Usuń konto", "To trwale usunie konto, profil, zdjęcia, matche i wiadomości. Tej akcji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
       { text: "Usuń", style: "destructive", onPress: () => void performDeleteAccount() }
     ]);
@@ -1630,6 +1633,7 @@ function AppContent() {
             onOpenMessages={() => setTab("messages")}
             onOpenMatches={() => setTab("matches")}
             onOpenProfile={() => setTab("profile")}
+            onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
             reporterName={profileName}
             hasMatchedProfile={hasMatchedActiveProfile}
@@ -1654,6 +1658,7 @@ function AppContent() {
             onOpenMatches={() => setTab("matches")}
             onOpenMessages={() => setTab("messages")}
             onOpenProfile={() => setTab("profile")}
+            onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
             discoverFilters={discoverFilters}
             onSavePreferences={saveDiscoveryPreferences}
@@ -1960,7 +1965,7 @@ function AuthScreen({
                 <View style={styles.legalLinkRow}>
                   <Pressable onPress={() => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")}><Text style={styles.legalLink}>Regulamin</Text></Pressable>
                   <Text style={styles.legalConsentText}>i</Text>
-                  <Pressable onPress={() => openLegalDocument("Polityka prywatnosci", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")}><Text style={styles.legalLink}>Polityke prywatnosci</Text></Pressable>
+                  <Pressable onPress={() => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")}><Text style={styles.legalLink}>Politykę prywatności</Text></Pressable>
                 </View>
               </View>
             </View>
@@ -2110,6 +2115,7 @@ function DiscoverScreen({
   onOpenMessages,
   onOpenMatches,
   onOpenProfile,
+  onOpenPremium,
   onOpenSafety,
   reporterName,
   hasMatchedProfile,
@@ -2133,6 +2139,7 @@ function DiscoverScreen({
   onOpenMessages: () => void;
   onOpenMatches: () => void;
   onOpenProfile: () => void;
+  onOpenPremium: () => void;
   onOpenSafety: () => void;
   reporterName: string;
   hasMatchedProfile: boolean;
@@ -2161,7 +2168,7 @@ function DiscoverScreen({
   const preferenceSummary = [
     { icon: "map-marker", text: `do ${discoverFilters.maxDistanceKm} km` },
     { icon: "calendar", text: `${discoverFilters.ageMin}-${discoverFilters.ageMax} lat` },
-    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} szukanych tematow` : "dowolne zainteresowania" }
+    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} szukanych tematów` : "dowolne zainteresowania" }
   ];
   const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
   const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
@@ -2425,6 +2432,7 @@ function DiscoverScreen({
         onOpenMatches={onOpenMatches}
         onOpenMessages={onOpenMessages}
         onOpenProfile={onOpenProfile}
+        onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
       />
 
@@ -2509,6 +2517,7 @@ function DiscoveryMenuModal({
   onOpenMatches,
   onOpenMessages,
   onOpenProfile,
+  onOpenPremium,
   onOpenSafety
 }: {
   visible: boolean;
@@ -2519,6 +2528,7 @@ function DiscoveryMenuModal({
   onOpenMatches: () => void;
   onOpenMessages: () => void;
   onOpenProfile: () => void;
+  onOpenPremium: () => void;
   onOpenSafety: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -2527,7 +2537,8 @@ function DiscoveryMenuModal({
     { icon: "cards-heart", label: "Odkrywaj", hint: "Wróć do kart", active: true, action: onClose },
     { icon: "heart-multiple", label: "Matche", hint: "Polubienia i nowe iskry", action: onOpenMatches },
     { icon: "message-text", label: "Wiadomości", hint: "Aktywne i oczekujące", action: onOpenMessages },
-    { icon: "account-circle", label: "Twój profil", hint: "Zdjęcia, dane i zainteresowania", action: onOpenProfile }
+    { icon: "account-circle", label: "Twój profil", hint: "Zdjęcia, dane i zainteresowania", action: onOpenProfile },
+    { icon: "crown", label: "Spark Pro", hint: "Pakiety i funkcje premium", action: onOpenPremium }
   ];
 
   function run(action: () => void) {
@@ -2786,7 +2797,7 @@ function ProfilePreviewSheet({
   const photos = getProfileGallery(profile);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
   const matchPercent = profile.matchScore ?? Math.max(36, Math.min(96, 48 + sharedInterests.length * 12));
-  const matchReasons = profile.matchReasons ?? [profile.distance, `${sharedInterests.length} wspolne zainteresowania`];
+  const matchReasons = profile.matchReasons ?? [profile.distance, `${sharedInterests.length} wspólne zainteresowania`];
   const photoWidth = Math.min(width - 24, 500);
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
@@ -2890,8 +2901,8 @@ function ProfilePreviewSheet({
 
           <View style={local.metrics}>
             <View style={local.metric}><Text style={local.metricValue}>{matchPercent}%</Text><Text style={local.metricLabel}>dopasowanie</Text></View>
-            <View style={local.metric}><Text style={local.metricValue}>{sharedInterests.length}</Text><Text style={local.metricLabel}>wspolne tagi</Text></View>
-            <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odleglosc</Text></View>
+            <View style={local.metric}><Text style={local.metricValue}>{sharedInterests.length}</Text><Text style={local.metricLabel}>wspólne tagi</Text></View>
+            <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odległość</Text></View>
           </View>
 
           <View style={local.section}>
@@ -2913,7 +2924,7 @@ function ProfilePreviewSheet({
 
           <View style={local.section}>
             <Text style={local.sectionTitle} selectable>Zainteresowania</Text>
-            <Text style={local.sectionHint} selectable>Wspolne tagi sa oznaczone mocniejszym kolorem.</Text>
+            <Text style={local.sectionHint} selectable>Wspólne tagi są oznaczone mocniejszym kolorem.</Text>
             <View style={local.wrap}>
               {profile.interests.map((interest, index) => {
                 const theme = getInterestTheme(interest, index);
@@ -2937,7 +2948,7 @@ function ProfilePreviewSheet({
           {profile.socials.length > 0 && (
             <View style={local.section}>
               <Text style={local.sectionTitle} selectable>Social media</Text>
-              <Text style={local.sectionHint} selectable>Dane kontaktowe sa chronione do momentu matcha.</Text>
+              <Text style={local.sectionHint} selectable>Dane kontaktowe są chronione do momentu matcha.</Text>
               <View style={local.socialList}>
                 {profile.socials.map((social) => (
                   <View key={social.label} style={local.social}>
@@ -3014,6 +3025,7 @@ function DiscoverEmptyState({
   onOpenMatches,
   onOpenMessages,
   onOpenProfile,
+  onOpenPremium,
   onOpenSafety,
   discoverFilters,
   onSavePreferences,
@@ -3027,6 +3039,7 @@ function DiscoverEmptyState({
   onOpenMatches: () => void;
   onOpenMessages: () => void;
   onOpenProfile: () => void;
+  onOpenPremium: () => void;
   onOpenSafety: () => void;
   discoverFilters: DiscoverFilters;
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
@@ -3051,12 +3064,12 @@ function DiscoverEmptyState({
         </View>
         <Text style={styles.discoverEmptyTitle} selectable>{loading ? "Szukamy profili" : error ? "Nie udało się pobrać profili" : "To wszystko na teraz"}</Text>
         <Text style={styles.discoverEmptyText} selectable>
-          {loading ? "Dopasowujemy osoby do Twoich zainteresowan i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
+          {loading ? "Dopasowujemy osoby do Twoich zainteresowań i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
         </Text>
         {!loading && likedCount > 0 && (
           <View style={styles.discoverEmptyStat}>
             <MaterialCommunityIcons name="heart-outline" size={18} color={colors.primary} />
-            <Text style={styles.discoverEmptyStatText} selectable>{likedCount} polubien czeka na wzajemnosc</Text>
+            <Text style={styles.discoverEmptyStatText} selectable>{likedCount} polubień czeka na wzajemność</Text>
           </View>
         )}
         {!loading && (
@@ -3066,7 +3079,7 @@ function DiscoverEmptyState({
               <Text style={styles.primaryButtonText}>{error ? "Spróbuj ponownie" : "Pokaż pominięte ponownie"}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={onOpenMatches} style={styles.secondaryButtonWide}>
-              <Text style={styles.secondaryButtonText}>Przejdz do matchy</Text>
+              <Text style={styles.secondaryButtonText}>Przejdź do matchy</Text>
             </Pressable>
           </>
         )}
@@ -3081,6 +3094,7 @@ function DiscoverEmptyState({
         onOpenMatches={onOpenMatches}
         onOpenMessages={onOpenMessages}
         onOpenProfile={onOpenProfile}
+        onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
       />
 
@@ -3165,13 +3179,13 @@ function MatchesScreen({
       <View style={styles.matchOverview}>
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{matchedProfiles.length}</Text><Text style={styles.matchOverviewLabel}>aktywnych</Text></View>
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingLikes.length}</Text><Text style={styles.matchOverviewLabel}>oczekuje</Text></View>
-        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prosby</Text></View>
+        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prośby</Text></View>
       </View>
 
       {isEmpty && (
         <View style={styles.emptyStateCard}>
           <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="heart-outline" size={28} color={colors.primary} /></View>
-          <Text style={styles.emptyStateTitle} selectable>Jeszcze bez polubien</Text>
+          <Text style={styles.emptyStateTitle} selectable>Jeszcze bez polubień</Text>
           <Text style={styles.emptyStateText} selectable>Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, pojawi sie tutaj aktywny match.</Text>
         </View>
       )}
@@ -3221,7 +3235,7 @@ function MatchesScreen({
       {pendingRequests.length > 0 && (
         <View style={styles.matchSection}>
           <View style={styles.matchSectionHeader}>
-            <Text style={styles.matchSectionTitle} selectable>Prosby o chat</Text>
+            <Text style={styles.matchSectionTitle} selectable>Prośby o chat</Text>
             <Text style={styles.matchSectionCount}>{pendingRequests.length}</Text>
           </View>
           <View style={styles.pendingMatchList}>
@@ -3230,7 +3244,7 @@ function MatchesScreen({
                 <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                 <View style={styles.fill}>
                   <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
-                  <Text style={styles.pendingMatchText} selectable>Prosba wyslana, czeka na akceptacje</Text>
+                  <Text style={styles.pendingMatchText} selectable>Prośba wysłana, czeka na akceptację</Text>
                 </View>
                 <MaterialCommunityIcons name="message-text-clock-outline" size={20} color={colors.primary} />
               </View>
@@ -3291,7 +3305,7 @@ function MessagesScreen({
         name: profile.name + " " + profile.surname[0] + ".",
         message: isBlocked
           ? "Profil zablokowany."
-          : lastMessage ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Prosba o chat czeka na akceptacje."),
+          : lastMessage ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Prośba o chat czeka na akceptację."),
         time: isMatched ? "teraz" : "oczekuje",
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
@@ -3306,7 +3320,7 @@ function MessagesScreen({
     !normalizedQuery || conversation.name.toLowerCase().includes(normalizedQuery) || conversation.message.toLowerCase().includes(normalizedQuery)
   );
   const selectedConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? null;
-  const emptyTitle = normalizedQuery ? "Brak wynikow" : messageView === "chats" ? "Brak aktywnych chatów" : "Brak nowych prosb";
+  const emptyTitle = normalizedQuery ? "Brak wyników" : messageView === "chats" ? "Brak aktywnych chatów" : "Brak nowych próśb";
   const emptyText = normalizedQuery
     ? "Spróbuj wpisać inne imię lub fragment wiadomości."
     : messageView === "chats"
@@ -3329,7 +3343,7 @@ function MessagesScreen({
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
-          <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prosby</Text>
+          <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prośby</Text>
           <Text style={[styles.chatToggleCount, messageView === "requests" && styles.chatToggleCountActive]} selectable>{requestConversations.length}</Text>
         </Pressable>
       </View>
@@ -3492,10 +3506,10 @@ function ChatConversationModal({
           <Image source={activeConversation.profile.image} style={local.avatar} contentFit="cover" />
           <View style={styles.fill}>
             <Text style={local.name} selectable>{activeConversation.name}</Text>
-            <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptacje"}</Text>
+            <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
           </View>
           <View style={local.headerActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Zglos" onPress={confirmReport} style={local.headerAction}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Zgłoś" onPress={confirmReport} style={local.headerAction}>
               <MaterialCommunityIcons name="alert-outline" size={19} color={colors.primaryDeep} />
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Zablokuj" onPress={confirmBlock} style={local.headerAction}>
@@ -3508,8 +3522,8 @@ function ChatConversationModal({
           {messages.length === 0 ? (
             <View style={local.empty}>
               <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
-              <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmowe" : "Prosba oczekuje"}</Text>
-              <Text style={local.emptyText} selectable>{canMessage ? "Napisz pierwsza wiadomosc i nawiaz kontakt." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
+              <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmowę" : "Prośba oczekuje"}</Text>
+              <Text style={local.emptyText} selectable>{canMessage ? "Napisz pierwszą wiadomość i nawiąż kontakt." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
             </View>
           ) : messages.map((message) => (
             <View key={message.id} style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
@@ -3522,10 +3536,10 @@ function ChatConversationModal({
         {!canMessage ? (
           <View style={[local.pending, { marginBottom: Math.max(insets.bottom, 12) }]}>
             <Text style={local.pendingTitle} selectable>Rozmowa jeszcze zablokowana</Text>
-            <Text style={local.pendingText} selectable>{thread?.requestDirection === "incoming" ? "Ta osoba chce rozpoczac rozmowe z Toba." : "Druga osoba musi zaakceptować prośbę albo odwzajemnić polubienie."}</Text>
+            <Text style={local.pendingText} selectable>{thread?.requestDirection === "incoming" ? "Ta osoba chce rozpocząć rozmowę z Tobą." : "Druga osoba musi zaakceptować prośbę albo odwzajemnić polubienie."}</Text>
             {thread?.requestDirection === "incoming" && (
               <View style={local.pendingActions}>
-                <Pressable onPress={() => onReject(activeConversation.key)} style={local.rejectButton}><Text style={local.requestButtonText}>Odrzuc</Text></Pressable>
+                <Pressable onPress={() => onReject(activeConversation.key)} style={local.rejectButton}><Text style={local.requestButtonText}>Odrzuć</Text></Pressable>
                 <Pressable onPress={() => onAccept(activeConversation.key)} style={local.acceptButton}><Text style={local.requestButtonText}>Akceptuj</Text></Pressable>
               </View>
             )}
@@ -3537,7 +3551,7 @@ function ChatConversationModal({
               onChangeText={setDraft}
               multiline
               autoCorrect
-              placeholder="Napisz wiadomosc..."
+              placeholder="Napisz wiadomość..."
               placeholderTextColor={colors.muted}
               style={local.input}
             />
@@ -3571,7 +3585,7 @@ function PremiumScreen({
     lifetime: { label: "Na zawsze", period: "jednorazowo", helper: "Pełny dostęp", badge: "Best value" }
   };
   const benefitRows = [
-    ["ad-off", "Zero reklam", "Przeglądanie profili bez przerw i bez bannerów."],
+    ["advertisements-off", "Zero reklam", "Przeglądanie profili bez przerw i bez bannerów."],
     ["eye-check", "Zobacz, kto Cię polubił", "Odkrywaj osoby, które już dały Ci swipe."],
     ["message-badge", "Prośba o chat", "Napisz do profilu przed matchem i czekaj na akceptację."],
     ["crown", "Korona Pro", "Widoczny status premium przy Twoim profilu."],
@@ -3680,7 +3694,7 @@ function PremiumScreen({
       {!revenueCat.isPro && !hasPackages && (
         <View style={local.statusBox}>
           <MaterialCommunityIcons name="alert-circle-outline" size={19} color={colors.primaryDeep} />
-          <Text style={local.statusText} selectable>Subskrypcje sa chwilowo niedostepne. Sprawdz produkty w RevenueCat i App Store Connect.</Text>
+          <Text style={local.statusText} selectable>Subskrypcje są chwilowo niedostępne. Spróbuj ponownie później.</Text>
         </View>
       )}
       <Pressable disabled={primaryDisabled} onPress={buySelectedPlan} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
@@ -3782,7 +3796,7 @@ function ProfileScreen({
     setSaveBusy(true);
     const saved = await onSave();
     setSaveBusy(false);
-    Alert.alert(saved ? "Profil zapisany" : "Nie udało się zapisać", saved ? "Zmiany sa juz widoczne w Twoim profilu." : "Sprawdź połączenie i spróbuj ponownie.");
+    Alert.alert(saved ? "Profil zapisany" : "Nie udało się zapisać", saved ? "Zmiany są już widoczne w Twoim profilu." : "Sprawdź połączenie i spróbuj ponownie.");
   }
   return (
     <View style={styles.profileScreen}>
@@ -3857,7 +3871,7 @@ function ProfileScreen({
         <View style={styles.profileGalleryHeader}>
           <View style={styles.fill}>
             <Text style={styles.panelTitle} selectable>Zdjęcia</Text>
-            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjec - format 4:5</Text>
+            <Text style={styles.photoFormatHint} selectable>{profilePhotos.length}/{maxPhotos} zdjęć - format 4:5</Text>
             <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdjęć aktywny" : "Spark Pro odblokuje do 15 zdjęć"}</Text>
           </View>
           <Pressable onPress={() => (profilePhotos.length >= maxPhotos && !hasPro ? openPremium() : pickProfilePhoto())} style={styles.photoAddButton}>
@@ -4136,20 +4150,20 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
       onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostępne na karcie profilu i w wiadomościach.")
     },
     {
-      title: "Zasady spolecznosci",
-      body: "Szacunek, zgoda, prawdziwa tozsamosc i brak nekania.",
+      title: "Zasady społeczności",
+      body: "Szacunek, zgoda, prawdziwa tożsamość i brak nękania.",
       cta: "Czytaj",
-      onPress: () => openLegalDocument("Zasady spolecznosci", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL")
+      onPress: () => openLegalDocument("Zasady społeczności", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL")
     },
     {
-      title: "Prywatnosc i dane",
-      body: "Polityka prywatnosci, dane konta, lokalizacja i reklamy.",
+      title: "Prywatność i dane",
+      body: "Polityka prywatności, dane konta, lokalizacja i reklamy.",
       cta: "Otwórz",
-      onPress: () => openLegalDocument("Polityka prywatnosci", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
+      onPress: () => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
     },
     {
       title: "Regulamin",
-      body: "Warunki korzystania, platnosci premium i zasady konta.",
+      body: "Warunki korzystania, płatności premium i zasady konta.",
       cta: "Otwórz",
       onPress: () => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")
     }

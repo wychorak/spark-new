@@ -1,46 +1,41 @@
-# Store Readiness Notes
+# Gotowość do wydania Spark
 
-## Current App Scope
+Ostatni audyt kodu: 13 lipca 2026.
 
-- Expo / React Native app for iOS and Android.
-- Core prototype screens: onboarding, discovery, premium discovery, matches, messages, profile, safety center.
-- Firebase project, native app registrations, Firebase Auth providers, Firestore database, Firestore rules, and app-side Auth/Firestore wiring are in place.
-- Production moderation queue, analytics, push, and final store metadata are not implemented yet.
-- RevenueCat premium gating and AdMob banner/interstitial integration are wired. iOS and Android AdMob production IDs are configured.
-- Foreground location permission and approximate card distance calculation are wired in the app.
+## Zaimplementowane i sprawdzone
 
-## App Store / Google Play Must-Haves Before Submission
+- Firebase Auth: e-mail, Google, Apple, trwała sesja i reset hasła.
+- Onboarding 18+: profil, data urodzenia, zdjęcia 4:5, zainteresowania i preferencje.
+- Prywatne `users` i jawne, pozbawione e-maila `publicProfiles`.
+- Upload i usuwanie zdjęć w Firebase Storage oraz ograniczenie pliku do 8 MB.
+- Feed, filtry wieku/dystansu/zainteresowań, swipe, wzajemny match i animacje.
+- Czat realtime, prośby o chat, blokowanie i zgłaszanie.
+- Reguły blokujące sfałszowany match bez dwóch polubień.
+- Pełne usunięcie konta, profilu, zdjęć, swipe'ów, matchy, wiadomości i blokad.
+- RevenueCat: identyfikacja UID, aktywne entitlementy, zakup, restore, paywall i Customer Center.
+- AdMob z UMP/zgodą, reklamami niepersonalizowanymi i produkcyjnymi identyfikatorami.
+- Publiczne strony: prywatność, regulamin i zasady społeczności na Vercel.
+- Procedura moderacji: `docs/moderation-runbook.md` i chroniony `moderationStatus`.
+- Natywna konfiguracja iOS bez Dev Launchera, lokalnej sieci, lokalizacji Always i wyjątków ATS.
 
-- Privacy policy URL in store metadata and inside the app. App now has configurable legal links via `EXPO_PUBLIC_PRIVACY_POLICY_URL`, `EXPO_PUBLIC_TERMS_URL`, and `EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL`; hosted Vercel URLs are configured for review.
-- Terms/community guidelines URL inside the app.
-- 18+ gate retained before discovery features.
-- In-app report/block flows and delete-account flow are wired. Delete-account removes Firebase Auth + main `users/{uid}` profile and writes `accountDeletions/{uid}`; final backend retention cleanup for chats/reports still needs admin processing.
-- User-generated content moderation plan: automated detection, user reports, reviewer/admin workflow, and response SLA.
-- Demo account for review if login becomes required.
-- No external payment links for digital premium features. Use StoreKit / Play Billing for subscriptions.
-- App Privacy / Data Safety forms mapped to actual data collection.
-- Remaining AdMob production IDs, consent flow validation, and store privacy declarations before showing real ads broadly.
-- Location privacy notice and geospatial backend filtering before using real user distance in production discovery.
+## Wymagane przed wysłaniem do App Review
 
-## Backend Contracts / Firebase Work Still To Add
+1. Zbuduj nowy IPA w Codemagic z najnowszego `main` i zainstaluj go z TestFlight.
+2. Na fizycznym iPhonie sprawdź: Google/Apple login, wybór zdjęcia, lokalizację, swipe, match, chat, blokadę, zgłoszenie i usunięcie konta.
+3. W sandboxie Apple wykonaj zakup tygodniowy/miesięczny, restore oraz zakup lifetime. Potwierdź entitlement `Sparknew Pro` na stronie klienta RevenueCat.
+4. Upewnij się, że wszystkie trzy produkty IAP są zatwierdzone lub dołączone do tej samej wersji aplikacji wysyłanej do review.
+5. W App Store Connect uzupełnij App Privacy, kategorię wiekową 18+, dane kontaktowe review, konto demonstracyjne i notatki dla recenzenta.
+6. Dodaj finalne zrzuty App Store wykonane z tego samego builda, który przejdzie TestFlight.
+7. Wyznacz osobę sprawdzającą kolekcję `reports` zgodnie z runbookiem moderacji.
 
-- Add final Android SHA-1/SHA-256 certificate fingerprints to Firebase and refresh `google-services.json`.
-- RevenueCat public SDK key is configured. Verify offerings, products, entitlement, and paywall in RevenueCat before release.
-- Validate AdMob production serving after app approval and keep test devices configured during development.
-- Store only the minimum location precision needed for distance-based discovery and avoid exposing exact coordinates to other users.
-- Add EU/UK consent flow before personalized ads.
-- Add admin retention cleanup for old chats, reports, and deletion requests after in-app account deletion.
-- Hosted community guidelines, terms, and privacy policy URLs are configured in `.env`.
-- Add optional profile verification flow.
-- Add reviewer/admin workflow for `reports`.
-
-## Launch Build Commands
+## Kontrole techniczne
 
 ```powershell
-npx expo install --check
+npm ci
 npm run typecheck
-npx eas-cli@latest build -p ios --profile production
-npx eas-cli@latest build -p android --profile production
+npx expo-doctor
+npx expo export --platform ios
+npx firebase-tools deploy --only firestore:rules,storage --dry-run --project spark-70b03
 ```
 
-Do not run `npm audit fix --force` unless Expo confirms the resulting SDK downgrade is acceptable.
+Nie używaj `npm audit fix --force`, jeśli zmienia wersje wymagane przez aktualny Expo SDK.

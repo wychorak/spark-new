@@ -1,4 +1,31 @@
 const appJson = require("./app.json");
+const { withInfoPlist } = require("expo/config-plugins");
+
+function withReleaseInfoPlist(config) {
+  return withInfoPlist(config, (nextConfig) => {
+    const plist = nextConfig.modResults;
+    delete plist.NSBonjourServices;
+    delete plist.NSLocalNetworkUsageDescription;
+    delete plist.NSLocationAlwaysUsageDescription;
+    delete plist.NSLocationAlwaysAndWhenInUseUsageDescription;
+    delete plist.NSMotionUsageDescription;
+
+    if (plist.NSAppTransportSecurity) {
+      delete plist.NSAppTransportSecurity.NSAllowsArbitraryLoads;
+      if (plist.NSAppTransportSecurity.NSExceptionDomains) {
+        delete plist.NSAppTransportSecurity.NSExceptionDomains.localhost;
+        if (Object.keys(plist.NSAppTransportSecurity.NSExceptionDomains).length === 0) {
+          delete plist.NSAppTransportSecurity.NSExceptionDomains;
+        }
+      }
+      if (Object.keys(plist.NSAppTransportSecurity).length === 0) {
+        delete plist.NSAppTransportSecurity;
+      }
+    }
+
+    return nextConfig;
+  });
+}
 
 function withAdMobEnv(plugins = []) {
   return plugins.map((plugin) => {
@@ -19,7 +46,7 @@ function withAdMobEnv(plugins = []) {
   });
 }
 
-module.exports = ({ config }) => ({
+module.exports = ({ config }) => withReleaseInfoPlist({
   ...config,
   ...appJson.expo,
   ios: {
