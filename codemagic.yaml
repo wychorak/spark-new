@@ -13,6 +13,7 @@ workflows:
       vars:
         BUNDLE_ID: "com.sparknew.connect"
         APP_STORE_APP_ID: "6785284685"
+        APP_STORE_CONNECT_MAX_BUILD_PROCESSING_WAIT: "60"
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.sparknew.connect

@@ -44,6 +44,7 @@ const buildPropertiesPlugin = app.plugins?.find((plugin) => Array.isArray(plugin
 check(buildPropertiesPlugin?.[1]?.ios?.useFrameworks === 'static', 'iOS must use Firebase-supported static frameworks.');
 check(codemagicSource.includes("props['ios.useFrameworks'] !== 'static'"), 'Codemagic must verify static iOS frameworks before installing pods.');
 check(!app.plugins?.includes('expo-apple-authentication'), 'Apple Authentication Expo plugin must not be configured.');
+check(codemagicSource.includes('APP_STORE_CONNECT_MAX_BUILD_PROCESSING_WAIT: \"60\"'), 'Codemagic must allow enough time for App Store Connect processing.');
 check(app.ios?.infoPlist?.NSPhotoLibraryUsageDescription?.length > 20, 'iOS photo-library usage description is missing.');
 check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS location usage description is missing.');
 check(app.ios.infoPlist.NSLocationWhenInUseUsageDescription.includes('u\u017cywa') && app.ios.infoPlist.NSPhotoLibraryUsageDescription.includes('zdj\u0119'), 'iOS permission descriptions contain broken Polish text.');
