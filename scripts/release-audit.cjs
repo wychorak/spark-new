@@ -24,9 +24,9 @@ const packageJson = readJson('package.json');
 const firebaseRc = readJson('.firebaserc');
 const firebaseJson = readJson('firebase.json');
 const appSource = read('App.tsx');
+const authSource = read('src/auth.ts');
 const firestoreSource = read('src/firestore.ts');
 const firebaseSource = read('src/firebase.ts');
-const googleSource = read('src/google-sign-in.ts');
 const revenueCatSource = read('src/revenuecat.ts');
 const adsSource = read('src/ads.tsx');
 const rulesSource = read('firestore.rules');
@@ -53,9 +53,9 @@ check(Array.isArray(app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes), 'iO
 check(Array.isArray(app.scheme) && app.scheme.includes('sparkconnect') && app.scheme.includes('rc-c14d769c6c'), 'Required app URL schemes are missing.');
 check(firebaseJson.firestore?.rules === 'firestore.rules', 'Firestore rules are not wired in firebase.json.');
 check(firebaseJson.storage?.rules === 'storage.rules', 'Storage rules are not wired in firebase.json.');
+check(!firebaseJson.auth?.providers?.googleSignIn, 'Google auth provider must remain disabled in release configuration.');
 check(firebaseSource.includes('projectId: "spark-70b03"'), 'Firebase runtime defaults point to the wrong project.');
 check(firebaseSource.includes('storageBucket: "spark-70b03.firebasestorage.app"'), 'Firebase runtime storage bucket is wrong.');
-check(googleSource.includes('defaultGoogleClientIds') && googleSource.includes('.apps.googleusercontent.com'), 'Production Google client ID fallback is missing.');
 check(revenueCatSource.includes('__DEV__ ? "test_') && revenueCatSource.includes('!apiKey.startsWith("test_")'), 'RevenueCat simulated key guard is missing.');
 check(adsSource.includes('showPrivacyOptionsForm') && adsSource.includes('requestNonPersonalizedAdsOnly: true'), 'Ad consent/privacy protections are incomplete.');
 check(rulesSource.includes('hasRevenueCatPro()') && rulesSource.includes('validPremiumUsageUpdate()'), 'Premium Firestore protections are missing.');
@@ -68,7 +68,8 @@ check(firestoreSource.includes('.slice(0, claimIsPro ? 15 : 3)') && firestoreSou
 check(!/\bemail\s*:/.test(publicProfileSync), 'Public profile sync must not expose email.');
 check(!/\bbirthDate\s*:/.test(publicProfileSync), 'Public profile sync must not expose birth date.');
 check(appSource.includes('deleteCurrentUserAccount') && appSource.includes('requestAccountDeletionAndDeleteProfile'), 'In-app account deletion is missing.');
-check(!appSource.includes('AppleAuthentication') && appSource.includes('signInWithGoogleIdToken'), 'Social login configuration is inconsistent.');
+check(!appSource.includes('AppleAuthentication') && !appSource.includes('GoogleSignin') && !appSource.includes('signInWithGoogleIdToken'), 'Third-party login code must remain removed for App Review compliance.');
+check(appSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/') && authSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/'), 'Email validation regex must reject whitespace and require a domain suffix.');
 check(appSource.includes('showCurrentBanner ? 92 : 0'), 'Discover layout must reserve space for the native ad banner.');
 check(appSource.includes('getProfileKey(profile) !== appUser?.uid'), 'Discovery feed must exclude the signed-in user.');
 check(appSource.includes('LocationControl') && appSource.includes('Location.getForegroundPermissionsAsync()') && appSource.includes('updateCurrentLocation(true)'), 'Location permission must be contextual and user initiated.');
@@ -77,7 +78,7 @@ check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && appSo
 check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN'), 'Demo login must be development-only.');
 check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_TEST_PROFILES'), 'Extra test-profile injection must be development-only.');
 
-for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/firestore.ts': firestoreSource })) {
+for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource })) {
   check(!source.includes('\uFFFD'), `${name} contains a Unicode replacement character.`);
   check(!/[ÃÅÄ][^\s]/.test(source), `${name} contains likely UTF-8 mojibake.`);
   check(!/Nie uda\?o|Spr\?buj|zablokowac|Szukaj prosb/.test(source), `${name} contains broken Polish UI text.`);
@@ -89,6 +90,7 @@ check(icon.readUInt32BE(16) === 1024 && icon.readUInt32BE(20) === 1024, 'App ico
 check(icon[25] === 2, 'App icon must be opaque RGB without an alpha channel.');
 check(!packageJson.dependencies?.['expo-apple-authentication'], 'Apple Authentication dependency must be removed.');
 check(!packageJson.dependencies?.['expo-crypto'], 'Unused Apple nonce dependency must be removed.');
+check(!packageJson.dependencies?.['@react-native-google-signin/google-signin'], 'Google Sign-In dependency must be removed.');
 check(packageJson.dependencies?.['expo-build-properties'], 'Expo build properties dependency is missing.');
 check(packageJson.dependencies?.['react-native-purchases'], 'RevenueCat dependency is missing.');
 check(packageJson.dependencies?.['react-native-google-mobile-ads'], 'Google Mobile Ads dependency is missing.');

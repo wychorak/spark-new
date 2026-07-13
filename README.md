@@ -38,6 +38,6 @@ The `stitch-reference` directory contains downloaded PNG and HTML references fro
 
 See `docs/store-readiness.md` for review and launch requirements still needed before submitting to App Store Connect or Google Play Console.
 
-See `docs/firebase-setup.md` for Firebase Auth, Google Sign-In, Firestore rules, and app registration steps.
+See `docs/firebase-setup.md` for Firebase Auth, Firestore rules, and app registration steps.
 
 See `docs/revenuecat-monetization.md` for RevenueCat subscriptions, Sparknew Pro entitlement gating, Customer Center, and AdMob setup.

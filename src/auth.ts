@@ -1,9 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   deleteUser,
-  GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithCredential,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut,
@@ -27,6 +25,22 @@ function requireAuth() {
   return auth;
 }
 
+function getFirebaseAuthErrorMessage(error: unknown, fallback: string) {
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+  const messages: Record<string, string> = {
+    "auth/email-already-in-use": "Konto z tym adresem email ju\u017c istnieje.",
+    "auth/invalid-credential": "Nieprawid\u0142owy email lub has\u0142o.",
+    "auth/invalid-email": "Podaj prawid\u0142owy adres email.",
+    "auth/network-request-failed": "Brak po\u0142\u0105czenia z internetem. Spr\u00f3buj ponownie.",
+    "auth/too-many-requests": "Zbyt wiele pr\u00f3b. Odczekaj chwil\u0119 i spr\u00f3buj ponownie.",
+    "auth/user-disabled": "To konto zosta\u0142o wy\u0142\u0105czone.",
+    "auth/weak-password": "Has\u0142o jest zbyt s\u0142abe. U\u017cyj co najmniej 8 znak\u00f3w."
+  };
+
+  return messages[code] ?? fallback;
+}
 export function mapFirebaseUser(user: User): AppAuthUser {
   return {
     uid: user.uid,
@@ -47,35 +61,40 @@ export async function signUpWithEmail(params: {
   firstName: string;
   lastName: string;
 }) {
-  const currentAuth = requireAuth();
-  const credential = await createUserWithEmailAndPassword(currentAuth, params.email, params.password);
-  const displayName = `${params.firstName} ${params.lastName}`.trim();
+  try {
+    const currentAuth = requireAuth();
+    const credential = await createUserWithEmailAndPassword(currentAuth, params.email, params.password);
+    const displayName = (params.firstName + " " + params.lastName).trim();
 
-  if (displayName) {
-    await updateProfile(credential.user, { displayName });
+    if (displayName) {
+      await updateProfile(credential.user, { displayName });
+    }
+
+    return mapFirebaseUser(credential.user);
+  } catch (error) {
+    throw new Error(getFirebaseAuthErrorMessage(error, "Nie uda\u0142o si\u0119 utworzy\u0107 konta."));
   }
-
-  return mapFirebaseUser(credential.user);
 }
-
 export async function signInWithEmail(email: string, password: string) {
-  const currentAuth = requireAuth();
-  const credential = await signInWithEmailAndPassword(currentAuth, email, password);
-  return mapFirebaseUser(credential.user);
+  try {
+    const currentAuth = requireAuth();
+    const credential = await signInWithEmailAndPassword(currentAuth, email, password);
+    return mapFirebaseUser(credential.user);
+  } catch (error) {
+    throw new Error(getFirebaseAuthErrorMessage(error, "Nie uda\u0142o si\u0119 zalogowa\u0107."));
+  }
 }
 export async function requestPasswordReset(email: string) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
-    throw new Error("Podaj prawidłowy adres email.");
+    throw new Error("Podaj prawid\u0142owy adres email.");
   }
-  await sendPasswordResetEmail(requireAuth(), normalizedEmail);
-}
 
-export async function signInWithGoogleIdToken(idToken: string) {
-  const currentAuth = requireAuth();
-  const credential = GoogleAuthProvider.credential(idToken);
-  const result = await signInWithCredential(currentAuth, credential);
-  return mapFirebaseUser(result.user);
+  try {
+    await sendPasswordResetEmail(requireAuth(), normalizedEmail);
+  } catch (error) {
+    throw new Error(getFirebaseAuthErrorMessage(error, "Nie uda\u0142o si\u0119 wys\u0142a\u0107 linku resetuj\u0105cego."));
+  }
 }
 export async function signOutUser() {
   const currentAuth = requireAuth();

@@ -2,7 +2,6 @@ import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import * as WebBrowser from "expo-web-browser";
@@ -29,7 +28,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, requestPasswordReset, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, requestPasswordReset, signInWithEmail, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   acceptChatRequest,
@@ -58,7 +57,6 @@ import {
   upsertUserProfile,
   upsertUserPrivateSettings
 } from "./src/firestore";
-import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
@@ -755,9 +753,11 @@ function AppContent() {
 
           setAuthDone(true);
         } catch (error) {
+          await signOutUser().catch(() => undefined);
           if (mounted) {
-            setAuthError(error instanceof Error ? error.message : "Nie udało się przywrócić profilu.");
-            setAuthDone(true);
+            setAppUser(null);
+            setAuthError(error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 przywr\u00f3ci\u0107 profilu. Zaloguj si\u0119 ponownie.");
+            setAuthDone(false);
             setOnboarded(false);
           }
         } finally {
@@ -773,51 +773,6 @@ function AppContent() {
       unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    if (Platform.OS === "web" || !isGoogleSignInConfigured) return;
-
-    GoogleSignin.configure({
-      webClientId: googleClientIds.webClientId,
-      iosClientId: googleClientIds.iosClientId,
-      offlineAccess: false
-    });
-  }, []);
-
-  async function finishSocialSignIn(user: AppAuthUser, provider: "google", fallbackFirstName = "", fallbackLastName = "") {
-    await recordUserLogin({
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      authProvider: provider,
-      fallbackFirstName,
-      fallbackLastName
-    });
-    setAppUser(user);
-    setEmail(user.email ?? email);
-    setAuthDone(true);
-  }
-
-  async function handleGoogleSignIn() {
-    setAuthBusy(true);
-    setAuthError(null);
-
-    try {
-      if (Platform.OS === "android") {
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      }
-      const response = await GoogleSignin.signIn();
-      if (response.type !== "success") return;
-      const idToken = response.data.idToken;
-      if (!idToken) throw new Error("Google nie zwrócił tokenu logowania.");
-      const user = await signInWithGoogleIdToken(idToken);
-      await finishSocialSignIn(user, "google", response.data.user.givenName ?? "", response.data.user.familyName ?? "");
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Nie udało się zalogować przez Google.");
-    } finally {
-      setAuthBusy(false);
-    }
-  }
 
   async function updateCurrentLocation(requestPermission: boolean) {
     if (locationBusy) return false;
@@ -1139,30 +1094,33 @@ function AppContent() {
   async function handleEmailAuth() {
     setAuthBusy(true);
     setAuthError(null);
+    let authenticated = false;
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
-        setAuthError("Podaj prawidłowy adres email.");
+        setAuthError("Podaj prawid\u0142owy adres email.");
         return;
       }
 
       if (authMode === "register" && password.length < 8) {
-        setAuthError("Hasło musi mieć co najmniej 8 znaków.");
+        setAuthError("Has\u0142o musi mie\u0107 co najmniej 8 znak\u00f3w.");
         return;
       }
 
       if (authMode === "register" && password !== confirmPassword) {
-        setAuthError("Hasła nie są takie same.");
+        setAuthError("Has\u0142a nie s\u0105 takie same.");
         return;
       }
 
+      setAuthRestoring(true);
       const user =
         authMode === "register"
           ? await signUpWithEmail({ email: normalizedEmail, password, firstName: "", lastName: "" })
           : await signInWithEmail(normalizedEmail, password);
-
+      authenticated = true;
       setEmail(normalizedEmail);
+
       await recordUserLogin({
         uid: user.uid,
         email: user.email,
@@ -1170,16 +1128,17 @@ function AppContent() {
         authProvider: "email",
         fallbackFirstName: firstName,
         fallbackLastName: lastName
-      });
-      setAppUser(user);
-      setAuthDone(true);
+      }).catch(() => undefined);
+      // observeAuthState restores the existing profile before advancing the UI.
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Firebase authentication failed.");
+      setAuthError(error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 zalogowa\u0107.");
     } finally {
       setAuthBusy(false);
+      if (!authenticated) {
+        setAuthRestoring(false);
+      }
     }
   }
-
   async function handlePasswordReset() {
     setAuthError(null);
     try {
@@ -1715,14 +1674,9 @@ function AppContent() {
           authError={authError}
           firebaseReady={isFirebaseConfigured}
           firebaseMissingConfig={firebaseConfigStatus.missingConfig}
-          googleReady={isGoogleSignInConfigured}
           onContinue={() => {
             tap();
             handleEmailAuth();
-          }}
-          onGoogle={() => {
-            tap();
-            void handleGoogleSignIn();
           }}
           onForgotPassword={() => {
             tap();
@@ -2070,10 +2024,8 @@ function AuthScreen({
   authError,
   firebaseReady,
   firebaseMissingConfig,
-  googleReady,
   showDemoLogin,
   onContinue,
-  onGoogle,
   onForgotPassword,
   onDemoAccount
 }: {
@@ -2089,10 +2041,8 @@ function AuthScreen({
   authError: string | null;
   firebaseReady: boolean;
   firebaseMissingConfig: string[];
-  googleReady: boolean;
   showDemoLogin: boolean;
   onContinue: () => void;
-  onGoogle: () => void;
   onForgotPassword: () => void;
   onDemoAccount: () => void;
 }) {
@@ -2160,13 +2110,6 @@ function AuthScreen({
             <Text style={styles.forgotPasswordText}>Nie pamiętasz hasła?</Text>
           </Pressable>
         )}
-      </View>
-
-      <View style={styles.socialLoginGrid}>
-        <Pressable accessibilityRole="button" disabled={!firebaseReady || !googleReady || authBusy} onPress={onGoogle} style={[styles.socialLoginButton, (!firebaseReady || !googleReady || authBusy) && styles.socialLoginButtonDisabled]}>
-          <FontAwesome name="google" size={18} color="#fff" />
-          <Text style={styles.socialLoginText}>Kontynuuj z Google</Text>
-        </Pressable>
       </View>
 
       {showDemoLogin && (
@@ -4913,10 +4856,6 @@ const styles = StyleSheet.create({
   legalConsentText: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   legalLinkRow: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
   legalLink: { color: colors.primaryDeep, fontSize: 12, lineHeight: 17, fontWeight: "900" },
-  socialLoginGrid: {
-    flexDirection: "column",
-    gap: 10
-  },
   forgotPasswordButton: {
     alignSelf: "center",
     paddingHorizontal: 14,
@@ -4926,23 +4865,6 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep,
     fontSize: 14,
     fontWeight: "800"
-  },
-  socialLoginButton: {
-    flex: 1,
-    minHeight: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    borderRadius: 18,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.92)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)"
-  },
-  socialLoginText: {
-    color: colors.ink,
-    fontWeight: "900"
   },
   socialLoginButtonDisabled: {
     opacity: 0.48
