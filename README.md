@@ -4,7 +4,7 @@ Aplikacja Expo / React Native do poznawania nowych osób, przygotowywana do wyda
 
 ## Zakres produktu
 
-- Logowanie e-mail, Google i Apple z trwałą sesją.
+- Logowanie e-mail i Google z trwałą sesją.
 - Onboarding 18+, zdjęcia 4:5, zainteresowania i preferencje odkrywania.
 - Prywatny dokument konta oraz osobny, bezpieczny profil publiczny.
 - Feed kart, filtry, swipe, wzajemne matche i realtime chat.
@@ -38,6 +38,6 @@ The `stitch-reference` directory contains downloaded PNG and HTML references fro
 
 See `docs/store-readiness.md` for review and launch requirements still needed before submitting to App Store Connect or Google Play Console.
 
-See `docs/firebase-setup.md` for Firebase Auth, Firestore rules, and app registration steps.
+See `docs/firebase-setup.md` for Firebase Auth, Google Sign-In, Firestore rules, and app registration steps.
 
 See `docs/revenuecat-monetization.md` for RevenueCat subscriptions, Sparknew Pro entitlement gating, Customer Center, and AdMob setup.

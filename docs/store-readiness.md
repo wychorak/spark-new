@@ -1,10 +1,10 @@
 # Gotowość do wydania Spark
 
-Ostatni audyt kodu: 13 lipca 2026.
+Ostatni audyt kodu: 14 lipca 2026.
 
 ## Zaimplementowane i sprawdzone
 
-- Firebase Auth: e-mail, trwała sesja i reset hasła.
+- Firebase Auth: e-mail, Google, trwała sesja i reset hasła.
 - Onboarding 18+: profil, data urodzenia, zdjęcia 4:5, zainteresowania i preferencje.
 - Prywatne `users` i jawne, pozbawione e-maila `publicProfiles`.
 - Upload i usuwanie zdjęć w Firebase Storage oraz ograniczenie pliku do 8 MB.
@@ -21,8 +21,10 @@ Ostatni audyt kodu: 13 lipca 2026.
 
 ## Wymagane przed wysłaniem do App Review
 
+> Uwaga: aplikacja oferuje Google Sign-In bez Sign in with Apple. Apple może wymagać równoważnej opcji logowania zgodnie z wytyczną 4.8; pozostawienie tylko Google jest świadomą decyzją produktową.
+
 1. Zbuduj nowy IPA w Codemagic z najnowszego `main` i zainstaluj go z TestFlight.
-2. Na fizycznym iPhonie sprawdź: logowanie e-mail i reset hasła, wybór zdjęcia, lokalizację, swipe, match, chat, blokadę, zgłoszenie i usunięcie konta.
+2. Na fizycznym iPhonie sprawdź: Google login, wybór zdjęcia, lokalizację, swipe, match, chat, blokadę, zgłoszenie i usunięcie konta.
 3. W sandboxie Apple wykonaj zakup tygodniowy/miesięczny, restore oraz zakup lifetime. Potwierdź entitlement `Sparknew Pro` na stronie klienta RevenueCat.
 4. Upewnij się, że wszystkie trzy produkty IAP są zatwierdzone lub dołączone do tej samej wersji aplikacji wysyłanej do review.
 5. W App Store Connect uzupełnij App Privacy zgodnie z ios.privacyManifests w app.json: dane są powiązane z użytkownikiem, używane do funkcjonalności/personalizacji i nie służą do śledzenia. Ustaw też kategorię wiekową 18+, dane kontaktowe review, konto demonstracyjne i notatki dla recenzenta.

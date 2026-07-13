@@ -1,7 +1,11 @@
 {
   "auth": {
     "providers": {
-      "emailPassword": true
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Spark",
+        "supportEmail": "wychor234@gmail.com"
+      }
     }
   },
   "firestore": {

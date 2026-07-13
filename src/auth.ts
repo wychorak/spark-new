@@ -1,7 +1,9 @@
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut,
@@ -84,6 +86,13 @@ export async function signInWithEmail(email: string, password: string) {
     throw new Error(getFirebaseAuthErrorMessage(error, "Nie uda\u0142o si\u0119 zalogowa\u0107."));
   }
 }
+export async function signInWithGoogleIdToken(idToken: string) {
+  const currentAuth = requireAuth();
+  const credential = GoogleAuthProvider.credential(idToken);
+  const result = await signInWithCredential(currentAuth, credential);
+  return mapFirebaseUser(result.user);
+}
+
 export async function requestPasswordReset(email: string) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {

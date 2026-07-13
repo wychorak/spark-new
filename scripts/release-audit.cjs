@@ -27,6 +27,8 @@ const appSource = read('App.tsx');
 const authSource = read('src/auth.ts');
 const firestoreSource = read('src/firestore.ts');
 const firebaseSource = read('src/firebase.ts');
+const googleSource = read('src/google-sign-in.ts');
+const googlePlistSource = read('GoogleService-Info.plist');
 const revenueCatSource = read('src/revenuecat.ts');
 const adsSource = read('src/ads.tsx');
 const rulesSource = read('firestore.rules');
@@ -44,6 +46,7 @@ const buildPropertiesPlugin = app.plugins?.find((plugin) => Array.isArray(plugin
 check(buildPropertiesPlugin?.[1]?.ios?.useFrameworks === 'static', 'iOS must use Firebase-supported static frameworks.');
 check(codemagicSource.includes("props['ios.useFrameworks'] !== 'static'"), 'Codemagic must verify static iOS frameworks before installing pods.');
 check(!app.plugins?.includes('expo-apple-authentication'), 'Apple Authentication Expo plugin must not be configured.');
+check(app.plugins?.includes('@react-native-google-signin/google-signin'), 'Google Sign-In Expo plugin must be configured.');
 check(codemagicSource.includes('APP_STORE_CONNECT_MAX_BUILD_PROCESSING_WAIT: \"60\"'), 'Codemagic must allow enough time for App Store Connect processing.');
 check(app.ios?.infoPlist?.NSPhotoLibraryUsageDescription?.length > 20, 'iOS photo-library usage description is missing.');
 check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS location usage description is missing.');
@@ -53,9 +56,11 @@ check(Array.isArray(app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes), 'iO
 check(Array.isArray(app.scheme) && app.scheme.includes('sparkconnect') && app.scheme.includes('rc-c14d769c6c'), 'Required app URL schemes are missing.');
 check(firebaseJson.firestore?.rules === 'firestore.rules', 'Firestore rules are not wired in firebase.json.');
 check(firebaseJson.storage?.rules === 'storage.rules', 'Storage rules are not wired in firebase.json.');
-check(!firebaseJson.auth?.providers?.googleSignIn, 'Google auth provider must remain disabled in release configuration.');
+check(Boolean(firebaseJson.auth?.providers?.googleSignIn), 'Google auth provider must remain enabled in release configuration.');
 check(firebaseSource.includes('projectId: "spark-70b03"'), 'Firebase runtime defaults point to the wrong project.');
 check(firebaseSource.includes('storageBucket: "spark-70b03.firebasestorage.app"'), 'Firebase runtime storage bucket is wrong.');
+check(googleSource.includes('defaultGoogleClientIds') && googleSource.includes('.apps.googleusercontent.com'), 'Production Google client ID fallback is missing.');
+check(googlePlistSource.includes('com.googleusercontent.apps.271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0') && googleSource.includes('271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0.apps.googleusercontent.com'), 'Google iOS redirect scheme and client ID are inconsistent.');
 check(revenueCatSource.includes('__DEV__ ? "test_') && revenueCatSource.includes('!apiKey.startsWith("test_")'), 'RevenueCat simulated key guard is missing.');
 check(adsSource.includes('showPrivacyOptionsForm') && adsSource.includes('requestNonPersonalizedAdsOnly: true'), 'Ad consent/privacy protections are incomplete.');
 check(rulesSource.includes('hasRevenueCatPro()') && rulesSource.includes('validPremiumUsageUpdate()'), 'Premium Firestore protections are missing.');
@@ -68,7 +73,7 @@ check(firestoreSource.includes('.slice(0, claimIsPro ? 15 : 3)') && firestoreSou
 check(!/\bemail\s*:/.test(publicProfileSync), 'Public profile sync must not expose email.');
 check(!/\bbirthDate\s*:/.test(publicProfileSync), 'Public profile sync must not expose birth date.');
 check(appSource.includes('deleteCurrentUserAccount') && appSource.includes('requestAccountDeletionAndDeleteProfile'), 'In-app account deletion is missing.');
-check(!appSource.includes('AppleAuthentication') && !appSource.includes('GoogleSignin') && !appSource.includes('signInWithGoogleIdToken'), 'Third-party login code must remain removed for App Review compliance.');
+check(!appSource.includes('AppleAuthentication') && appSource.includes('GoogleSignin.configure') && appSource.includes('signInWithGoogleIdToken'), 'Google login configuration is incomplete.');
 check(appSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/') && authSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/'), 'Email validation regex must reject whitespace and require a domain suffix.');
 check(appSource.includes('showCurrentBanner ? 92 : 0'), 'Discover layout must reserve space for the native ad banner.');
 check(!appSource.includes('process.env.EXPO_OS') && appSource.includes('behavior={Platform.OS === "ios" ? "padding" : undefined}'), 'Native iOS behavior must use reliable Platform detection.');
@@ -93,7 +98,7 @@ check(icon.readUInt32BE(16) === 1024 && icon.readUInt32BE(20) === 1024, 'App ico
 check(icon[25] === 2, 'App icon must be opaque RGB without an alpha channel.');
 check(!packageJson.dependencies?.['expo-apple-authentication'], 'Apple Authentication dependency must be removed.');
 check(!packageJson.dependencies?.['expo-crypto'], 'Unused Apple nonce dependency must be removed.');
-check(!packageJson.dependencies?.['@react-native-google-signin/google-signin'], 'Google Sign-In dependency must be removed.');
+check(packageJson.dependencies?.['@react-native-google-signin/google-signin'], 'Google Sign-In dependency is missing.');
 check(packageJson.dependencies?.['expo-build-properties'], 'Expo build properties dependency is missing.');
 check(packageJson.dependencies?.['react-native-purchases'], 'RevenueCat dependency is missing.');
 check(packageJson.dependencies?.['react-native-google-mobile-ads'], 'Google Mobile Ads dependency is missing.');
