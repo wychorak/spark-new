@@ -5,6 +5,7 @@ import mobileAds, {
   AdEventType,
   AdsConsent,
   AdsConsentDebugGeography,
+  AdsConsentPrivacyOptionsRequirementStatus,
   BannerAd,
   BannerAdSize,
   InterstitialAd,
@@ -15,6 +16,26 @@ import mobileAds, {
 
 
 let mobileAdsStartPromise: Promise<boolean> | null = null;
+
+export async function openAdsPrivacyOptions() {
+  if (Platform.OS === "web") {
+    return false;
+  }
+
+  const testDeviceIdentifiers = getAdMobTestDeviceIdentifiers();
+  const consentInfo = await AdsConsent.requestInfoUpdate({
+    debugGeography: getAdMobDebugGeography(),
+    testDeviceIdentifiers: testDeviceIdentifiers.length > 0 ? testDeviceIdentifiers : undefined
+  });
+
+  if (consentInfo.privacyOptionsRequirementStatus !== AdsConsentPrivacyOptionsRequirementStatus.REQUIRED) {
+    return false;
+  }
+
+  await AdsConsent.showPrivacyOptionsForm();
+  mobileAdsStartPromise = null;
+  return true;
+}
 
 function getAdMobTestDeviceIdentifiers() {
   const configuredDevices = (process.env.EXPO_PUBLIC_ADMOB_TEST_DEVICE_ID || "")

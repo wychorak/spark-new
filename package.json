@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "build:ios": "eas build -p ios --profile production",
     "build:android": "eas build -p android --profile production",
-    "build:testflight": "eas build -p ios --profile production --auto-submit"
+    "build:testflight": "eas build -p ios --profile production --auto-submit",
+    "release:check": "npm run typecheck && node scripts/release-audit.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.15",

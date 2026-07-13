@@ -1,5 +1,9 @@
 import { useCallback } from "react";
 
+export async function openAdsPrivacyOptions() {
+  return false;
+}
+
 export function useGoogleMobileAds(_enabled: boolean) {
   return false;
 }

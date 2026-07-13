@@ -25,9 +25,9 @@ workflows:
         script: |
           npm ci
 
-      - name: Validate TypeScript
+      - name: Validate release configuration
         script: |
-          npm run typecheck
+          npm run release:check
 
       - name: Set iOS build number
         script: |

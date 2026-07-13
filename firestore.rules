@@ -15,6 +15,32 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('moderationStatus', 'active') != 'suspended';
     }
 
+    function hasRevenueCatPro() {
+      return signedIn()
+        && request.auth.token.get('revenueCatEntitlements', []) is list
+        && 'Sparknew Pro' in request.auth.token.get('revenueCatEntitlements', []);
+    }
+
+    function validPremiumUsageUpdate() {
+      let previousPeriod = resource.data.get('superlikePeriod', 0);
+      let previousUsed = resource.data.get('superlikesUsed', 0);
+      let nextPeriod = request.resource.data.get('superlikePeriod', 0);
+      let nextUsed = request.resource.data.get('superlikesUsed', 0);
+      let currentPeriod = request.time.year() * 100 + request.time.month();
+      return (nextPeriod == previousPeriod && nextUsed == previousUsed)
+        || (
+          hasRevenueCatPro()
+          && nextPeriod == currentPeriod
+          && nextUsed is int
+          && nextUsed >= 1
+          && nextUsed <= 10
+          && (
+            (previousPeriod == currentPeriod && nextUsed == previousUsed + 1)
+            || (previousPeriod != currentPeriod && nextUsed == 1)
+          )
+        );
+    }
+
     function validMatch(data) {
       return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid'])
         && data.memberUids is list && data.memberUids.size() == 2
@@ -91,18 +117,47 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent',
           'ageBand', 'age', 'interests', 'photoUrls', 'mainPhotoUrl',
-          'desiredAgeMin', 'desiredAgeMax', 'city', 'country', 'location',
-          'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
+          'city', 'country', 'location', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
         ])
         && data.uid == uid
+        && data.profileNameMode in ['realName', 'nickname']
+        && data.firstName is string && data.firstName.size() <= 80
+        && data.lastName is string && data.lastName.size() <= 80
+        && data.nickname is string && data.nickname.size() <= 80
+        && data.intent is string && data.intent.size() <= 120
+        && (
+          (data.profileNameMode == 'nickname' && data.nickname.size() >= 2)
+          || (data.profileNameMode == 'realName' && data.firstName.size() >= 2)
+        )
         && data.ageBand == '18+'
-        && data.age is number && data.age >= 18
-        && data.interests is list && data.interests.size() >= 3
-        && data.photoUrls is list && data.photoUrls.size() >= 1;
+        && data.age is number && data.age >= 18 && data.age <= 99
+        && data.interests is list && data.interests.size() >= 3 && data.interests.size() <= 15
+        && data.photoUrls is list && data.photoUrls.size() >= 1 && data.photoUrls.size() <= 15
+        && (
+          data.mainPhotoUrl == null
+          || (data.mainPhotoUrl is string && data.mainPhotoUrl.size() <= 2048 && data.mainPhotoUrl in data.photoUrls)
+        )
+        && data.city is string && data.city.size() <= 120
+        && data.country is string && data.country.size() <= 120
+        && data.isPro is bool
+        && data.isTestProfile is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (
+          data.location == null
+          || (
+            data.location is map
+            && data.location.keys().hasOnly(['latitude', 'longitude'])
+            && data.location.latitude is number
+            && data.location.longitude is number
+            && data.location.latitude >= -90 && data.location.latitude <= 90
+            && data.location.longitude >= -180 && data.location.longitude <= 180
+          )
+        );
     }
 
     function protectedPublicFieldsUnchanged() {
-      return request.resource.data.get('isPro', false) == resource.data.get('isPro', false)
+      return request.resource.data.isPro == hasRevenueCatPro()
         && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
         && request.resource.data.createdAt == resource.data.createdAt;
     }
@@ -113,11 +168,14 @@ service cloud.firestore {
         && request.resource.data.get('isPro', false) == false
         && request.resource.data.get('isTestProfile', false) == false
         && request.resource.data.get('likedYou', false) == false
-        && request.resource.data.get('moderationStatus', 'active') == 'active';
+        && request.resource.data.get('moderationStatus', 'active') == 'active'
+        && request.resource.data.get('superlikePeriod', 0) == 0
+        && request.resource.data.get('superlikesUsed', 0) == 0;
       allow update: if isOwner(uid)
         && request.resource.data.uid == uid
         && resource.data.uid == uid
-        && protectedProfileFieldsUnchanged();
+        && protectedProfileFieldsUnchanged()
+        && validPremiumUsageUpdate();
       allow delete: if isOwner(uid);
       allow read: if isOwner(uid);
 
@@ -135,7 +193,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
-        && request.resource.data.get('isPro', false) == false
+        && request.resource.data.isPro == hasRevenueCatPro()
         && request.resource.data.get('isTestProfile', false) == false;
       allow update: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
@@ -150,8 +208,21 @@ service cloud.firestore {
       allow create, update: if isOwner(uid)
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.status == "requested"
-        && request.resource.data.keys().hasOnly(["uid", "reason", "status", "requestedAt"]);
+        && request.resource.data.keys().hasOnly(["uid", "reason", "status", "requestedAt"])
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() <= 1000
+        && request.resource.data.requestedAt is timestamp;
       allow read, delete: if false;
+    }
+
+    match /revenuecat_customers/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update, delete: if false;
+    }
+
+    match /revenuecat_events/{eventId} {
+      allow read: if signedIn() && resource.data.app_user_id == request.auth.uid;
+      allow create, update, delete: if false;
     }
 
     match /reports/{reportId} {
@@ -161,9 +232,13 @@ service cloud.firestore {
 
     match /swipes/{swipeId} {
       allow create, update: if activeUser() && validSwipe(request.resource.data, swipeId);
-      allow read: if signedIn() && (
+      allow get: if signedIn() && (
         resource.data.fromUid == request.auth.uid ||
         resource.data.toProfileKey == request.auth.uid
+      );
+      allow list: if signedIn() && (
+        resource.data.fromUid == request.auth.uid ||
+        (resource.data.toProfileKey == request.auth.uid && hasRevenueCatPro())
       );
       allow delete: if signedIn() && (
         resource.data.fromUid == request.auth.uid || resource.data.toProfileKey == request.auth.uid

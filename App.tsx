@@ -31,17 +31,20 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, observeAuthState, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   acceptChatRequest,
   blockUser,
   createMatchThread,
   createReport,
+  findIncomingProfileLikes,
   findMatchThreadsForUser,
   findOutgoingProfileSwipes,
   findProfilesByInterest,
   findTestProfiles,
+  getMonthlySuperlikeUsage,
+  getPublicProfile,
   getUserProfile,
   getUserPrivateSettings,
   hasIncomingProfileLike,
@@ -58,8 +61,8 @@ import {
   upsertUserPrivateSettings
 } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
-import { SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
-import { revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
+import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
+import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
 
 
@@ -85,6 +88,13 @@ const legalLinks = {
 };
 const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
 const includeTestProfiles = __DEV__ && process.env.EXPO_PUBLIC_SHOW_TEST_PROFILES === "true";
+
+function openSupportEmail(subject = "Spark - pomoc") {
+  const mailto = "mailto:" + supportEmail + "?subject=" + encodeURIComponent(subject);
+  Linking.openURL(mailto).catch(() => {
+    Alert.alert("Pomoc", "Napisz do nas: " + supportEmail);
+  });
+}
 
 function openLegalDocument(title: string, url: string, envName: string) {
   if (!url) {
@@ -364,9 +374,9 @@ function toggleListItem(items: string[], item: string) {
 }
 
 const legacyTextReplacements: Record<string, string> = {
-  "Ä…": "ą", "Ä‡": "ć", "Ä™": "ę", "Ĺ‚": "ł", "Ĺ„": "ń", "Ăł": "ó", "Ĺ›": "ś", "Ĺş": "ź", "ĹĽ": "ż",
-  "Ä„": "Ą", "Ä†": "Ć", "Ä": "Ę", "Ĺ": "Ł", "Ĺ": "Ń", "Ă“": "Ó", "Ĺš": "Ś", "Ĺą": "Ź", "Ĺ»": "Ż",
-  "â€˘": "•", "Â·": "·", "Krak w": "Kraków", "G ry": "Góry", "g ry": "góry"
+  "\u00c4\u2026": "\u0105", "\u00c4\u2021": "\u0107", "\u00c4\u2122": "\u0119", "\u0139\u201a": "\u0142", "\u0139\u201e": "\u0144", "\u0102\u0142": "\u00f3", "\u0139\u203a": "\u015b", "\u0139\u015f": "\u017a", "\u0139\u013d": "\u017c",
+  "\u00c4\u201e": "\u0104", "\u00c4\u2020": "\u0106", "\u00c4\u0098": "\u0118", "\u0139\u0081": "\u0141", "\u0139\u0083": "\u0143", "\u0102\u201c": "\u00d3", "\u0139\u0161": "\u015a", "\u0139\u0105": "\u0179", "\u0139\u00bb": "\u017b",
+  "\u00e2\u20ac\u02d8": "\u2022", "\u00c2\u00b7": "\u00b7", "Krak w": "Krak\u00f3w", "G ry": "G\u00f3ry", "g ry": "g\u00f3ry"
 };
 
 function repairLegacyText(value: string) {
@@ -605,11 +615,13 @@ function AppContent() {
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady);
+  const showCurrentBanner = !revenueCat.isPro && adsReady && tab !== "premium";
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
   const [matchCelebrationProfile, setMatchCelebrationProfile] = useState<MatchProfile | null>(null);
   const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
+  const [incomingLikeKinds, setIncomingLikeKinds] = useState<Record<string, "like" | "superlike">>({});
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
@@ -631,7 +643,11 @@ function AppContent() {
 
 
   const isCompact = width < 380;
-  const profileQueryKey = selectedInterests.slice(0, 10).sort().join("|");
+  const profileLookupInterests = useMemo(
+    () => Array.from(new Set([...discoverFilters.targetInterests, ...selectedInterests])).slice(0, 10),
+    [discoverFilters.targetInterests, selectedInterests]
+  );
+  const profileQueryKey = profileLookupInterests.slice().sort().join("|");
   const availableProfiles = useMemo(
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
     [remoteProfiles]
@@ -657,7 +673,10 @@ function AppContent() {
             matchReasons: result.reasons
           };
         })
-        .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0)),
+        .sort((left, right) =>
+          ((right.matchScore ?? 0) + (right.premium ? 5 : 0)) -
+          ((left.matchScore ?? 0) + (left.premium ? 5 : 0))
+        ),
     [availableProfiles, blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
@@ -676,7 +695,7 @@ function AppContent() {
   const hasRequestedActiveProfile = activeProfileKey ? chatRequestKeys.includes(activeProfileKey) : false;
   const derivedAge = calculateAge(birthDate);
   const identityComplete = profileNameMode === "nickname" ? nickname.trim().length >= 2 : firstName.trim().length >= 2;
-  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 18 && profilePhotos.length >= 1;
+  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 18 && derivedAge <= 99 && profilePhotos.length >= 1;
 
   const contentPadding = useMemo(
     () => ({
@@ -686,7 +705,7 @@ function AppContent() {
     }),
     [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
-  const discoverMinHeight = Math.max(520, height - contentPadding.paddingTop - contentPadding.paddingBottom + 8);
+  const discoverMinHeight = Math.max(520, height - contentPadding.paddingTop - contentPadding.paddingBottom - (showCurrentBanner ? 92 : 0) + 8);
 
   useEffect(() => {
     setBottomNavHidden(false);
@@ -709,7 +728,9 @@ function AppContent() {
 
         try {
           const [profile, privateSettings] = await Promise.all([getUserProfile(user.uid), getUserPrivateSettings(user.uid)]);
-          if (profile) await syncPublicUserProfile(user.uid);
+          if (profile) {
+            await syncPublicUserProfile(user.uid).catch(() => undefined);
+          }
 
           if (!mounted) {
             return;
@@ -884,7 +905,7 @@ function AppContent() {
     setProfileFeedError(null);
 
     Promise.allSettled([
-      findProfilesByInterest(selectedInterests),
+      findProfilesByInterest(profileLookupInterests),
       includeTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       findMatchThreadsForUser(appUser.uid)
@@ -962,6 +983,38 @@ function AppContent() {
   }, [appUser, authDone, onboarded, profileQueryKey, profileReloadKey]);
 
   useEffect(() => {
+    if (!appUser || !authDone || !onboarded || !revenueCat.isPro) {
+      setIncomingLikeKinds({});
+      return undefined;
+    }
+
+    let mounted = true;
+    void findIncomingProfileLikes(appUser.uid)
+      .then(async (likes) => {
+        const uniqueLikes = Array.from(new Map(likes.map((like) => [like.fromUid, like])).values());
+        const documents = await Promise.all(uniqueLikes.map((like) => getPublicProfile(like.fromUid)));
+        if (!mounted) return;
+
+        setIncomingLikeKinds(Object.fromEntries(uniqueLikes.map((like) => [like.fromUid, like.direction])));
+        const profiles = documents
+          .map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null)
+          .filter((profile): profile is MatchProfile => Boolean(profile));
+        setRemoteProfiles((current) => {
+          const profileMap = new Map(current.map((profile) => [getProfileKey(profile), profile]));
+          profiles.forEach((profile) => profileMap.set(getProfileKey(profile), profile));
+          return Array.from(profileMap.values());
+        });
+      })
+      .catch(() => {
+        if (mounted) setIncomingLikeKinds({});
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [appUser, authDone, onboarded, profileReloadKey, revenueCat.isPro]);
+
+  useEffect(() => {
     if (!appUser || !authDone || !onboarded) return undefined;
 
     const unsubscribeChats = observeUserChats(appUser.uid, (realtimeThreads) => {
@@ -995,7 +1048,7 @@ function AppContent() {
       setChatRequestKeys(requestedKeys);
 
       const conversationProfileKeys = Array.from(new Set([...matchedKeys, ...requestedKeys]));
-      void Promise.all(conversationProfileKeys.map((profileKey) => getUserProfile(profileKey))).then((documents) => {
+      void Promise.all(conversationProfileKeys.map((profileKey) => getPublicProfile(profileKey))).then((documents) => {
         const profiles = documents.map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null).filter((profile): profile is MatchProfile => Boolean(profile));
         setRemoteProfiles((current) => {
           const profileMap = new Map(current.map((profile) => [getProfileKey(profile), profile]));
@@ -1007,6 +1060,58 @@ function AppContent() {
     const unsubscribeBlocks = observeBlockedProfileKeys(appUser.uid, setBlockedProfileKeys, (error) => setProfileFeedError(error.message));
     return () => { unsubscribeChats(); unsubscribeBlocks(); };
   }, [appUser, authDone, onboarded]);
+
+  useEffect(() => {
+    if (!appUser || !onboarded || revenueCat.isLoading || !revenueCat.configured) return undefined;
+
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const syncVerifiedPro = async (attempt: number) => {
+      try {
+        const claims = await getRevenueCatEntitlements(true);
+        if (cancelled) return;
+        const claimIsPro = claims.includes(revenueCatEntitlementId);
+
+        if (claimIsPro || !revenueCat.isPro) {
+          await syncPublicUserProfile(appUser.uid, claimIsPro);
+          if (!cancelled) setProfileReloadKey((value) => value + 1);
+          return;
+        }
+
+        if (attempt < 3) {
+          retryTimer = setTimeout(() => void syncVerifiedPro(attempt + 1), 5000 * (attempt + 1));
+        }
+      } catch {
+        if (!cancelled && attempt < 3) {
+          retryTimer = setTimeout(() => void syncVerifiedPro(attempt + 1), 5000 * (attempt + 1));
+        }
+      }
+    };
+
+    void syncVerifiedPro(0);
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [appUser, onboarded, revenueCat.configured, revenueCat.isLoading, revenueCat.isPro]);
+
+  useEffect(() => {
+    if (!appUser || !revenueCat.isPro) {
+      setSuperlikesRemaining(10);
+      return;
+    }
+
+    let mounted = true;
+    void getMonthlySuperlikeUsage(appUser.uid)
+      .then((used) => {
+        if (mounted) setSuperlikesRemaining(Math.max(0, 10 - used));
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, [appUser, revenueCat.isPro]);
 
   useEffect(() => {
     if (!nextTestResetAt) return undefined;
@@ -1111,19 +1216,32 @@ function AppContent() {
       return false;
     }
 
+    const calculatedAge = calculateAge(birthDate);
+    const hasValidIdentity = profileNameMode === "nickname"
+      ? nickname.trim().length >= 2
+      : firstName.trim().length >= 2;
+    if (!hasValidIdentity || calculatedAge === null || calculatedAge < 18 || calculatedAge > 99 || selectedInterests.length < 3 || profilePhotos.length < 1) {
+      Alert.alert("Profil", "Uzupełnij nazwę, prawidłową datę urodzenia (wiek 18-99), zdjęcie i co najmniej 3 zainteresowania.");
+      return false;
+    }
+
     try {
+      const existingProfile = await getUserProfile(appUser.uid);
+      const previousPhotoUrls = Array.isArray(existingProfile?.photoUrls) ? existingProfile.photoUrls : [];
       const persistedPhotos = await uploadProfilePhotos(appUser.uid, profilePhotos);
       setProfilePhotos(persistedPhotos);
+      setUserAge(calculatedAge);
+      setAgeBand("18+");
       await upsertUserProfile({
         uid: appUser.uid,
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         profileNameMode,
         nickname: nickname.trim(),
         email: appUser.email ?? email,
         intent,
-        ageBand,
-        age: calculateAge(birthDate) ?? userAge,
+        ageBand: "18+",
+        age: calculatedAge,
         interests: selectedInterests,
         photoUrls: persistedPhotos,
         mainPhotoUrl: persistedPhotos[0] ?? null,
@@ -1141,9 +1259,16 @@ function AppContent() {
         socials: {}
       });
       await upsertUserPrivateSettings(appUser.uid, { birthDate });
+
+      const removedPhotoUrls = previousPhotoUrls.filter((url) => !persistedPhotos.includes(url));
+      if (removedPhotoUrls.length > 0) {
+        await deleteProfilePhotos(appUser.uid, removedPhotoUrls).catch(() => undefined);
+      }
       return true;
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Could not save Firestore profile.");
+      const message = error instanceof Error ? error.message : "Nie udało się zapisać profilu.";
+      setAuthError(message);
+      Alert.alert("Profil", message);
       return false;
     }
   }
@@ -1216,6 +1341,18 @@ function AppContent() {
     setProfileReloadKey((value) => value + 1);
   }
 
+  async function ensureProAccess() {
+    if (revenueCat.isPro) return true;
+
+    const currentInfo = await revenueCat.refreshCustomerInfo();
+    if (hasSparknewPro(currentInfo)) return true;
+
+    const completed = await revenueCat.presentPaywallIfNeeded();
+    if (!completed) return false;
+
+    return hasSparknewPro(await revenueCat.refreshCustomerInfo());
+  }
+
   async function handleSwipe(action: SwipeAction): Promise<SwipeOutcome> {
     const targetProfile = activeProfile;
     const targetKey = activeProfileKey;
@@ -1227,8 +1364,7 @@ function AppContent() {
     tap();
 
     if (action === "superlike") {
-      if (!revenueCat.isPro) {
-        await revenueCat.presentPaywallIfNeeded();
+      if (!(await ensureProAccess())) {
         return "cancelled";
       }
 
@@ -1241,7 +1377,7 @@ function AppContent() {
 
     if (appUser) {
       try {
-        await recordProfileSwipe({
+        const swipeResult = await recordProfileSwipe({
           swipeId: getThreadId(appUser.uid, targetKey),
           fromUid: appUser.uid,
           toProfileKey: targetKey,
@@ -1249,14 +1385,16 @@ function AppContent() {
           matchScore: targetProfile.matchScore,
           resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
         });
-      } catch {
-        Alert.alert("Swipe", "Nie uda\u0142o si\u0119 zapisa\u0107 decyzji. Spr\u00f3buj ponownie.");
+        if (typeof swipeResult.superlikesRemaining === "number") {
+          setSuperlikesRemaining(swipeResult.superlikesRemaining);
+        }
+      } catch (error) {
+        Alert.alert(
+          "Swipe",
+          error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 zapisa\u0107 decyzji. Spr\u00f3buj ponownie."
+        );
         return "cancelled";
       }
-    }
-
-    if (action === "superlike") {
-      setSuperlikesRemaining((value) => Math.max(0, value - 1));
     }
 
     if (action === "pass") {
@@ -1321,6 +1459,51 @@ function AppContent() {
     trackSwipeAd();
     return "matched";
   }
+  async function likeIncomingProfile(profileKey: string) {
+    if (!appUser) return;
+    const profile = availableProfiles.find((item) => getProfileKey(item) === profileKey);
+    if (!profile) return;
+
+    try {
+      await recordProfileSwipe({
+        swipeId: getThreadId(appUser.uid, profileKey),
+        fromUid: appUser.uid,
+        toProfileKey: profileKey,
+        direction: "like",
+        matchScore: profile.matchScore
+      });
+      await createMatchThread({
+        matchId: getConversationId(appUser.uid, profileKey),
+        memberUids: [appUser.uid, profileKey],
+        createdByUid: appUser.uid,
+        source: "mutual-like"
+      });
+
+      setIncomingLikeKinds((current) => {
+        const next = { ...current };
+        delete next[profileKey];
+        return next;
+      });
+      setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
+      setMatchedProfileKeys((keys) => keys.includes(profileKey) ? keys : [...keys, profileKey]);
+      setChatThreads((threads) => ({
+        ...threads,
+        [profileKey]: threads[profileKey] ?? {
+          profileKey,
+          threadId: getConversationId(appUser.uid, profileKey),
+          status: "matched",
+          messages: []
+        }
+      }));
+      setMatchCelebrationProfile(profile);
+      if (process.env.EXPO_OS === "ios") {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      Alert.alert("Match", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 utworzy\u0107 matchu.");
+    }
+  }
+
   async function sendPremiumChatRequest() {
     if (!activeProfile || !activeProfileKey) {
       return;
@@ -1328,8 +1511,7 @@ function AppContent() {
 
     tap();
 
-    if (!revenueCat.isPro) {
-      await revenueCat.presentPaywallIfNeeded();
+    if (!(await ensureProAccess())) {
       return;
     }
 
@@ -1470,6 +1652,25 @@ function AppContent() {
       return false;
     }
   }
+  async function performSignOut() {
+    try {
+      await signOutUser();
+      setTab("discover");
+      setSelectedChatKey(null);
+      setMessageDraft("");
+      setAuthError(null);
+    } catch (error) {
+      Alert.alert("Wylogowanie", error instanceof Error ? error.message : "Nie udało się wylogować.");
+    }
+  }
+
+  function confirmSignOut() {
+    Alert.alert("Wyloguj się", "Czy na pewno chcesz zakończyć sesję na tym urządzeniu?", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Wyloguj", style: "destructive", onPress: () => void performSignOut() }
+    ]);
+  }
+
   async function performDeleteAccount() {
     if (!appUser) {
       Alert.alert("Usuń konto", "Musisz być zalogowany, aby usunąć konto.");
@@ -1635,6 +1836,7 @@ function AppContent() {
             onOpenProfile={() => setTab("profile")}
             onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
+            onSignOut={confirmSignOut}
             reporterName={profileName}
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
@@ -1660,6 +1862,7 @@ function AppContent() {
             onOpenProfile={() => setTab("profile")}
             onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
+            onSignOut={confirmSignOut}
             discoverFilters={discoverFilters}
             onSavePreferences={saveDiscoveryPreferences}
             onChromeHiddenChange={setBottomNavHidden}
@@ -1670,7 +1873,10 @@ function AppContent() {
             profiles={availableProfiles}
             matchedProfileKeys={matchedProfileKeys}
             likedProfileKeys={likedProfileKeys}
+            incomingLikeKinds={incomingLikeKinds}
             chatRequestKeys={chatRequestKeys}
+            hasPro={revenueCat.isPro}
+            onLikeIncomingProfile={likeIncomingProfile}
             onOpenMessages={() => setTab("messages")}
           />
         )}
@@ -1731,7 +1937,7 @@ function AppContent() {
             onSave={saveProfileToFirestore}
           />
         )}
-        <SparkAdBanner enabled={!revenueCat.isPro && adsReady && tab !== "premium"} placement={tab} />
+        <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
       </ScrollView>
       <MatchCelebration
         profile={matchCelebrationProfile}
@@ -2028,14 +2234,12 @@ function OnboardingScreen({
   userCity: string; userCountry: string; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
   canContinue: boolean; onContinue: () => void;
 }) {
-  const [selectedIntents, setSelectedIntents] = useState([intent]);
+  const [selectedIntent, setSelectedIntent] = useState(intent);
   const derivedAge = calculateAge(birthDate);
 
-  function toggleIntent(label: string) {
-    const next = selectedIntents.includes(label) ? selectedIntents.filter((item) => item !== label) : [...selectedIntents, label];
-    if (next.length === 0) return;
-    setSelectedIntents(next);
-    setIntent(next.includes("Randki") ? "Randki" : next[0]);
+  function selectIntent(label: string) {
+    setSelectedIntent(label);
+    setIntent(label);
   }
 
   async function pickPhoto(index?: number) {
@@ -2064,7 +2268,7 @@ function OnboardingScreen({
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
-        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : String(derivedAge) + " lat" + (derivedAge < 18 ? " - Spark jest dostępny od 18 lat." : "")}</Text>
+        <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : derivedAge < 18 ? String(derivedAge) + " lat - Spark jest dostępny od 18 lat." : derivedAge > 99 ? "Sprawdź rok urodzenia." : String(derivedAge) + " lat"}</Text>
         {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
@@ -2083,8 +2287,8 @@ function OnboardingScreen({
         <Text style={styles.panelTitle}>Kogo chcesz poznać?</Text>
         <View style={styles.intentList}>
           {[["Randki", "Chemia, rozmowy, spotkania", "heart-outline"], ["Znajomi", "Kawa, planszówki, miasto", "coffee-outline"], ["LGBT+ / Społeczność", "Grupy, wydarzenia, znajomości", "account-group-outline"]].map(([label, description, icon]) => {
-            const active = selectedIntents.includes(label);
-            return <Pressable key={label} onPress={() => toggleIntent(label)} style={[styles.intentCard, active && styles.intentCardActive]}><View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} /></View><View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text><Text style={styles.intentDescription}>{description}</Text></View></Pressable>;
+            const active = selectedIntent === label;
+            return <Pressable key={label} onPress={() => selectIntent(label)} style={[styles.intentCard, active && styles.intentCardActive]}><View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} /></View><View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text><Text style={styles.intentDescription}>{description}</Text></View></Pressable>;
           })}
         </View>
         <Text style={styles.fieldLabel}>Preferowany wiek</Text>
@@ -2117,6 +2321,7 @@ function DiscoverScreen({
   onOpenProfile,
   onOpenPremium,
   onOpenSafety,
+  onSignOut,
   reporterName,
   hasMatchedProfile,
   hasRequestedProfile,
@@ -2141,6 +2346,7 @@ function DiscoverScreen({
   onOpenProfile: () => void;
   onOpenPremium: () => void;
   onOpenSafety: () => void;
+  onSignOut: () => void;
   reporterName: string;
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
@@ -2219,8 +2425,15 @@ function DiscoverScreen({
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true
     }).start(({ finished }) => {
-      if (finished) {
-        void onSwipe(action).then((outcome) => {
+      if (!finished) {
+        swipeMotion.setValue(0);
+        setSwipeBusy(false);
+        return;
+      }
+
+      void (async () => {
+        try {
+          const outcome = await onSwipe(action);
           const feedback =
             outcome === "liked"
               ? "Polubienie wysłane"
@@ -2237,10 +2450,11 @@ function DiscoverScreen({
             }
             feedbackTimer.current = setTimeout(() => setSwipeFeedback(null), 1500);
           }
-        });
-      }
-      swipeMotion.setValue(0);
-      setSwipeBusy(false);
+        } finally {
+          swipeMotion.setValue(0);
+          setSwipeBusy(false);
+        }
+      })();
     });
   }
 
@@ -2384,10 +2598,10 @@ function DiscoverScreen({
         >
           <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
           <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
-            <Text style={styles.swipeCueText}>POMIN</Text>
+            <Text style={styles.swipeCueText}>POMIŃ</Text>
           </Animated.View>
           <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, styles.swipeCueLike, { opacity: matchLabelOpacity }]}>
-            <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIE</Text>
+            <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIĘ</Text>
           </Animated.View>
         </Animated.View>
         <View pointerEvents="none" style={styles.deckCounter}>
@@ -2434,6 +2648,7 @@ function DiscoverScreen({
         onOpenProfile={onOpenProfile}
         onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
+        onSignOut={onSignOut}
       />
 
       <DiscoveryPreferencesModal
@@ -2518,7 +2733,8 @@ function DiscoveryMenuModal({
   onOpenMessages,
   onOpenProfile,
   onOpenPremium,
-  onOpenSafety
+  onOpenSafety,
+  onSignOut
 }: {
   visible: boolean;
   filters: DiscoverFilters;
@@ -2530,6 +2746,7 @@ function DiscoveryMenuModal({
   onOpenProfile: () => void;
   onOpenPremium: () => void;
   onOpenSafety: () => void;
+  onSignOut: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const activeFilters = countActiveDiscoverFilters(filters);
@@ -2591,6 +2808,10 @@ function DiscoveryMenuModal({
           </Pressable>
 
           <View style={styles.fill} />
+          <Pressable accessibilityRole="button" onPress={() => run(onSignOut)} style={({ pressed }) => [styles.discoveryMenuUtility, pressed && styles.controlPressed]}>
+            <MaterialCommunityIcons name="logout" size={20} color={colors.primary} />
+            <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Wyloguj się</Text><Text style={styles.discoveryMenuHint}>Zakończ sesję na tym urządzeniu</Text></View>
+          </Pressable>
           <Pressable accessibilityRole="button" onPress={() => run(onOpenSafety)} style={({ pressed }) => [styles.discoverySafetyRow, pressed && styles.controlPressed]}>
             <View style={styles.discoverySafetyIcon}><MaterialCommunityIcons name="shield-check" size={20} color={colors.green} /></View>
             <View style={styles.fill}><Text style={styles.discoveryMenuLabel}>Bezpieczeństwo</Text><Text style={styles.discoveryMenuHint}>Zgłoszenia, blokady i zasady</Text></View>
@@ -2695,7 +2916,7 @@ function DiscoveryPreferencesModal({
             <View style={styles.discoveryFilterSection}>
               <View style={styles.discoveryFilterSectionHeader}>
                 <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="tag-heart" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukane zainteresowania</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetInterests.length ? `${draft.targetInterests.length}/10 wybranych` : "Opcjonalne. Kategorie są domyślnie zwinięte."}</Text></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukane zainteresowania</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetInterests.length ? `${draft.targetInterests.length}/10 wybranych` : "Opcjonalne. Zacznij od popularnych tematów."}</Text></View>
               </View>
               <CategorizedInterestPicker selected={draft.targetInterests} onToggle={(item) => setDraft((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
             </View>
@@ -2736,7 +2957,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
           return (
             <Text
               key={tag}
-              style={[styles.badge, theme && { backgroundColor: theme.soft, color: theme.text, borderColor: theme.border }]}
+              style={[styles.badge, theme && { backgroundColor: theme.soft, color: colors.ink, borderColor: theme.border }]}
               selectable
             >
               {tag}
@@ -2747,7 +2968,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
       <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
         <View style={styles.profileStatusRow}>
           {profile.premium && <Text style={styles.cardCrown} selectable>PRO</Text>}
-          <Text style={styles.verified} selectable>{profile.premium ? "Korona Pro" : "Zweryfikowana"}</Text>
+          <Text style={styles.verified} selectable>{profile.premium ? "Spark Pro" : "Profil publiczny"}</Text>
           {profile.matchScore && <Text style={styles.matchInlinePill} selectable>{profile.matchScore}%</Text>}
         </View>
         <Text style={styles.cardTitle} numberOfLines={1} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
@@ -2853,7 +3074,7 @@ function ProfilePreviewSheet({
           </Pressable>
           <Text style={local.headerTitle} selectable>Profil</Text>
           <View style={local.headerButton}>
-            <MaterialCommunityIcons name="shield-check" size={21} color={colors.green} />
+            <MaterialCommunityIcons name="account-circle" size={21} color={colors.green} />
           </View>
         </View>
 
@@ -2874,7 +3095,7 @@ function ProfilePreviewSheet({
               onMomentumScrollEnd={(event) => setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / photoWidth))}
             >
               {photos.map((photo, index) => (
-                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: "#111" }} contentFit="cover" transition={180} />
+                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: "#111" }} contentFit="contain" transition={180} />
               ))}
             </ScrollView>
             <View style={local.photoCounter}>
@@ -2887,7 +3108,7 @@ function ProfilePreviewSheet({
 
           <View style={local.identity}>
             <View style={local.statusRow}>
-              <Text style={local.status}>ZWERYFIKOWANY PROFIL</Text>
+              <Text style={local.status}>PROFIL PUBLICZNY</Text>
               {profile.premium && <Text style={[local.status, local.proStatus]}>SPARK PRO</Text>}
               <Text style={[local.status, { color: colors.primary, backgroundColor: colors.primarySoft, borderColor: colors.line }]}>{matchPercent}% DOPASOWANIA</Text>
             </View>
@@ -2934,7 +3155,7 @@ function ProfilePreviewSheet({
                     key={interest}
                     style={[
                       local.chip,
-                      { backgroundColor: shared ? theme.active : theme.soft, color: shared ? "#fff" : theme.text, borderColor: theme.border }
+                      { backgroundColor: shared ? theme.active : theme.soft, color: colors.ink, borderColor: theme.border }
                     ]}
                     selectable
                   >
@@ -3027,6 +3248,7 @@ function DiscoverEmptyState({
   onOpenProfile,
   onOpenPremium,
   onOpenSafety,
+  onSignOut,
   discoverFilters,
   onSavePreferences,
   onChromeHiddenChange
@@ -3041,6 +3263,7 @@ function DiscoverEmptyState({
   onOpenProfile: () => void;
   onOpenPremium: () => void;
   onOpenSafety: () => void;
+  onSignOut: () => void;
   discoverFilters: DiscoverFilters;
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
   onChromeHiddenChange?: (hidden: boolean) => void;
@@ -3096,6 +3319,7 @@ function DiscoverEmptyState({
         onOpenProfile={onOpenProfile}
         onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
+        onSignOut={onSignOut}
       />
 
       <DiscoveryPreferencesModal
@@ -3132,7 +3356,7 @@ function MatchCelebration({
           <Text style={styles.matchCelebrationKicker} selectable>WZAJEMNE POLUBIENIE</Text>
           <Text style={styles.matchCelebrationTitle} selectable>To match!</Text>
           <Text style={styles.matchCelebrationText} selectable>
-            Ty i {profile.name} polubiliscie sie. Rozmowa jest juz odblokowana.
+            Ty i {profile.name} polubiliście się. Rozmowa jest już odblokowana.
           </Text>
           <Image source={profile.image} style={styles.matchCelebrationPhoto} contentFit="cover" />
           <Pressable accessibilityRole="button" onPress={onOpenChat} style={styles.matchCelebrationPrimary}>
@@ -3152,13 +3376,19 @@ function MatchesScreen({
   profiles,
   matchedProfileKeys,
   likedProfileKeys,
+  incomingLikeKinds,
   chatRequestKeys,
+  hasPro,
+  onLikeIncomingProfile,
   onOpenMessages
 }: {
   profiles: MatchProfile[];
   matchedProfileKeys: string[];
   likedProfileKeys: string[];
+  incomingLikeKinds: Record<string, "like" | "superlike">;
   chatRequestKeys: string[];
+  hasPro: boolean;
+  onLikeIncomingProfile: (profileKey: string) => Promise<void>;
   onOpenMessages: () => void;
 }) {
   const matchedProfiles = profiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile)));
@@ -3166,11 +3396,17 @@ function MatchesScreen({
     const key = getProfileKey(profile);
     return likedProfileKeys.includes(key) && !matchedProfileKeys.includes(key);
   });
+  const incomingLikes = hasPro
+    ? profiles.filter((profile) => {
+        const key = getProfileKey(profile);
+        return Boolean(incomingLikeKinds[key]) && !matchedProfileKeys.includes(key);
+      })
+    : [];
   const pendingRequests = profiles.filter((profile) => {
     const key = getProfileKey(profile);
     return chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
   });
-  const isEmpty = matchedProfiles.length === 0 && pendingLikes.length === 0 && pendingRequests.length === 0;
+  const isEmpty = matchedProfiles.length === 0 && incomingLikes.length === 0 && pendingLikes.length === 0 && pendingRequests.length === 0;
 
   return (
     <View style={styles.gapLg}>
@@ -3178,7 +3414,7 @@ function MatchesScreen({
 
       <View style={styles.matchOverview}>
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{matchedProfiles.length}</Text><Text style={styles.matchOverviewLabel}>aktywnych</Text></View>
-        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingLikes.length}</Text><Text style={styles.matchOverviewLabel}>oczekuje</Text></View>
+        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{incomingLikes.length + pendingLikes.length}</Text><Text style={styles.matchOverviewLabel}>polubienia</Text></View>
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prośby</Text></View>
       </View>
 
@@ -3186,7 +3422,7 @@ function MatchesScreen({
         <View style={styles.emptyStateCard}>
           <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="heart-outline" size={28} color={colors.primary} /></View>
           <Text style={styles.emptyStateTitle} selectable>Jeszcze bez polubień</Text>
-          <Text style={styles.emptyStateText} selectable>Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, pojawi sie tutaj aktywny match.</Text>
+          <Text style={styles.emptyStateText} selectable>Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, pojawi się tutaj aktywny match.</Text>
         </View>
       )}
 
@@ -3202,11 +3438,46 @@ function MatchesScreen({
                 <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
                 <View style={styles.matchCardCopy}>
                   <Text style={styles.matchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text>
-                  <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie juz pisac</Text>
+                  <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie już pisać</Text>
                 </View>
                 <View style={styles.matchActiveBadge}><MaterialCommunityIcons name="message-text" size={14} color="#fff" /></View>
               </Pressable>
             ))}
+          </View>
+        </View>
+      )}
+
+      {incomingLikes.length > 0 && (
+        <View style={styles.matchSection}>
+          <View style={styles.matchSectionHeader}>
+            <View>
+              <Text style={styles.matchSectionTitle} selectable>Polubili Cię</Text>
+              <Text style={styles.pendingMatchText} selectable>Spark Pro pokazuje osoby gotowe na match.</Text>
+            </View>
+            <Text style={styles.matchSectionCount}>{incomingLikes.length}</Text>
+          </View>
+          <View style={styles.pendingMatchList}>
+            {incomingLikes.map((profile) => {
+              const profileKey = getProfileKey(profile);
+              const isSuperlike = incomingLikeKinds[profileKey] === "superlike";
+              return (
+                <View key={profileKey} style={styles.pendingMatchRow}>
+                  <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
+                  <View style={styles.fill}>
+                    <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                    <Text style={styles.pendingMatchText} selectable>{isSuperlike ? "Wysłał(a) Ci SparkLike" : "Polubił(a) Twój profil"}</Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={"Polub " + profile.name + " i utwórz match"}
+                    onPress={() => void onLikeIncomingProfile(profileKey)}
+                    style={styles.incomingLikeButton}
+                  >
+                    <MaterialCommunityIcons name={isSuperlike ? "fire" : "heart"} size={18} color="#fff" />
+                  </Pressable>
+                </View>
+              );
+            })}
           </View>
         </View>
       )}
@@ -3324,7 +3595,7 @@ function MessagesScreen({
   const emptyText = normalizedQuery
     ? "Spróbuj wpisać inne imię lub fragment wiadomości."
     : messageView === "chats"
-      ? "Chat pojawi sie tutaj po wzajemnym matchu."
+      ? "Chat pojawi się tutaj po wzajemnym matchu."
       : "Prośby o rozmowę czekają tutaj osobno do czasu akceptacji.";
 
   function selectMessageView(nextView: "chats" | "requests") {
@@ -3349,7 +3620,7 @@ function MessagesScreen({
       </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats" ? chatConversations.length + " aktywne" : requestConversations.length + " oczekujace"}
+          {messageView === "chats" ? chatConversations.length + " aktywne" : requestConversations.length + " oczekuj\u0105ce"}
         </Text>
       </View>
       <View style={styles.searchField}>
@@ -3358,12 +3629,12 @@ function MessagesScreen({
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
-          placeholder={messageView === "chats" ? "Szukaj chatów" : "Szukaj prosb"}
+          placeholder={messageView === "chats" ? "Szukaj chatów" : "Szukaj pr\u00f3\u015bb"}
           placeholderTextColor={colors.muted}
           style={styles.searchInput}
         />
         {searchQuery.length > 0 && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Wyczysc wyszukiwanie" onPress={() => setSearchQuery("")}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Wyczy\u015b\u0107 wyszukiwanie" onPress={() => setSearchQuery("")}>
             <MaterialCommunityIcons name="close-circle" size={19} color={colors.muted} />
           </Pressable>
         )}
@@ -3473,17 +3744,17 @@ function ChatConversationModal({
   const activeConversation = conversation;
 
   function confirmBlock() {
-    Alert.alert("Zablokuj profil", `Czy na pewno chcesz zablokowac ${activeConversation.name}?`, [
+    Alert.alert("Zablokuj profil", `Czy na pewno chcesz zablokowa\u0107 ${activeConversation.name}?`, [
       { text: "Anuluj", style: "cancel" },
       { text: "Zablokuj", style: "destructive", onPress: () => { onBlock(activeConversation.key); onClose(); } }
     ]);
   }
 
   function confirmReport() {
-    Alert.alert("Powod zgloszenia", `Co jest nie tak z profilem ${activeConversation.name}?`, [
+    Alert.alert("Pow\u00f3d zg\u0142oszenia", `Co jest nie tak z profilem ${activeConversation.name}?`, [
       { text: "Spam", onPress: () => onReport(activeConversation.key, "Spam lub reklamy") },
-      { text: "Nekanie", onPress: () => onReport(activeConversation.key, "Nękanie lub obraźliwe wiadomości") },
-      { text: "Falszywy profil", onPress: () => onReport(activeConversation.key, "Falszywy profil") },
+      { text: "N\u0119kanie", onPress: () => onReport(activeConversation.key, "N\u0119kanie lub obra\u017aliwe wiadomo\u015bci") },
+      { text: "Fa\u0142szywy profil", onPress: () => onReport(activeConversation.key, "Fa\u0142szywy profil") },
       { text: "Anuluj", style: "cancel" }
     ]);
   }
@@ -3555,7 +3826,7 @@ function ChatConversationModal({
               placeholderTextColor={colors.muted}
               style={local.input}
             />
-            <Pressable accessibilityRole="button" accessibilityLabel="Wyslij" disabled={!draft.trim()} onPress={send} style={[local.send, !draft.trim() && local.sendDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij" disabled={!draft.trim()} onPress={send} style={[local.send, !draft.trim() && local.sendDisabled]}>
               <MaterialCommunityIcons name="send" size={20} color="#fff" />
             </Pressable>
           </View>
@@ -3578,7 +3849,7 @@ function PremiumScreen({
   const hasPackages = revenueCat.packages.length > 0;
   const getPlanPrice = (planId: SparkPlanId, fallback: string) => revenueCat.prices[planId] ?? (revenueCat.configured ? "-" : fallback);
   const selectedPlanPrice = getPlanPrice(premiumPlan, selectedPlan.price);
-  const primaryDisabled = busyAction !== null || revenueCat.isPro;
+  const primaryDisabled = busyAction !== null || revenueCat.isLoading || revenueCat.isPro;
   const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
     weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Dobry start" },
     monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór" },
@@ -3591,8 +3862,7 @@ function PremiumScreen({
     ["crown", "Korona Pro", "Widoczny status premium przy Twoim profilu."],
     ["image-multiple", "Do 15 zdjęć", "Więcej miejsca na zdjęcia i lepszy podgląd profilu."],
     ["rocket-launch", "Boost widoczności", "Częstsze pojawianie się u innych w odkrywaniu."],
-    ["fire", "10 Superlike miesięcznie", "Więcej wyróżnień dla profili, które naprawdę Cię interesują."],
-    ["tune-variant", "Filtry premium", "Lepsze dopasowania po wieku, lokalizacji i zainteresowaniach."]
+    ["fire", "10 SparkLike miesięcznie", "Więcej wyróżnień dla profili, które naprawdę Cię interesują."]
   ];
   const local = StyleSheet.create({
     screen: { gap: 16 },
@@ -3627,21 +3897,46 @@ function PremiumScreen({
     primaryCtaDisabled: { opacity: 0.48 },
     primaryText: { color: "#fff", fontSize: 15, fontWeight: "900" },
     statusBox: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.2)" },
-    statusText: { flex: 1, color: colors.primaryDeep, fontSize: 12, lineHeight: 18, fontWeight: "800" }
+    statusText: { flex: 1, color: colors.primaryDeep, fontSize: 12, lineHeight: 18, fontWeight: "800" },
+    footerActions: { alignItems: "center", gap: 12, paddingTop: 2, paddingBottom: 6 },
+    restoreButton: { minHeight: 44, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+    restoreText: { color: colors.ink, fontSize: 13, fontWeight: "900" },
+    legalRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18 },
+    legalText: { color: colors.muted, fontSize: 11, fontWeight: "800", textDecorationLine: "underline" }
   });
 
-  async function buySelectedPlan() {
+  async function activateSelectedPlan() {
     setBusyAction("purchase");
-    const result = await revenueCat.purchasePlan(selectedPlan.id);
-    setBusyAction(null);
+    try {
+      if (!hasPackages) {
+        const activated = await revenueCat.presentPaywallIfNeeded();
+        if (!activated && revenueCat.error) {
+          Alert.alert("Spark Pro", "Nie udało się otworzyć pakietów. Spróbuj ponownie później.");
+        }
+        return;
+      }
 
-    if (result.ok) {
-      Alert.alert("Spark Pro", "Dostęp premium jest aktywny.");
-      return;
+      const result = await revenueCat.purchasePlan(selectedPlan.id);
+      if (result.ok) {
+        Alert.alert("Spark Pro", "Dostęp premium jest aktywny.");
+      } else if (!result.cancelled) {
+        Alert.alert("Zakup nieudany", result.message);
+      }
+    } finally {
+      setBusyAction(null);
     }
+  }
 
-    if (!result.cancelled) {
-      Alert.alert("Zakup nieudany", result.message);
+  async function restorePro() {
+    setBusyAction("restore");
+    const result = await revenueCat.restorePurchases();
+    setBusyAction(null);
+    if (result.ok && hasSparknewPro(result.customerInfo ?? null)) {
+      Alert.alert("Zakupy przywrócone", "Spark Pro jest ponownie aktywny.");
+    } else if (result.ok) {
+      Alert.alert("Brak aktywnego zakupu", "Nie znaleziono aktywnego Spark Pro dla tego konta sklepu.");
+    } else {
+      Alert.alert("Przywracanie nieudane", result.message);
     }
   }
 
@@ -3697,10 +3992,20 @@ function PremiumScreen({
           <Text style={local.statusText} selectable>Subskrypcje są chwilowo niedostępne. Spróbuj ponownie później.</Text>
         </View>
       )}
-      <Pressable disabled={primaryDisabled} onPress={buySelectedPlan} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
+      <Pressable disabled={primaryDisabled} onPress={() => void activateSelectedPlan()} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
         <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
-        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : busyAction === "purchase" ? "Laczenie..." : !hasPackages ? "Otwórz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : revenueCat.isLoading ? "Ładowanie pakietów..." : busyAction === "purchase" ? "Łączenie..." : !hasPackages ? "Otwórz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
       </Pressable>
+
+      <View style={local.footerActions}>
+        <Pressable accessibilityRole="button" disabled={busyAction !== null} onPress={() => void restorePro()} style={local.restoreButton}>
+          <Text style={local.restoreText}>{busyAction === "restore" ? "Przywracanie..." : "Przywróć zakupy"}</Text>
+        </Pressable>
+        <View style={local.legalRow}>
+          <Pressable onPress={() => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")}><Text style={local.legalText}>Regulamin</Text></Pressable>
+          <Pressable onPress={() => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_URL")}><Text style={local.legalText}>Polityka prywatności</Text></Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -3796,7 +4101,9 @@ function ProfileScreen({
     setSaveBusy(true);
     const saved = await onSave();
     setSaveBusy(false);
-    Alert.alert(saved ? "Profil zapisany" : "Nie udało się zapisać", saved ? "Zmiany są już widoczne w Twoim profilu." : "Sprawdź połączenie i spróbuj ponownie.");
+    if (saved) {
+      Alert.alert("Profil zapisany", "Zmiany są już widoczne w Twoim profilu.");
+    }
   }
   return (
     <View style={styles.profileScreen}>
@@ -3863,7 +4170,7 @@ function ProfileScreen({
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
-        <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : String(calculateAge(birthDate)) + " lat"}</Text>
+        <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
         {Boolean(userCity || userCountry) && <View style={styles.locationStatus}><MaterialCommunityIcons name="map-marker" size={16} color={colors.green} /><Text style={styles.locationStatusText}>{[userCity, userCountry].filter(Boolean).join(", ")}</Text></View>}
       </View>
 
@@ -3897,7 +4204,7 @@ function ProfileScreen({
 
       <View style={styles.panel}>
         <Text style={styles.panelTitle} selectable>Zainteresowania</Text>
-        <Text style={styles.panelText} selectable>Wybierz 3-15 tagow w kategoriach. Pierwsze wybrane pokazuja sie na karcie.</Text>
+        <Text style={styles.panelText} selectable>Wybierz 3-15 tagów w kategoriach. Pierwsze wybrane pokazują się na karcie.</Text>
         <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
 
@@ -3982,7 +4289,7 @@ function SimpleInterestPicker({ selected, onToggle, maxSelected = 15 }: { select
               ]}
             >
               <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
-              <Text style={[styles.chipText, { color: isSelected ? "#fff" : theme.text }]}>{item}</Text>
+              <Text style={[styles.chipText, { color: isSelected ? "#fff" : colors.ink }]}>{item}</Text>
             </Pressable>
           );
         })}
@@ -4025,7 +4332,7 @@ function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: str
             ]}
           >
             <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
-            <Text style={[styles.chipText, { color: isSelected ? "#fff" : theme.text }]}>{item}</Text>
+            <Text style={[styles.chipText, { color: isSelected ? "#fff" : colors.ink }]}>{item}</Text>
           </Pressable>
         );
       })}
@@ -4035,8 +4342,8 @@ function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: str
 
 function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    interestCategories.reduce<Record<string, boolean>>((state, category) => {
-      state[category.title] = false;
+    interestCategories.reduce<Record<string, boolean>>((state, category, index) => {
+      state[category.title] = index === 0 || category.items.some((item) => selected.includes(item));
       return state;
     }, {})
   );
@@ -4091,7 +4398,7 @@ function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { s
                       ]}
                     >
                       <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
-                      <Text style={[styles.chipText, { color: isSelected ? "#fff" : theme.text }]}>{item}</Text>
+                      <Text style={[styles.chipText, { color: isSelected ? "#fff" : colors.ink }]}>{item}</Text>
                     </Pressable>
                   );
                 })}
@@ -4136,15 +4443,26 @@ function TextField({ label, value, onChangeText, secureTextEntry = false, keyboa
   );
 }
 function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDeleteAccount: () => void }) {
+  const manageAdPrivacy = async () => {
+    try {
+      const opened = await openAdsPrivacyOptions();
+      if (!opened) {
+        Alert.alert("Prywatno\u015b\u0107 reklam", "Dla Twojego regionu nie s\u0105 wymagane dodatkowe ustawienia zg\u00f3d reklamowych.");
+      }
+    } catch {
+      Alert.alert("Prywatno\u015b\u0107 reklam", "Nie uda\u0142o si\u0119 otworzy\u0107 ustawie\u0144. Sprawd\u017a po\u0142\u0105czenie i spr\u00f3buj ponownie.");
+    }
+  };
+
   const actions = [
     {
       title: "Zgłoś profil",
-      body: "Wyslij zgloszenie do moderacji z ostatnim kontekstem rozmowy.",
+      body: "Wy\u015blij zg\u0142oszenie do moderacji z ostatnim kontekstem rozmowy.",
       cta: "W feedzie",
       onPress: () => Alert.alert("Zgłoś profil", "Zgłoszenia wysyłasz z karty profilu lub wątku rozmowy.")
     },
     {
-      title: "Zablokuj uzytkownika",
+      title: "Zablokuj u\u017cytkownika",
       body: "Ukryj profil, przerwij match i zablokuj wiadomości.",
       cta: "W feedzie",
       onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostępne na karcie profilu i w wiadomościach.")
@@ -4160,6 +4478,12 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
       body: "Polityka prywatności, dane konta, lokalizacja i reklamy.",
       cta: "Otwórz",
       onPress: () => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
+    },
+    {
+      title: "Prywatno\u015b\u0107 reklam",
+      body: "Zmie\u0144 wyb\u00f3r dotycz\u0105cy zg\u00f3d i sposobu wy\u015bwietlania reklam.",
+      cta: "Ustaw",
+      onPress: () => void manageAdPrivacy()
     },
     {
       title: "Regulamin",
@@ -4179,14 +4503,14 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
           <Text style={styles.eyebrow} selectable>Bezpieczeństwo</Text>
           <Text style={styles.screenTitle} selectable>Centrum bezpieczeństwa</Text>
         </View>
-        <IconButton label="?" />
+        <IconButton label="?" onPress={() => openSupportEmail("Spark - pomoc i bezpiecze\u0144stwo")} />
       </View>
 
       <View style={styles.safetyHero}>
         <View style={styles.safetyHeroIcon}><MaterialCommunityIcons name={"shield-heart" as any} size={28} color={colors.primaryDeep} /></View>
         <Text style={styles.safetyHeroTitle} selectable>Bezpieczne poznawanie ludzi</Text>
         <Text style={styles.safetyHeroText} selectable>
-          Każdy profil może zostać zgłoszony lub zablokowany. Zgloszenia trafiaja do moderacji, a blokada natychmiast ukrywa profil i przerywa kontakt.
+          Ka\u017cdy profil mo\u017ce zosta\u0107 zg\u0142oszony lub zablokowany. Zg\u0142oszenia trafiaj\u0105 do moderacji, a blokada natychmiast ukrywa profil i przerywa kontakt.
         </Text>
       </View>
 
@@ -4262,17 +4586,30 @@ function getIconName(label: string) {
   return iconMap[label] ?? label;
 }
 
+function getIconAccessibilityLabel(label: string) {
+  const labels: Record<string, string> = {
+    "=": "Menu",
+    "<": "Wstecz",
+    "+": "Dodaj",
+    "?": "Pomoc",
+    "tune-variant": "Preferencje odkrywania",
+    "message-text": "Wiadomo\u015bci",
+    "shield-check": "Bezpiecze\u0144stwo"
+  };
+  return labels[label] ?? label;
+}
+
 function IconButton({ label, onPress }: { label: string; onPress?: () => void }) {
   if (!onPress) {
     return (
-      <View style={[styles.iconButton, styles.iconButtonStatic]}>
+      <View style={styles.iconButtonStatic}>
         <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
       </View>
     );
   }
 
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.iconButton}>
+    <Pressable accessibilityRole="button" accessibilityLabel={getIconAccessibilityLabel(label)} hitSlop={8} onPress={onPress} style={styles.iconButton}>
       <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
     </Pressable>
   );
@@ -5796,8 +6133,11 @@ const styles = StyleSheet.create({
     boxShadow: "0 10px 24px rgba(255,45,141,0.1)"
   },
   iconButtonStatic: {
-    opacity: 0.72,
-    backgroundColor: "rgba(18,18,24,0.54)"
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.72
   },
   iconButtonText: {
     color: colors.ink,
@@ -6431,6 +6771,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "700"
+  },
+  incomingLikeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    boxShadow: "0 8px 20px rgba(255,45,141,0.28)"
   },
   searchField: {
     minHeight: 52,

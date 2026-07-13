@@ -119,6 +119,21 @@ const result = await revenueCat.restorePurchases();
 - RevenueCat public SDK key is configured in env. Use only public mobile SDK keys in the app, never secret API keys.
 - Never put RevenueCat secret API keys in the mobile app.
 
+## Bezpieczna synchronizacja Pro z Firebase
+
+Korona Pro, boost profilu, przychodzące polubienia i miesięczny limit SparkLike korzystają z claimu `revenueCatEntitlements`. Claim ustawia oficjalne rozszerzenie RevenueCat dla Firebase; sam publiczny klucz SDK w aplikacji nie może bezpiecznie nadawać tych uprawnień.
+
+Stan projektu sprawdzony 13 lipca 2026: rozszerzenie nie jest jeszcze zainstalowane w `spark-70b03`.
+
+1. Otwórz instalator `revenuecat/firestore-revenuecat-purchases` dla projektu `spark-70b03`.
+2. Ustaw kolekcję klientów na `revenuecat_customers`, a zdarzeń na `revenuecat_events`.
+3. Włącz Firebase Authentication custom claims: `ENABLED`.
+4. W RevenueCat przejdź do `Integrations > Firebase`, wygeneruj shared secret i wklej go podczas instalacji.
+5. Po instalacji skopiuj Trigger URL z Firebase Functions do integracji Firebase w RevenueCat i zapisz.
+6. Wyślij testowe zdarzenie, a następnie potwierdź, że token użytkownika zawiera `revenueCatEntitlements: ["Sparknew Pro"]`.
+
+Reguły Firestore pozwalają pokazać publiczny status Pro i listę przychodzących polubień tylko wtedy, gdy ten zweryfikowany claim istnieje. SparkLike jest liczony transakcyjnie w dokumencie użytkownika i resetuje się według miesiąca UTC.
+
 ## TestFlight Build
 
 Natywne moduły RevenueCat i AdMob testuj w IPA z workflow Codemagic `ios-testflight`. Po każdej zmianie pluginów w `app.json` wykonaj nowy build; podgląd webowy i Expo Go nie potwierdzają zachowania StoreKit ani reklam iOS.

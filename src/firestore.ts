@@ -9,12 +9,13 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
   where
 } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "./firebase";
+import { auth, db, isFirebaseConfigured } from "./firebase";
 
 export type UserProfileDocument = {
   uid: string;
@@ -57,10 +58,27 @@ export type UserProfileDocument = {
   moderationStatus?: "active" | "suspended";
   isTestProfile?: boolean;
   likedYou?: boolean;
+  superlikePeriod?: number;
+  superlikesUsed?: number;
   onboardingComplete?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
+
+function roundPublicCoordinate(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function getApproximatePublicLocation(location: UserProfileDocument["location"]) {
+  if (!location || typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+    return null;
+  }
+
+  return {
+    latitude: roundPublicCoordinate(location.latitude),
+    longitude: roundPublicCoordinate(location.longitude)
+  };
+}
 
 function requireDb() {
   if (!isFirebaseConfigured || !db) {
@@ -70,8 +88,18 @@ function requireDb() {
   return db;
 }
 
-export async function syncPublicUserProfile(uid: string) {
+async function getVerifiedProClaim(uid: string) {
+  const currentUser = auth?.currentUser;
+  if (!currentUser || currentUser.uid !== uid) return false;
+
+  const token = await currentUser.getIdTokenResult();
+  const entitlements = token.claims.revenueCatEntitlements;
+  return Array.isArray(entitlements) && entitlements.includes("Sparknew Pro");
+}
+
+export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean) {
   const currentDb = requireDb();
+  const claimIsPro = typeof verifiedIsPro === "boolean" ? verifiedIsPro : await getVerifiedProClaim(uid);
   const accountSnapshot = await getDoc(doc(currentDb, "users", uid));
   const publicProfileRef = doc(currentDb, "publicProfiles", uid);
 
@@ -111,12 +139,10 @@ export async function syncPublicUserProfile(uid: string) {
     interests: profile.interests,
     photoUrls: profile.photoUrls ?? [],
     mainPhotoUrl: profile.mainPhotoUrl ?? null,
-    desiredAgeMin: profile.desiredAgeMin ?? 18,
-    desiredAgeMax: profile.desiredAgeMax ?? 99,
     city: profile.city ?? "",
     country: profile.country ?? "",
-    location: profile.location ?? null,
-    isPro: existingData.isPro === true,
+    location: getApproximatePublicLocation(profile.location),
+    isPro: claimIsPro,
     isTestProfile: existingData.isTestProfile === true,
     createdAt: existingPublic.exists() ? existingData.createdAt : serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -227,6 +253,12 @@ export async function getUserProfile(uid: string) {
   return snapshot.exists() ? (snapshot.data() as UserProfileDocument) : null;
 }
 
+export async function getPublicProfile(uid: string) {
+  const currentDb = requireDb();
+  const snapshot = await getDoc(doc(currentDb, "publicProfiles", uid));
+  return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as UserProfileDocument & { id: string }) : null;
+}
+
 export async function requestAccountDeletionAndDeleteProfile(params: {
   uid: string;
   reason?: string;
@@ -297,6 +329,34 @@ export async function findProfilesByInterest(interests: string[]) {
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 }
 
+export async function findIncomingProfileLikes(toUid: string) {
+  const currentDb = requireDb();
+  const snapshot = await getDocs(
+    query(collection(currentDb, "swipes"), where("toProfileKey", "==", toUid), limit(100))
+  );
+
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data();
+      return {
+        id: item.id,
+        fromUid: String(data.fromUid ?? ""),
+        direction: data.direction === "superlike" ? "superlike" as const : "like" as const,
+        status: String(data.status ?? "")
+      };
+    })
+    .filter((item) => item.fromUid && item.status === "liked");
+}
+
+export async function getMonthlySuperlikeUsage(uid: string) {
+  const currentDb = requireDb();
+  const snapshot = await getDoc(doc(currentDb, "users", uid));
+  const data = snapshot.exists() ? snapshot.data() : {};
+  const now = new Date();
+  const currentPeriod = now.getUTCFullYear() * 100 + now.getUTCMonth() + 1;
+  return data.superlikePeriod === currentPeriod && typeof data.superlikesUsed === "number" ? data.superlikesUsed : 0;
+}
+
 export async function createReport(params: {
   reporterUid: string;
   targetUid: string;
@@ -326,22 +386,49 @@ export async function recordProfileSwipe(params: {
   const currentDb = requireDb();
   const swipeRef = doc(currentDb, "swipes", params.swipeId);
 
-  await setDoc(
-    swipeRef,
-    {
-      fromUid: params.fromUid,
-      toProfileKey: params.toProfileKey,
-      direction: params.direction,
-      status: params.direction === "pass" ? "passed" : "liked",
-      matchScore: params.matchScore ?? null,
-      resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp()
-    },
-    { merge: true }
-  );
+  const swipeData = {
+    fromUid: params.fromUid,
+    toProfileKey: params.toProfileKey,
+    direction: params.direction,
+    status: params.direction === "pass" ? "passed" : "liked",
+    matchScore: params.matchScore ?? null,
+    resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp()
+  };
 
-  return swipeRef.id;
+  if (params.direction === "superlike") {
+    const accountRef = doc(currentDb, "users", params.fromUid);
+    const superlikesRemaining = await runTransaction(currentDb, async (transaction) => {
+      const accountSnapshot = await transaction.get(accountRef);
+      if (!accountSnapshot.exists()) {
+        throw new Error("Nie znaleziono konta użytkownika.");
+      }
+
+      const account = accountSnapshot.data();
+      const now = new Date();
+      const currentPeriod = now.getUTCFullYear() * 100 + now.getUTCMonth() + 1;
+      const used = account.superlikePeriod === currentPeriod && typeof account.superlikesUsed === "number"
+        ? account.superlikesUsed
+        : 0;
+      if (used >= 10) {
+        throw new Error("Miesięczny limit SparkLike został wykorzystany.");
+      }
+
+      transaction.set(swipeRef, swipeData, { merge: true });
+      transaction.update(accountRef, {
+        superlikePeriod: currentPeriod,
+        superlikesUsed: used + 1,
+        updatedAt: serverTimestamp()
+      });
+      return 10 - used - 1;
+    });
+
+    return { id: swipeRef.id, superlikesRemaining };
+  }
+
+  await setDoc(swipeRef, swipeData, { merge: true });
+  return { id: swipeRef.id };
 }
 export async function hasIncomingProfileLike(params: {
   swipeId: string;

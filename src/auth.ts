@@ -91,6 +91,20 @@ export async function signOutUser() {
   await signOut(currentAuth);
 }
 
+export async function getRevenueCatEntitlements(forceRefresh = false) {
+  const currentUser = requireAuth().currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  const token = await currentUser.getIdTokenResult(forceRefresh);
+  const entitlements = token.claims.revenueCatEntitlements;
+
+  return Array.isArray(entitlements)
+    ? entitlements.filter((value): value is string => typeof value === "string")
+    : [];
+}
+
 export async function ensureRecentLoginForAccountDeletion() {
   const currentUser = requireAuth().currentUser;
   if (!currentUser) {
