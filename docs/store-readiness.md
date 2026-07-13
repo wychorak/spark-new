@@ -25,7 +25,7 @@ Ostatni audyt kodu: 14 lipca 2026.
 2. Na fizycznym iPhonie sprawdź: Apple login (także Ukryj mój e-mail), Google login, wybór zdjęcia, lokalizację, swipe, match, chat, blokadę, zgłoszenie i usunięcie konta.
 3. W sandboxie Apple wykonaj zakup tygodniowy/miesięczny, restore oraz zakup lifetime. Potwierdź entitlement `Sparknew Pro` na stronie klienta RevenueCat.
 4. Upewnij się, że wszystkie trzy produkty IAP są zatwierdzone lub dołączone do tej samej wersji aplikacji wysyłanej do review.
-5. W App Store Connect uzupełnij App Privacy zgodnie z ios.privacyManifests w app.json: dane są powiązane z użytkownikiem, używane do funkcjonalności/personalizacji i nie służą do śledzenia. Ustaw też kategorię wiekową 18+, dane kontaktowe review, konto demonstracyjne i notatki dla recenzenta.
+5. W App Store Connect uzupełnij App Privacy zgodnie z `ios.privacyManifests` w `app.json`. Uwzględnij również dane Google Mobile Ads: identyfikator urządzenia, dane reklamowe, interakcje, diagnostykę i wydajność; w obecnej konfiguracji nie deklarujemy śledzenia. Ustaw też kategorię wiekową 18+, dane kontaktowe review, konto demonstracyjne i notatki dla recenzenta.
 6. Dodaj finalne zrzuty App Store wykonane z tego samego builda, który przejdzie TestFlight.
 7. Wyznacz osobę sprawdzającą kolekcję `reports` zgodnie z runbookiem moderacji.
 

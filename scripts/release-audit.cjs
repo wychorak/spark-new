@@ -53,6 +53,8 @@ check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS
 check(app.ios.infoPlist.NSLocationWhenInUseUsageDescription.includes('u\u017cywa') && app.ios.infoPlist.NSPhotoLibraryUsageDescription.includes('zdj\u0119'), 'iOS permission descriptions contain broken Polish text.');
 check(app.ios?.privacyManifests?.NSPrivacyTracking === false, 'iOS privacy manifest must declare tracking disabled.');
 check(Array.isArray(app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes), 'iOS collected-data privacy manifest is missing.');
+const privacyTypes = app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes?.map((item) => item.NSPrivacyCollectedDataType) ?? [];
+check(['NSPrivacyCollectedDataTypeDeviceID', 'NSPrivacyCollectedDataTypeAdvertisingData', 'NSPrivacyCollectedDataTypeCrashData', 'NSPrivacyCollectedDataTypePerformanceData'].every((type) => privacyTypes.includes(type)), 'Google Mobile Ads privacy disclosures are incomplete.');
 check(Array.isArray(app.scheme) && app.scheme.includes('sparkconnect') && app.scheme.includes('rc-c14d769c6c'), 'Required app URL schemes are missing.');
 check(firebaseJson.firestore?.rules === 'firestore.rules', 'Firestore rules are not wired in firebase.json.');
 check(firebaseJson.storage?.rules === 'storage.rules', 'Storage rules are not wired in firebase.json.');
@@ -66,6 +68,8 @@ check(adsSource.includes('showPrivacyOptionsForm') && adsSource.includes('reques
 check(rulesSource.includes('hasRevenueCatPro()') && rulesSource.includes('validPremiumUsageUpdate()'), 'Premium Firestore protections are missing.');
 check(rulesSource.includes('activeEntitlements') && !rulesSource.includes('revenueCatEntitlements'), 'RevenueCat Firebase claim name must be activeEntitlements.');
 check(rulesSource.includes('allowedUserText') && appSource.includes('findModerationViolation'), 'UGC text filtering is missing.');
+check(appSource.includes('onReportProfile(description)') && appSource.includes('targetProfile: targetProfile ?'), 'In-app reporting must preserve the user reason and profile context.');
+check(appSource.indexOf('requestAccountDeletionAndDeleteProfile') < appSource.indexOf('deleteProfilePhotos(appUser.uid, profilePhotos)'), 'Account deletion request must not be blocked by photo cleanup.');
 check(rulesSource.includes("data.source == 'premium-request' && data.status == 'requested' && hasRevenueCatPro()"), 'Premium chat requests must be enforced by Firestore.');
 check(rulesSource.includes('data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)'), 'Free and Pro public photo limits must be enforced by Firestore.');
 check(storageRulesSource.includes('request.resource.size < 8 * 1024 * 1024') && storageRulesSource.includes("contentType.matches('image/.*')"), 'Profile photo storage validation is missing.');

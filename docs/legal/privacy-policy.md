@@ -6,7 +6,7 @@ Spark pomaga poznawać osoby w okolicy na podstawie profilu, lokalizacji przybli
 
 ## Jakie dane przetwarzamy
 
-Przetwarzamy dane konta, takie jak adres e-mail, imię, nazwisko lub pseudonim, datę urodzenia i wyliczony wiek, zdjęcia, opis profilu, zainteresowania, preferencje wyszukiwania, przybliżoną lokalizację, polubienia, matche, wiadomości, zgłoszenia i blokady. Dane zakupów premium obsługuje RevenueCat oraz sklep Apple lub Google. Reklamy mogą być obsługiwane przez Google Mobile Ads.
+Przetwarzamy dane konta, takie jak adres e-mail, imię, nazwisko lub pseudonim, datę urodzenia i wyliczony wiek, zdjęcia, opis profilu, zainteresowania, preferencje wyszukiwania, przybliżoną lokalizację, polubienia, matche, wiadomości, zgłoszenia i blokady. Dane zakupów premium obsługuje RevenueCat oraz sklep Apple lub Google. Reklamy mogą być obsługiwane przez Google Mobile Ads. Google Mobile Ads może przetwarzać adres IP, identyfikator urządzenia, dane o wyświetlonych reklamach i interakcjach oraz dane diagnostyczne i wydajnościowe w celu dostarczania reklam niepersonalizowanych, analityki, zapobiegania nadużyciom i poprawy działania usługi.
 
 ## Po co używamy danych
 

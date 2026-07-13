@@ -1709,6 +1709,7 @@ function AppContent() {
 
     try {
       const thread = chatThreads[profileKey];
+      const targetProfile = availableProfiles.find((profile) => getProfileKey(profile) === profileKey);
       await createReport({
         reporterUid: appUser.uid,
         targetUid: profileKey,
@@ -1716,6 +1717,11 @@ function AppContent() {
         context: JSON.stringify({
           source: thread?.threadId ? "chat" : "profile",
           threadId: thread?.threadId ?? null,
+          targetProfile: targetProfile ? {
+            name: [targetProfile.name, targetProfile.surname].filter(Boolean).join(" ").slice(0, 160),
+            age: targetProfile.age,
+            city: targetProfile.city.slice(0, 120)
+          } : null,
           recentMessages: (thread?.messages ?? []).slice(-5).map((message) => ({
             from: message.from,
             text: message.text.slice(0, 500),
@@ -1773,10 +1779,15 @@ function AppContent() {
       } else {
         await ensureRecentLoginForAccountDeletion();
       }
-      await deleteProfilePhotos(appUser.uid, profilePhotos);
       await requestAccountDeletionAndDeleteProfile({
         uid: appUser.uid
       });
+      let photoCleanupPending = false;
+      try {
+        await deleteProfilePhotos(appUser.uid, profilePhotos);
+      } catch {
+        photoCleanupPending = true;
+      }
       await deleteCurrentUserAccount();
 
       setAppUser(null);
@@ -1791,7 +1802,7 @@ function AppContent() {
       setChatThreads({});
       setSelectedChatKey(null);
       setTab("discover");
-      Alert.alert("Konto usunięte", "Konto i główny profil zostały usunięte.");
+      Alert.alert("Konto usuni\u0119te", photoCleanupPending ? "Konto zosta\u0142o usuni\u0119te. \u017b\u0105danie usuni\u0119cia pozosta\u0142ych plik\u00f3w zosta\u0142o zapisane." : "Konto i powi\u0105zane dane zosta\u0142y usuni\u0119te.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nie udało się usunąć konta.";
       setAuthError(message);
@@ -1946,7 +1957,6 @@ function AppContent() {
             onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
             onSignOut={confirmSignOut}
-            reporterName={profileName}
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
             superlikesRemaining={superlikesRemaining}
@@ -2271,10 +2281,10 @@ function AuthScreen({
 
       <View style={styles.formCard}>
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
-        <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry />
+        <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry passwordMode={authMode === "register" ? "new-password" : "current-password"} />
         {authMode === "register" && (
           <>
-            <TextField label="Powtórz hasło" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+            <TextField label="Powtórz hasło" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry passwordMode="new-password" />
             <View style={styles.legalConsent}>
               <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: legalAccepted }} onPress={() => setLegalAccepted((value) => !value)} style={[styles.legalCheckbox, legalAccepted && styles.legalCheckboxActive]}>
                 {legalAccepted && <MaterialCommunityIcons name="check" size={16} color="#fff" />}
@@ -2484,7 +2494,6 @@ function DiscoverScreen({
   onOpenPremium,
   onOpenSafety,
   onSignOut,
-  reporterName,
   hasMatchedProfile,
   hasRequestedProfile,
   superlikesRemaining,
@@ -2509,7 +2518,6 @@ function DiscoverScreen({
   onOpenPremium: () => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
-  reporterName: string;
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
   superlikesRemaining: number;
@@ -2701,36 +2709,17 @@ function DiscoverScreen({
     const description = reportText.trim();
 
     if (description.length < 8) {
-      Alert.alert("Zgłoszenie", "Opisz problem trochę dokładniej.");
+      Alert.alert("Zg\u0142oszenie", "Opisz problem troch\u0119 dok\u0142adniej.");
       return;
     }
 
-    const targetName = profile.name + " " + profile.surname;
-    const body = [
-      "Nowe zgłoszenie w Spark",
-      "",
-      "Zgłaszający: " + reporterName,
-      "Zgłaszany profil: " + targetName,
-      "Wiek profilu: " + profile.age,
-      "Miasto/profil: " + profile.city + " / " + profile.distance,
-      "",
-      "Opis problemu:",
-      description
-    ].join("\n");
-
-    if (!(await onReportProfile(body))) {
+    if (!(await onReportProfile(description))) {
       return;
     }
 
     setReportOpen(false);
     setReportText("");
-
-    const mailto = "mailto:" + supportEmail + "?subject=" + encodeURIComponent("Zgłoszenie profilu: " + targetName) + "&body=" + encodeURIComponent(body);
-    try {
-      await Linking.openURL(mailto);
-    } catch {
-      Alert.alert("Zgłoszenie zapisane", "Nie udało się otworzyć aplikacji mail. Napisz na " + supportEmail + ".");
-    }
+    Alert.alert("Zg\u0142oszenie wys\u0142ane", "Dzi\u0119kujemy. Zesp\u00f3\u0142 moderacji sprawdzi zg\u0142oszenie wraz z dost\u0119pnym kontekstem.");
   }
 
   return (
@@ -2827,7 +2816,7 @@ function DiscoverScreen({
             <View style={styles.reportSheetHeader}>
               <View style={styles.fill}>
                 <Text style={styles.reportTitle} selectable>Zgłoś profil</Text>
-                <Text style={styles.reportSubtitle} selectable>{profile.name} {profile.surname} - wysyłka na {supportEmail}</Text>
+                <Text style={styles.reportSubtitle} selectable>{profile.name} {profile.surname} - zg\u0142oszenie trafi bezpo\u015brednio do moderacji</Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => setReportOpen(false)} style={styles.reportCloseButton}>
                 <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
@@ -4629,7 +4618,7 @@ function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { s
     </View>
   );
 }
-function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" | "numeric" }) {
+function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default", passwordMode = "current-password" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" | "numeric"; passwordMode?: "current-password" | "new-password" }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const isPassword = secureTextEntry;
 
@@ -4644,9 +4633,9 @@ function TextField({ label, value, onChangeText, secureTextEntry = false, keyboa
           keyboardType={keyboardType}
           autoCorrect={false}
           autoCapitalize={keyboardType === "email-address" ? "none" : "sentences"}
-          autoComplete="off"
-          importantForAutofill="no"
-          textContentType="none"
+          autoComplete={keyboardType === "email-address" ? "email" : isPassword ? passwordMode : "off"}
+          importantForAutofill={keyboardType === "email-address" || isPassword ? "yes" : "no"}
+          textContentType={keyboardType === "email-address" ? "emailAddress" : isPassword ? (passwordMode === "new-password" ? "newPassword" : "password") : "none"}
           selectionColor="rgba(255,45,141,0.35)"
           cursorColor={colors.primary}
           placeholderTextColor={colors.muted}
