@@ -1,5 +1,26 @@
 const appJson = require("./app.json");
-const { withInfoPlist } = require("expo/config-plugins");
+const { withInfoPlist, withPodfile } = require("expo/config-plugins");
+
+function addModularHeadersToPodfile(podfile) {
+  const marker = "prepare_react_native_project!";
+
+  if (podfile.includes("use_modular_headers!")) {
+    return podfile;
+  }
+
+  if (!podfile.includes(marker)) {
+    throw new Error("Unable to configure CocoaPods modular headers: Podfile marker is missing.");
+  }
+
+  return podfile.replace(marker, `use_modular_headers!\n\n${marker}`);
+}
+
+function withIosModularHeaders(config) {
+  return withPodfile(config, (nextConfig) => {
+    nextConfig.modResults.contents = addModularHeadersToPodfile(nextConfig.modResults.contents);
+    return nextConfig;
+  });
+}
 
 function withReleaseInfoPlist(config) {
   return withInfoPlist(config, (nextConfig) => {
@@ -46,7 +67,7 @@ function withAdMobEnv(plugins = []) {
   });
 }
 
-module.exports = ({ config }) => withReleaseInfoPlist({
+module.exports = ({ config }) => withIosModularHeaders(withReleaseInfoPlist({
   ...config,
   ...appJson.expo,
   ios: {
@@ -58,4 +79,6 @@ module.exports = ({ config }) => withReleaseInfoPlist({
     ...(appJson.expo.android || {})
   },
   plugins: withAdMobEnv(appJson.expo.plugins || [])
-});
+}));
+
+module.exports.addModularHeadersToPodfile = addModularHeadersToPodfile;

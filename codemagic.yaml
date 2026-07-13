@@ -46,6 +46,11 @@ workflows:
         script: |
           npx expo prebuild --platform ios --clean --non-interactive
 
+
+      - name: Validate generated Podfile
+        script: |
+          node -e "const fs=require('fs'); const podfile=fs.readFileSync('ios/Podfile','utf8'); if (!podfile.includes('use_modular_headers!')) throw new Error('Missing modular headers in generated ios/Podfile');"
+
       - name: Install CocoaPods
         script: |
           cd ios
