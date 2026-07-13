@@ -2,8 +2,6 @@ import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import * as AppleAuthentication from "expo-apple-authentication";
-import * as Crypto from "expo-crypto";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
@@ -31,7 +29,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, requestPasswordReset, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import {
   acceptChatRequest,
@@ -635,7 +633,6 @@ function AppContent() {
   const [profileFeedError, setProfileFeedError] = useState<string | null>(null);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
   const [nextTestResetAt, setNextTestResetAt] = useState<number | null>(null);
-  const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
 
 
   const isCompact = width < 380;
@@ -787,12 +784,7 @@ function AppContent() {
     });
   }, []);
 
-  useEffect(() => {
-    if (Platform.OS !== "ios") return;
-    AppleAuthentication.isAvailableAsync().then(setAppleSignInAvailable).catch(() => setAppleSignInAvailable(false));
-  }, []);
-
-  async function finishSocialSignIn(user: AppAuthUser, provider: "google" | "apple", fallbackFirstName = "", fallbackLastName = "") {
+  async function finishSocialSignIn(user: AppAuthUser, provider: "google", fallbackFirstName = "", fallbackLastName = "") {
     await recordUserLogin({
       uid: user.uid,
       email: user.email,
@@ -822,34 +814,6 @@ function AppContent() {
       await finishSocialSignIn(user, "google", response.data.user.givenName ?? "", response.data.user.familyName ?? "");
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Nie udało się zalogować przez Google.");
-    } finally {
-      setAuthBusy(false);
-    }
-  }
-
-  async function handleAppleSignIn() {
-    setAuthBusy(true);
-    setAuthError(null);
-
-    try {
-      const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._";
-      const bytes = await Crypto.getRandomBytesAsync(32);
-      const rawNonce = Array.from(bytes, (byte) => charset[byte % charset.length]).join("");
-      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL
-        ],
-        nonce: hashedNonce
-      });
-      if (!credential.identityToken) throw new Error("Apple nie zwrócił tokenu logowania.");
-      const user = await signInWithAppleIdToken(credential.identityToken, rawNonce);
-      await finishSocialSignIn(user, "apple", credential.fullName?.givenName ?? "", credential.fullName?.familyName ?? "");
-    } catch (error) {
-      if ((error as { code?: string })?.code !== "ERR_REQUEST_CANCELED") {
-        setAuthError(error instanceof Error ? error.message : "Nie udało się zalogować przez Apple.");
-      }
     } finally {
       setAuthBusy(false);
     }
@@ -1752,7 +1716,6 @@ function AppContent() {
           firebaseReady={isFirebaseConfigured}
           firebaseMissingConfig={firebaseConfigStatus.missingConfig}
           googleReady={isGoogleSignInConfigured}
-          appleReady={appleSignInAvailable}
           onContinue={() => {
             tap();
             handleEmailAuth();
@@ -1760,10 +1723,6 @@ function AppContent() {
           onGoogle={() => {
             tap();
             void handleGoogleSignIn();
-          }}
-          onApple={() => {
-            tap();
-            void handleAppleSignIn();
           }}
           onForgotPassword={() => {
             tap();
@@ -2112,11 +2071,9 @@ function AuthScreen({
   firebaseReady,
   firebaseMissingConfig,
   googleReady,
-  appleReady,
   showDemoLogin,
   onContinue,
   onGoogle,
-  onApple,
   onForgotPassword,
   onDemoAccount
 }: {
@@ -2133,11 +2090,9 @@ function AuthScreen({
   firebaseReady: boolean;
   firebaseMissingConfig: string[];
   googleReady: boolean;
-  appleReady: boolean;
   showDemoLogin: boolean;
   onContinue: () => void;
   onGoogle: () => void;
-  onApple: () => void;
   onForgotPassword: () => void;
   onDemoAccount: () => void;
 }) {
@@ -2212,17 +2167,6 @@ function AuthScreen({
           <FontAwesome name="google" size={18} color="#fff" />
           <Text style={styles.socialLoginText}>Kontynuuj z Google</Text>
         </Pressable>
-        {Platform.OS === "ios" && appleReady && (
-          <View style={authBusy ? styles.socialLoginButtonDisabled : undefined} pointerEvents={authBusy ? "none" : "auto"}>
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-              cornerRadius={8}
-              style={styles.appleLoginButton}
-              onPress={onApple}
-            />
-          </View>
-        )}
       </View>
 
       {showDemoLogin && (
@@ -4982,10 +4926,6 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep,
     fontSize: 14,
     fontWeight: "800"
-  },
-  appleLoginButton: {
-    width: "100%",
-    height: 52
   },
   socialLoginButton: {
     flex: 1,

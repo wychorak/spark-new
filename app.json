@@ -12,7 +12,6 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "usesAppleSignIn": true,
       "bundleIdentifier": "com.sparknew.connect",
       "buildNumber": "3",
       "infoPlist": {
@@ -146,7 +145,6 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-apple-authentication",
       [
         "expo-build-properties",
         {

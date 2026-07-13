@@ -2,7 +2,6 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   GoogleAuthProvider,
-  OAuthProvider,
   onAuthStateChanged,
   signInWithCredential,
   signInWithEmailAndPassword,
@@ -78,14 +77,6 @@ export async function signInWithGoogleIdToken(idToken: string) {
   const result = await signInWithCredential(currentAuth, credential);
   return mapFirebaseUser(result.user);
 }
-export async function signInWithAppleIdToken(idToken: string, rawNonce: string) {
-  const currentAuth = requireAuth();
-  const provider = new OAuthProvider("apple.com");
-  const credential = provider.credential({ idToken, rawNonce });
-  const result = await signInWithCredential(currentAuth, credential);
-  return mapFirebaseUser(result.user);
-}
-
 export async function signOutUser() {
   const currentAuth = requireAuth();
   await signOut(currentAuth);
