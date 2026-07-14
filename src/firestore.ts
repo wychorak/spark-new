@@ -518,6 +518,18 @@ export async function createMatchThread(params: {
   const currentDb = requireDb();
   const matchRef = doc(currentDb, "matches", params.matchId);
 
+  const staleSnapshot = await getDoc(matchRef);
+  if (staleSnapshot.exists()) {
+    const staleData = staleSnapshot.data();
+    const resetAtMs = typeof staleData.resetAt?.toMillis === "function" ? staleData.resetAt.toMillis() : null;
+    if (resetAtMs !== null && resetAtMs <= Date.now() && ["matched", "requested"].includes(String(staleData.status))) {
+      const staleMessages = await getDocs(collection(currentDb, "messages", params.matchId, "items"));
+      await Promise.all(staleMessages.docs.map((message) => deleteDoc(message.ref)));
+      await deleteDoc(matchRef);
+    }
+  }
+
+
   await runTransaction(currentDb, async (transaction) => {
     const snapshot = await transaction.get(matchRef);
     if (snapshot.exists()) {
