@@ -125,6 +125,12 @@ const profileImages = [
   require("./assets/profiles/profile-6.jpg")
 ];
 
+const bundledTestProfileImages: Record<string, any> = {
+  spark_test_kuba: profileImages[3],
+  spark_test_maja: profileImages[4],
+  spark_test_alex: profileImages[5]
+};
+
 const demoAccount = {
   email: "tester@spark.app",
   password: "sparkdemo",
@@ -426,6 +432,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string").map(repairLegacyText) : [];
   const photoUrls = Array.isArray(item.photoUrls) ? item.photoUrls.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
   const mainPhotoUrl = typeof item.mainPhotoUrl === "string" && item.mainPhotoUrl.length > 0 ? item.mainPhotoUrl : photoUrls[0];
+  const bundledTestImage = id && item.isTestProfile === true ? bundledTestProfileImages[id] : undefined;
 
   if (!id || !name || !mainPhotoUrl || interests.length === 0) {
     return null;
@@ -456,8 +463,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     latitude,
     longitude,
     locationAvailable,
-    image: { uri: mainPhotoUrl },
-    photos: (photoUrls.length > 0 ? photoUrls : [mainPhotoUrl]).map((uri) => ({ uri })),
+    image: bundledTestImage ?? { uri: mainPhotoUrl },
+    photos: bundledTestImage ? [bundledTestImage] : (photoUrls.length > 0 ? photoUrls : [mainPhotoUrl]).map((uri) => ({ uri })),
     interests,
     featuredInterests: interests.slice(0, 3),
     socials,
