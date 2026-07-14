@@ -24,6 +24,7 @@ const packageJson = readJson('package.json');
 const firebaseRc = readJson('.firebaserc');
 const firebaseJson = readJson('firebase.json');
 const appSource = read('App.tsx');
+const appConfigSource = read('app.config.js');
 const authSource = read('src/auth.ts');
 const firestoreSource = read('src/firestore.ts');
 const firebaseSource = read('src/firebase.ts');
@@ -51,6 +52,7 @@ check(codemagicSource.includes('APP_STORE_CONNECT_MAX_BUILD_PROCESSING_WAIT: \"6
 check(app.ios?.infoPlist?.NSPhotoLibraryUsageDescription?.length > 20, 'iOS photo-library usage description is missing.');
 check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS location usage description is missing.');
 check(app.ios?.infoPlist?.NSMotionUsageDescription?.length > 20, 'iOS motion usage description is missing.');
+check(!appConfigSource.includes('delete plist.NSMotionUsageDescription'), 'iOS config must preserve the motion usage description.');
 check(app.ios.infoPlist.NSLocationWhenInUseUsageDescription.includes('u\u017cywa') && app.ios.infoPlist.NSPhotoLibraryUsageDescription.includes('zdj\u0119'), 'iOS permission descriptions contain broken Polish text.');
 check(app.ios?.privacyManifests?.NSPrivacyTracking === false, 'iOS privacy manifest must declare tracking disabled.');
 check(Array.isArray(app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes), 'iOS collected-data privacy manifest is missing.');

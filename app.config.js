@@ -8,7 +8,6 @@ function withReleaseInfoPlist(config) {
     delete plist.NSLocalNetworkUsageDescription;
     delete plist.NSLocationAlwaysUsageDescription;
     delete plist.NSLocationAlwaysAndWhenInUseUsageDescription;
-    delete plist.NSMotionUsageDescription;
 
     if (plist.NSAppTransportSecurity) {
       delete plist.NSAppTransportSecurity.NSAllowsArbitraryLoads;
