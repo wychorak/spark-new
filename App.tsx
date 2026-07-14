@@ -37,6 +37,8 @@ import { findModerationViolation } from "./src/content-moderation";
 import {
   acceptChatRequest,
   blockUser,
+  cancelChatRequest,
+  cancelProfileLike,
   createMatchThread,
   createReport,
   findIncomingProfileLikes,
@@ -604,6 +606,7 @@ function AppContent() {
   const [profileNameMode, setProfileNameMode] = useState<ProfileNameMode>("realName");
   const [nickname, setNickname] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [profileBio, setProfileBio] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -709,7 +712,7 @@ function AppContent() {
   const hasRequestedActiveProfile = activeProfileKey ? chatRequestKeys.includes(activeProfileKey) : false;
   const derivedAge = calculateAge(birthDate);
   const identityComplete = profileNameMode === "nickname" ? nickname.trim().length >= 2 : firstName.trim().length >= 2;
-  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 18 && derivedAge <= 99 && profilePhotos.length >= 1;
+  const canContinue = selectedInterests.length >= 3 && identityComplete && derivedAge !== null && derivedAge >= 18 && derivedAge <= 99 && profilePhotos.length >= 1 && profileBio.trim().length >= 20;
 
   const contentPadding = useMemo(
     () => ({
@@ -760,6 +763,7 @@ function AppContent() {
             setNickname(repairLegacyText(profile.nickname ?? ""));
             setBirthDate(privateSettings?.birthDate ?? "");
             setIntent(profile.intent ?? "Randki");
+            setProfileBio(typeof profile.bio === "string" && profile.bio.trim().length >= 20 ? profile.bio.trim().slice(0, 300) : "Poznajmy si\u0119 przez wsp\u00f3lne zainteresowania i dobr\u0105 rozmow\u0119.");
             setAgeBand(profile.ageBand ?? null);
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
@@ -1300,8 +1304,8 @@ function AppContent() {
     const hasValidIdentity = profileNameMode === "nickname"
       ? nickname.trim().length >= 2
       : firstName.trim().length >= 2;
-    if (!hasValidIdentity || calculatedAge === null || calculatedAge < 18 || calculatedAge > 99 || selectedInterests.length < 3 || profilePhotos.length < 1) {
-      Alert.alert("Profil", "Uzupełnij nazwę, prawidłową datę urodzenia (wiek 18-99), zdjęcie i co najmniej 3 zainteresowania.");
+    if (!hasValidIdentity || calculatedAge === null || calculatedAge < 18 || calculatedAge > 99 || selectedInterests.length < 3 || profilePhotos.length < 1 || profileBio.trim().length < 20) {
+      Alert.alert("Profil", "Uzupełnij nazwę, opis (minimum 20 znaków), prawidłową datę urodzenia, zdjęcie i co najmniej 3 zainteresowania.");
       return false;
     }
 
@@ -1320,6 +1324,7 @@ function AppContent() {
         nickname: nickname.trim(),
         email: appUser.email ?? email,
         intent,
+        bio: profileBio.trim().slice(0, 300),
         ageBand: "18+",
         age: calculatedAge,
         interests: selectedInterests,
@@ -1700,6 +1705,33 @@ function AppContent() {
     catch { Alert.alert("Prośba o chat", "Nie udało się odrzucić prośby. Spróbuj ponownie."); }
   }
 
+  async function cancelOutgoingRequest(profileKey: string) {
+    const thread = chatThreads[profileKey];
+    if (!appUser || !thread?.threadId || thread.requestDirection !== "outgoing" || thread.status !== "requested") return;
+    try {
+      await cancelChatRequest(thread.threadId);
+      setChatRequestKeys((keys) => keys.filter((key) => key !== profileKey));
+      setChatThreads((threads) => {
+        const next = { ...threads };
+        delete next[profileKey];
+        return next;
+      });
+      if (selectedChatKey === profileKey) setSelectedChatKey(null);
+    } catch {
+      Alert.alert("Pro\u015bba o chat", "Nie uda\u0142o si\u0119 anulowa\u0107 pro\u015bby. Spr\u00f3buj ponownie.");
+    }
+  }
+
+  async function cancelOutgoingLike(profileKey: string) {
+    if (!appUser) return;
+    try {
+      await cancelProfileLike(getThreadId(appUser.uid, profileKey));
+      setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
+    } catch {
+      Alert.alert("Polubienie", "Nie uda\u0142o si\u0119 usun\u0105\u0107 oczekuj\u0105cego polubienia. Spr\u00f3buj ponownie.");
+    }
+  }
+
   async function blockProfile(profileKey: string) {
     if (appUser) {
       try {
@@ -1923,6 +1955,8 @@ function AppContent() {
           nickname={nickname}
           setNickname={setNickname}
           birthDate={birthDate}
+          profileBio={profileBio}
+          setProfileBio={setProfileBio}
           onBirthDateChange={(value) => {
             const formatted = formatBirthDateInput(value);
             setBirthDate(formatted);
@@ -2023,6 +2057,8 @@ function AppContent() {
             chatThreads={chatThreads}
             hasPro={revenueCat.isPro}
             onLikeIncomingProfile={likeIncomingProfile}
+            onCancelPendingLike={cancelOutgoingLike}
+            onCancelRequest={cancelOutgoingRequest}
             onOpenMessages={() => setTab("messages")}
           />
         )}
@@ -2057,6 +2093,8 @@ function AppContent() {
             setNickname={setNickname}
             birthDate={birthDate}
             intent={intent}
+            profileBio={profileBio}
+            setProfileBio={setProfileBio}
             onBirthDateChange={(value) => {
               const formatted = formatBirthDateInput(value);
               setBirthDate(formatted);
@@ -2399,9 +2437,34 @@ function LocationControl({ city, country, status, busy, onPress }: { city: strin
   );
 }
 
+function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText: (value: string) => void }) {
+  const remaining = 300 - value.length;
+  return (
+    <View style={styles.fieldGroup}>
+      <View style={styles.profileBioHeader}>
+        <Text style={styles.fieldLabel}>Opis profilu</Text>
+        <Text style={styles.profileBioCounter}>{remaining} znak\u00f3w</Text>
+      </View>
+      <TextInput
+        value={value}
+        onChangeText={(text) => onChangeText(text.slice(0, 300))}
+        multiline
+        maxLength={300}
+        textAlignVertical="top"
+        placeholder="Napisz kilka zda\u0144 o sobie, swoich pasjach i osobach, kt\u00f3re chcesz pozna\u0107."
+        placeholderTextColor={colors.muted}
+        selectionColor="rgba(255,45,141,0.35)"
+        cursorColor={colors.primary}
+        style={[styles.fieldInput, styles.profileBioInput]}
+      />
+      <Text style={styles.profileBioHint}>{value.trim().length < 20 ? "Minimum 20 znak\u00f3w" : "Opis b\u0119dzie widoczny na Twojej karcie"}</Text>
+    </View>
+  );
+}
+
 function OnboardingScreen({
   intent, setIntent, profileNameMode, setProfileNameMode, firstName, setFirstName, lastName, setLastName,
-  nickname, setNickname, birthDate, onBirthDateChange, profilePhotos, setProfilePhotos,
+  nickname, setNickname, birthDate, onBirthDateChange, profileBio, setProfileBio, profilePhotos, setProfilePhotos,
   discoverFilters, setDiscoverFilters, userCity, userCountry, locationStatus, locationBusy, onRequestLocation, selectedInterests, setSelectedInterests,
   canContinue, onContinue
 }: {
@@ -2409,6 +2472,7 @@ function OnboardingScreen({
   profileNameMode: ProfileNameMode; setProfileNameMode: (value: ProfileNameMode) => void;
   firstName: string; setFirstName: (value: string) => void; lastName: string; setLastName: (value: string) => void;
   nickname: string; setNickname: (value: string) => void; birthDate: string; onBirthDateChange: (value: string) => void;
+  profileBio: string; setProfileBio: (value: string) => void;
   profilePhotos: ProfilePhoto[]; setProfilePhotos: (value: ProfilePhoto[]) => void;
   discoverFilters: DiscoverFilters; setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   userCity: string; userCountry: string; locationStatus: "idle" | "granted" | "denied"; locationBusy: boolean; onRequestLocation: () => void; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
@@ -2458,6 +2522,7 @@ function OnboardingScreen({
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : derivedAge < 18 ? String(derivedAge) + " lat - Spark jest dostępny od 18 lat." : derivedAge > 99 ? "Sprawdź rok urodzenia." : String(derivedAge) + " lat"}</Text>
+        <ProfileBioInput value={profileBio} onChangeText={setProfileBio} />
         <LocationControl city={userCity} country={userCountry} status={locationStatus} busy={locationBusy} onPress={onRequestLocation} />
       </View>
 
@@ -2510,7 +2575,7 @@ function OnboardingScreen({
       </View>
 
       <Pressable accessibilityRole="button" disabled={!canContinue} onPress={onContinue} style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{canContinue ? "Zapisz profil i zaczynamy" : "Uzupełnij dane, zdjęcie i 3 zainteresowania"}</Text>
+        <Text style={styles.primaryButtonText}>{canContinue ? "Zapisz profil i zaczynamy" : "Uzupełnij dane, opis, zdjęcie i 3 zainteresowania"}</Text>
       </Pressable>
     </View>
   );
@@ -3226,7 +3291,6 @@ function ProfilePreviewSheet({
   const featuredInterests = getFeaturedInterests(profile);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
   const matchPercent = profile.matchScore ?? Math.max(36, Math.min(96, 48 + sharedInterests.length * 12));
-  const matchReasons = profile.matchReasons ?? [profile.distance, `${sharedInterests.length} wspólne zainteresowania`];
   const photoWidth = Math.min(width - 24, 500);
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
@@ -3260,9 +3324,6 @@ function ProfilePreviewSheet({
     section: { gap: 10, paddingHorizontal: 4 },
     sectionTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
     sectionHint: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
-    reasonList: { gap: 8 },
-    reason: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.14)" },
-    reasonText: { flex: 1, color: "#f0d3dd", fontSize: 12, lineHeight: 17, fontWeight: "800" },
     bio: { color: "#ecd8e1", fontSize: 15, lineHeight: 23, fontWeight: "600" },
     wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, overflow: "hidden", borderWidth: 1, fontSize: 12, fontWeight: "900" },
@@ -3356,17 +3417,6 @@ function ProfilePreviewSheet({
                 <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odległość</Text></View>
               </View>
 
-              <View style={local.section}>
-                <Text style={local.sectionTitle} selectable>Dlaczego pasujecie</Text>
-                <View style={local.reasonList}>
-                  {matchReasons.slice(0, 3).map((reason) => (
-                    <View key={reason} style={local.reason}>
-                      <MaterialCommunityIcons name="star-four-points" size={17} color={colors.primary} />
-                      <Text style={local.reasonText} selectable>{reason}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
             </>
           )}
 
@@ -3615,6 +3665,8 @@ function MatchesScreen({
   chatThreads,
   hasPro,
   onLikeIncomingProfile,
+  onCancelPendingLike,
+  onCancelRequest,
   onOpenMessages
 }: {
   profiles: MatchProfile[];
@@ -3625,6 +3677,8 @@ function MatchesScreen({
   chatThreads: Record<string, ChatThread>;
   hasPro: boolean;
   onLikeIncomingProfile: (profileKey: string) => Promise<void>;
+  onCancelPendingLike: (profileKey: string) => Promise<void>;
+  onCancelRequest: (profileKey: string) => Promise<void>;
   onOpenMessages: () => void;
 }) {
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
@@ -3746,7 +3800,20 @@ function MatchesScreen({
                   <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
                   <Text style={styles.pendingMatchText} selectable>Oczekuje na wzajemne polubienie</Text>
                 </View>
-                <MaterialCommunityIcons name="clock-outline" size={20} color={colors.muted} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={"Usu\u0144 polubienie profilu " + profile.name}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    Alert.alert("Usu\u0144 polubienie", "Profil wr\u00f3ci do Odkrywaj i nie b\u0119dzie ju\u017c oczekiwa\u0142 na match.", [
+                      { text: "Anuluj", style: "cancel" },
+                      { text: "Usu\u0144", style: "destructive", onPress: () => void onCancelPendingLike(getProfileKey(profile)) }
+                    ]);
+                  }}
+                  style={styles.pendingCancelButton}
+                >
+                  <MaterialCommunityIcons name="close" size={19} color={colors.primary} />
+                </Pressable>
               </Pressable>
             ))}
           </View>
@@ -3770,7 +3837,24 @@ function MatchesScreen({
                     <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
                     <Text style={styles.pendingMatchText} selectable>{isIncoming ? "Nowa prośba czeka na Twoją decyzję" : "Prośba wysłana, czeka na akceptację"}</Text>
                   </View>
-                  <MaterialCommunityIcons name={isIncoming ? "email-heart-outline" : "message-text-clock-outline"} size={20} color={colors.primary} />
+                  {isIncoming ? (
+                    <MaterialCommunityIcons name="email-heart-outline" size={20} color={colors.primary} />
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={"Anuluj pro\u015bb\u0119 do " + profile.name}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        Alert.alert("Anuluj pro\u015bb\u0119", "Czy usun\u0105\u0107 oczekuj\u0105c\u0105 pro\u015bb\u0119 o chat?", [
+                          { text: "Nie", style: "cancel" },
+                          { text: "Anuluj pro\u015bb\u0119", style: "destructive", onPress: () => void onCancelRequest(profileKey) }
+                        ]);
+                      }}
+                      style={styles.pendingCancelButton}
+                    >
+                      <MaterialCommunityIcons name="close" size={19} color={colors.primary} />
+                    </Pressable>
+                  )}
                 </Pressable>
               );
             })}
@@ -4293,6 +4377,8 @@ function ProfileScreen({
   setNickname,
   birthDate,
   intent,
+  profileBio,
+  setProfileBio,
   onBirthDateChange,
   discoverFilters,
   userCity,
@@ -4326,6 +4412,8 @@ function ProfileScreen({
   setNickname: (value: string) => void;
   birthDate: string;
   intent: string;
+  profileBio: string;
+  setProfileBio: (value: string) => void;
   onBirthDateChange: (value: string) => void;
   discoverFilters: DiscoverFilters;
   userCity: string;
@@ -4367,7 +4455,7 @@ function ProfileScreen({
     age: userAge,
     city: userCity || "Twoja okolica",
     country: userCountry || undefined,
-    bio: intent.trim() ? "Jestem tu po: " + intent.trim() + "." : "Poznajmy się przez wspólne zainteresowania.",
+    bio: profileBio.trim() || "Poznajmy si\u0119 przez wsp\u00f3lne zainteresowania.",
     distance: [userCity, userCountry].filter(Boolean).join(", ") || "Lokalizacja ukryta",
     latitude: 0,
     longitude: 0,
@@ -4499,6 +4587,7 @@ function ProfileScreen({
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
+        <ProfileBioInput value={profileBio} onChangeText={setProfileBio} />
         <LocationControl city={userCity} country={userCountry} status={locationStatus} busy={locationBusy} onPress={onRequestLocation} />
       </View>
 
@@ -5240,6 +5329,29 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(26,26,34,0.88)",
     color: colors.ink,
     fontSize: 15,
+    fontWeight: "700"
+  },
+  profileBioHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  profileBioCounter: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  profileBioInput: {
+    minHeight: 118,
+    paddingTop: 14,
+    paddingBottom: 14,
+    lineHeight: 21
+  },
+  profileBioHint: {
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700"
   },
   fieldInputWithIcon: {
@@ -7178,6 +7290,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.primary,
     boxShadow: "0 8px 20px rgba(255,45,141,0.28)"
+  },
+  pendingCancelButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,45,141,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
   },
   searchField: {
     minHeight: 52,

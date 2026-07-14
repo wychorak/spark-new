@@ -26,6 +26,7 @@ export type UserProfileDocument = {
   email: string | null;
   displayName?: string | null;
   intent: string;
+  bio?: string;
   ageBand?: "18+" | null;
   age?: number | null;
   interests: string[];
@@ -140,6 +141,10 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     profileNameMode: profile.profileNameMode ?? "realName",
     nickname: profile.nickname ?? "",
     intent: profile.intent,
+    bio:
+      typeof profile.bio === "string" && profile.bio.trim().length >= 20
+        ? profile.bio.trim().slice(0, 300)
+        : "Poznajmy si\u0119 przez wsp\u00f3lne zainteresowania i dobr\u0105 rozmow\u0119.",
     ageBand: profile.ageBand ?? null,
     age: profile.age ?? null,
     desiredAgeMin,
@@ -625,6 +630,14 @@ export async function acceptChatRequest(threadId: string, uid: string) {
 export async function rejectChatRequest(threadId: string, uid: string) {
   await updateDoc(doc(requireDb(), "matches", threadId), { status: "rejected", rejectedByUid: uid, updatedAt: serverTimestamp() });
 }
+export async function cancelChatRequest(threadId: string) {
+  await deleteDoc(doc(requireDb(), "matches", threadId));
+}
+
+export async function cancelProfileLike(swipeId: string) {
+  await deleteDoc(doc(requireDb(), "swipes", swipeId));
+}
+
 
 export async function blockUser(params: { blockerUid: string; blockedUid: string; threadId?: string }) {
   const currentDb = requireDb();

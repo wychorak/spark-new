@@ -124,7 +124,7 @@ service cloud.firestore {
     }
     function validPublicProfile(data, uid) {
       return data.keys().hasOnly([
-          'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent',
+          'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'photoUrls', 'mainPhotoUrl',
           'city', 'country', 'location', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
         ])
@@ -134,6 +134,7 @@ service cloud.firestore {
         && data.lastName is string && data.lastName.size() <= 80
         && data.nickname is string && data.nickname.size() <= 80
         && data.intent is string && data.intent.size() <= 120
+        && data.bio is string && data.bio.size() >= 20 && data.bio.size() <= 300
         && (
           (data.profileNameMode == 'nickname' && data.nickname.size() >= 2)
           || (data.profileNameMode == 'realName' && data.firstName.size() >= 2)

@@ -224,6 +224,7 @@
           "image": "./assets/starter.png",
           "imageWidth": 430,
           "resizeMode": "cover",
+          "enableFullScreenImage_legacy": true,
           "backgroundColor": "#050507"
         }
       ]
