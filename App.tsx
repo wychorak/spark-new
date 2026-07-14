@@ -88,7 +88,10 @@ const legalLinks = {
   community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://spark-new-legal.vercel.app/community-guidelines"
 };
 const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
-const includeTestProfiles = __DEV__ && process.env.EXPO_PUBLIC_SHOW_TEST_PROFILES === "true";
+const configuredTestProfileViewerEmails = (process.env.EXPO_PUBLIC_TEST_PROFILE_VIEWER_EMAILS || "wychor234@gmail.com")
+  .split(",")
+  .map((value: string) => value.trim().toLowerCase())
+  .filter(Boolean);
 
 function openSupportEmail(subject = "Spark - pomoc") {
   const mailto = "mailto:" + supportEmail + "?subject=" + encodeURIComponent(subject);
@@ -400,7 +403,7 @@ function getProfileKey(profile: MatchProfile) {
 
 function getProfileGallery(profile: MatchProfile) {
   if (profile.id) {
-    return (profile.photos && profile.photos.length > 0 ? profile.photos : [profile.image]).slice(0, 6);
+    return (profile.photos && profile.photos.length > 0 ? profile.photos : [profile.image]).slice(0, 15);
   }
 
   const fallbackPhotos = [profile.image, ...profileImages.filter((image) => image !== profile.image)];
@@ -442,7 +445,11 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     age: typeof item.age === "number" ? Math.max(18, Math.min(99, Math.round(item.age))) : 18,
     city: typeof item.city === "string" && item.city.trim() ? repairLegacyText(item.city.trim()) : "Twoja okolica",
     country: typeof item.country === "string" && item.country.trim() ? repairLegacyText(item.country.trim()) : undefined,
-    bio: typeof item.bio === "string" && item.bio.trim() ? repairLegacyText(item.bio.trim()) : "Nowy profil w Spark. Poznajcie się przez wspólne zainteresowania.",
+    bio: typeof item.bio === "string" && item.bio.trim()
+      ? repairLegacyText(item.bio.trim())
+      : typeof item.intent === "string" && item.intent.trim()
+        ? "Jestem tu po: " + repairLegacyText(item.intent.trim()) + "."
+        : "Nowy profil w Spark. Poznajcie się przez wspólne zainteresowania.",
     distance: locationAvailable ? "w pobliżu" : "Twoja okolica",
     latitude,
     longitude,
@@ -520,16 +527,19 @@ function scoreProfileMatch(params: {
 }) {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
-  const interestScore = params.selectedInterests.length > 0 ? Math.min(52, sharedInterests.length * 17) : 26;
-  const distanceScore = distanceKm === null ? 8 : distanceKm <= 5 ? 24 : distanceKm <= 15 ? 18 : distanceKm <= 35 ? 12 : 6;
+  const sharedRatio = params.selectedInterests.length > 0 ? sharedInterests.length / params.selectedInterests.length : 0;
+  const interestScore = params.selectedInterests.length > 0
+    ? Math.min(48, sharedInterests.length * 12 + Math.round(sharedRatio * 12))
+    : 20;
+  const distanceScore = distanceKm === null ? 8 : distanceKm <= 5 ? 22 : distanceKm <= 15 ? 17 : distanceKm <= 35 ? 11 : 5;
   const ageGap = Math.abs(params.profile.age - params.userAge);
-  const ageScore = ageGap <= 3 ? 15 : ageGap <= 7 ? 11 : ageGap <= 12 ? 7 : 3;
+  const ageScore = ageGap <= 3 ? 14 : ageGap <= 7 ? 10 : ageGap <= 12 ? 6 : 2;
   const inTheirRange =
     params.userAge >= (params.profile.desiredAgeMin ?? 18) &&
     params.userAge <= (params.profile.desiredAgeMax ?? 99);
-  const preferenceScore = inTheirRange ? 7 : 2;
-  const completenessScore = Math.min(4, params.profile.socials.length * 2);
-  const score = Math.max(32, Math.min(98, interestScore + distanceScore + ageScore + preferenceScore + completenessScore));
+  const preferenceScore = inTheirRange ? 10 : 0;
+  const completenessScore = ((params.profile.photos?.length ?? 1) >= 2 ? 4 : 1) + (params.profile.interests.length >= 5 ? 2 : 0);
+  const score = Math.max(20, Math.min(96, interestScore + distanceScore + ageScore + preferenceScore + completenessScore));
   const reasons = [
     sharedInterests.length > 0
       ? `${sharedInterests.length} wspólne: ${sharedInterests.slice(0, 2).join(" + ")}`
@@ -621,6 +631,7 @@ function AppContent() {
   const [incomingLikeKinds, setIncomingLikeKinds] = useState<Record<string, "like" | "superlike">>({});
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
+  const sendingMessageKeysRef = useRef(new Set<string>());
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
@@ -650,6 +661,7 @@ function AppContent() {
     [remoteProfiles]
   );
   const profileName = getProfileDisplayName(profileNameMode, nickname, firstName, lastName);
+  const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
   const sortedProfiles = useMemo(
     () =>
       availableProfiles
@@ -660,6 +672,7 @@ function AppContent() {
         .filter((profile) => { const distance = getDistanceKm(userLocation, profile); return distance === null || distance <= discoverFilters.maxDistanceKm; })
         .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
+        .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
           const result = scoreProfileMatch({ profile, selectedInterests, userLocation, userAge });
@@ -671,10 +684,12 @@ function AppContent() {
             matchReasons: result.reasons
           };
         })
-        .sort((left, right) =>
-          ((right.matchScore ?? 0) + (right.premium ? 5 : 0)) -
-          ((left.matchScore ?? 0) + (left.premium ? 5 : 0))
-        ),
+        .sort((left, right) => {
+          const scoreDifference =
+            ((right.matchScore ?? 0) + (right.premium ? 3 : 0)) -
+            ((left.matchScore ?? 0) + (left.premium ? 3 : 0));
+          return scoreDifference || getProfileKey(left).localeCompare(getProfileKey(right));
+        }),
     [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
@@ -862,7 +877,7 @@ function AppContent() {
 
     Promise.allSettled([
       findProfilesByInterest(profileLookupInterests),
-      includeTestProfiles ? findTestProfiles() : Promise.resolve([]),
+      canViewTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       findMatchThreadsForUser(appUser.uid)
     ])
@@ -886,7 +901,9 @@ function AppContent() {
 
         const profileMap = new Map<string, Record<string, unknown>>();
         [...profileDocuments, ...testProfileDocuments].forEach((item) => {
-          if (item.id !== appUser.uid) profileMap.set(String(item.id), item as Record<string, unknown>);
+          if (item.id !== appUser.uid && (canViewTestProfiles || item.isTestProfile !== true)) {
+            profileMap.set(String(item.id), item as Record<string, unknown>);
+          }
         });
         const mappedProfiles = Array.from(profileMap.values())
           .map((item) => mapRemoteProfile(item))
@@ -936,7 +953,7 @@ function AppContent() {
     return () => {
       mounted = false;
     };
-  }, [appUser, authDone, onboarded, profileQueryKey, profileReloadKey]);
+  }, [appUser, authDone, canViewTestProfiles, onboarded, profileQueryKey, profileReloadKey]);
 
   useEffect(() => {
     if (!appUser || !authDone || !onboarded || !revenueCat.isPro) {
@@ -1508,9 +1525,7 @@ function AppContent() {
       [targetKey]: threads[targetKey] ?? {
         profileKey: targetKey,
         status: "matched",
-        messages: [
-          { id: `${Date.now()}-match`, from: "them", text: "To match! Możecie teraz napisać do siebie.", time: "teraz" }
-        ]
+        messages: []
       }
     }));
 
@@ -1630,6 +1645,13 @@ function AppContent() {
     if (!message) {
       return;
     }
+    if (message.length > 2000) {
+      Alert.alert("Chat", "Wiadomość może mieć maksymalnie 2000 znaków.");
+      return;
+    }
+    if (sendingMessageKeysRef.current.has(profileKey)) {
+      return;
+    }
 
     const moderationViolation = findModerationViolation(message);
     if (moderationViolation) {
@@ -1648,6 +1670,7 @@ function AppContent() {
       return;
     }
 
+    sendingMessageKeysRef.current.add(profileKey);
     try {
       await sendChatMessage({
         threadId: thread.threadId ?? getConversationId(appUser.uid, profileKey),
@@ -1657,6 +1680,8 @@ function AppContent() {
       setMessageDraft("");
     } catch {
       Alert.alert("Chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
+    } finally {
+      sendingMessageKeysRef.current.delete(profileKey);
     }
   }
 
@@ -1994,6 +2019,7 @@ function AppContent() {
             likedProfileKeys={likedProfileKeys}
             incomingLikeKinds={incomingLikeKinds}
             chatRequestKeys={chatRequestKeys}
+            chatThreads={chatThreads}
             hasPro={revenueCat.isPro}
             onLikeIncomingProfile={likeIncomingProfile}
             onOpenMessages={() => setTab("messages")}
@@ -2029,6 +2055,7 @@ function AppContent() {
             nickname={nickname}
             setNickname={setNickname}
             birthDate={birthDate}
+            intent={intent}
             onBirthDateChange={(value) => {
               const formatted = formatBirthDateInput(value);
               setBirthDate(formatted);
@@ -3109,19 +3136,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
         </Pressable>
       )}
       <View style={styles.badgeRow}>
-        {[profile.distance, ...featuredInterests].map((tag, index) => {
-          const theme = index === 0 ? null : getInterestTheme(tag, index);
-
-          return (
-            <Text
-              key={tag}
-              style={[styles.badge, theme && { backgroundColor: theme.soft, color: colors.ink, borderColor: theme.border }]}
-              selectable
-            >
-              {tag}
-            </Text>
-          );
-        })}
+        <Text style={styles.badge} selectable>{profile.distance}</Text>
       </View>
       <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
         <View style={styles.profileStatusRow}>
@@ -3130,6 +3145,17 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
           {profile.matchScore && <Text style={styles.matchInlinePill} selectable>{profile.matchScore}%</Text>}
         </View>
         <Text style={styles.cardTitle} numberOfLines={1} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+        <View style={styles.featuredInterestRow}>
+          {featuredInterests.map((interest, index) => {
+            const theme = getInterestTheme(interest, index);
+            return (
+              <View key={interest} style={[styles.featuredInterestPill, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                <MaterialCommunityIcons name="star-four-points" size={12} color={theme.active} />
+                <Text style={styles.featuredInterestText} numberOfLines={1}>{interest}</Text>
+              </View>
+            );
+          })}
+        </View>
         {profile.matchScore && (
           <Text style={styles.matchReasonInline} numberOfLines={1} selectable>
             {[profile.city, profile.heightCm ? `${profile.heightCm} cm` : null, ...(profile.matchReasons ?? []).slice(1, 3)].filter(Boolean).join(" • ")}
@@ -3160,20 +3186,25 @@ function ProfilePreviewSheet({
   onPass,
   onLike,
   onMessage,
-  canViewSocials
+  canViewSocials,
+  isOwnProfile = false,
+  isPrivateProfile = false
 }: {
   profile: MatchProfile;
   viewerInterests: string[];
   onClose: () => void;
-  onPass: () => void;
-  onLike: () => void;
-  onMessage: () => void;
+  onPass?: () => void;
+  onLike?: () => void;
+  onMessage?: () => void;
   canViewSocials: boolean;
+  isOwnProfile?: boolean;
+  isPrivateProfile?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [photoIndex, setPhotoIndex] = useState(0);
   const photos = getProfileGallery(profile);
+  const featuredInterests = getFeaturedInterests(profile);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
   const matchPercent = profile.matchScore ?? Math.max(36, Math.min(96, 48 + sharedInterests.length * 12));
   const matchReasons = profile.matchReasons ?? [profile.distance, `${sharedInterests.length} wspólne zainteresowania`];
@@ -3198,6 +3229,11 @@ function ProfilePreviewSheet({
     title: { color: colors.ink, fontSize: 29, lineHeight: 35, fontWeight: "900" },
     subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
     subtitleText: { color: "#e4bdc3", fontSize: 13, fontWeight: "800" },
+    featuredPanel: { gap: 9, padding: 14, borderRadius: 20, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
+    featuredLabel: { color: colors.primaryDeep, fontSize: 10, fontWeight: "900" },
+    featuredRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+    featuredChip: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%", paddingHorizontal: 11, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
+    featuredChipText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
     metrics: { flexDirection: "row", gap: 8 },
     metric: { flex: 1, minHeight: 76, gap: 3, alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900", fontVariant: ["tabular-nums"] },
@@ -3230,9 +3266,9 @@ function ProfilePreviewSheet({
           <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} style={local.headerButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
           </Pressable>
-          <Text style={local.headerTitle} selectable>Profil</Text>
+          <Text style={local.headerTitle} selectable>{isOwnProfile ? "Podgląd Twojej karty" : "Profil"}</Text>
           <View style={local.headerButton}>
-            <MaterialCommunityIcons name="account-circle" size={21} color={colors.green} />
+            <MaterialCommunityIcons name={isOwnProfile ? "eye" : "account-circle"} size={21} color={colors.green} />
           </View>
         </View>
 
@@ -3241,7 +3277,7 @@ function ProfilePreviewSheet({
           bounces={false}
           contentContainerStyle={[
             local.content,
-            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + 80 }
+            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile ? 24 : 80) }
           ]}
         >
           <View style={[local.gallery, { width: photoWidth }]}>
@@ -3266,9 +3302,9 @@ function ProfilePreviewSheet({
 
           <View style={local.identity}>
             <View style={local.statusRow}>
-              <Text style={local.status}>PROFIL PUBLICZNY</Text>
+              <Text style={local.status}>{isPrivateProfile ? "PROFIL PRYWATNY" : "PROFIL PUBLICZNY"}</Text>
               {profile.premium && <Text style={[local.status, local.proStatus]}>SPARK PRO</Text>}
-              <Text style={[local.status, { color: colors.primary, backgroundColor: colors.primarySoft, borderColor: colors.line }]}>{matchPercent}% DOPASOWANIA</Text>
+              {!isOwnProfile && <Text style={[local.status, { color: colors.primary, backgroundColor: colors.primarySoft, borderColor: colors.line }]}>{matchPercent}% DOPASOWANIA</Text>}
             </View>
             <Text style={local.title} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
             <View style={local.subtitle}>
@@ -3278,23 +3314,42 @@ function ProfilePreviewSheet({
             </View>
           </View>
 
-          <View style={local.metrics}>
-            <View style={local.metric}><Text style={local.metricValue}>{matchPercent}%</Text><Text style={local.metricLabel}>dopasowanie</Text></View>
-            <View style={local.metric}><Text style={local.metricValue}>{sharedInterests.length}</Text><Text style={local.metricLabel}>wspólne tagi</Text></View>
-            <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odległość</Text></View>
-          </View>
-
-          <View style={local.section}>
-            <Text style={local.sectionTitle} selectable>Dlaczego pasujecie</Text>
-            <View style={local.reasonList}>
-              {matchReasons.slice(0, 3).map((reason) => (
-                <View key={reason} style={local.reason}>
-                  <MaterialCommunityIcons name="star-four-points" size={17} color={colors.primary} />
-                  <Text style={local.reasonText} selectable>{reason}</Text>
-                </View>
-              ))}
+          <View style={local.featuredPanel}>
+            <Text style={local.featuredLabel} selectable>WYRÓŻNIONE ZAINTERESOWANIA</Text>
+            <View style={local.featuredRow}>
+              {featuredInterests.map((interest, index) => {
+                const theme = getInterestTheme(interest, index);
+                return (
+                  <View key={interest} style={[local.featuredChip, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                    <MaterialCommunityIcons name="star-four-points" size={13} color={theme.active} />
+                    <Text style={local.featuredChipText} numberOfLines={1}>{interest}</Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
+
+          {!isOwnProfile && (
+            <>
+              <View style={local.metrics}>
+                <View style={local.metric}><Text style={local.metricValue}>{matchPercent}%</Text><Text style={local.metricLabel}>dopasowanie</Text></View>
+                <View style={local.metric}><Text style={local.metricValue}>{sharedInterests.length}</Text><Text style={local.metricLabel}>wspólne tagi</Text></View>
+                <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odległość</Text></View>
+              </View>
+
+              <View style={local.section}>
+                <Text style={local.sectionTitle} selectable>Dlaczego pasujecie</Text>
+                <View style={local.reasonList}>
+                  {matchReasons.slice(0, 3).map((reason) => (
+                    <View key={reason} style={local.reason}>
+                      <MaterialCommunityIcons name="star-four-points" size={17} color={colors.primary} />
+                      <Text style={local.reasonText} selectable>{reason}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
 
           <View style={local.section}>
             <Text style={local.sectionTitle} selectable>O mnie</Text>
@@ -3303,7 +3358,7 @@ function ProfilePreviewSheet({
 
           <View style={local.section}>
             <Text style={local.sectionTitle} selectable>Zainteresowania</Text>
-            <Text style={local.sectionHint} selectable>Wspólne tagi są oznaczone mocniejszym kolorem.</Text>
+            <Text style={local.sectionHint} selectable>{isOwnProfile ? "Pierwsze trzy tagi są wyróżnione na karcie." : "Wspólne tagi są oznaczone mocniejszym kolorem."}</Text>
             <View style={local.wrap}>
               {profile.interests.map((interest, index) => {
                 const theme = getInterestTheme(interest, index);
@@ -3344,18 +3399,20 @@ function ProfilePreviewSheet({
           )}
         </ScrollView>
 
-        <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Pomiń profil" onPress={onPass} style={local.actionRound}>
-            <MaterialCommunityIcons name="close" size={25} color={colors.ink} />
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
-            <MaterialCommunityIcons name="heart" size={21} color="#fff" />
-            <Text style={local.likeText}>Polub profil</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Napisz" onPress={onMessage} style={local.actionRound}>
-            <MaterialCommunityIcons name="message-text" size={22} color={colors.primary} />
-          </Pressable>
-        </View>
+        {!isOwnProfile && (
+          <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Pomiń profil" onPress={onPass} style={local.actionRound}>
+              <MaterialCommunityIcons name="close" size={25} color={colors.ink} />
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
+              <MaterialCommunityIcons name="heart" size={21} color="#fff" />
+              <Text style={local.likeText}>Polub profil</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Napisz" onPress={onMessage} style={local.actionRound}>
+              <MaterialCommunityIcons name="message-text" size={22} color={colors.primary} />
+            </Pressable>
+          </View>
+        )}
       </LinearGradient>
     </Modal>
   );
@@ -3536,6 +3593,7 @@ function MatchesScreen({
   likedProfileKeys,
   incomingLikeKinds,
   chatRequestKeys,
+  chatThreads,
   hasPro,
   onLikeIncomingProfile,
   onOpenMessages
@@ -3545,6 +3603,7 @@ function MatchesScreen({
   likedProfileKeys: string[];
   incomingLikeKinds: Record<string, "like" | "superlike">;
   chatRequestKeys: string[];
+  chatThreads: Record<string, ChatThread>;
   hasPro: boolean;
   onLikeIncomingProfile: (profileKey: string) => Promise<void>;
   onOpenMessages: () => void;
@@ -3668,16 +3727,20 @@ function MatchesScreen({
             <Text style={styles.matchSectionCount}>{pendingRequests.length}</Text>
           </View>
           <View style={styles.pendingMatchList}>
-            {pendingRequests.map((profile) => (
-              <View key={getProfileKey(profile)} style={styles.pendingMatchRow}>
-                <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
-                <View style={styles.fill}>
-                  <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
-                  <Text style={styles.pendingMatchText} selectable>Prośba wysłana, czeka na akceptację</Text>
+            {pendingRequests.map((profile) => {
+              const profileKey = getProfileKey(profile);
+              const isIncoming = chatThreads[profileKey]?.requestDirection === "incoming";
+              return (
+                <View key={profileKey} style={styles.pendingMatchRow}>
+                  <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
+                  <View style={styles.fill}>
+                    <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                    <Text style={styles.pendingMatchText} selectable>{isIncoming ? "Nowa prośba czeka na Twoją decyzję" : "Prośba wysłana, czeka na akceptację"}</Text>
+                  </View>
+                  <MaterialCommunityIcons name={isIncoming ? "email-heart-outline" : "message-text-clock-outline"} size={20} color={colors.primary} />
                 </View>
-                <MaterialCommunityIcons name="message-text-clock-outline" size={20} color={colors.primary} />
-              </View>
-            ))}
+              );
+            })}
           </View>
         </View>
       )}
@@ -3725,17 +3788,17 @@ function MessagesScreen({
       const thread = chatThreads[key];
       const isMatched = matchedProfileKeys.includes(key) || thread?.status === "matched";
       const isBlocked = thread?.status === "blocked";
-      const lastMessage = thread?.messages[thread.messages.length - 1]?.text;
+      const latestMessage = thread?.messages[thread.messages.length - 1];
       const unreadCount = 0;
 
       return {
         key,
         profile,
-        name: profile.name + " " + profile.surname[0] + ".",
+        name: profile.surname ? profile.name + " " + profile.surname[0] + "." : profile.name,
         message: isBlocked
           ? "Profil zablokowany."
-          : lastMessage ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Prośba o chat czeka na akceptację."),
-        time: isMatched ? "teraz" : "oczekuje",
+          : latestMessage?.text ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Prośba o chat czeka na akceptację."),
+        time: latestMessage?.time ?? (isMatched ? "aktywny" : "oczekuje"),
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
       };
@@ -3980,6 +4043,7 @@ function ChatConversationModal({
               onChangeText={setDraft}
               multiline
               autoCorrect
+              maxLength={2000}
               placeholder="Napisz wiadomość..."
               placeholderTextColor={colors.muted}
               style={local.input}
@@ -4186,6 +4250,7 @@ function ProfileScreen({
   nickname,
   setNickname,
   birthDate,
+  intent,
   onBirthDateChange,
   discoverFilters,
   userCity,
@@ -4218,6 +4283,7 @@ function ProfileScreen({
   nickname: string;
   setNickname: (value: string) => void;
   birthDate: string;
+  intent: string;
   onBirthDateChange: (value: string) => void;
   discoverFilters: DiscoverFilters;
   userCity: string;
@@ -4243,11 +4309,36 @@ function ProfileScreen({
   onSave: () => Promise<boolean>;
 }) {
   const [saveBusy, setSaveBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const maxPhotos = hasPro ? 15 : 3;
   const visiblePhotoCount = Math.min(profilePhotos.length, maxPhotos);
   const hiddenPhotoCount = Math.max(0, profilePhotos.length - maxPhotos);
   const previewPhoto = profilePhotos[0] ?? brandLogoImage;
   const previewSource = typeof previewPhoto === "string" ? { uri: previewPhoto } : previewPhoto;
+  const previewPhotos = profilePhotos.length > 0
+    ? profilePhotos.map((photo) => typeof photo === "string" ? { uri: photo } : photo)
+    : [brandLogoImage];
+  const ownPreviewProfile: MatchProfile = {
+    id: "own-profile-preview",
+    name: profileName,
+    surname: "",
+    age: userAge,
+    city: userCity || "Twoja okolica",
+    country: userCountry || undefined,
+    bio: intent.trim() ? "Jestem tu po: " + intent.trim() + "." : "Poznajmy się przez wspólne zainteresowania.",
+    distance: [userCity, userCountry].filter(Boolean).join(", ") || "Lokalizacja ukryta",
+    latitude: 0,
+    longitude: 0,
+    locationAvailable: false,
+    image: previewSource,
+    photos: previewPhotos,
+    interests: selectedInterests,
+    featuredInterests: selectedInterests.slice(0, 3),
+    socials: [],
+    premium: hasPro,
+    desiredAgeMin: discoverFilters.ageMin,
+    desiredAgeMax: discoverFilters.ageMax
+  };
   const profileStatusRows = [
     [String(visiblePhotoCount) + "/" + String(maxPhotos), "zdjęcia"],
     [String(selectedInterests.length) + "/15", "tagi"],
@@ -4335,9 +4426,9 @@ function ProfileScreen({
             <MaterialCommunityIcons name="camera-plus" size={17} color="#fff" />
             <Text style={styles.profileEditCtaText}>Zmień główne zdjęcie</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={openPremium} style={styles.profileSecondaryButton}>
-            <MaterialCommunityIcons name={hasPro ? "crown" : "star-four-points"} size={17} color={colors.primary} />
-            <Text style={styles.profileSecondaryButtonText}>{hasPro ? "Spark Pro" : "Ulepsz"}</Text>
+          <Pressable accessibilityRole="button" onPress={() => setPreviewOpen(true)} style={styles.profileSecondaryButton}>
+            <MaterialCommunityIcons name="eye" size={17} color={colors.primary} />
+            <Text style={styles.profileSecondaryButtonText}>Podgląd</Text>
           </Pressable>
         </View>
       </View>
@@ -4436,6 +4527,17 @@ function ProfileScreen({
         <MaterialCommunityIcons name="content-save" size={19} color="#fff" />
         <Text style={styles.primaryButtonText}>{saveBusy ? "Zapisywanie..." : "Zapisz zmiany"}</Text>
       </Pressable>
+
+      {previewOpen && (
+        <ProfilePreviewSheet
+          profile={ownPreviewProfile}
+          viewerInterests={[]}
+          onClose={() => setPreviewOpen(false)}
+          canViewSocials
+          isOwnProfile
+          isPrivateProfile={privateProfile}
+        />
+      )}
     </View>
   );
 }
@@ -6447,6 +6549,30 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(18,18,22,0.72)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  featuredInterestRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 9,
+    marginBottom: 2
+  },
+  featuredInterestPill: {
+    maxWidth: "100%",
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1
+  },
+  featuredInterestText: {
+    maxWidth: 116,
+    color: colors.ink,
     fontSize: 11,
     fontWeight: "900"
   },

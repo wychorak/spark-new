@@ -93,7 +93,13 @@ check(appSource.includes('LocationControl') && appSource.includes('Location.getF
 check(appSource.includes('openAdsPrivacyOptions'), 'In-app ad privacy settings entry is missing.');
 check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && appSource.includes('zakupem jednorazowym bez automatycznego odnawiania'), 'App Store subscription billing disclosure is missing.');
 check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN'), 'Demo login must be development-only.');
-check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_TEST_PROFILES'), 'Extra test-profile injection must be development-only.');
+check(appSource.includes('configuredTestProfileViewerEmails') && appSource.includes('(canViewTestProfiles || item.isTestProfile !== true)'), 'Test profiles must be restricted to configured tester accounts.');
+check(firestoreSource.includes('await runTransaction(currentDb, async (transaction) =>') && firestoreSource.includes('if (existing.status === "matched") return;'), 'Match creation must remain transactional and idempotent.');
+check(firestoreSource.includes('getDocs(query(publicProfiles, limit(50)))'), 'Discovery must include profiles outside the interest-overlap query.');
+check(publicProfileSync.includes('desiredAgeMin') && publicProfileSync.includes('desiredAgeMax'), 'Reciprocal age preferences must be published for matching.');
+check(rulesSource.includes("hasLike(request.auth.uid, otherMember(resource.data))"), 'Mutual likes must be allowed to promote an existing chat request to a match.');
+check(appSource.includes('isOwnProfile') && appSource.includes('WYRÓŻNIONE ZAINTERESOWANIA'), 'Profile-card preview and highlighted interests are missing.');
+check(appSource.includes('sendingMessageKeysRef') && firestoreSource.includes('text.length > 2000'), 'Chat duplicate-send and message-length guards are missing.');
 
 for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource })) {
   check(!source.includes('\uFFFD'), `${name} contains a Unicode replacement character.`);

@@ -131,6 +131,8 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
   const publicMainPhotoUrl = typeof profile.mainPhotoUrl === "string" && publicPhotoUrls.includes(profile.mainPhotoUrl)
     ? profile.mainPhotoUrl
     : publicPhotoUrls[0] ?? null;
+  const desiredAgeMin = Math.max(18, Math.min(99, profile.desiredAgeMin ?? 18));
+  const desiredAgeMax = Math.max(desiredAgeMin, Math.min(99, profile.desiredAgeMax ?? 99));
   await setDoc(publicProfileRef, {
     uid,
     firstName: profile.firstName,
@@ -140,6 +142,8 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     intent: profile.intent,
     ageBand: profile.ageBand ?? null,
     age: profile.age ?? null,
+    desiredAgeMin,
+    desiredAgeMax,
     interests: profile.interests,
     photoUrls: publicPhotoUrls,
     mainPhotoUrl: publicMainPhotoUrl,
@@ -187,6 +191,7 @@ export async function updateUserDiscoveryPreferences(uid: string, preferences: D
     { ...preferences, updatedAt: serverTimestamp() },
     { merge: true }
   );
+  await syncPublicUserProfile(uid);
 }
 
 export async function recordUserLogin(params: {
@@ -319,18 +324,21 @@ export async function findTestProfiles() {
 
 export async function findProfilesByInterest(interests: string[]) {
   const currentDb = requireDb();
-  if (interests.length === 0) {
-    return [];
+  const publicProfiles = collection(currentDb, "publicProfiles");
+  const requests = [getDocs(query(publicProfiles, limit(50)))];
+
+  if (interests.length > 0) {
+    requests.unshift(
+      getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(25)))
+    );
   }
 
-  const profilesQuery = query(
-    collection(currentDb, "publicProfiles"),
-    where("interests", "array-contains-any", interests.slice(0, 10)),
-    limit(25)
-  );
-
-  const snapshot = await getDocs(profilesQuery);
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  const snapshots = await Promise.all(requests);
+  const profiles = new Map<string, { id: string; [key: string]: unknown }>();
+  snapshots.forEach((snapshot) => {
+    snapshot.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
+  });
+  return Array.from(profiles.values());
 }
 
 export async function findIncomingProfileLikes(toUid: string) {
@@ -505,9 +513,25 @@ export async function createMatchThread(params: {
   const currentDb = requireDb();
   const matchRef = doc(currentDb, "matches", params.matchId);
 
-  await setDoc(
-    matchRef,
-    {
+  await runTransaction(currentDb, async (transaction) => {
+    const snapshot = await transaction.get(matchRef);
+    if (snapshot.exists()) {
+      const existing = snapshot.data();
+      if (existing.status === "matched") return;
+      if (existing.status === "requested") {
+        if (params.source === "mutual-like") {
+          transaction.update(matchRef, {
+            status: "matched",
+            acceptedByUid: params.createdByUid,
+            updatedAt: serverTimestamp()
+          });
+        }
+        return;
+      }
+      throw new Error("Ta rozmowa została wcześniej zamknięta.");
+    }
+
+    transaction.set(matchRef, {
       memberUids: params.memberUids,
       createdByUid: params.createdByUid,
       source: params.source,
@@ -516,9 +540,8 @@ export async function createMatchThread(params: {
       resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
+    });
+  });
 
   return matchRef.id;
 }
@@ -529,11 +552,15 @@ export async function sendChatMessage(params: {
   text: string;
 }) {
   const currentDb = requireDb();
+  const text = params.text.trim();
+  if (!text || text.length > 2000) {
+    throw new Error("Wiadomość musi mieć od 1 do 2000 znaków.");
+  }
   const messageRef = doc(collection(currentDb, "messages", params.threadId, "items"));
 
   await setDoc(messageRef, {
     senderUid: params.senderUid,
-    text: params.text.trim(),
+    text,
     createdAt: serverTimestamp()
   });
 
@@ -601,6 +628,13 @@ export async function rejectChatRequest(threadId: string, uid: string) {
 
 export async function blockUser(params: { blockerUid: string; blockedUid: string; threadId?: string }) {
   const currentDb = requireDb();
-  await setDoc(doc(currentDb, "users", params.blockerUid, "blocks", params.blockedUid), { blockedUid: params.blockedUid, createdAt: serverTimestamp() });
-  if (params.threadId) await updateDoc(doc(currentDb, "matches", params.threadId), { status: "blocked", blockedByUid: params.blockerUid, updatedAt: serverTimestamp() });
+  const blockRef = doc(currentDb, "users", params.blockerUid, "blocks", params.blockedUid);
+  await runTransaction(currentDb, async (transaction) => {
+    const matchRef = params.threadId ? doc(currentDb, "matches", params.threadId) : null;
+    const matchSnapshot = matchRef ? await transaction.get(matchRef) : null;
+    transaction.set(blockRef, { blockedUid: params.blockedUid, createdAt: serverTimestamp() });
+    if (matchRef && matchSnapshot?.exists() && ["matched", "requested"].includes(String(matchSnapshot.data().status))) {
+      transaction.update(matchRef, { status: "blocked", blockedByUid: params.blockerUid, updatedAt: serverTimestamp() });
+    }
+  });
 }

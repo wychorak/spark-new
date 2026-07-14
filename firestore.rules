@@ -125,7 +125,7 @@ service cloud.firestore {
     function validPublicProfile(data, uid) {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent',
-          'ageBand', 'age', 'interests', 'photoUrls', 'mainPhotoUrl',
+          'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'photoUrls', 'mainPhotoUrl',
           'city', 'country', 'location', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
         ])
         && data.uid == uid
@@ -140,6 +140,8 @@ service cloud.firestore {
         )
         && data.ageBand == '18+'
         && data.age is number && data.age >= 18 && data.age <= 99
+        && data.desiredAgeMin is number && data.desiredAgeMin >= 18 && data.desiredAgeMin <= 99
+        && data.desiredAgeMax is number && data.desiredAgeMax >= data.desiredAgeMin && data.desiredAgeMax <= 99
         && data.interests is list && data.interests.size() >= 3 && data.interests.size() <= 15
         && data.photoUrls is list && data.photoUrls.size() >= 1
         && data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)
@@ -271,10 +273,23 @@ service cloud.firestore {
         && (
           (
             resource.data.status == 'requested'
-            && request.auth.uid != resource.data.createdByUid
             && (
-              (request.resource.data.status == 'matched' && request.resource.data.acceptedByUid == request.auth.uid)
-              || (request.resource.data.status == 'rejected' && request.resource.data.rejectedByUid == request.auth.uid)
+              (
+                request.resource.data.status == 'matched'
+                && request.resource.data.acceptedByUid == request.auth.uid
+                && (
+                  request.auth.uid != resource.data.createdByUid
+                  || (
+                    hasLike(request.auth.uid, otherMember(resource.data))
+                    && hasLike(otherMember(resource.data), request.auth.uid)
+                  )
+                )
+              )
+              || (
+                request.auth.uid != resource.data.createdByUid
+                && request.resource.data.status == 'rejected'
+                && request.resource.data.rejectedByUid == request.auth.uid
+              )
             )
           )
           || (
