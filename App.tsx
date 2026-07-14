@@ -112,7 +112,7 @@ function openLegalDocument(title: string, url: string, envName: string) {
 }
 const brandLogoImage = require("./assets/photologo.png");
 const headerLogoImage = require("./assets/header.png");
-const loginLogoImage = require("./assets/ChatGPT_Image_1_lip_2026__15_32_40-removebg-preview_waifu2x_3x_png.png");
+const loginLogoImage = require("./assets/loginpagelogo.png");
 
 const profileImages = [
   require("./assets/profiles/profile-1.jpg"),
@@ -622,7 +622,8 @@ function AppContent() {
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady);
-  const showCurrentBanner = !revenueCat.isPro && adsReady && tab !== "premium";
+  const showCurrentBanner =
+    !revenueCat.isPro && adsReady && (tab === "discover" || tab === "matches" || tab === "messages");
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
@@ -2274,12 +2275,14 @@ function AuthScreen({
   const submitDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
   const socialDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
   return (
-    <View style={styles.gapLg}>
-      <View style={styles.brandCompact}>
+    <View style={styles.authShell}>
+      <View style={styles.authHero}>
         <View style={styles.loginLogoMark}>
           <Image source={loginLogoImage} style={styles.loginLogoImage} contentFit="contain" />
         </View>
-        <Text style={styles.lead} selectable>Poznawaj nowych ludzi codziennie!</Text>
+        <Text style={styles.authEyebrow}>SPARK</Text>
+        <Text style={styles.authTitle} selectable>{authMode === "login" ? "Mi\u0142o Ci\u0119 widzie\u0107" : "Do\u0142\u0105cz do Spark"}</Text>
+        <Text style={styles.authSubtitle} selectable>{authMode === "login" ? "Wr\u00f3\u0107 do rozm\u00f3w i nowych znajomo\u015bci." : "Utw\u00f3rz konto i zbuduj sw\u00f3j profil w kilka chwil."}</Text>
       </View>
 
       {!firebaseReady && (
@@ -2337,6 +2340,11 @@ function AuthScreen({
         )}
       </View>
 
+      <View style={styles.authDivider}>
+        <View style={styles.authDividerLine} />
+        <Text style={styles.authDividerText}>lub kontynuuj przez</Text>
+        <View style={styles.authDividerLine} />
+      </View>
       <View style={styles.socialLoginGrid}>
         {appleReady && (
           <View pointerEvents={socialDisabled ? "none" : "auto"} style={socialDisabled && styles.socialLoginButtonDisabled}>
@@ -2774,7 +2782,9 @@ function DiscoverScreen({
             { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
           ]}
         >
-          <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
+          <Pressable accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewOpen(true)} style={styles.feedProfilePressable}>
+            <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
+          </Pressable>
           <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
             <Text style={styles.swipeCueText}>POMIŃ</Text>
           </Animated.View>
@@ -3042,7 +3052,7 @@ function DiscoveryPreferencesModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={onClose}>
-      <View style={[styles.discoveryModalRoot, styles.discoveryFilterModalRoot]}>
+      <View style={[styles.discoveryModalRoot, styles.discoveryFilterModalRoot, { paddingTop: Math.max(insets.top + 4, 12) }]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Zamknij preferencje" onPress={onClose} style={styles.discoveryModalBackdrop} />
         <View style={[styles.discoveryFilterSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <View style={styles.discoverySheetHandle} />
@@ -3131,7 +3141,14 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
       <LinearGradient colors={["transparent", "rgba(0,0,0,0.48)", "rgba(0,0,0,0.94)"]} locations={[0, 0.48, 1]} style={styles.cardShade} />
       {onReport && (
-        <Pressable accessibilityRole="button" onPress={onReport} style={styles.cardReportButton}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={(event) => {
+            event.stopPropagation();
+            onReport();
+          }}
+          style={styles.cardReportButton}
+        >
           <MaterialCommunityIcons name="exclamation-thick" size={17} color="#fff" />
         </Pressable>
       )}
@@ -3188,7 +3205,8 @@ function ProfilePreviewSheet({
   onMessage,
   canViewSocials,
   isOwnProfile = false,
-  isPrivateProfile = false
+  isPrivateProfile = false,
+  readOnly = false
 }: {
   profile: MatchProfile;
   viewerInterests: string[];
@@ -3199,6 +3217,7 @@ function ProfilePreviewSheet({
   canViewSocials: boolean;
   isOwnProfile?: boolean;
   isPrivateProfile?: boolean;
+  readOnly?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -3277,7 +3296,7 @@ function ProfilePreviewSheet({
           bounces={false}
           contentContainerStyle={[
             local.content,
-            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile ? 24 : 80) }
+            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile || readOnly ? 24 : 80) }
           ]}
         >
           <View style={[local.gallery, { width: photoWidth }]}>
@@ -3399,7 +3418,7 @@ function ProfilePreviewSheet({
           )}
         </ScrollView>
 
-        {!isOwnProfile && (
+        {!isOwnProfile && !readOnly && (
           <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
             <Pressable accessibilityRole="button" accessibilityLabel="Pomiń profil" onPress={onPass} style={local.actionRound}>
               <MaterialCommunityIcons name="close" size={25} color={colors.ink} />
@@ -3608,6 +3627,7 @@ function MatchesScreen({
   onLikeIncomingProfile: (profileKey: string) => Promise<void>;
   onOpenMessages: () => void;
 }) {
+  const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
   const matchedProfiles = profiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile)));
   const pendingLikes = profiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -3651,13 +3671,23 @@ function MatchesScreen({
           </View>
           <View style={styles.matchGrid}>
             {matchedProfiles.map((profile) => (
-              <Pressable key={getProfileKey(profile)} accessibilityRole="button" onPress={onOpenMessages} style={styles.matchCard}>
+              <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.matchCard}>
                 <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
                 <View style={styles.matchCardCopy}>
                   <Text style={styles.matchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text>
                   <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie już pisać</Text>
                 </View>
-                <View style={styles.matchActiveBadge}><MaterialCommunityIcons name="message-text" size={14} color="#fff" /></View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={"Napisz do " + profile.name}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    onOpenMessages();
+                  }}
+                  style={styles.matchActiveBadge}
+                >
+                  <MaterialCommunityIcons name="message-text" size={14} color="#fff" />
+                </Pressable>
               </Pressable>
             ))}
           </View>
@@ -3678,7 +3708,7 @@ function MatchesScreen({
               const profileKey = getProfileKey(profile);
               const isSuperlike = incomingLikeKinds[profileKey] === "superlike";
               return (
-                <View key={profileKey} style={styles.pendingMatchRow}>
+                <Pressable key={profileKey} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
                   <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                   <View style={styles.fill}>
                     <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
@@ -3687,12 +3717,15 @@ function MatchesScreen({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={"Polub " + profile.name + " i utwórz match"}
-                    onPress={() => void onLikeIncomingProfile(profileKey)}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      void onLikeIncomingProfile(profileKey);
+                    }}
                     style={styles.incomingLikeButton}
                   >
                     <MaterialCommunityIcons name={isSuperlike ? "fire" : "heart"} size={18} color="#fff" />
                   </Pressable>
-                </View>
+                </Pressable>
               );
             })}
           </View>
@@ -3707,14 +3740,14 @@ function MatchesScreen({
           </View>
           <View style={styles.pendingMatchList}>
             {pendingLikes.map((profile) => (
-              <View key={getProfileKey(profile)} style={styles.pendingMatchRow}>
+              <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
                 <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                 <View style={styles.fill}>
                   <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
                   <Text style={styles.pendingMatchText} selectable>Oczekuje na wzajemne polubienie</Text>
                 </View>
                 <MaterialCommunityIcons name="clock-outline" size={20} color={colors.muted} />
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -3731,18 +3764,27 @@ function MatchesScreen({
               const profileKey = getProfileKey(profile);
               const isIncoming = chatThreads[profileKey]?.requestDirection === "incoming";
               return (
-                <View key={profileKey} style={styles.pendingMatchRow}>
+                <Pressable key={profileKey} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
                   <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                   <View style={styles.fill}>
                     <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
                     <Text style={styles.pendingMatchText} selectable>{isIncoming ? "Nowa prośba czeka na Twoją decyzję" : "Prośba wysłana, czeka na akceptację"}</Text>
                   </View>
                   <MaterialCommunityIcons name={isIncoming ? "email-heart-outline" : "message-text-clock-outline"} size={20} color={colors.primary} />
-                </View>
+                </Pressable>
               );
             })}
           </View>
         </View>
+      )}
+      {previewProfile && (
+        <ProfilePreviewSheet
+          profile={previewProfile}
+          viewerInterests={[]}
+          onClose={() => setPreviewProfile(null)}
+          canViewSocials={matchedProfileKeys.includes(getProfileKey(previewProfile))}
+          readOnly
+        />
       )}
     </View>
   );
@@ -5058,15 +5100,15 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   loginLogoImage: {
-    width: 176,
-    height: 176
+    width: 188,
+    height: 96
   },
   loginLogoMark: {
-    width: 196,
-    height: 176,
+    width: 200,
+    height: 104,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: -8,
+    marginBottom: 0,
     overflow: "visible",
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -5147,6 +5189,15 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingTop: 0
   },
+  authShell: { width: "100%", maxWidth: 520, alignSelf: "center", gap: 18 },
+  authHero: { alignItems: "center", gap: 5, paddingTop: 4, paddingBottom: 2 },
+  authEyebrow: { color: colors.primary, fontSize: 11, fontWeight: "900", letterSpacing: 1.4 },
+  authTitle: { color: colors.ink, fontSize: 30, lineHeight: 35, textAlign: "center", fontWeight: "900" },
+  authSubtitle: { maxWidth: 340, color: "#d8b5c7", fontSize: 14, lineHeight: 20, textAlign: "center", fontWeight: "600" },
+  authDivider: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 10 },
+  authDividerLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.09)" },
+  authDividerText: { color: colors.muted, fontSize: 11, fontWeight: "800" },
+  feedProfilePressable: { flex: 1, minHeight: 0 },
   screenHeroTitle: {
     color: colors.ink,
     fontSize: 34,
@@ -5746,7 +5797,7 @@ const styles = StyleSheet.create({
   stitchMainCanvas: {
     position: "relative",
     flex: 1,
-    minHeight: 460,
+    minHeight: 500,
     justifyContent: "flex-end"
   },
   swipeCardMotion: {
@@ -5798,7 +5849,7 @@ const styles = StyleSheet.create({
   deckCounter: {
     position: "absolute",
     right: 18,
-    bottom: 106,
+    bottom: 18,
     zIndex: 8,
     minHeight: 28,
     paddingHorizontal: 10,
@@ -5835,10 +5886,8 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   stitchBottomPanel: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    bottom: 0,
+    marginTop: 10,
+    marginHorizontal: 8,
     minHeight: 92,
     paddingTop: 8,
     paddingHorizontal: 8,
@@ -6604,7 +6653,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 22,
     right: 22,
-    bottom: 116,
+    bottom: 24,
     zIndex: 5
   },
   profileCopyCompact: {
