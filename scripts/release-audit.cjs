@@ -84,7 +84,8 @@ check(appSource.includes('deleteCurrentUserAccount') && appSource.includes('requ
 check(authSource.includes('reauthenticateAndRevokeApple') && authSource.includes('accounts:revokeToken') && authSource.includes('tokenType: "CODE"'), 'Apple token revocation before account deletion is missing.');
 check(appSource.includes('AppleAuthentication.signInAsync') && appSource.includes('signInWithAppleIdToken') && appSource.includes('GoogleSignin.configure') && appSource.includes('signInWithGoogleIdToken'), 'Apple and Google login configuration is incomplete.');
 check(appSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/') && authSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/'), 'Email validation regex must reject whitespace and require a domain suffix.');
-check(appSource.includes('showCurrentBanner ? 92 : 0'), 'Discover layout must reserve space for the native ad banner.');
+check(appSource.includes('scrollEnabled={tab !== "discover"}') && appSource.includes('showCurrentBanner && tab !== "discover"') && appSource.includes('feedCardHeight = feedCardWidth * 1.25'), 'Discover feed must fit a fixed native viewport without a banner or vertical scrolling.');
+check(appSource.includes('interestCategoryGrid') && appSource.includes('interestOptionsGrid') && appSource.includes('getInterestIcon(item, activeCategory.icon)'), 'Interest selection must use the icon-based two-column grid.');
 check(!appSource.includes('process.env.EXPO_OS') && appSource.includes('behavior={Platform.OS === "ios" ? "padding" : undefined}'), 'Native iOS behavior must use reliable Platform detection.');
 check(appSource.includes('style={styles.discoveryDrawerScrollView}') && appSource.includes('contentContainerStyle={styles.discoveryDrawerScroll}'), 'Discovery drawer must remain scrollable on compact iPhones.');
 check(appSource.includes('confirmRemovePhoto(index: number)') && appSource.includes('style={styles.photoRemoveButton}'), 'Profile photo removal controls are missing.');

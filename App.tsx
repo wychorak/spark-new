@@ -405,6 +405,48 @@ function getInterestTheme(item: string, index = 0) {
   return interestThemes[item] ?? fallbackThemes[index % fallbackThemes.length];
 }
 
+const interestIconMap: Record<string, string> = {
+  Filmy: "movie-open-outline",
+  Natura: "leaf",
+  Muzyka: "music-note",
+  Kawa: "coffee-outline",
+  Sport: "run",
+  Sztuka: "palette-outline",
+  Podróże: "airplane",
+  Gaming: "controller",
+  Książki: "book-open-page-variant-outline",
+  Kuchnia: "silverware-fork-knife",
+  Fotografia: "camera-outline",
+  Tech: "laptop",
+  Joga: "meditation",
+  Koncerty: "ticket-outline",
+  Planszówki: "dice-multiple-outline",
+  Moda: "hanger",
+  Streetwear: "shoe-sneaker",
+  Siłownia: "dumbbell",
+  Bieganie: "run-fast",
+  Gotowanie: "chef-hat",
+  Kawiarnie: "coffee",
+  Taniec: "dance-ballroom",
+  Góry: "image-filter-hdr",
+  Teatr: "drama-masks",
+  Muzea: "bank-outline",
+  Design: "vector-square",
+  Architektura: "office-building-outline",
+  Seriale: "television-classic",
+  Podcasty: "podcast",
+  AI: "robot-outline",
+  Programowanie: "code-tags",
+  Minecraft: "cube-outline",
+  Randki: "heart-multiple-outline",
+  Wolontariat: "hand-heart-outline",
+  Karaoke: "microphone-variant"
+};
+
+function getInterestIcon(item: string, fallback: string) {
+  return interestIconMap[item] ?? fallback;
+}
+
 function getProfileKey(profile: MatchProfile) {
   return profile.id ?? `${profile.name}-${profile.surname}`;
 }
@@ -729,7 +771,7 @@ function AppContent() {
     }),
     [authDone, insets.bottom, insets.top, isCompact, onboarded]
   );
-  const discoverMinHeight = Math.max(520, height - contentPadding.paddingTop - contentPadding.paddingBottom - (showCurrentBanner ? 92 : 0) + 8);
+  const discoverMinHeight = Math.max(420, height - contentPadding.paddingTop - contentPadding.paddingBottom);
 
   useEffect(() => {
     setBottomNavHidden(false);
@@ -2004,6 +2046,7 @@ function AppContent() {
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
+        scrollEnabled={tab !== "discover"}
         bounces={false}
         alwaysBounceVertical={false}
         keyboardShouldPersistTaps="handled"
@@ -2132,7 +2175,7 @@ function AppContent() {
             onSave={saveProfileToFirestore}
           />
         )}
-        <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
+        <SparkAdBanner enabled={showCurrentBanner && tab !== "discover"} placement={tab} />
       </ScrollView>
       <MatchCelebration
         profile={matchCelebrationProfile}
@@ -2645,6 +2688,7 @@ function DiscoverScreen({
   const [swipeFeedback, setSwipeFeedback] = useState<string | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeMotion = useRef(new Animated.Value(0)).current;
+  const { width: viewportWidth } = useWindowDimensions();
   const profileKey = getProfileKey(profile);
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
@@ -2659,6 +2703,9 @@ function DiscoverScreen({
   const passLabelOpacity = swipeMotion.interpolate({ inputRange: [-260, -80, 0], outputRange: [1, 0.55, 0], extrapolate: "clamp" });
   const matchLabelOpacity = swipeMotion.interpolate({ inputRange: [0, 80, 260], outputRange: [0, 0.55, 1], extrapolate: "clamp" });
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
+  const availableCardHeight = Math.max(210, screenMinHeight - 218);
+  const feedCardWidth = Math.max(168, Math.min(viewportWidth - 28, availableCardHeight * 0.8, 420));
+  const feedCardHeight = feedCardWidth * 1.25;
 
   useEffect(() => {
     onChromeHiddenChange?.(overlayOpen);
@@ -2842,37 +2889,39 @@ function DiscoverScreen({
       </Pressable>
 
       <View style={styles.stitchMainCanvas}>
-        {nextProfile && (
-          <View pointerEvents="none" style={styles.nextProfileCard}>
-            <ProfileCard profile={nextProfile} compact />
+        <View style={[styles.feedCardDeck, { width: feedCardWidth, height: feedCardHeight }]}>
+          {nextProfile && (
+            <View pointerEvents="none" style={styles.nextProfileCard}>
+              <ProfileCard profile={nextProfile} compact />
+            </View>
+          )}
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={[
+              styles.swipeCardMotion,
+              { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
+            ]}
+          >
+            <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz profil " + profile.name} onPress={() => setPreviewOpen(true)} style={styles.feedProfilePressable}>
+              <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
+            </Pressable>
+            <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
+              <Text style={styles.swipeCueText}>POMIŃ</Text>
+            </Animated.View>
+            <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, styles.swipeCueLike, { opacity: matchLabelOpacity }]}>
+              <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIĘ</Text>
+            </Animated.View>
+          </Animated.View>
+          <View pointerEvents="none" style={styles.deckCounter}>
+            <Text style={styles.deckCounterText}>{remainingCount} w kolejce</Text>
           </View>
-        )}
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.swipeCardMotion,
-            { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
-          ]}
-        >
-          <Pressable accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewOpen(true)} style={styles.feedProfilePressable}>
-            <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
-          </Pressable>
-          <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
-            <Text style={styles.swipeCueText}>POMIŃ</Text>
-          </Animated.View>
-          <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, styles.swipeCueLike, { opacity: matchLabelOpacity }]}>
-            <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIĘ</Text>
-          </Animated.View>
-        </Animated.View>
-        <View pointerEvents="none" style={styles.deckCounter}>
-          <Text style={styles.deckCounterText}>{remainingCount} w kolejce</Text>
+          {swipeFeedback && (
+            <View pointerEvents="none" style={styles.swipeFeedback}>
+              <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
+              <Text style={styles.swipeFeedbackText}>{swipeFeedback}</Text>
+            </View>
+          )}
         </View>
-        {swipeFeedback && (
-          <View pointerEvents="none" style={styles.swipeFeedback}>
-            <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
-            <Text style={styles.swipeFeedbackText}>{swipeFeedback}</Text>
-          </View>
-        )}
       </View>
 
       <View style={styles.stitchBottomPanel}>
@@ -3251,18 +3300,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
           </Text>
         )}
         <Text style={styles.cardBio} numberOfLines={compact ? 1 : 2} selectable>{profile.bio}</Text>
-        <View style={styles.socialRow}>
-          {profile.socials.slice(0, 2).map((social) => {
-            const icon = getSocialIcon(social.label);
 
-            return (
-              <View key={social.label} style={[styles.socialPill, { borderColor: icon.backgroundColor }]}>
-                <SocialIcon label={social.label} size={13} />
-                <Text style={styles.socialPillText} selectable>{social.label}</Text>
-              </View>
-            );
-          })}
-        </View>
       </View>
     </View>
   );
@@ -3515,7 +3553,7 @@ function SwipeFab({
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.swipeFabButton}>
       <View style={[styles.swipeFabIcon, small && styles.swipeFabIconSmall, large && styles.swipeFabIconLarge, primary && styles.swipeFabIconPrimary]}>
-        <MaterialCommunityIcons name={icon as any} size={large ? 40 : small ? 23 : 28} color={primary ? "#fff" : colors.ink} />
+        <MaterialCommunityIcons name={icon as any} size={large ? 30 : small ? 19 : 23} color={primary ? "#fff" : colors.ink} />
         {locked && (
           <View style={styles.swipeFabLock}>
             <MaterialCommunityIcons name="lock" size={10} color="#fff" />
@@ -4789,12 +4827,10 @@ function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: str
 }
 
 function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    interestCategories.reduce<Record<string, boolean>>((state, category, index) => {
-      state[category.title] = index === 0 || category.items.some((item) => selected.includes(item));
-      return state;
-    }, {})
-  );
+  const initialCategory = interestCategories.find((category) => category.items.some((item) => selected.includes(item))) ?? interestCategories[0];
+  const [activeCategoryTitle, setActiveCategoryTitle] = useState(initialCategory.title);
+  const activeCategory = interestCategories.find((category) => category.title === activeCategoryTitle) ?? interestCategories[0];
+  const activeCategoryIndex = interestCategories.findIndex((category) => category.title === activeCategory.title);
 
   function handleToggle(item: string) {
     if (!selected.includes(item) && selected.length >= maxSelected) {
@@ -4802,59 +4838,86 @@ function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { s
       return;
     }
 
+    tap();
     onToggle(item);
   }
 
   return (
-    <View style={styles.interestAccordionList}>
-      {interestCategories.map((category, categoryIndex) => {
-        const isOpen = openSections[category.title] ?? false;
-        const selectedInCategory = category.items.filter((item) => selected.includes(item)).length;
+    <View style={styles.interestPicker}>
+      <View style={styles.interestCategoryGrid}>
+        {interestCategories.map((category) => {
+          const isActive = category.title === activeCategory.title;
+          const selectedInCategory = category.items.filter((item) => selected.includes(item)).length;
 
-        return (
-          <View key={category.title} style={styles.interestCategoryCard}>
+          return (
             <Pressable
-              accessibilityRole="button"
-              onPress={() => setOpenSections((current) => ({ ...current, [category.title]: !isOpen }))}
-              style={styles.interestCategoryHeader}
+              key={category.title}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              onPress={() => {
+                tap();
+                setActiveCategoryTitle(category.title);
+              }}
+              style={({ pressed }) => [
+                styles.interestCategoryTile,
+                isActive && styles.interestCategoryTileActive,
+                pressed && styles.controlPressed
+              ]}
             >
-              <View style={styles.interestCategoryTitleRow}>
-                <MaterialCommunityIcons name={category.icon as any} size={18} color={colors.primary} />
-                <View style={styles.fill}>
-                  <Text style={styles.interestCategoryTitle} selectable>{category.title}</Text>
-                  <Text style={styles.interestCategoryMeta} selectable>{selectedInCategory}/{category.items.length} wybranych</Text>
-                </View>
+              <View style={[styles.interestCategoryIcon, isActive && styles.interestCategoryIconActive]}>
+                <MaterialCommunityIcons name={category.icon as any} size={23} color={isActive ? "#fff" : colors.primary} />
               </View>
-              <MaterialCommunityIcons name={isOpen ? "chevron-up" : "chevron-down"} size={22} color={colors.ink} />
+              <Text style={[styles.interestCategoryTitle, isActive && styles.interestCategoryTitleActive]} numberOfLines={2}>{category.title}</Text>
+              <View style={styles.interestCategoryTileFooter}>
+                <Text style={styles.interestCategoryMeta}>{selectedInCategory ? `${selectedInCategory} wybrano` : `${category.items.length} opcji`}</Text>
+                {selectedInCategory > 0 && (
+                  <View style={styles.interestCategoryCount}>
+                    <Text style={styles.interestCategoryCountText}>{selectedInCategory}</Text>
+                  </View>
+                )}
+              </View>
             </Pressable>
-            {isOpen && (
-              <View style={styles.interestCategoryBody}>
-                {category.items.map((item, index) => {
-                  const isSelected = selected.includes(item);
-                  const theme = getInterestTheme(item, categoryIndex * 12 + index);
-                  const limitReached = !isSelected && selected.length >= maxSelected;
+          );
+        })}
+      </View>
 
-                  return (
-                    <Pressable
-                      key={item}
-                      onPress={() => handleToggle(item)}
-                      style={[
-                        styles.chip,
-                        { backgroundColor: isSelected ? theme.active : theme.soft, borderColor: theme.border },
-                        isSelected && styles.chipActive,
-                        limitReached && { opacity: 0.42 }
-                      ]}
-                    >
-                      <View style={[styles.chipDot, { backgroundColor: isSelected ? "#fff" : theme.active }]} />
-                      <Text style={[styles.chipText, { color: isSelected ? "#fff" : colors.ink }]}>{item}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
+      <View style={styles.interestOptionsPanel}>
+        <View style={styles.interestOptionsHeader}>
+          <View>
+            <Text style={styles.interestOptionsEyebrow}>WYBIERZ ZAINTERESOWANIA</Text>
+            <Text style={styles.interestOptionsTitle}>{activeCategory.title}</Text>
           </View>
-        );
-      })}
+          <Text style={styles.interestOptionsCounter}>{selected.length}/{maxSelected}</Text>
+        </View>
+        <View style={styles.interestOptionsGrid}>
+          {activeCategory.items.map((item, index) => {
+            const isSelected = selected.includes(item);
+            const theme = getInterestTheme(item, activeCategoryIndex * 16 + index);
+            const limitReached = !isSelected && selected.length >= maxSelected;
+
+            return (
+              <Pressable
+                key={item}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected, disabled: limitReached }}
+                onPress={() => handleToggle(item)}
+                style={({ pressed }) => [
+                  styles.interestOptionTile,
+                  { backgroundColor: isSelected ? theme.active : theme.soft, borderColor: isSelected ? theme.active : theme.border },
+                  limitReached && styles.interestOptionTileDisabled,
+                  pressed && styles.controlPressed
+                ]}
+              >
+                <View style={[styles.interestOptionIcon, { backgroundColor: isSelected ? "rgba(255,255,255,0.18)" : theme.border }]}>
+                  <MaterialCommunityIcons name={getInterestIcon(item, activeCategory.icon) as any} size={20} color={isSelected ? "#fff" : theme.active} />
+                </View>
+                <Text style={[styles.interestOptionText, isSelected && styles.interestOptionTextActive]} numberOfLines={2}>{item}</Text>
+                <MaterialCommunityIcons name={isSelected ? "check-circle" : "plus-circle-outline"} size={18} color={isSelected ? "#fff" : theme.active} />
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -5764,11 +5827,13 @@ const styles = StyleSheet.create({
   },
   discoverScreen: {
     flex: 1,
+    minHeight: 0,
     width: "100%",
-    gap: 10,
-    paddingTop: 2,
+    gap: 8,
+    paddingTop: 0,
     paddingHorizontal: 0,
-    paddingBottom: 0
+    paddingBottom: 0,
+    overflow: "hidden"
   },
   discoverEmptyScreen: {
     gap: 14
@@ -5874,22 +5939,22 @@ const styles = StyleSheet.create({
     display: "none"
   },
   discoverSummaryBar: {
-    minHeight: 42,
-    marginHorizontal: 10,
+    minHeight: 38,
+    marginHorizontal: 4,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 2
+    gap: 6,
+    paddingHorizontal: 0
   },
   discoverSummaryPill: {
     flex: 1,
     minWidth: 0,
-    minHeight: 38,
+    minHeight: 34,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
-    paddingHorizontal: 9,
+    gap: 4,
+    paddingHorizontal: 7,
     borderRadius: 999,
     backgroundColor: "rgba(22,20,26,0.86)",
     borderWidth: 1,
@@ -5898,7 +5963,7 @@ const styles = StyleSheet.create({
   discoverSummaryText: {
     minWidth: 0,
     color: colors.ink,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900"
   },
   stitchPlanButtonActive: {
@@ -5916,22 +5981,29 @@ const styles = StyleSheet.create({
   stitchMainCanvas: {
     position: "relative",
     flex: 1,
-    minHeight: 500,
-    justifyContent: "flex-end"
+    minHeight: 0,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  feedCardDeck: {
+    position: "relative",
+    flexShrink: 1,
+    alignSelf: "center"
   },
   swipeCardMotion: {
-    flex: 1,
+    width: "100%",
+    height: "100%",
     zIndex: 2
   },
   nextProfileCard: {
     position: "absolute",
-    top: 12,
-    left: 10,
-    right: 10,
-    bottom: 14,
+    top: 7,
+    left: 7,
+    right: 7,
+    bottom: 7,
     zIndex: 1,
-    opacity: 0.42,
-    transform: [{ scale: 0.965 }]
+    opacity: 0.36,
+    transform: [{ scale: 0.975 }]
   },
   swipeCue: {
     position: "absolute",
@@ -6005,24 +6077,24 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   stitchBottomPanel: {
-    marginTop: 10,
-    marginHorizontal: 8,
-    minHeight: 92,
-    paddingTop: 8,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-    borderRadius: 32,
-    backgroundColor: "rgba(7,7,10,0.86)",
+    marginTop: 0,
+    marginHorizontal: 4,
+    minHeight: 88,
+    paddingTop: 6,
+    paddingHorizontal: 6,
+    paddingBottom: 6,
+    borderRadius: 26,
+    backgroundColor: "rgba(7,7,10,0.9)",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)",
-    boxShadow: "0 -12px 42px rgba(0,0,0,0.34)"
+    boxShadow: "0 -10px 34px rgba(0,0,0,0.3)"
   },
   stitchFabDock: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    gap: 6,
-    paddingHorizontal: 2
+    gap: 4,
+    paddingHorizontal: 0
   },
   stitchProHintRow: {
     minHeight: 38,
@@ -6072,8 +6144,8 @@ const styles = StyleSheet.create({
     gap: 3
   },
   swipeFabIcon: {
-    width: 56,
-    height: 56,
+    width: 46,
+    height: 46,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -6083,12 +6155,12 @@ const styles = StyleSheet.create({
     boxShadow: "0 14px 30px rgba(0,0,0,0.34)"
   },
   swipeFabIconSmall: {
-    width: 48,
-    height: 48
+    width: 42,
+    height: 42
   },
   swipeFabIconLarge: {
-    width: 80,
-    height: 80
+    width: 58,
+    height: 58
   },
   swipeFabIconPrimary: {
     backgroundColor: colors.primary,
@@ -6108,10 +6180,10 @@ const styles = StyleSheet.create({
     borderColor: colors.background
   },
   swipeFabLabel: {
-    maxWidth: 78,
+    maxWidth: 70,
     color: colors.ink,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 8,
+    lineHeight: 11,
     letterSpacing: 0.7,
     textTransform: "uppercase",
     textAlign: "center",
@@ -6122,10 +6194,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1
   },
   swipeFabSublabel: {
-    maxWidth: 68,
+    maxWidth: 62,
     marginTop: -2,
     color: colors.muted,
-    fontSize: 9,
+    fontSize: 8,
     lineHeight: 10,
     textAlign: "center",
     fontWeight: "800"
@@ -6673,19 +6745,18 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     flex: 1,
-    minHeight: 450,
-    maxHeight: 760,
+    minHeight: 0,
     width: "100%",
+    height: "100%",
     overflow: "hidden",
-    borderRadius: 32,
+    borderRadius: 28,
     backgroundColor: "#151017",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
-    boxShadow: "0 30px 78px rgba(0,0,0,0.58)"
+    boxShadow: "0 24px 64px rgba(0,0,0,0.54)"
   },
   profileCardCompact: {
-    minHeight: 500,
-    maxHeight: 540
+    minHeight: 0
   },
   profileImage: {
     width: "100%",
@@ -6722,26 +6793,29 @@ const styles = StyleSheet.create({
   },
   featuredInterestRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 9,
+    flexWrap: "nowrap",
+    gap: 5,
+    marginTop: 7,
     marginBottom: 2
   },
   featuredInterestPill: {
-    maxWidth: "100%",
-    minHeight: 30,
+    flex: 1,
+    minWidth: 0,
+    minHeight: 28,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1
   },
   featuredInterestText: {
-    maxWidth: 116,
+    flexShrink: 1,
+    minWidth: 0,
     color: colors.ink,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900"
   },
   cardReportButton: {
@@ -6770,20 +6844,20 @@ const styles = StyleSheet.create({
   },
   profileCopy: {
     position: "absolute",
-    left: 22,
-    right: 22,
-    bottom: 24,
+    left: 16,
+    right: 16,
+    bottom: 16,
     zIndex: 5
   },
   profileCopyCompact: {
-    bottom: 28
+    bottom: 16
   },
   profileStatusRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 7,
-    marginBottom: 8
+    gap: 6,
+    marginBottom: 6
   },
   cardCrown: {
     alignSelf: "flex-start",
@@ -6811,20 +6885,20 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: "#fff",
-    fontSize: 27,
+    fontSize: 25,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: 33,
+    lineHeight: 30,
     textShadowColor: "rgba(0,0,0,0.52)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8
   },
   cardBio: {
     maxWidth: 330,
-    marginTop: 7,
+    marginTop: 5,
     color: "#f0d3dd",
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 18,
     textShadowColor: "rgba(0,0,0,0.4)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6
@@ -8282,49 +8356,154 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8
   },
-  interestAccordionList: {
+  interestPicker: {
+    gap: 14
+  },
+  interestCategoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10
   },
-  interestCategoryCard: {
-    overflow: "hidden",
-    borderRadius: 22,
+  interestCategoryTile: {
+    width: "48%",
+    minHeight: 104,
+    flexGrow: 1,
+    justifyContent: "space-between",
+    gap: 8,
+    padding: 12,
+    borderRadius: 20,
     backgroundColor: "rgba(22,22,29,0.86)",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
-  interestCategoryHeader: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10
+  interestCategoryTileActive: {
+    backgroundColor: "rgba(255,45,141,0.15)",
+    borderColor: colors.primary,
+    boxShadow: "0 12px 28px rgba(255,45,141,0.14)"
   },
-  interestCategoryTitleRow: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
+  interestCategoryIcon: {
+    width: 40,
+    height: 40,
     alignItems: "center",
-    gap: 10
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: "rgba(255,45,141,0.1)"
+  },
+  interestCategoryIconActive: {
+    backgroundColor: colors.primary
   },
   interestCategoryTitle: {
     color: colors.ink,
     fontSize: 14,
+    lineHeight: 18,
     fontWeight: "900"
   },
+  interestCategoryTitleActive: {
+    color: "#fff"
+  },
+  interestCategoryTileFooter: {
+    minHeight: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6
+  },
   interestCategoryMeta: {
-    marginTop: 2,
+    flexShrink: 1,
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800"
   },
-  interestCategoryBody: {
+  interestCategoryCount: {
+    minWidth: 21,
+    height: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  interestCategoryCountText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900"
+  },
+  interestOptionsPanel: {
+    gap: 12,
+    padding: 13,
+    borderRadius: 22,
+    backgroundColor: "rgba(22,22,29,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)"
+  },
+  interestOptionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  interestOptionsEyebrow: {
+    color: colors.primary,
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: "900"
+  },
+  interestOptionsTitle: {
+    marginTop: 2,
+    color: colors.ink,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "900"
+  },
+  interestOptionsCounter: {
+    minWidth: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: "hidden",
+    color: colors.primary,
+    backgroundColor: "rgba(255,45,141,0.12)",
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  interestOptionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 8
+  },
+  interestOptionTile: {
+    width: "48%",
+    minHeight: 68,
+    flexGrow: 1,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingBottom: 12
+    padding: 10,
+    borderRadius: 17,
+    borderWidth: 1
+  },
+  interestOptionTileDisabled: {
+    opacity: 0.38
+  },
+  interestOptionIcon: {
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 11
+  },
+  interestOptionText: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.ink,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "900"
+  },
+  interestOptionTextActive: {
+    color: "#fff"
   },
   settingRow: {
     minHeight: 58,
