@@ -92,12 +92,15 @@ service cloud.firestore {
         && swipeId == request.auth.uid + '_' + data.toProfileKey
         && data.direction in ['pass', 'like', 'superlike']
         && data.status == (data.direction == 'pass' ? 'passed' : 'liked')
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
         && exists(/databases/$(database)/documents/publicProfiles/$(data.toProfileKey));
     }
 
     function validMessage(data) {
       return data.keys().hasOnly(['senderUid', 'text', 'createdAt'])
         && data.senderUid == request.auth.uid
+        && data.createdAt == request.time
         && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
         && allowedUserText(data.text);
     }
@@ -108,7 +111,8 @@ service cloud.firestore {
         && data.targetUid is string
         && data.reason is string && data.reason.size() > 0 && data.reason.size() <= 200
         && data.context is string && data.context.size() <= 4000
-        && data.status == 'open';
+        && data.status == 'open'
+        && data.createdAt == request.time;
     }
 
     function protectedProfileFieldsUnchanged() {
@@ -196,8 +200,21 @@ service cloud.firestore {
         allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid)
           && request.resource.data.keys().hasOnly(['blockedUid', 'createdAt'])
-          && request.resource.data.blockedUid == blockedUid;
+          && request.resource.data.blockedUid == blockedUid
+          && request.resource.data.createdAt == request.time;
         allow update: if false;
+      }
+
+      match /devices/{deviceId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['token', 'platform', 'enabled', 'updatedAt'])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() >= 20
+          && request.resource.data.token.size() <= 250
+          && request.resource.data.platform in ['ios', 'android']
+          && request.resource.data.enabled is bool
+          && request.resource.data.updatedAt == request.time;
       }
     }
 
@@ -224,7 +241,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["uid", "reason", "status", "requestedAt"])
         && request.resource.data.reason is string
         && request.resource.data.reason.size() <= 1000
-        && request.resource.data.requestedAt is timestamp;
+        && request.resource.data.requestedAt == request.time;
       allow read, delete: if false;
     }
 
@@ -260,6 +277,8 @@ service cloud.firestore {
     match /matches/{matchId} {
       allow create: if activeUser()
         && validMatch(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
         && validMatchCreation(request.resource.data, matchId);
       allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow update: if signedIn()
@@ -271,6 +290,7 @@ service cloud.firestore {
         && request.resource.data.get('introMessage', null) == resource.data.get('introMessage', null)
         && request.resource.data.get('resetAt', null) == resource.data.get('resetAt', null)
         && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
         && (
           (
             resource.data.status == 'requested'

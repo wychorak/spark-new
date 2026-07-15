@@ -34,12 +34,16 @@ const revenueCatSource = read('src/revenuecat.ts');
 const adsSource = read('src/ads.tsx');
 const rulesSource = read('firestore.rules');
 const storageRulesSource = read('storage.rules');
+const notificationsSource = read('src/notifications.ts');
+const functionsSource = read('functions/src/index.ts');
 const publicProfileSync = firestoreSource.slice(
   firestoreSource.indexOf('export async function syncPublicUserProfile'),
   firestoreSource.indexOf('export async function upsertUserProfile')
 );
 
 check(firebaseRc.projects?.default === 'spark-70b03', 'Default Firebase project must be spark-70b03.');
+const productionSources = [appJsonSource, codemagicSource, appSource, firebaseSource, firestoreSource, notificationsSource, functionsSource, rulesSource, storageRulesSource, JSON.stringify(firebaseRc), JSON.stringify(firebaseJson)].join('\n').toLowerCase();
+check(!productionSources.includes('fame4help'), 'Spark production files must never reference Fame4Help.');
 check(app.ios?.bundleIdentifier === 'com.sparknew.connect', 'Unexpected iOS bundle identifier.');
 check(app.android?.package === 'com.sparknew.connect', 'Unexpected Android package identifier.');
 check(app.ios?.usesAppleSignIn === true, 'Sign in with Apple capability must be enabled.');
@@ -96,7 +100,10 @@ check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && appSo
 check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN'), 'Demo login must be development-only.');
 check(appSource.includes('configuredTestProfileViewerEmails') && appSource.includes('(canViewTestProfiles || item.isTestProfile !== true)'), 'Test profiles must be restricted to configured tester accounts.');
 check(firestoreSource.includes('await runTransaction(currentDb, async (transaction) =>') && firestoreSource.includes('if (existing.status === "matched") return;'), 'Match creation must remain transactional and idempotent.');
-check(firestoreSource.includes('getDocs(query(publicProfiles, limit(50)))'), 'Discovery must include profiles outside the interest-overlap query.');
+check(firestoreSource.includes('orderBy("updatedAt", "desc")') && firestoreSource.includes('startAfter(cursor)') && appSource.includes('profilesHaveMore'), 'Discovery pagination and freshness ordering are missing.');
+check(appSource.includes('userIntent: intent') && appSource.includes('sameIntent') && appSource.includes('rotationScore'), 'Intent-aware daily matching rotation is missing.');
+check(appSource.includes('includeProfilesWithoutLocation') && appSource.includes('Uwzględniaj profile bez lokalizacji'), 'Unknown-location discovery behavior must be explicit.');
+check(appSource.includes('recentMessageTimesRef') && rulesSource.includes('data.createdAt == request.time'), 'Chat burst protection or trusted server timestamps are missing.');
 check(publicProfileSync.includes('desiredAgeMin') && publicProfileSync.includes('desiredAgeMax'), 'Reciprocal age preferences must be published for matching.');
 check(rulesSource.includes("hasLike(request.auth.uid, otherMember(resource.data))"), 'Mutual likes must be allowed to promote an existing chat request to a match.');
 check(appSource.includes('isOwnProfile') && appSource.includes('WYRÓŻNIONE ZAINTERESOWANIA'), 'Profile-card preview and highlighted interests are missing.');
@@ -116,6 +123,9 @@ check(packageJson.dependencies?.['expo-apple-authentication'], 'Apple Authentica
 check(packageJson.dependencies?.['expo-crypto'], 'Apple nonce dependency is missing.');
 check(packageJson.dependencies?.['@react-native-google-signin/google-signin'], 'Google Sign-In dependency is missing.');
 check(packageJson.dependencies?.['expo-build-properties'], 'Expo build properties dependency is missing.');
+check(packageJson.dependencies?.['expo-notifications'] && app.plugins?.includes('expo-notifications'), 'Expo push notification native setup is missing.');
+check(notificationsSource.includes('getExpoPushTokenAsync') && functionsSource.includes('notifyNewMatch') && functionsSource.includes('notifyNewMessage'), 'Match and message push notification flow is incomplete.');
+check(firebaseJson.functions?.source === 'functions' && firebaseJson.functions?.runtime === 'nodejs22', 'Firebase notification functions are not wired for production.');
 check(packageJson.dependencies?.['react-native-purchases'], 'RevenueCat dependency is missing.');
 check(packageJson.dependencies?.['react-native-google-mobile-ads'], 'Google Mobile Ads dependency is missing.');
 

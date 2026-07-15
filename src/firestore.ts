@@ -12,9 +12,11 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  startAfter,
   updateDoc,
   where
 } from "firebase/firestore";
+import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "./firebase";
 
 export type UserProfileDocument = {
@@ -43,6 +45,7 @@ export type UserProfileDocument = {
   desiredInterests?: string[];
   requireCommonInterests?: boolean;
   proOnly?: boolean;
+  includeProfilesWithoutLocation?: boolean;
   location?: {
     latitude: number;
     longitude: number;
@@ -186,7 +189,24 @@ export type DiscoveryPreferencesDocument = {
   desiredInterests: string[];
   requireCommonInterests: boolean;
   proOnly: boolean;
+  includeProfilesWithoutLocation: boolean;
 };
+
+export async function registerDevicePushToken(uid: string, token: string, platform: "ios" | "android") {
+  const currentDb = requireDb();
+  const tokenId = token.replace(/[^a-zA-Z0-9_-]/g, "_").slice(-180);
+
+  await setDoc(
+    doc(currentDb, "users", uid, "devices", tokenId),
+    {
+      token,
+      platform,
+      enabled: true,
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
 
 export async function updateUserDiscoveryPreferences(uid: string, preferences: DiscoveryPreferencesDocument) {
   const currentDb = requireDb();
@@ -327,23 +347,30 @@ export async function findTestProfiles() {
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as UserProfileDocument) }));
 }
 
-export async function findProfilesByInterest(interests: string[]) {
+export type DiscoveryCursor = QueryDocumentSnapshot<DocumentData>;
+
+export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null) {
   const currentDb = requireDb();
   const publicProfiles = collection(currentDb, "publicProfiles");
-  const requests = [getDocs(query(publicProfiles, limit(50)))];
-
-  if (interests.length > 0) {
-    requests.unshift(
-      getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(25)))
-    );
-  }
-
-  const snapshots = await Promise.all(requests);
+  const pageSize = 30;
+  const pageQuery = cursor
+    ? query(publicProfiles, orderBy("updatedAt", "desc"), startAfter(cursor), limit(pageSize))
+    : query(publicProfiles, orderBy("updatedAt", "desc"), limit(pageSize));
+  const [pageSnapshot, interestSnapshot] = await Promise.all([
+    getDocs(pageQuery),
+    !cursor && interests.length > 0
+      ? getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(20)))
+      : Promise.resolve(null)
+  ]);
   const profiles = new Map<string, { id: string; [key: string]: unknown }>();
-  snapshots.forEach((snapshot) => {
-    snapshot.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
+  [interestSnapshot, pageSnapshot].forEach((snapshot) => {
+    snapshot?.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
   });
-  return Array.from(profiles.values());
+  return {
+    profiles: Array.from(profiles.values()),
+    nextCursor: pageSnapshot.docs.at(-1) ?? null,
+    hasMore: pageSnapshot.size === pageSize
+  };
 }
 
 export async function findIncomingProfileLikes(toUid: string) {

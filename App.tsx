@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { BlurView } from "expo-blur";
@@ -61,12 +62,14 @@ import {
   syncPublicUserProfile,
   updateUserDiscoveryPreferences,
   upsertUserProfile,
-  upsertUserPrivateSettings
+  upsertUserPrivateSettings,
+  type DiscoveryCursor
 } from "./src/firestore";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
+import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, registerSparkPushNotifications } from "./src/notifications";
 
 
 const colors = {
@@ -171,8 +174,8 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
-type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number };
-const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
+type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number };
+const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -218,6 +221,8 @@ type MatchProfile = {
   weightKg?: number;
   matchScore?: number;
   matchReasons?: string[];
+  intent?: string;
+  updatedAtMs?: number;
 };
 
 type UserLocation = {
@@ -488,6 +493,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const socials = Object.entries(socialsRecord)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0 && !entry[0].toLowerCase().includes("linkedin"))
     .map(([label, value]) => ({ label: repairLegacyText(label), value: repairLegacyText(value) }));
+  const updatedAt = item.updatedAt as { toMillis?: () => number } | undefined;
 
   return {
     id,
@@ -516,7 +522,9 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     desiredAgeMin: typeof item.desiredAgeMin === "number" ? item.desiredAgeMin : 18,
     desiredAgeMax: typeof item.desiredAgeMax === "number" ? item.desiredAgeMax : 99,
     heightCm: typeof item.heightCm === "number" ? item.heightCm : undefined,
-    weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined
+    weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined,
+    intent: typeof item.intent === "string" ? repairLegacyText(item.intent.trim()) : undefined,
+    updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined
   };
 }
 function formatBirthDateInput(value: string) {
@@ -575,28 +583,41 @@ function scoreProfileMatch(params: {
   selectedInterests: string[];
   userLocation: UserLocation | null;
   userAge: number;
+  userIntent: string;
+  viewerUid: string;
 }) {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
-  const sharedRatio = params.selectedInterests.length > 0 ? sharedInterests.length / params.selectedInterests.length : 0;
+  const overlapBase = Math.max(1, Math.min(params.selectedInterests.length, params.profile.interests.length));
+  const sharedRatio = sharedInterests.length / overlapBase;
   const interestScore = params.selectedInterests.length > 0
-    ? Math.min(48, sharedInterests.length * 12 + Math.round(sharedRatio * 12))
-    : 20;
-  const distanceScore = distanceKm === null ? 8 : distanceKm <= 5 ? 22 : distanceKm <= 15 ? 17 : distanceKm <= 35 ? 11 : 5;
+    ? Math.min(34, sharedInterests.length * 7 + Math.round(sharedRatio * 12))
+    : 12;
+  const viewerIntent = params.userIntent.trim().toLocaleLowerCase("pl");
+  const profileIntent = (params.profile.intent ?? "").trim().toLocaleLowerCase("pl");
+  const sameIntent = Boolean(viewerIntent && profileIntent && viewerIntent === profileIntent);
+  const communityPair = viewerIntent.includes("społeczność") || profileIntent.includes("społeczność");
+  const intentScore = sameIntent ? 18 : communityPair ? 9 : viewerIntent && profileIntent ? 5 : 3;
+  const distanceScore = distanceKm === null ? 5 : distanceKm <= 5 ? 18 : distanceKm <= 15 ? 14 : distanceKm <= 35 ? 10 : distanceKm <= 100 ? 6 : 2;
   const ageGap = Math.abs(params.profile.age - params.userAge);
-  const ageScore = ageGap <= 3 ? 14 : ageGap <= 7 ? 10 : ageGap <= 12 ? 6 : 2;
+  const ageScore = ageGap <= 3 ? 12 : ageGap <= 7 ? 9 : ageGap <= 12 ? 5 : 2;
   const inTheirRange =
     params.userAge >= (params.profile.desiredAgeMin ?? 18) &&
     params.userAge <= (params.profile.desiredAgeMax ?? 99);
   const preferenceScore = inTheirRange ? 10 : 0;
-  const completenessScore = ((params.profile.photos?.length ?? 1) >= 2 ? 4 : 1) + (params.profile.interests.length >= 5 ? 2 : 0);
-  const score = Math.max(20, Math.min(96, interestScore + distanceScore + ageScore + preferenceScore + completenessScore));
+  const completenessScore = ((params.profile.photos?.length ?? 1) >= 2 ? 3 : 1) + (params.profile.interests.length >= 5 ? 1 : 0);
+  const profileAgeDays = params.profile.updatedAtMs ? Math.max(0, (Date.now() - params.profile.updatedAtMs) / 86_400_000) : null;
+  const freshnessScore = profileAgeDays === null ? 1 : profileAgeDays <= 3 ? 5 : profileAgeDays <= 14 ? 3 : profileAgeDays <= 60 ? 2 : 0;
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const rotationSeed = `${params.viewerUid}:${getProfileKey(params.profile)}:${dayKey}`;
+  const rotationScore = Array.from(rotationSeed).reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 7) % 5;
+  const score = Math.max(15, Math.min(98, interestScore + intentScore + distanceScore + ageScore + preferenceScore + completenessScore + freshnessScore + rotationScore));
   const reasons = [
+    sameIntent ? `oboje wybieracie: ${params.profile.intent}` : params.profile.intent ? `cel profilu: ${params.profile.intent}` : "otwarty profil",
     sharedInterests.length > 0
       ? `${sharedInterests.length} wspólne: ${sharedInterests.slice(0, 2).join(" + ")}`
       : "profil spoza Twojej bańki",
-    distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie",
-    inTheirRange ? "pasujesz do preferowanego wieku" : "warto poznać bliżej"
+    distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie"
   ];
 
   return { score, reasons, sharedInterests };
@@ -685,6 +706,7 @@ function AppContent() {
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
   const sendingMessageKeysRef = useRef(new Set<string>());
+  const recentMessageTimesRef = useRef<number[]>([]);
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
@@ -700,6 +722,9 @@ function AppContent() {
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileFeedError, setProfileFeedError] = useState<string | null>(null);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
+  const [profileCursor, setProfileCursor] = useState<DiscoveryCursor | null>(null);
+  const [profilesHaveMore, setProfilesHaveMore] = useState(false);
+  const [profilesLoadingMore, setProfilesLoadingMore] = useState(false);
   const [nextTestResetAt, setNextTestResetAt] = useState<number | null>(null);
 
 
@@ -722,13 +747,23 @@ function AppContent() {
         .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
         .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
 
-        .filter((profile) => { const distance = getDistanceKm(userLocation, profile); return distance === null || distance <= discoverFilters.maxDistanceKm; })
+        .filter((profile) => {
+          const distance = getDistanceKm(userLocation, profile);
+          return distance === null ? discoverFilters.includeProfilesWithoutLocation : distance <= discoverFilters.maxDistanceKm;
+        })
         .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
-          const result = scoreProfileMatch({ profile, selectedInterests, userLocation, userAge });
+          const result = scoreProfileMatch({
+            profile,
+            selectedInterests,
+            userLocation,
+            userAge,
+            userIntent: intent,
+            viewerUid: appUser?.uid ?? "guest"
+          });
 
           return {
             ...profile,
@@ -738,12 +773,10 @@ function AppContent() {
           };
         })
         .sort((left, right) => {
-          const scoreDifference =
-            ((right.matchScore ?? 0) + (right.premium ? 3 : 0)) -
-            ((left.matchScore ?? 0) + (left.premium ? 3 : 0));
-          return scoreDifference || getProfileKey(left).localeCompare(getProfileKey(right));
+          const scoreDifference = (right.matchScore ?? 0) - (left.matchScore ?? 0);
+          return scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
         }),
-    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, selectedInterests, userAge, userLocation]
+    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, intent, selectedInterests, userAge, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -776,6 +809,15 @@ function AppContent() {
   useEffect(() => {
     setBottomNavHidden(false);
   }, [tab]);
+
+  useEffect(() => {
+    const openRoute = (route: "matches" | "messages") => setTab(route);
+    const unsubscribe = observeSparkNotificationResponses(openRoute);
+    void getInitialSparkNotificationRoute().then((route) => {
+      if (route) openRoute(route);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -817,7 +859,7 @@ function AppContent() {
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
-            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), proOnly: Boolean(profile.proOnly) }));
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
             setPrivateProfile(Boolean(profile.privateProfile));
@@ -921,12 +963,53 @@ function AppContent() {
   }, [authDone, userLocation]);
 
   useEffect(() => {
+    if (!authDone || !onboarded || !appUser) return;
+    let mounted = true;
+    let promptTimer: ReturnType<typeof setTimeout> | null = null;
+    const promptKey = "spark_push_prompt_" + appUser.uid;
+
+    void AsyncStorage.getItem(promptKey).then((choice) => {
+      if (!mounted) return;
+      if (choice === "enabled") {
+        void registerSparkPushNotifications(appUser.uid).catch(() => undefined);
+        return;
+      }
+      if (choice) return;
+
+      promptTimer = setTimeout(() => {
+        Alert.alert(
+          "Nie przegap nowego matchu",
+          "Włącz powiadomienia o matchach, prośbach i nowych wiadomościach. Możesz je później wyłączyć w ustawieniach telefonu.",
+          [
+            { text: "Później", style: "cancel", onPress: () => { void AsyncStorage.setItem(promptKey, "later"); } },
+            {
+              text: "Włącz",
+              onPress: () => {
+                void registerSparkPushNotifications(appUser.uid)
+                  .then((enabled) => AsyncStorage.setItem(promptKey, enabled ? "enabled" : "denied"))
+                  .catch(() => AsyncStorage.setItem(promptKey, "error"));
+              }
+            }
+          ]
+        );
+      }, 1200);
+    });
+
+    return () => {
+      mounted = false;
+      if (promptTimer) clearTimeout(promptTimer);
+    };
+  }, [appUser, authDone, onboarded]);
+
+  useEffect(() => {
     if (!authDone || !onboarded || !appUser || selectedInterests.length === 0) {
       return;
     }
 
     let mounted = true;
     setProfilesLoading(true);
+    setProfileCursor(null);
+    setProfilesHaveMore(false);
     setProfileFeedError(null);
 
     Promise.allSettled([
@@ -940,7 +1023,7 @@ function AppContent() {
           return;
         }
 
-        const profileDocuments = profilesResult.status === "fulfilled" ? profilesResult.value : [];
+        const profileDocuments = profilesResult.status === "fulfilled" ? profilesResult.value.profiles : [];
         const testProfileDocuments = testProfilesResult.status === "fulfilled" ? testProfilesResult.value : [];
         const swipeDocuments = swipesResult.status === "fulfilled" ? swipesResult.value : [];
         const matchDocuments = matchesResult.status === "fulfilled" ? matchesResult.value : [];
@@ -952,6 +1035,10 @@ function AppContent() {
         }
 
         setProfileFeedError(null);
+        if (profilesResult.status === "fulfilled") {
+          setProfileCursor(profilesResult.value.nextCursor);
+          setProfilesHaveMore(profilesResult.value.hasMore);
+        }
 
         const profileMap = new Map<string, Record<string, unknown>>();
         [...profileDocuments, ...testProfileDocuments].forEach((item) => {
@@ -1008,6 +1095,34 @@ function AppContent() {
       mounted = false;
     };
   }, [appUser, authDone, canViewTestProfiles, onboarded, profileQueryKey, profileReloadKey]);
+
+  useEffect(() => {
+    if (!appUser || !authDone || !onboarded || !profilesHaveMore || !profileCursor || profilesLoading || profilesLoadingMore || discoverProfiles.length > 6) return;
+    let mounted = true;
+    setProfilesLoadingMore(true);
+    void findProfilesByInterest(profileLookupInterests, profileCursor)
+      .then((page) => {
+        if (!mounted) return;
+        const nextProfiles = page.profiles
+          .filter((item) => item.id !== appUser.uid && (canViewTestProfiles || item.isTestProfile !== true))
+          .map((item) => mapRemoteProfile(item as Record<string, unknown>))
+          .filter((profile): profile is MatchProfile => Boolean(profile));
+        setRemoteProfiles((current) => {
+          const profileMap = new Map(current.map((profile) => [getProfileKey(profile), profile]));
+          nextProfiles.forEach((profile) => profileMap.set(getProfileKey(profile), profile));
+          return Array.from(profileMap.values());
+        });
+        setProfileCursor(page.nextCursor);
+        setProfilesHaveMore(page.hasMore);
+      })
+      .catch(() => {
+        if (mounted) setProfilesHaveMore(false);
+      })
+      .finally(() => {
+        if (mounted) setProfilesLoadingMore(false);
+      });
+    return () => { mounted = false; };
+  }, [appUser, authDone, canViewTestProfiles, discoverProfiles.length, onboarded, profileCursor, profileQueryKey, profilesHaveMore, profilesLoading, profilesLoadingMore]);
 
   useEffect(() => {
     if (!appUser || !authDone || !onboarded || !revenueCat.isPro) {
@@ -1385,6 +1500,7 @@ function AppContent() {
         desiredInterests: discoverFilters.targetInterests,
         requireCommonInterests: discoverFilters.requireCommonInterests,
         proOnly: discoverFilters.proOnly,
+        includeProfilesWithoutLocation: discoverFilters.includeProfilesWithoutLocation,
         city: userCity,
         country: userCountry,
         location: getApproximatePublicLocation(userLocation),
@@ -1419,7 +1535,8 @@ function AppContent() {
         maxDistanceKm: nextFilters.maxDistanceKm,
         desiredInterests: nextFilters.targetInterests,
         requireCommonInterests: nextFilters.requireCommonInterests,
-        proOnly: nextFilters.proOnly
+        proOnly: nextFilters.proOnly,
+        includeProfilesWithoutLocation: nextFilters.includeProfilesWithoutLocation
       });
       setDiscoverFilters(nextFilters);
       setProfileReloadKey((value) => value + 1);
@@ -1708,6 +1825,18 @@ function AppContent() {
       return;
     }
 
+    const now = Date.now();
+    recentMessageTimesRef.current = recentMessageTimesRef.current.filter((timestamp) => timestamp > now - 60_000);
+    const lastMessageAt = recentMessageTimesRef.current.at(-1) ?? 0;
+    if (now - lastMessageAt < 700) {
+      Alert.alert("Zwolnij", "Odczekaj chwilę przed wysłaniem kolejnej wiadomości.");
+      return;
+    }
+    if (recentMessageTimesRef.current.length >= 20) {
+      Alert.alert("Limit wiadomości", "Dla bezpieczeństwa możesz wysłać maksymalnie 20 wiadomości na minutę.");
+      return;
+    }
+
     const moderationViolation = findModerationViolation(message);
     if (moderationViolation) {
       Alert.alert("Wiadomo\u015b\u0107 zablokowana", moderationViolation);
@@ -1732,6 +1861,7 @@ function AppContent() {
         senderUid: appUser.uid,
         text: message
       });
+      recentMessageTimesRef.current.push(Date.now());
       setMessageDraft("");
     } catch {
       Alert.alert("Chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
@@ -3028,6 +3158,7 @@ function countActiveDiscoverFilters(filters: DiscoverFilters) {
     filters.maxDistanceKm !== defaults.maxDistanceKm,
     filters.targetInterests.length > 0,
     filters.requireCommonInterests,
+    !filters.includeProfilesWithoutLocation,
     filters.proOnly
   ].filter(Boolean).length;
 }
@@ -3200,7 +3331,7 @@ function DiscoveryPreferencesModal({
             <View style={styles.discoveryFilterSection}>
               <View style={styles.discoveryFilterSectionHeader}>
                 <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="map-marker-radius" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Maksymalna odległość</Text><Text style={styles.discoveryFilterSectionHint}>Profile bez dokładnej lokalizacji nadal mogą się pojawić.</Text></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Maksymalna odległość</Text><Text style={styles.discoveryFilterSectionHint}>Sam decydujesz, czy pokazać profile bez dokładnego dystansu.</Text></View>
               </View>
               <View style={styles.discoveryDistanceGrid}>
                 {distanceOptions.map((distance) => {
@@ -3212,6 +3343,10 @@ function DiscoveryPreferencesModal({
                   );
                 })}
               </View>
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.includeProfilesWithoutLocation }} onPress={() => setDraft((current) => ({ ...current, includeProfilesWithoutLocation: !current.includeProfilesWithoutLocation }))} style={({ pressed }) => [styles.discoveryFilterToggleRow, pressed && styles.controlPressed]}>
+                <View style={styles.fill}><Text style={styles.discoveryFilterToggleTitle}>Uwzględniaj profile bez lokalizacji</Text><Text style={styles.discoveryFilterToggleHint}>Wyłącz, jeśli limit kilometrów ma być bezwzględny.</Text></View>
+                <Switch pointerEvents="none" value={draft.includeProfilesWithoutLocation} trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.primary }} thumbColor="#fff" />
+              </Pressable>
             </View>
 
             <View style={styles.discoveryFilterSection}>

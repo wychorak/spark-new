@@ -193,6 +193,7 @@
         }
       ],
       "expo-apple-authentication",
+      "expo-notifications",
       "@react-native-google-signin/google-signin",
       [
         "expo-location",

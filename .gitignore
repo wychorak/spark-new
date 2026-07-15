@@ -17,3 +17,5 @@ src/graphify-out/
 
 .vercel
 .codex/
+functions/lib/
+.graphify-code/
