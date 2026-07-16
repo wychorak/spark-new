@@ -127,6 +127,7 @@ check(rulesSource.includes('validEventList') && rulesSource.includes('isEventAdm
 check(functionsSource.includes('cleanupExpiredSparkEvents') && functionsSource.includes('every 15 minutes') && functionsSource.includes('cleanupDeletedSparkEvent'), 'Expired Event Friends cleanup is missing.');
 check(appSource.includes('EventFriendsManagerModal') && appSource.includes('EventFriendsEmptyState') && appSource.includes('discoverMode === "events"'), 'Separate Event Friends discovery flow is missing.');
 check(appSource.includes('sparkEventAdminEmail') && appSource.includes('PANEL ORGANIZATORA') && !appSource.includes('buildSuggestedEvents'), 'Event creation must stay restricted to the Spark organizer account.');
+check(eventsSource.includes('eventIconOptions') && appSource.includes('Ikona wydarzenia') && rulesSource.includes("'microphone-variant'"), 'Curated thematic event icons are missing.');
 check(appSource.includes('WSPÓLNY PLAN') && appSource.includes('Wspólnie:') && appSource.includes('calendar-heart'), 'Shared event context is missing from profile and chat UI.');
 
 for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource, 'src/events.ts': eventsSource })) {

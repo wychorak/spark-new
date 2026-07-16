@@ -60,13 +60,18 @@ service cloud.firestore {
         && event.city is string && event.city.size() >= 2 && event.city.size() <= 80
         && event.date is string && event.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && event.kind == 'specific'
+        && event.icon in [
+          'microphone-variant', 'music-note', 'guitar-electric', 'movie-open-outline',
+          'popcorn', 'stadium-outline', 'soccer', 'controller-classic-outline',
+          'dice-multiple', 'city-variant-outline', 'palette-outline', 'airplane'
+        ]
         && event.startsAt is string && event.startsAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$')
         && event.endsAt is string && event.endsAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$');
     }
 
     function validEvent(event) {
       return validEventFields(event)
-        && event.keys().hasOnly(['id', 'category', 'name', 'city', 'date', 'kind', 'startsAt', 'endsAt']);
+        && event.keys().hasOnly(['id', 'category', 'name', 'city', 'date', 'kind', 'icon', 'startsAt', 'endsAt']);
     }
 
     function validSelectedEvent(event) {
@@ -74,6 +79,7 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/sparkEvents/$(event.id))
         && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.id == event.id
         && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.name == event.name
+        && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.get('icon', event.icon) == event.icon
         && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.startsAt == event.startsAt
         && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.endsAt == event.endsAt;
     }
@@ -304,7 +310,7 @@ service cloud.firestore {
       allow read: if activeUser();
       allow create: if isEventAdmin()
         && request.resource.data.keys().hasOnly([
-          'id', 'category', 'name', 'city', 'date', 'kind', 'startsAt', 'endsAt',
+          'id', 'category', 'name', 'city', 'date', 'kind', 'icon', 'startsAt', 'endsAt',
           'createdByUid', 'deleteAt', 'createdAt', 'updatedAt'
         ])
         && validEventFields(request.resource.data)

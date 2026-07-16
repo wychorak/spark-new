@@ -3,6 +3,23 @@ export const eventCategoryIds = ["music", "cinema", "sport", "games", "city", "t
 export type EventCategoryId = typeof eventCategoryIds[number];
 export type SparkEventKind = "specific";
 
+export const eventIconOptions = [
+  { id: "microphone-variant", label: "Mikrofon" },
+  { id: "music-note", label: "Muzyka" },
+  { id: "guitar-electric", label: "Koncert" },
+  { id: "movie-open-outline", label: "Kino" },
+  { id: "popcorn", label: "Seans" },
+  { id: "stadium-outline", label: "Stadion" },
+  { id: "soccer", label: "Mecz" },
+  { id: "controller-classic-outline", label: "Gaming" },
+  { id: "dice-multiple", label: "Planszówki" },
+  { id: "city-variant-outline", label: "Miasto" },
+  { id: "palette-outline", label: "Kultura" },
+  { id: "airplane", label: "Wyjazd" }
+] as const;
+
+export type EventIconId = typeof eventIconOptions[number]["id"];
+
 export type SparkEvent = {
   id: string;
   category: EventCategoryId;
@@ -10,6 +27,7 @@ export type SparkEvent = {
   city: string;
   date: string;
   kind: SparkEventKind;
+  icon: EventIconId;
   startsAt: string;
   endsAt: string;
 };
@@ -30,6 +48,19 @@ export const eventCategories: Array<{
   { id: "city", label: "Miasto", hint: "Wyjścia i kultura", icon: "city-variant-outline" },
   { id: "travel", label: "Wyjazdy", hint: "Weekend i podróże", icon: "train-car" }
 ];
+
+const categoryDefaultIcons: Record<EventCategoryId, EventIconId> = {
+  music: "microphone-variant",
+  cinema: "movie-open-outline",
+  sport: "stadium-outline",
+  games: "controller-classic-outline",
+  city: "city-variant-outline",
+  travel: "airplane"
+};
+
+export function getEventCategoryDefaultIcon(category: EventCategoryId) {
+  return categoryDefaultIcons[category];
+}
 
 function cleanText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
@@ -57,7 +88,7 @@ function legacyDateRange(date: string) {
   };
 }
 
-export function createEventId(event: Omit<SparkEvent, "id" | "date" | "kind">) {
+export function createEventId(event: Pick<SparkEvent, "category" | "name" | "city" | "startsAt" | "endsAt">) {
   return [event.category, slug(event.name), slug(event.city), event.startsAt.slice(0, 16), event.endsAt.slice(0, 16)]
     .join(":")
     .replace(/[^a-zA-Z0-9:_-]/g, "-")
@@ -73,6 +104,9 @@ export function normalizeSparkEvent(value: unknown): SparkEvent | null {
     : null;
   const name = cleanText(source.name, 80);
   const city = cleanText(source.city, 80);
+  const icon = eventIconOptions.some((option) => option.id === source.icon)
+    ? source.icon as EventIconId
+    : category ? getEventCategoryDefaultIcon(category) : null;
   const legacyDate = typeof source.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(source.date) ? source.date : "";
   const legacyRange = legacyDate ? legacyDateRange(legacyDate) : null;
   const startsAt = isIsoDateTime(source.startsAt) ? source.startsAt : legacyRange?.startsAt ?? "";
@@ -80,9 +114,9 @@ export function normalizeSparkEvent(value: unknown): SparkEvent | null {
   const startsAtMs = new Date(startsAt).getTime();
   const endsAtMs = new Date(endsAt).getTime();
 
-  if (!category || sourceKind === "general" || name.length < 3 || city.length < 2 || !startsAt || !endsAt) return null;
+  if (!category || !icon || sourceKind === "general" || name.length < 3 || city.length < 2 || !startsAt || !endsAt) return null;
   if (!Number.isFinite(startsAtMs) || !Number.isFinite(endsAtMs) || endsAtMs <= startsAtMs) return null;
-  const eventBase = { category, name, city, startsAt, endsAt };
+  const eventBase = { category, name, city, icon, startsAt, endsAt };
   return {
     ...eventBase,
     id: createEventId(eventBase),

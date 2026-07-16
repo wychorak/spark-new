@@ -75,8 +75,10 @@ import {
 } from "./src/firestore";
 import {
   eventCategories,
+  eventIconOptions,
   formatEventDate,
   formatEventDateRange,
+  getEventCategoryDefaultIcon,
   getDefaultEventDateTimes,
   getSharedActiveEvents,
   isEventActive,
@@ -85,6 +87,7 @@ import {
   parseEventDateTimeInput,
   sanitizeActiveEvents,
   type EventCategoryId,
+  type EventIconId,
   type SparkEvent
 } from "./src/events";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
@@ -3399,7 +3402,7 @@ function DiscoverScreen({
       />
       {mode === "events" ? (
         <Pressable accessibilityRole="button" onPress={onManageEvents} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive]}>
-          <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
+          <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name={(primarySharedEvent?.icon ?? "calendar-heart") as any} size={20} color="#fff" /></View>
           <View style={styles.fill}>
             <Text style={styles.eventFriendsLaunchEyebrow}>WSPÓLNE WYDARZENIE</Text>
             <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{primarySharedEvent?.name ?? "Event Friends"}</Text>
@@ -3841,7 +3844,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
       <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
         {sharedEvent && (
           <View style={styles.cardSharedEvent}>
-            <MaterialCommunityIcons name="calendar-heart" size={13} color="#fff" />
+            <MaterialCommunityIcons name={sharedEvent.icon as any} size={13} color="#fff" />
             <Text style={styles.cardSharedEventText} numberOfLines={1}>Wspólnie: {sharedEvent.name}</Text>
             <Text style={styles.cardSharedEventDate}>{formatEventDate(sharedEvent)}</Text>
           </View>
@@ -4080,7 +4083,7 @@ function ProfilePreviewSheet({
 
           {sharedEvent && (
             <View style={local.eventPanel}>
-              <View style={local.eventIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
+              <View style={local.eventIcon}><MaterialCommunityIcons name={sharedEvent.icon as any} size={20} color="#fff" /></View>
               <View style={styles.fill}>
                 <Text style={local.eventEyebrow}>WSPÓLNY PLAN</Text>
                 <Text style={local.eventTitle} numberOfLines={2}>{sharedEvent.name}</Text>
@@ -4323,6 +4326,7 @@ function EventFriendsManagerModal({
   const insets = useSafeAreaInsets();
   const [draftEvents, setDraftEvents] = useState<SparkEvent[]>(events);
   const [category, setCategory] = useState<EventCategoryId>("music");
+  const [selectedIcon, setSelectedIcon] = useState<EventIconId>(getEventCategoryDefaultIcon("music"));
   const [name, setName] = useState("");
   const [city, setCity] = useState(userCity || "Kraków");
   const defaults = useMemo(() => getDefaultEventDateTimes(), [visible]);
@@ -4374,6 +4378,13 @@ function EventFriendsManagerModal({
     categoryIcon: { width: 35, height: 35, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.13)" },
     categoryTitle: { color: colors.ink, fontSize: 11, fontWeight: "900" },
     categoryHint: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "700" },
+    iconPicker: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    iconChoice: { width: "23%", flexGrow: 1, minWidth: 68, minHeight: 76, alignItems: "center", justifyContent: "center", gap: 7, padding: 8, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    iconChoiceActive: { backgroundColor: "rgba(255,45,141,0.15)", borderColor: colors.primary },
+    iconChoiceGlyph: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.1)" },
+    iconChoiceGlyphActive: { backgroundColor: colors.primary },
+    iconChoiceLabel: { color: colors.muted, fontSize: 8, fontWeight: "900", textAlign: "center" },
+    iconChoiceLabelActive: { color: colors.ink },
     segment: { flexDirection: "row", padding: 4, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.055)" },
     segmentButton: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 12 },
     segmentActive: { backgroundColor: colors.primary },
@@ -4397,6 +4408,8 @@ function EventFriendsManagerModal({
     const catalogIds = new Set(availableEvents.map((event) => event.id));
     setDraftEvents(sanitizeActiveEvents(events).filter((event) => catalogIds.has(event.id)));
     setCity(userCity || "Kraków");
+    setCategory("music");
+    setSelectedIcon(getEventCategoryDefaultIcon("music"));
     setStartsAtInput(defaults.start);
     setEndsAtInput(defaults.end);
     setName("");
@@ -4423,7 +4436,7 @@ function EventFriendsManagerModal({
     const startsAt = parseEventDateTimeInput(startsAtInput);
     const endsAt = parseEventDateTimeInput(endsAtInput);
     const event = startsAt && endsAt
-      ? normalizeSparkEvent({ category, name, city, startsAt, endsAt, date: startsAt.slice(0, 10), kind: "specific" })
+      ? normalizeSparkEvent({ category, icon: selectedIcon, name, city, startsAt, endsAt, date: startsAt.slice(0, 10), kind: "specific" })
       : null;
     if (!event) {
       Alert.alert("Uzupełnij wydarzenie", "Podaj nazwę, miasto oraz start i koniec w formacie RRRR-MM-DD GG:MM.");
@@ -4501,7 +4514,7 @@ function EventFriendsManagerModal({
                 const meta = eventCategories.find((item) => item.id === event.category);
                 return (
                   <Pressable key={event.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => addEvent(event)} style={({ pressed }) => [local.suggestion, selected && local.suggestionActive, pressed && styles.controlPressed]}>
-                    <View style={local.activeIcon}><MaterialCommunityIcons name={(meta?.icon ?? "calendar") as any} size={21} color={selected ? colors.green : colors.primary} /></View>
+                    <View style={local.activeIcon}><MaterialCommunityIcons name={event.icon as any} size={21} color={selected ? colors.green : colors.primary} /></View>
                     <View style={styles.fill}>
                       <Text style={local.activeTitle} numberOfLines={2}>{event.name}</Text>
                       <Text style={local.meta} numberOfLines={1}>{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
@@ -4520,7 +4533,28 @@ function EventFriendsManagerModal({
               <View style={local.adminBadge}><MaterialCommunityIcons name="shield-crown-outline" size={15} color={colors.gold} /><Text style={local.adminBadgeText}>PANEL ORGANIZATORA</Text></View>
               <Text style={local.sectionTitle}>Opublikuj wydarzenie</Text>
               <Text style={local.intro}>Tylko Twoje konto może dodawać eventy. Wydarzenie oraz wybory użytkowników zostaną usunięte godzinę po jego zakończeniu.</Text>
-              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => setCategory(item.id)} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
+              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => { setCategory(item.id); setSelectedIcon(getEventCategoryDefaultIcon(item.id)); }} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
+              <Text style={local.fieldLabel}>Ikona wydarzenia</Text>
+              <View style={local.iconPicker}>
+                {eventIconOptions.map((option) => {
+                  const selected = selectedIcon === option.id;
+                  return (
+                    <Pressable
+                      key={option.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Ikona: ${option.label}`}
+                      onPress={() => { setSelectedIcon(option.id); void Haptics.selectionAsync(); }}
+                      style={({ pressed }) => [local.iconChoice, selected && local.iconChoiceActive, pressed && styles.controlPressed]}
+                    >
+                      <View style={[local.iconChoiceGlyph, selected && local.iconChoiceGlyphActive]}>
+                        <MaterialCommunityIcons name={option.id as any} size={21} color={selected ? "#fff" : colors.primary} />
+                      </View>
+                      <Text style={[local.iconChoiceLabel, selected && local.iconChoiceLabelActive]} numberOfLines={1}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <Text style={local.fieldLabel}>Nazwa wydarzenia</Text>
               <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Miasto</Text>
@@ -5250,7 +5284,7 @@ function ChatConversationModal({
         </View>
         {thread?.eventContext && (
           <View style={local.eventBanner}>
-            <View style={local.eventBannerIcon}><MaterialCommunityIcons name="calendar-heart" size={18} color="#fff" /></View>
+            <View style={local.eventBannerIcon}><MaterialCommunityIcons name={thread.eventContext.icon as any} size={18} color="#fff" /></View>
             <View style={styles.fill}><Text style={local.eventBannerTitle} numberOfLines={1}>{thread.eventContext.name}</Text><Text style={local.eventBannerMeta}>{formatEventDateRange(thread.eventContext)} · {thread.eventContext.city}</Text></View>
             <Text style={local.eventBannerMeta}>Wspólny plan</Text>
           </View>
