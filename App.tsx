@@ -220,6 +220,7 @@ type MatchProfile = {
   heightCm?: number;
   weightKg?: number;
   matchScore?: number;
+  interestMatchPercent?: number;
   matchReasons?: string[];
   intent?: string;
   updatedAtMs?: number;
@@ -590,6 +591,7 @@ function scoreProfileMatch(params: {
   const sharedInterests = params.profile.interests.filter((interest) => params.selectedInterests.includes(interest));
   const overlapBase = Math.max(1, Math.min(params.selectedInterests.length, params.profile.interests.length));
   const sharedRatio = sharedInterests.length / overlapBase;
+  const interestMatchPercent = params.selectedInterests.length > 0 ? Math.round(sharedRatio * 100) : 0;
   const interestScore = params.selectedInterests.length > 0
     ? Math.min(34, sharedInterests.length * 7 + Math.round(sharedRatio * 12))
     : 12;
@@ -613,14 +615,11 @@ function scoreProfileMatch(params: {
   const rotationScore = Array.from(rotationSeed).reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 7) % 5;
   const score = Math.max(15, Math.min(98, interestScore + intentScore + distanceScore + ageScore + preferenceScore + completenessScore + freshnessScore + rotationScore));
   const reasons = [
-    sameIntent ? `oboje wybieracie: ${params.profile.intent}` : params.profile.intent ? `cel profilu: ${params.profile.intent}` : "otwarty profil",
-    sharedInterests.length > 0
-      ? `${sharedInterests.length} wspólne: ${sharedInterests.slice(0, 2).join(" + ")}`
-      : "profil spoza Twojej bańki",
+    sameIntent ? "oboje wybieracie: " + params.profile.intent : params.profile.intent ? "cel profilu: " + params.profile.intent : "otwarty profil",
+    interestMatchPercent + "% zgodności zainteresowań",
     distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie"
   ];
-
-  return { score, reasons, sharedInterests };
+  return { score, reasons, sharedInterests, interestMatchPercent };
 }
 
 function isDailyTestProfileKey(profileKey: string) {
@@ -769,6 +768,7 @@ function AppContent() {
             ...profile,
             distance: getApproxDistanceLabel(userLocation, profile),
             matchScore: result.score,
+            interestMatchPercent: result.interestMatchPercent,
             matchReasons: result.reasons
           };
         })
@@ -2235,6 +2235,7 @@ function AppContent() {
             chatRequestKeys={chatRequestKeys}
             chatThreads={chatThreads}
             hasPro={revenueCat.isPro}
+            viewerInterests={selectedInterests}
             onLikeIncomingProfile={likeIncomingProfile}
             onCancelPendingLike={cancelOutgoingLike}
             onCancelRequest={cancelOutgoingRequest}
@@ -2971,9 +2972,9 @@ function DiscoverScreen({
     onPremiumChatRequest();
   }
 
-  function handlePreviewPass() {
+  function handlePreviewSuperlike() {
     setPreviewOpen(false);
-    void runSwipeAction("pass");
+    void promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro);
   }
 
   function handlePreviewLike() {
@@ -3079,10 +3080,13 @@ function DiscoverScreen({
           profile={profile}
           viewerInterests={selectedInterests}
           onClose={() => setPreviewOpen(false)}
-          onPass={handlePreviewPass}
           onLike={handlePreviewLike}
           onMessage={handlePreviewMessage}
+          onSuperlike={handlePreviewSuperlike}
           canViewSocials={hasMatchedProfile}
+          messageLocked={!hasPro && !hasMatchedProfile}
+          superlikeLocked={!hasPro}
+          superlikesRemaining={superlikesRemaining}
         />
       )}
 
@@ -3401,6 +3405,8 @@ function DiscoveryPreferencesModal({
 
 function ProfileCard({ profile, onReport, compact = false }: { profile: MatchProfile; onReport?: () => void; compact?: boolean }) {
   const featuredInterests = getFeaturedInterests(profile);
+  const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
+  const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
 
   return (
     <View style={[styles.profileCard, compact && styles.profileCardCompact]}>
@@ -3409,6 +3415,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
       {onReport && (
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Zgłoś profil"
           onPress={(event) => {
             event.stopPropagation();
             onReport();
@@ -3418,47 +3425,57 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
           <MaterialCommunityIcons name="exclamation-thick" size={17} color="#fff" />
         </Pressable>
       )}
-      <View style={styles.badgeRow}>
-        <Text style={styles.badge} selectable>{profile.distance}</Text>
-      </View>
+      {profile.distance ? (
+        <View style={styles.badgeRow}>
+          <Text style={styles.badge} numberOfLines={1} maxFontSizeMultiplier={1.15}>{profile.distance}</Text>
+        </View>
+      ) : null}
       <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
         <View style={styles.profileStatusRow}>
-          {profile.premium && <Text style={styles.cardCrown} selectable>PRO</Text>}
-          <Text style={styles.verified} selectable>{profile.premium ? "Spark Pro" : "Profil publiczny"}</Text>
-          {profile.matchScore && <Text style={styles.matchInlinePill} selectable>{profile.matchScore}%</Text>}
+          {profile.premium && (
+            <View style={styles.cardProBadge}>
+              <MaterialCommunityIcons name="crown" size={12} color="#3a2500" />
+              <Text style={styles.cardProText} maxFontSizeMultiplier={1.15}>SPARK PRO</Text>
+            </View>
+          )}
+          <Text style={styles.matchInlinePill} maxFontSizeMultiplier={1.15}>{interestMatchPercent}% zgodności</Text>
         </View>
-        <Text style={styles.cardTitle} numberOfLines={1} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+        <Text
+          style={styles.cardTitle}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          maxFontSizeMultiplier={1.15}
+        >
+          {displayName}, {profile.age}
+        </Text>
         <View style={styles.featuredInterestRow}>
           {featuredInterests.map((interest, index) => {
             const theme = getInterestTheme(interest, index);
             return (
               <View key={interest} style={[styles.featuredInterestPill, { backgroundColor: theme.soft, borderColor: theme.border }]}>
                 <MaterialCommunityIcons name="star-four-points" size={12} color={theme.active} />
-                <Text style={styles.featuredInterestText} numberOfLines={1}>{interest}</Text>
+                <Text style={styles.featuredInterestText} numberOfLines={1} maxFontSizeMultiplier={1.15}>{interest}</Text>
               </View>
             );
           })}
         </View>
-        {profile.matchScore && (
-          <Text style={styles.matchReasonInline} numberOfLines={1} selectable>
-            {[profile.city, profile.heightCm ? `${profile.heightCm} cm` : null, ...(profile.matchReasons ?? []).slice(1, 3)].filter(Boolean).join(" • ")}
-          </Text>
-        )}
-        <Text style={styles.cardBio} numberOfLines={compact ? 1 : 2} selectable>{profile.bio}</Text>
-
+        <Text style={styles.cardBio} numberOfLines={compact ? 1 : 2} maxFontSizeMultiplier={1.2}>{profile.bio}</Text>
       </View>
     </View>
   );
 }
-
 function ProfilePreviewSheet({
   profile,
   viewerInterests,
   onClose,
-  onPass,
   onLike,
   onMessage,
+  onSuperlike,
   canViewSocials,
+  messageLocked = false,
+  superlikeLocked = false,
+  superlikesRemaining = 0,
   isOwnProfile = false,
   isPrivateProfile = false,
   readOnly = false
@@ -3466,10 +3483,13 @@ function ProfilePreviewSheet({
   profile: MatchProfile;
   viewerInterests: string[];
   onClose: () => void;
-  onPass?: () => void;
   onLike?: () => void;
   onMessage?: () => void;
+  onSuperlike?: () => void;
   canViewSocials: boolean;
+  messageLocked?: boolean;
+  superlikeLocked?: boolean;
+  superlikesRemaining?: number;
   isOwnProfile?: boolean;
   isPrivateProfile?: boolean;
   readOnly?: boolean;
@@ -3477,55 +3497,84 @@ function ProfilePreviewSheet({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [bioExpanded, setBioExpanded] = useState(false);
   const photos = getProfileGallery(profile);
   const featuredInterests = getFeaturedInterests(profile);
+  const visibleInterests = profile.interests.slice(0, 8);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
-  const matchPercent = profile.matchScore ?? Math.max(36, Math.min(96, 48 + sharedInterests.length * 12));
+  const overlapBase = Math.max(1, Math.min(viewerInterests.length, profile.interests.length));
+  const calculatedInterestMatch = viewerInterests.length > 0 ? Math.round((sharedInterests.length / overlapBase) * 100) : 0;
+  const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? calculatedInterestMatch));
+  const hasInterestMatch = viewerInterests.length > 0 || typeof profile.interestMatchPercent === "number";
+  const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
+  const locationLabel = [profile.city, profile.country].filter(Boolean).join(", ");
+  const normalizedDistance = profile.distance.trim().toLocaleLowerCase("pl");
+  const normalizedLocation = locationLabel.trim().toLocaleLowerCase("pl");
+  const secondaryDistance =
+    profile.distance && normalizedDistance !== normalizedLocation && normalizedDistance !== profile.city.trim().toLocaleLowerCase("pl")
+      ? profile.distance
+      : null;
+  const distanceFact = secondaryDistance ?? (locationLabel || "Lokalizacja ukryta");
+  const bioNeedsToggle = profile.bio.trim().length > 125;
   const photoWidth = Math.min(width - 24, 500);
+  const compactScreen = width < 380;
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
-    header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 10, backgroundColor: "rgba(5,5,7,0.72)" },
+    header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 9, backgroundColor: "rgba(5,5,7,0.88)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
     headerTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
-    headerButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-    content: { gap: 18, paddingHorizontal: 12 },
-    gallery: { position: "relative", alignSelf: "center", overflow: "hidden", borderRadius: 28, backgroundColor: "#111", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" },
-    photo: { width: photoWidth, aspectRatio: 4 / 5, backgroundColor: "#111" },
-    photoCounter: { position: "absolute", top: 14, right: 14, minHeight: 30, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(5,5,7,0.72)" },
+    headerButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    content: { gap: 16, paddingHorizontal: 12 },
+    gallery: { position: "relative", alignSelf: "center", overflow: "hidden", borderRadius: 24, backgroundColor: "#111", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", boxShadow: "0 20px 52px rgba(0,0,0,0.46)" },
+    photoCounter: { position: "absolute", top: 13, right: 13, minHeight: 30, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(5,5,7,0.76)" },
     photoCounterText: { color: "#fff", fontSize: 11, fontWeight: "900", fontVariant: ["tabular-nums"] },
     dots: { position: "absolute", left: 0, right: 0, bottom: 14, flexDirection: "row", justifyContent: "center", gap: 6 },
     dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.42)" },
     dotActive: { width: 18, backgroundColor: colors.primary },
     identity: { gap: 8, paddingHorizontal: 4 },
     statusRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
-    status: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: "hidden", color: "#fff", backgroundColor: "rgba(66,217,130,0.18)", borderWidth: 1, borderColor: "rgba(66,217,130,0.34)", fontSize: 10, fontWeight: "900" },
-    proStatus: { color: colors.gold, backgroundColor: "rgba(255,189,89,0.12)", borderColor: "rgba(255,189,89,0.28)" },
-    title: { color: colors.ink, fontSize: 29, lineHeight: 35, fontWeight: "900" },
-    subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
-    subtitleText: { color: "#e4bdc3", fontSize: 13, fontWeight: "800" },
-    featuredPanel: { gap: 9, padding: 14, borderRadius: 20, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
-    featuredLabel: { color: colors.primaryDeep, fontSize: 10, fontWeight: "900" },
+    statusBadge: { minHeight: 29, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(66,217,130,0.12)", borderWidth: 1, borderColor: "rgba(66,217,130,0.3)" },
+    statusBadgePro: { backgroundColor: "rgba(255,189,89,0.13)", borderColor: "rgba(255,189,89,0.34)" },
+    statusBadgeMatch: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.25)" },
+    statusText: { color: colors.green, fontSize: 9, fontWeight: "900", textTransform: "uppercase" },
+    statusTextPro: { color: colors.gold },
+    statusTextMatch: { color: colors.primary },
+    title: { color: colors.ink, fontSize: compactScreen ? 24 : 27, lineHeight: compactScreen ? 29 : 33, fontWeight: "900" },
+    subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
+    subtitleText: { color: "#e4bdc3", fontSize: 12, lineHeight: 17, fontWeight: "800" },
+    featuredPanel: { gap: 9, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.07)", borderWidth: 1, borderColor: "rgba(255,45,141,0.17)" },
+    featuredLabel: { color: colors.primaryDeep, fontSize: 9, letterSpacing: 0.6, fontWeight: "900" },
     featuredRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-    featuredChip: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%", paddingHorizontal: 11, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
-    featuredChipText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
-    metrics: { flexDirection: "row", gap: 8 },
-    metric: { flex: 1, minHeight: 76, gap: 3, alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    featuredChip: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
+    featuredChipText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+    metrics: { flexDirection: "row", gap: 7 },
+    metric: { flex: 1, minWidth: 0, minHeight: 76, gap: 4, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.075)" },
     metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900", fontVariant: ["tabular-nums"] },
-    metricLabel: { color: colors.muted, fontSize: 10, textAlign: "center", fontWeight: "800" },
-    section: { gap: 10, paddingHorizontal: 4 },
+    metricValueCompact: { color: colors.ink, fontSize: 11, lineHeight: 14, textAlign: "center", fontWeight: "900" },
+    metricLabel: { color: colors.muted, fontSize: 9, lineHeight: 12, textAlign: "center", fontWeight: "800" },
+    section: { gap: 9, paddingHorizontal: 4 },
     sectionTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
-    sectionHint: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
-    bio: { color: "#ecd8e1", fontSize: 15, lineHeight: 23, fontWeight: "600" },
-    wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, overflow: "hidden", borderWidth: 1, fontSize: 12, fontWeight: "900" },
+    sectionHint: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
+    bio: { color: "#ecd8e1", fontSize: 14, lineHeight: 21, fontWeight: "600" },
+    bioToggle: { alignSelf: "flex-start", minHeight: 30, justifyContent: "center", paddingRight: 12 },
+    bioToggleText: { color: colors.primary, fontSize: 11, fontWeight: "900" },
+    interestGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    interestCard: { width: "48%", flexGrow: 1, minHeight: 46, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 11, borderRadius: 15, borderWidth: 1 },
+    interestIcon: { width: 27, height: 27, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+    interestText: { flex: 1, minWidth: 0, color: colors.ink, fontSize: 11, fontWeight: "900" },
+    moreInterests: { color: colors.muted, fontSize: 11, fontWeight: "800" },
     socialList: { gap: 8 },
-    social: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    social: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.075)" },
     socialIcon: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.1)" },
     socialLabel: { color: colors.ink, fontSize: 12, fontWeight: "900" },
     socialValue: { marginTop: 2, color: colors.muted, fontSize: 11, fontWeight: "800" },
-    actions: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingTop: 10, backgroundColor: "rgba(5,5,7,0.94)", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
-    actionRound: { width: 50, height: 50, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-    like: { flex: 1, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 999, backgroundColor: colors.primary, boxShadow: "0 14px 32px rgba(255,45,141,0.3)" },
-    likeText: { color: "#fff", fontSize: 14, fontWeight: "900" }
+    actions: { position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 92, flexDirection: "row", alignItems: "stretch", gap: 8, paddingHorizontal: 10, paddingTop: 9, backgroundColor: "rgba(5,5,7,0.96)", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
+    actionSecondary: { flex: 1, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+    actionPrimary: { flex: 1.25, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 5, borderRadius: 17, backgroundColor: colors.primary, boxShadow: "0 10px 28px rgba(255,45,141,0.3)" },
+    actionLabel: { color: colors.ink, fontSize: 10, lineHeight: 13, textAlign: "center", fontWeight: "900" },
+    actionLabelPrimary: { color: "#fff", fontSize: 11 },
+    actionMetaRow: { minHeight: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
+    actionMeta: { color: colors.muted, fontSize: 8, lineHeight: 10, textAlign: "center", fontWeight: "800" },
+    actionMetaPrimary: { color: "rgba(255,255,255,0.78)" }
   });
 
   return (
@@ -3536,9 +3585,9 @@ function ProfilePreviewSheet({
           <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} style={local.headerButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
           </Pressable>
-          <Text style={local.headerTitle} selectable>{isOwnProfile ? "Podgląd Twojej karty" : "Profil"}</Text>
+          <Text style={local.headerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.15}>{isOwnProfile ? "Podgląd Twojej karty" : displayName}</Text>
           <View style={local.headerButton}>
-            <MaterialCommunityIcons name={isOwnProfile ? "eye" : "account-circle"} size={21} color={colors.green} />
+            <MaterialCommunityIcons name={isOwnProfile ? "eye" : profile.premium ? "crown" : "account-circle"} size={21} color={profile.premium ? colors.gold : colors.green} />
           </View>
         </View>
 
@@ -3547,7 +3596,7 @@ function ProfilePreviewSheet({
           bounces={false}
           contentContainerStyle={[
             local.content,
-            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile || readOnly ? 24 : 80) }
+            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile || readOnly ? 24 : 108) }
           ]}
         >
           <View style={[local.gallery, { width: photoWidth }]}>
@@ -3572,27 +3621,49 @@ function ProfilePreviewSheet({
 
           <View style={local.identity}>
             <View style={local.statusRow}>
-              <Text style={local.status}>{isPrivateProfile ? "PROFIL PRYWATNY" : "PROFIL PUBLICZNY"}</Text>
-              {profile.premium && <Text style={[local.status, local.proStatus]}>SPARK PRO</Text>}
-              {!isOwnProfile && <Text style={[local.status, { color: colors.primary, backgroundColor: colors.primarySoft, borderColor: colors.line }]}>{matchPercent}% DOPASOWANIA</Text>}
+              <View style={local.statusBadge}>
+                <MaterialCommunityIcons name={isPrivateProfile ? "lock" : "earth"} size={12} color={colors.green} />
+                <Text style={local.statusText}>{isPrivateProfile ? "Profil prywatny" : "Profil publiczny"}</Text>
+              </View>
+              {profile.premium && (
+                <View style={[local.statusBadge, local.statusBadgePro]}>
+                  <MaterialCommunityIcons name="crown" size={12} color={colors.gold} />
+                  <Text style={[local.statusText, local.statusTextPro]}>Spark Pro</Text>
+                </View>
+              )}
+              {!isOwnProfile && hasInterestMatch && (
+                <View style={[local.statusBadge, local.statusBadgeMatch]}>
+                  <MaterialCommunityIcons name="tag-heart" size={12} color={colors.primary} />
+                  <Text style={[local.statusText, local.statusTextMatch]}>{interestMatchPercent}% zainteresowań</Text>
+                </View>
+              )}
             </View>
-            <Text style={local.title} selectable>{profile.name} {profile.surname}, {profile.age}</Text>
+            <Text
+              style={local.title}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+              maxFontSizeMultiplier={1.15}
+            >
+              {displayName}, {profile.age}
+            </Text>
             <View style={local.subtitle}>
-              <MaterialCommunityIcons name="map-marker" size={17} color={colors.primary} />
-              <Text style={local.subtitleText} selectable>{profile.city} · {profile.distance}</Text>
-              {profile.heightCm && <Text style={local.subtitleText} selectable>· {profile.heightCm} cm</Text>}
+              <MaterialCommunityIcons name="map-marker" size={16} color={colors.primary} />
+              <Text style={local.subtitleText} maxFontSizeMultiplier={1.2}>{locationLabel || "Lokalizacja ukryta"}</Text>
+              {secondaryDistance && <Text style={local.subtitleText}>• {secondaryDistance}</Text>}
+              {profile.heightCm && <Text style={local.subtitleText}>• {profile.heightCm} cm</Text>}
             </View>
           </View>
 
           <View style={local.featuredPanel}>
-            <Text style={local.featuredLabel} selectable>WYRÓŻNIONE ZAINTERESOWANIA</Text>
+            <Text style={local.featuredLabel}>WYRÓŻNIONE ZAINTERESOWANIA</Text>
             <View style={local.featuredRow}>
               {featuredInterests.map((interest, index) => {
                 const theme = getInterestTheme(interest, index);
                 return (
                   <View key={interest} style={[local.featuredChip, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-                    <MaterialCommunityIcons name="star-four-points" size={13} color={theme.active} />
-                    <Text style={local.featuredChipText} numberOfLines={1}>{interest}</Text>
+                    <MaterialCommunityIcons name="star-four-points" size={12} color={theme.active} />
+                    <Text style={local.featuredChipText} numberOfLines={1} maxFontSizeMultiplier={1.15}>{interest}</Text>
                   </View>
                 );
               })}
@@ -3600,55 +3671,77 @@ function ProfilePreviewSheet({
           </View>
 
           {!isOwnProfile && (
-            <>
-              <View style={local.metrics}>
-                <View style={local.metric}><Text style={local.metricValue}>{matchPercent}%</Text><Text style={local.metricLabel}>dopasowanie</Text></View>
-                <View style={local.metric}><Text style={local.metricValue}>{sharedInterests.length}</Text><Text style={local.metricLabel}>wspólne tagi</Text></View>
-                <View style={local.metric}><Text style={local.metricValue}>{profile.distance}</Text><Text style={local.metricLabel}>odległość</Text></View>
+            <View style={local.metrics}>
+              <View style={local.metric}>
+                <MaterialCommunityIcons name="account-heart" size={17} color={colors.primary} />
+                <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{sharedInterests.length}</Text>
+                <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne</Text>
               </View>
-
-            </>
+              <View style={local.metric}>
+                <MaterialCommunityIcons name="compass-outline" size={17} color={colors.primary} />
+                <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{profile.intent || "Nowe znajomości"}</Text>
+                <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>cel profilu</Text>
+              </View>
+              <View style={local.metric}>
+                <MaterialCommunityIcons name="map-marker-distance" size={17} color={colors.primary} />
+                <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{distanceFact}</Text>
+                <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>odległość</Text>
+              </View>
+            </View>
           )}
 
           <View style={local.section}>
-            <Text style={local.sectionTitle} selectable>O mnie</Text>
-            <Text style={local.bio} selectable>{profile.bio}</Text>
+            <Text style={local.sectionTitle}>O mnie</Text>
+            <Text style={local.bio} numberOfLines={bioExpanded ? undefined : 3} maxFontSizeMultiplier={1.2}>{profile.bio}</Text>
+            {bioNeedsToggle && (
+              <Pressable accessibilityRole="button" onPress={() => setBioExpanded((value) => !value)} style={local.bioToggle}>
+                <Text style={local.bioToggleText}>{bioExpanded ? "Pokaż mniej" : "Czytaj dalej"}</Text>
+              </Pressable>
+            )}
           </View>
 
           <View style={local.section}>
-            <Text style={local.sectionTitle} selectable>Zainteresowania</Text>
-            <Text style={local.sectionHint} selectable>{isOwnProfile ? "Pierwsze trzy tagi są wyróżnione na karcie." : "Wspólne tagi są oznaczone mocniejszym kolorem."}</Text>
-            <View style={local.wrap}>
-              {profile.interests.map((interest, index) => {
+            <Text style={local.sectionTitle}>Zainteresowania</Text>
+            <Text style={local.sectionHint}>{isOwnProfile ? "Pierwsze trzy są wyróżnione na karcie." : "Wspólne zainteresowania mają mocniejsze obramowanie."}</Text>
+            <View style={local.interestGrid}>
+              {visibleInterests.map((interest, index) => {
                 const theme = getInterestTheme(interest, index);
                 const shared = sharedInterests.includes(interest);
                 return (
-                  <Text
+                  <View
                     key={interest}
                     style={[
-                      local.chip,
-                      { backgroundColor: shared ? theme.active : theme.soft, color: colors.ink, borderColor: theme.border }
+                      local.interestCard,
+                      {
+                        backgroundColor: shared ? "rgba(255,45,141,0.14)" : theme.soft,
+                        borderColor: shared ? colors.primary : theme.border
+                      }
                     ]}
-                    selectable
                   >
-                    {interest}
-                  </Text>
+                    <View style={[local.interestIcon, { backgroundColor: shared ? colors.primarySoft : theme.soft }]}>
+                      <MaterialCommunityIcons name={getInterestIcon(interest, "tag-heart") as any} size={15} color={shared ? colors.primary : theme.active} />
+                    </View>
+                    <Text style={local.interestText} numberOfLines={2} maxFontSizeMultiplier={1.15}>{interest}</Text>
+                  </View>
                 );
               })}
             </View>
+            {profile.interests.length > visibleInterests.length && (
+              <Text style={local.moreInterests}>+{profile.interests.length - visibleInterests.length} pozostałych zainteresowań</Text>
+            )}
           </View>
 
           {profile.socials.length > 0 && (
             <View style={local.section}>
-              <Text style={local.sectionTitle} selectable>Social media</Text>
-              <Text style={local.sectionHint} selectable>Dane kontaktowe są chronione do momentu matcha.</Text>
+              <Text style={local.sectionTitle}>Social media</Text>
+              <Text style={local.sectionHint}>Dane kontaktowe są chronione do momentu matcha.</Text>
               <View style={local.socialList}>
                 {profile.socials.map((social) => (
                   <View key={social.label} style={local.social}>
                     <View style={local.socialIcon}><SocialIcon label={social.label} size={17} /></View>
                     <View style={styles.fill}>
-                      <Text style={local.socialLabel} selectable>{social.label}</Text>
-                      <Text style={local.socialValue} selectable>{canViewSocials ? social.value : "Widoczne po matchu"}</Text>
+                      <Text style={local.socialLabel}>{social.label}</Text>
+                      <Text style={local.socialValue}>{canViewSocials ? social.value : "Widoczne po matchu"}</Text>
                     </View>
                     {!canViewSocials && <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
                   </View>
@@ -3660,15 +3753,26 @@ function ProfilePreviewSheet({
 
         {!isOwnProfile && !readOnly && (
           <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Pomiń profil" onPress={onPass} style={local.actionRound}>
-              <MaterialCommunityIcons name="close" size={25} color={colors.ink} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Wyślij SPARKLIKE" onPress={onSuperlike} style={local.actionSecondary}>
+              <MaterialCommunityIcons name="fire" size={20} color={colors.primary} />
+              <Text style={local.actionLabel} numberOfLines={1} maxFontSizeMultiplier={1.1}>SPARKLIKE</Text>
+              <View style={local.actionMetaRow}>
+                {superlikeLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
+                <Text style={local.actionMeta}>Pro • {superlikesRemaining}/10</Text>
+              </View>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={onLike} style={local.like}>
-              <MaterialCommunityIcons name="heart" size={21} color="#fff" />
-              <Text style={local.likeText}>Polub profil</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Polub profil" onPress={onLike} style={local.actionPrimary}>
+              <MaterialCommunityIcons name="heart-plus" size={21} color="#fff" />
+              <Text style={[local.actionLabel, local.actionLabelPrimary]} numberOfLines={1} maxFontSizeMultiplier={1.1}>Polub profil</Text>
+              <Text style={[local.actionMeta, local.actionMetaPrimary]}>Match po wzajemności</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Napisz" onPress={onMessage} style={local.actionRound}>
-              <MaterialCommunityIcons name="message-text" size={22} color={colors.primary} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Napisz teraz" onPress={onMessage} style={local.actionSecondary}>
+              <MaterialCommunityIcons name="message-text" size={20} color={colors.primary} />
+              <Text style={local.actionLabel} numberOfLines={1} maxFontSizeMultiplier={1.1}>Napisz teraz</Text>
+              <View style={local.actionMetaRow}>
+                {messageLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
+                <Text style={local.actionMeta}>{messageLocked ? "Spark Pro" : "Od razu"}</Text>
+              </View>
             </Pressable>
           </View>
         )}
@@ -3854,6 +3958,7 @@ function MatchesScreen({
   chatRequestKeys,
   chatThreads,
   hasPro,
+  viewerInterests,
   onLikeIncomingProfile,
   onCancelPendingLike,
   onCancelRequest,
@@ -3866,6 +3971,7 @@ function MatchesScreen({
   chatRequestKeys: string[];
   chatThreads: Record<string, ChatThread>;
   hasPro: boolean;
+  viewerInterests: string[];
   onLikeIncomingProfile: (profileKey: string) => Promise<void>;
   onCancelPendingLike: (profileKey: string) => Promise<void>;
   onCancelRequest: (profileKey: string) => Promise<void>;
@@ -4054,7 +4160,7 @@ function MatchesScreen({
       {previewProfile && (
         <ProfilePreviewSheet
           profile={previewProfile}
-          viewerInterests={[]}
+          viewerInterests={viewerInterests}
           onClose={() => setPreviewProfile(null)}
           canViewSocials={matchedProfileKeys.includes(getProfileKey(previewProfile))}
           readOnly
@@ -6980,28 +7086,21 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 6
   },
-  cardCrown: {
+  cardProBadge: {
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 29,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
     borderRadius: 999,
-    overflow: "hidden",
-    color: "#3a2500",
     backgroundColor: colors.gold,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    fontSize: 11,
-    fontWeight: "900"
+    borderColor: "rgba(255,255,255,0.14)"
   },
-  verified: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    overflow: "hidden",
-    color: "#fff",
-    backgroundColor: "rgba(66,217,130,0.9)",
-    fontSize: 11,
+  cardProText: {
+    color: "#3a2500",
+    fontSize: 10,
     fontWeight: "900"
   },
   cardTitle: {
@@ -7060,17 +7159,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900"
   },
-  matchReasonInline: {
-    maxWidth: 330,
-    marginBottom: 5,
-    color: "#f5c4d8",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "800",
-    textShadowColor: "rgba(0,0,0,0.36)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 5
-  },
+
   matchScorePill: {
     position: "absolute",
     left: 24,
