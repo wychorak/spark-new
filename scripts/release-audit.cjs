@@ -126,6 +126,7 @@ check(packageJson.dependencies?.['expo-build-properties'], 'Expo build propertie
 check(packageJson.dependencies?.['expo-notifications'] && app.plugins?.includes('expo-notifications'), 'Expo push notification native setup is missing.');
 check(notificationsSource.includes('getExpoPushTokenAsync') && functionsSource.includes('notifyNewMatch') && functionsSource.includes('notifyNewMessage'), 'Match and message push notification flow is incomplete.');
 check(firebaseJson.functions?.source === 'functions' && firebaseJson.functions?.runtime === 'nodejs22', 'Firebase notification functions are not wired for production.');
+check(codemagicSource.includes('npm ci --prefix functions') && codemagicSource.includes('npm --prefix functions run build'), 'Codemagic must install and compile Firebase Functions separately.');
 check(packageJson.dependencies?.['react-native-purchases'], 'RevenueCat dependency is missing.');
 check(packageJson.dependencies?.['react-native-google-mobile-ads'], 'Google Mobile Ads dependency is missing.');
 

@@ -25,10 +25,12 @@ workflows:
       - name: Install dependencies
         script: |
           npm ci
+          npm ci --prefix functions
 
       - name: Validate release configuration
         script: |
           npm run release:check
+          npm --prefix functions run build
 
       - name: Set iOS build number
         script: |
