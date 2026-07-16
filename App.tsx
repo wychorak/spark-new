@@ -8,6 +8,7 @@ import { Image } from "expo-image";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import * as Sharing from "expo-sharing";
 import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -24,6 +25,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share as NativeShare,
   StyleSheet,
   Switch,
   Text,
@@ -31,6 +33,7 @@ import {
   useWindowDimensions,
   View
 } from "react-native";
+import { captureRef } from "react-native-view-shot";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { currentUserUsesAppleSignIn, deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
@@ -87,6 +90,7 @@ const colors = {
 };
 
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "sparkapp@gmail.com";
+const appInstallUrl = process.env.EXPO_PUBLIC_APP_INSTALL_URL || "https://apps.apple.com/app/id6785284685";
 const legalLinks = {
   privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "https://spark-new-legal.vercel.app/privacy",
   terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://spark-new-legal.vercel.app/terms",
@@ -103,6 +107,18 @@ function openSupportEmail(subject = "Spark - pomoc") {
   Linking.openURL(mailto).catch(() => {
     Alert.alert("Pomoc", "Napisz do nas: " + supportEmail);
   });
+}
+
+async function shareSparkInvite() {
+  try {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await NativeShare.share({
+      title: "Dołącz do mnie w Spark",
+      message: `Poznajmy nowych ludzi przez wspólne zainteresowania w Spark. Pobierz aplikację: ${appInstallUrl}`
+    });
+  } catch {
+    Alert.alert("Zaproszenie", "Nie udało się otworzyć udostępniania. Spróbuj ponownie.");
+  }
 }
 
 function openLegalDocument(title: string, url: string, envName: string) {
@@ -501,6 +517,28 @@ function getInterestIcon(item: string, fallback: string) {
 
 function getProfileKey(profile: MatchProfile) {
   return profile.id ?? `${profile.name}-${profile.surname}`;
+}
+
+function getShareCardName(profile: MatchProfile) {
+  return profile.name.trim().split(/\s+/)[0]?.slice(0, 24) || "Nowa osoba";
+}
+
+function buildConversationStarters(profile: MatchProfile, viewerInterests: string[]) {
+  const shared = profile.interests.filter((interest) => viewerInterests.includes(interest));
+  const topics = Array.from(new Set([...shared, ...getFeaturedInterests(profile), ...profile.interests])).slice(0, 2);
+  const firstTopic = topics[0];
+  const secondTopic = topics[1] ?? firstTopic;
+  const starters = [
+    firstTopic
+      ? `Hej ${profile.name}! Widzę, że też wybierasz „${firstTopic}”. Co najbardziej Cię w tym kręci?`
+      : `Hej ${profile.name}! Co ostatnio poprawiło Ci humor?`,
+    secondTopic
+      ? `Jedno pytanie na start: jaki był Twój ostatni dobry moment związany z „${secondTopic}”?`
+      : "Szybki wybór na pierwsze spotkanie: kawa, spacer czy coś spontanicznego?",
+    "Mamy match, więc szybki wybór: kawa, spacer czy długa rozmowa?"
+  ];
+
+  return Array.from(new Set(starters)).slice(0, 3);
 }
 
 function getProfileGallery(profile: MatchProfile) {
@@ -2251,6 +2289,7 @@ function AppContent() {
             onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
             onSignOut={confirmSignOut}
+            onInvite={() => { void shareSparkInvite(); }}
             hasMatchedProfile={hasMatchedActiveProfile}
             hasRequestedProfile={hasRequestedActiveProfile}
             superlikesRemaining={superlikesRemaining}
@@ -2276,6 +2315,7 @@ function AppContent() {
             onOpenPremium={() => setTab("premium")}
             onOpenSafety={() => setTab("safety")}
             onSignOut={confirmSignOut}
+            onInvite={() => { void shareSparkInvite(); }}
             discoverFilters={discoverFilters}
             onSavePreferences={saveDiscoveryPreferences}
             onChromeHiddenChange={setBottomNavHidden}
@@ -2312,6 +2352,7 @@ function AppContent() {
             onRejectRequest={rejectRequest}
             onBlockProfile={blockProfile}
             onReportProfile={reportProfile}
+            viewerInterests={selectedInterests}
           />
         )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} />}
@@ -2361,14 +2402,20 @@ function AppContent() {
             openSafety={() => setTab("safety")}
             onSave={saveProfileToFirestore}
             onSignOut={confirmSignOut}
+            onInvite={() => { void shareSparkInvite(); }}
           />
         )}
         <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
       </ScrollView>
       <MatchCelebration
         profile={matchCelebrationProfile}
+        viewerInterests={selectedInterests}
         onContinue={() => setMatchCelebrationProfile(null)}
-        onOpenChat={() => {
+        onOpenChat={(starter) => {
+          if (matchCelebrationProfile) {
+            setSelectedChatKey(getProfileKey(matchCelebrationProfile));
+          }
+          setMessageDraft(starter ?? "");
           setMatchCelebrationProfile(null);
           setTab("messages");
         }}
@@ -2831,6 +2878,7 @@ function DiscoverScreen({
   onOpenPremium,
   onOpenSafety,
   onSignOut,
+  onInvite,
   hasMatchedProfile,
   hasRequestedProfile,
   superlikesRemaining,
@@ -2854,6 +2902,7 @@ function DiscoverScreen({
   onOpenPremium: () => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
+  onInvite: () => void;
   hasMatchedProfile: boolean;
   hasRequestedProfile: boolean;
   superlikesRemaining: number;
@@ -3160,6 +3209,7 @@ function DiscoverScreen({
         onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
         onSignOut={onSignOut}
+        onInvite={onInvite}
       />
 
       <DiscoveryPreferencesModal
@@ -3246,7 +3296,8 @@ function DiscoveryMenuModal({
   onOpenProfile,
   onOpenPremium,
   onOpenSafety,
-  onSignOut
+  onSignOut,
+  onInvite
 }: {
   visible: boolean;
   filters: DiscoverFilters;
@@ -3259,6 +3310,7 @@ function DiscoveryMenuModal({
   onOpenPremium: () => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
+  onInvite: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const activeFilters = countActiveDiscoverFilters(filters);
@@ -3267,6 +3319,7 @@ function DiscoveryMenuModal({
     { icon: "heart-multiple", label: "Matche", hint: "Polubienia i nowe iskry", action: onOpenMatches },
     { icon: "message-text", label: "Wiadomości", hint: "Aktywne i oczekujące", action: onOpenMessages },
     { icon: "account-circle", label: "Twój profil", hint: "Zdjęcia, dane i zainteresowania", action: onOpenProfile },
+    { icon: "account-multiple-plus", label: "Zaproś znajomych", hint: "Wyślij link do Spark", action: onInvite },
     { icon: "crown", label: "Spark Pro", hint: "Pakiety i funkcje premium", action: onOpenPremium }
   ];
 
@@ -3890,6 +3943,7 @@ function DiscoverEmptyState({
   onOpenPremium,
   onOpenSafety,
   onSignOut,
+  onInvite,
   discoverFilters,
   onSavePreferences,
   onChromeHiddenChange
@@ -3905,6 +3959,7 @@ function DiscoverEmptyState({
   onOpenPremium: () => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
+  onInvite: () => void;
   discoverFilters: DiscoverFilters;
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
   onChromeHiddenChange?: (hidden: boolean) => void;
@@ -3961,6 +4016,7 @@ function DiscoverEmptyState({
         onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
         onSignOut={onSignOut}
+        onInvite={onInvite}
       />
 
       <DiscoveryPreferencesModal
@@ -3975,13 +4031,34 @@ function DiscoverEmptyState({
 
 function MatchCelebration({
   profile,
+  viewerInterests,
   onContinue,
   onOpenChat
 }: {
   profile: MatchProfile | null;
+  viewerInterests: string[];
   onContinue: () => void;
-  onOpenChat: () => void;
+  onOpenChat: (starter?: string) => void;
 }) {
+  const [selectedStarter, setSelectedStarter] = useState<string | null>(null);
+  const starterAnimations = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  const starters = profile ? buildConversationStarters(profile, viewerInterests) : [];
+
+  useEffect(() => {
+    if (!profile) return;
+    setSelectedStarter(null);
+    starterAnimations.forEach((animation) => animation.setValue(0));
+    Animated.stagger(
+      90,
+      starterAnimations.map((animation) => Animated.spring(animation, {
+        toValue: 1,
+        damping: 15,
+        stiffness: 170,
+        useNativeDriver: true
+      }))
+    ).start();
+  }, [profile, starterAnimations]);
+
   if (!profile) {
     return null;
   }
@@ -4000,9 +4077,37 @@ function MatchCelebration({
             Ty i {profile.name} polubiliście się. Rozmowa jest już odblokowana.
           </Text>
           <Image source={profile.image} style={styles.matchCelebrationPhoto} contentFit="cover" />
-          <Pressable accessibilityRole="button" onPress={onOpenChat} style={styles.matchCelebrationPrimary}>
+          <View style={styles.matchStarterSection}>
+            <View style={styles.matchStarterHeading}>
+              <MaterialCommunityIcons name="creation" size={16} color={colors.primaryDeep} />
+              <Text style={styles.matchStarterHeadingText}>Pierwsza iskra</Text>
+            </View>
+            {starters.map((starter, index) => (
+              <Animated.View
+                key={starter}
+                style={{
+                  opacity: starterAnimations[index],
+                  transform: [{ translateY: starterAnimations[index].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }]
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: selectedStarter === starter }}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    setSelectedStarter(starter);
+                  }}
+                  style={[styles.matchStarterOption, selectedStarter === starter && styles.matchStarterOptionActive]}
+                >
+                  <MaterialCommunityIcons name={selectedStarter === starter ? "check-circle" : "message-processing-outline"} size={17} color={selectedStarter === starter ? "#fff" : colors.primaryDeep} />
+                  <Text style={[styles.matchStarterOptionText, selectedStarter === starter && styles.matchStarterOptionTextActive]} numberOfLines={2}>{starter}</Text>
+                </Pressable>
+              </Animated.View>
+            ))}
+          </View>
+          <Pressable accessibilityRole="button" onPress={() => onOpenChat(selectedStarter ?? starters[0])} style={styles.matchCelebrationPrimary}>
             <MaterialCommunityIcons name="message-text" size={20} color="#fff" />
-            <Text style={styles.matchCelebrationPrimaryText}>Napisz teraz</Text>
+            <Text style={styles.matchCelebrationPrimaryText}>{selectedStarter ? "Użyj tej wiadomości" : "Zacznij rozmowę"}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={onContinue} style={styles.matchCelebrationSecondary}>
             <Text style={styles.matchCelebrationSecondaryText}>Odkrywaj dalej</Text>
@@ -4245,7 +4350,8 @@ function MessagesScreen({
   onAcceptRequest,
   onRejectRequest,
   onBlockProfile,
-  onReportProfile
+  onReportProfile,
+  viewerInterests
 }: {
   profiles: MatchProfile[];
   matchedProfileKeys: string[];
@@ -4260,6 +4366,7 @@ function MessagesScreen({
   onRejectRequest: (profileKey: string) => void;
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
+  viewerInterests: string[];
 }) {
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
@@ -4380,6 +4487,7 @@ function MessagesScreen({
         onReject={onRejectRequest}
         onBlock={onBlockProfile}
         onReport={onReportProfile}
+        viewerInterests={viewerInterests}
       />
     </View>
   );
@@ -4395,7 +4503,8 @@ function ChatConversationModal({
   onAccept,
   onReject,
   onBlock,
-  onReport
+  onReport,
+  viewerInterests
 }: {
   conversation: { key: string; profile: MatchProfile; name: string; status: ChatStatus } | null;
   thread?: ChatThread;
@@ -4407,6 +4516,7 @@ function ChatConversationModal({
   onReject: (profileKey: string) => void;
   onBlock: (profileKey: string) => void;
   onReport: (profileKey: string, reason?: string) => void;
+  viewerInterests: string[];
 }) {
   const insets = useSafeAreaInsets();
   const messages = thread?.messages ?? [];
@@ -4425,6 +4535,10 @@ function ChatConversationModal({
     emptyIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
     emptyTitle: { color: colors.ink, fontSize: 17, fontWeight: "900", textAlign: "center" },
     emptyText: { maxWidth: 300, color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "700" },
+    starterLead: { marginTop: 8, color: colors.primaryDeep, fontSize: 10, fontWeight: "900", letterSpacing: 0.8, textTransform: "uppercase" },
+    starterList: { width: "100%", gap: 8, marginTop: 4 },
+    starterChip: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
+    starterChipText: { flex: 1, color: "#f5dce7", fontSize: 11, lineHeight: 16, fontWeight: "800" },
     bubble: { maxWidth: "82%", paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18 },
     bubbleMe: { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 6 },
     bubbleThem: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.08)", borderBottomLeftRadius: 6 },
@@ -4448,6 +4562,7 @@ function ChatConversationModal({
   }
 
   const activeConversation = conversation;
+  const conversationStarters = buildConversationStarters(activeConversation.profile, viewerInterests);
 
   function confirmBlock() {
     Alert.alert("Zablokuj profil", `Czy na pewno chcesz zablokowa\u0107 ${activeConversation.name}?`, [
@@ -4500,7 +4615,29 @@ function ChatConversationModal({
             <View style={local.empty}>
               <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
               <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmowę" : "Prośba oczekuje"}</Text>
-              <Text style={local.emptyText} selectable>{canMessage ? "Napisz pierwszą wiadomość i nawiąż kontakt." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
+              <Text style={local.emptyText} selectable>{canMessage ? "Zacznij od czegoś, co naprawdę Was łączy." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
+              {canMessage && (
+                <>
+                  <Text style={local.starterLead}>Wybierz pierwszą iskrę</Text>
+                  <View style={local.starterList}>
+                    {conversationStarters.map((starter) => (
+                      <Pressable
+                        key={starter}
+                        accessibilityRole="button"
+                        onPress={() => {
+                          void Haptics.selectionAsync();
+                          setDraft(starter);
+                        }}
+                        style={local.starterChip}
+                      >
+                        <MaterialCommunityIcons name="creation" size={16} color={colors.primary} />
+                        <Text style={local.starterChipText} numberOfLines={3}>{starter}</Text>
+                        <MaterialCommunityIcons name="arrow-bottom-right" size={16} color={colors.primaryDeep} />
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
           ) : messages.map((message) => (
             <View key={message.id} style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
@@ -4799,7 +4936,8 @@ function ProfileScreen({
   openCustomerCenter,
   openSafety,
   onSave,
-  onSignOut
+  onSignOut,
+  onInvite
 }: {
   firstName: string;
   setFirstName: (value: string) => void;
@@ -4837,9 +4975,11 @@ function ProfileScreen({
   openSafety: () => void;
   onSave: () => Promise<boolean>;
   onSignOut: () => void;
+  onInvite: () => void;
 }) {
   const [saveBusy, setSaveBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
   const maxPhotos = hasPro ? 15 : 3;
   const visiblePhotoCount = Math.min(profilePhotos.length, maxPhotos);
   const hiddenPhotoCount = Math.max(0, profilePhotos.length - maxPhotos);
@@ -4969,6 +5109,29 @@ function ProfileScreen({
         ))}
       </View>
 
+      <LinearGradient colors={["rgba(255,45,141,0.2)", "rgba(74,18,54,0.34)", "rgba(20,20,26,0.92)"]} style={styles.profileGrowthPanel}>
+        <View style={styles.profileGrowthHeader}>
+          <View style={styles.profileGrowthIcon}>
+            <MaterialCommunityIcons name="share-variant" size={22} color="#fff" />
+          </View>
+          <View style={styles.fill}>
+            <Text style={styles.profileGrowthEyebrow}>TWOJA KARTA SPARK</Text>
+            <Text style={styles.profileGrowthTitle}>Pokaż swój vibe</Text>
+            <Text style={styles.profileGrowthHint}>Gotowy format Story bez nazwiska, lokalizacji i sociali.</Text>
+          </View>
+        </View>
+        <View style={styles.profileGrowthActions}>
+          <Pressable accessibilityRole="button" onPress={() => setShareCardOpen(true)} style={styles.profileGrowthPrimary}>
+            <MaterialCommunityIcons name="image-multiple-outline" size={18} color="#fff" />
+            <Text style={styles.profileGrowthPrimaryText}>Utwórz kartę</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={onInvite} style={styles.profileGrowthSecondary}>
+            <MaterialCommunityIcons name="account-multiple-plus" size={18} color={colors.primaryDeep} />
+            <Text style={styles.profileGrowthSecondaryText}>Zaproś</Text>
+          </Pressable>
+        </View>
+      </LinearGradient>
+
       <View style={styles.profilePanel}>
         <View style={styles.profileSectionHeader}>
           <View style={styles.fill}>
@@ -5088,7 +5251,170 @@ function ProfileScreen({
           isOwnProfile
         />
       )}
+      <ShareProfileCardModal visible={shareCardOpen} profile={ownPreviewProfile} onClose={() => setShareCardOpen(false)} />
     </View>
+  );
+}
+
+function ShareProfileCardModal({
+  visible,
+  profile,
+  onClose
+}: {
+  visible: boolean;
+  profile: MatchProfile;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const cardRef = useRef<View>(null);
+  const entrance = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+  const [sharing, setSharing] = useState(false);
+  const safeName = getShareCardName(profile);
+  const featuredInterests = getFeaturedInterests(profile);
+  const cardWidth = Math.max(238, Math.min(width - 36, 342, ((height - 210) * 9) / 16));
+  const cardHeight = cardWidth * 16 / 9;
+  const local = StyleSheet.create({
+    root: { flex: 1, backgroundColor: "#050507", alignItems: "center" },
+    header: { width: "100%", minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
+    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
+    headerTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
+    headerSpacer: { width: 42 },
+    stage: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", paddingVertical: 8 },
+    card: { overflow: "hidden", borderRadius: 30, borderCurve: "continuous", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "#171018", boxShadow: "0 28px 70px rgba(255,45,141,0.34)" },
+    photo: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+    photoVeil: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+    ambientGlow: { position: "absolute", top: -60, right: -70, width: 210, height: 210, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.32)" },
+    content: { flex: 1, justifyContent: "space-between", padding: 20 },
+    brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    brand: { flexDirection: "row", alignItems: "center", gap: 8 },
+    logo: { width: 38, height: 18 },
+    brandText: { color: "#fff", fontSize: 11, fontWeight: "900", letterSpacing: 1.2 },
+    formatPill: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.4)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
+    formatText: { color: "rgba(255,255,255,0.82)", fontSize: 8, fontWeight: "900" },
+    bottom: { gap: 11 },
+    kicker: { color: "#ff8fc4", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+    name: { color: "#fff", fontSize: 35, lineHeight: 39, fontWeight: "900" },
+    intro: { maxWidth: "90%", color: "rgba(255,255,255,0.84)", fontSize: 12, lineHeight: 17, fontWeight: "700" },
+    interests: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+    interest: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(5,5,7,0.62)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+    interestText: { color: "#fff", fontSize: 9, fontWeight: "900" },
+    install: { flexDirection: "row", alignItems: "center", gap: 9, paddingTop: 11, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.18)" },
+    installIcon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    installLabel: { color: "#fff", fontSize: 10, fontWeight: "900" },
+    installUrl: { marginTop: 2, color: "rgba(255,255,255,0.72)", fontSize: 7.5, fontWeight: "700" },
+    footer: { width: "100%", paddingHorizontal: 16, gap: 9 },
+    privacy: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: "center", fontWeight: "700" },
+    shareButton: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 999, backgroundColor: colors.primary, boxShadow: "0 14px 34px rgba(255,45,141,0.32)" },
+    shareText: { color: "#fff", fontSize: 14, fontWeight: "900" },
+    inviteButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+    inviteText: { color: colors.primaryDeep, fontSize: 12, fontWeight: "900" }
+  });
+
+  useEffect(() => {
+    if (!visible) return;
+    entrance.setValue(0);
+    pulse.setValue(0);
+    Animated.spring(entrance, { toValue: 1, damping: 16, stiffness: 150, useNativeDriver: true }).start();
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [entrance, pulse, visible]);
+
+  async function shareCard() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      if (Platform.OS === "web" || !(await Sharing.isAvailableAsync())) {
+        await shareSparkInvite();
+        return;
+      }
+      const uri = await captureRef(cardRef, {
+        format: "png",
+        quality: 1,
+        result: "tmpfile",
+        width: 1080,
+        height: 1920
+      });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await Sharing.shareAsync(uri, {
+        dialogTitle: "Udostępnij kartę Spark",
+        mimeType: "image/png",
+        UTI: "public.png"
+      });
+    } catch {
+      Alert.alert("Karta Spark", "Nie udało się utworzyć obrazu. Spróbuj ponownie po pełnym załadowaniu zdjęcia.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+      <View style={[local.root, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <StatusBar style="light" />
+        <View style={local.header}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij kartę" onPress={onClose} style={local.close}>
+            <MaterialCommunityIcons name="close" size={21} color={colors.ink} />
+          </Pressable>
+          <Text style={local.headerTitle}>Karta do udostępnienia</Text>
+          <View style={local.headerSpacer} />
+        </View>
+        <View style={local.stage}>
+          <Animated.View style={{ opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }] }}>
+            <View ref={cardRef} collapsable={false} style={[local.card, { width: cardWidth, height: cardHeight }]}>
+              <Image source={profile.image} style={local.photo} contentFit="cover" transition={0} />
+              <LinearGradient colors={["rgba(3,3,5,0.16)", "rgba(3,3,5,0.05)", "rgba(5,5,7,0.94)"]} locations={[0, 0.4, 1]} style={local.photoVeil} />
+              <Animated.View style={[local.ambientGlow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.08] }) }] }]} />
+              <View style={local.content}>
+                <View style={local.brandRow}>
+                  <View style={local.brand}>
+                    <Image source={headerLogoImage} style={local.logo} contentFit="contain" />
+                    <Text style={local.brandText}>SPARK</Text>
+                  </View>
+                  <View style={local.formatPill}><Text style={local.formatText}>POZNAJMY SIĘ</Text></View>
+                </View>
+                <View style={local.bottom}>
+                  <Text style={local.kicker}>NOWA ISKRA JEST BLIŻEJ NIŻ MYŚLISZ</Text>
+                  <Text style={local.name} numberOfLines={1}>Poznaj {safeName}</Text>
+                  <Text style={local.intro}>Łączą nas zainteresowania. Resztę historii dopiszemy w Spark.</Text>
+                  <View style={local.interests}>
+                    {featuredInterests.map((interest) => (
+                      <View key={interest} style={local.interest}>
+                        <MaterialCommunityIcons name={getInterestIcon(interest, "star-four-points") as any} size={11} color="#ff8fc4" />
+                        <Text style={local.interestText}>{interest}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={local.install}>
+                    <View style={local.installIcon}><MaterialCommunityIcons name="heart-multiple" size={18} color="#fff" /></View>
+                    <View style={styles.fill}>
+                      <Text style={local.installLabel}>Pobierz Spark i znajdź swoją iskrę</Text>
+                      <Text style={local.installUrl} numberOfLines={1}>{appInstallUrl}</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        </View>
+        <View style={local.footer}>
+          <Text style={local.privacy}>Karta zawiera tylko pierwsze imię lub nick, zdjęcie i wyróżnione zainteresowania.</Text>
+          <Pressable accessibilityRole="button" disabled={sharing} onPress={() => { void shareCard(); }} style={[local.shareButton, sharing && styles.primaryButtonDisabled]}>
+            {sharing ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="instagram" size={20} color="#fff" />}
+            <Text style={local.shareText}>{sharing ? "Tworzenie karty..." : "Udostępnij jako Story"}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { void shareSparkInvite(); }} style={local.inviteButton}>
+            <MaterialCommunityIcons name="link-variant" size={18} color={colors.primaryDeep} />
+            <Text style={local.inviteText}>Wyślij klikalny link do aplikacji</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -8250,6 +8576,84 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800"
   },
+  profileGrowthPanel: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.28)",
+    boxShadow: "0 18px 44px rgba(255,45,141,0.14)"
+  },
+  profileGrowthHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  profileGrowthIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    boxShadow: "0 12px 28px rgba(255,45,141,0.3)"
+  },
+  profileGrowthEyebrow: {
+    color: colors.primaryDeep,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1
+  },
+  profileGrowthTitle: {
+    marginTop: 2,
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  profileGrowthHint: {
+    marginTop: 3,
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "700"
+  },
+  profileGrowthActions: {
+    flexDirection: "row",
+    gap: 9
+  },
+  profileGrowthPrimary: {
+    flex: 1,
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  profileGrowthPrimaryText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  profileGrowthSecondary: {
+    minWidth: 104,
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)"
+  },
+  profileGrowthSecondaryText: {
+    color: colors.primaryDeep,
+    fontSize: 12,
+    fontWeight: "900"
+  },
   profileGalleryPanel: {
     gap: 14,
     padding: 14,
@@ -9071,11 +9475,11 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 420,
     alignItems: "center",
-    gap: 12,
+    gap: 8,
     overflow: "hidden",
     paddingHorizontal: 22,
-    paddingTop: 28,
-    paddingBottom: 22,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderRadius: 30,
     borderCurve: "continuous",
     borderWidth: 1,
@@ -9121,13 +9525,61 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   matchCelebrationPhoto: {
-    width: 126,
-    height: 158,
-    marginVertical: 4,
-    borderRadius: 24,
+    width: 78,
+    height: 96,
+    marginVertical: 2,
+    borderRadius: 20,
     borderCurve: "continuous",
     borderWidth: 3,
     borderColor: colors.primary
+  },
+  matchStarterSection: {
+    width: "100%",
+    gap: 7,
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  matchStarterHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 1
+  },
+  matchStarterHeadingText: {
+    color: colors.primaryDeep,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase"
+  },
+  matchStarterOption: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,45,141,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.16)"
+  },
+  matchStarterOptionActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  matchStarterOptionText: {
+    flex: 1,
+    color: "#f1d9e4",
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800"
+  },
+  matchStarterOptionTextActive: {
+    color: "#fff"
   },
   matchCelebrationPrimary: {
     width: "100%",

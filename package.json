@@ -33,6 +33,7 @@
     "expo-linear-gradient": "*",
     "expo-location": "~56.0.21",
     "expo-notifications": "~56.0.21",
+    "expo-sharing": "~56.0.22",
     "expo-splash-screen": "~56.0.13",
     "expo-status-bar": "*",
     "expo-system-ui": "~56.0.5",
@@ -45,6 +46,7 @@
     "react-native-purchases": "^10.4.0",
     "react-native-purchases-ui": "^10.4.0",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-view-shot": "5.1.0",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {

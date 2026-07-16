@@ -56,5 +56,8 @@ module.exports = ({ config }) => withReleaseInfoPlist({
     ...(config.android || {}),
     ...(appJson.expo.android || {})
   },
-  plugins: withAdMobEnv(appJson.expo.plugins || [])
+  plugins: withAdMobEnv([
+    ...(appJson.expo.plugins || []),
+    ...((appJson.expo.plugins || []).includes("expo-sharing") ? [] : ["expo-sharing"])
+  ])
 });

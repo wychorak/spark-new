@@ -116,6 +116,9 @@ check(publicProfileSync.includes('desiredAgeMin') && publicProfileSync.includes(
 check(rulesSource.includes("hasLike(request.auth.uid, otherMember(resource.data))"), 'Mutual likes must be allowed to promote an existing chat request to a match.');
 check(appSource.includes('isOwnProfile') && appSource.includes('WYRÓŻNIONE ZAINTERESOWANIA'), 'Profile-card preview and highlighted interests are missing.');
 check(appSource.includes('sendingMessageKeysRef') && firestoreSource.includes('text.length > 2000'), 'Chat duplicate-send and message-length guards are missing.');
+check(appSource.includes('captureRef(cardRef') && appSource.includes('ShareProfileCardModal') && appSource.includes('appInstallUrl'), 'Shareable privacy-safe profile card is missing.');
+check(appSource.includes('buildConversationStarters') && appSource.includes('Wybierz pierwszą iskrę') && appSource.includes('viewerInterests={selectedInterests}'), 'Personalized first-message starters are missing.');
+check(appSource.includes('shareSparkInvite') && appSource.includes('Zaproś znajomych'), 'Install-link invitation flow is missing.');
 
 for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource })) {
   check(!source.includes('\uFFFD'), `${name} contains a Unicode replacement character.`);
@@ -137,6 +140,8 @@ check(firebaseJson.functions?.source === 'functions' && firebaseJson.functions?.
 check(codemagicSource.includes('npm ci --prefix functions') && codemagicSource.includes('npm --prefix functions run build'), 'Codemagic must install and compile Firebase Functions separately.');
 check(packageJson.dependencies?.['react-native-purchases'], 'RevenueCat dependency is missing.');
 check(packageJson.dependencies?.['react-native-google-mobile-ads'], 'Google Mobile Ads dependency is missing.');
+check(packageJson.dependencies?.['expo-sharing'] && packageJson.dependencies?.['react-native-view-shot'], 'Native profile-card sharing dependencies are missing.');
+check(appConfigSource.includes('expo-sharing'), 'Expo sharing plugin is not enabled in dynamic config.');
 
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
