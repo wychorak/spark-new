@@ -46,8 +46,32 @@ service cloud.firestore {
         );
     }
 
+    function validEvent(event) {
+      return event is map
+        && event.keys().hasOnly(['id', 'category', 'name', 'city', 'date', 'kind'])
+        && event.id is string && event.id.size() >= 8 && event.id.size() <= 220
+        && event.category in ['music', 'cinema', 'sport', 'games', 'city', 'travel']
+        && event.name is string && event.name.size() >= 3 && event.name.size() <= 80
+        && event.city is string && event.city.size() >= 2 && event.city.size() <= 80
+        && event.date is string && event.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && event.kind in ['specific', 'general'];
+    }
+
+    function validEventList(events, eventIds) {
+      return events is list && eventIds is list
+        && events.size() == eventIds.size() && events.size() <= 8
+        && (events.size() < 1 || (validEvent(events[0]) && eventIds[0] == events[0].id))
+        && (events.size() < 2 || (validEvent(events[1]) && eventIds[1] == events[1].id))
+        && (events.size() < 3 || (validEvent(events[2]) && eventIds[2] == events[2].id))
+        && (events.size() < 4 || (validEvent(events[3]) && eventIds[3] == events[3].id))
+        && (events.size() < 5 || (validEvent(events[4]) && eventIds[4] == events[4].id))
+        && (events.size() < 6 || (validEvent(events[5]) && eventIds[5] == events[5].id))
+        && (events.size() < 7 || (validEvent(events[6]) && eventIds[6] == events[6].id))
+        && (events.size() < 8 || (validEvent(events[7]) && eventIds[7] == events[7].id));
+    }
+
     function validMatch(data) {
-      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid'])
+      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid'])
         && data.memberUids is list && data.memberUids.size() == 2
         && data.memberUids[0] != data.memberUids[1]
         && data.createdByUid is string && data.createdByUid in data.memberUids
@@ -56,6 +80,7 @@ service cloud.firestore {
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
         && (data.get('resetAt', null) == null || data.resetAt is timestamp)
+        && (data.get('eventContext', null) == null || validEvent(data.eventContext))
         && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500 && allowedUserText(data.introMessage)));
     }
 
@@ -79,22 +104,43 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(otherUid))
         && !exists(/databases/$(database)/documents/users/$(otherUid)/blocks/$(request.auth.uid))
         && (
+          data.get('eventContext', null) == null
+          || (
+            data.eventContext.id in get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.get('activeEventIds', [])
+            && (
+              data.eventContext.id in get(/databases/$(database)/documents/publicProfiles/$(otherUid)).data.get('activeEventIds', [])
+              || get(/databases/$(database)/documents/publicProfiles/$(otherUid)).data.get('isTestProfile', false) == true
+            )
+          )
+        )
+        && (
           (data.source == 'mutual-like' && data.status == 'matched' && hasLike(request.auth.uid, otherUid) && hasLike(otherUid, request.auth.uid)) ||
           (data.source == 'premium-request' && data.status == 'requested' && hasRevenueCatPro())
         );
     }
 
     function validSwipe(data, swipeId) {
-      return data.keys().hasOnly(['fromUid', 'toProfileKey', 'direction', 'status', 'matchScore', 'resetAt', 'updatedAt', 'createdAt'])
+      return data.keys().hasOnly(['fromUid', 'toProfileKey', 'direction', 'status', 'matchScore', 'eventContext', 'resetAt', 'updatedAt', 'createdAt'])
         && data.fromUid == request.auth.uid
         && data.toProfileKey is string
         && data.toProfileKey != request.auth.uid
         && swipeId == request.auth.uid + '_' + data.toProfileKey
         && data.direction in ['pass', 'like', 'superlike']
         && data.status == (data.direction == 'pass' ? 'passed' : 'liked')
+        && exists(/databases/$(database)/documents/publicProfiles/$(data.toProfileKey))
+        && (
+          data.get('eventContext', null) == null
+          || (
+            validEvent(data.eventContext)
+            && data.eventContext.id in get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.get('activeEventIds', [])
+            && (
+              data.eventContext.id in get(/databases/$(database)/documents/publicProfiles/$(data.toProfileKey)).data.get('activeEventIds', [])
+              || get(/databases/$(database)/documents/publicProfiles/$(data.toProfileKey)).data.get('isTestProfile', false) == true
+            )
+          )
+        )
         && data.createdAt == request.time
-        && data.updatedAt == request.time
-        && exists(/databases/$(database)/documents/publicProfiles/$(data.toProfileKey));
+        && data.updatedAt == request.time;
     }
 
     function validMessage(data) {
@@ -129,7 +175,7 @@ service cloud.firestore {
     function validPublicProfile(data, uid) {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent', 'bio',
-          'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'photoUrls', 'mainPhotoUrl',
+          'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'activeEvents', 'activeEventIds', 'photoUrls', 'mainPhotoUrl',
           'city', 'country', 'location', 'socials', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
         ])
         && data.uid == uid
@@ -148,6 +194,7 @@ service cloud.firestore {
         && data.desiredAgeMin is number && data.desiredAgeMin >= 18 && data.desiredAgeMin <= 99
         && data.desiredAgeMax is number && data.desiredAgeMax >= data.desiredAgeMin && data.desiredAgeMax <= 99
         && data.interests is list && data.interests.size() >= 3 && data.interests.size() <= 15
+        && validEventList(data.activeEvents, data.activeEventIds)
         && data.photoUrls is list && data.photoUrls.size() >= 1
         && data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)
         && (
@@ -293,6 +340,7 @@ service cloud.firestore {
         && request.resource.data.createdByUid == resource.data.createdByUid
         && request.resource.data.source == resource.data.source
         && request.resource.data.get('introMessage', null) == resource.data.get('introMessage', null)
+        && request.resource.data.get('eventContext', null) == resource.data.get('eventContext', null)
         && request.resource.data.get('resetAt', null) == resource.data.get('resetAt', null)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt == request.time

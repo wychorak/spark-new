@@ -27,6 +27,7 @@ const appSource = read('App.tsx');
 const appConfigSource = read('app.config.js');
 const authSource = read('src/auth.ts');
 const firestoreSource = read('src/firestore.ts');
+const eventsSource = read('src/events.ts');
 const firebaseSource = read('src/firebase.ts');
 const googleSource = read('src/google-sign-in.ts');
 const googlePlistSource = read('GoogleService-Info.plist');
@@ -119,8 +120,14 @@ check(appSource.includes('sendingMessageKeysRef') && firestoreSource.includes('t
 check(appSource.includes('captureRef(cardRef') && appSource.includes('ShareProfileCardModal') && appSource.includes('appInstallUrl'), 'Shareable privacy-safe profile card is missing.');
 check(appSource.includes('buildConversationStarters') && appSource.includes('Wybierz pierwszą iskrę') && appSource.includes('viewerInterests={selectedInterests}'), 'Personalized first-message starters are missing.');
 check(appSource.includes('shareSparkInvite') && appSource.includes('Zaproś znajomych'), 'Install-link invitation flow is missing.');
+check(eventsSource.includes('isEventActive') && eventsSource.includes('sanitizeActiveEvents') && eventsSource.includes('getSharedActiveEvents'), 'Event Friends expiry or shared-event filtering is missing.');
+check(eventsSource.includes('kind: SparkEventKind') && !/latitude|longitude|street|address/i.test(eventsSource), 'Event Friends must not store precise event locations.');
+check(firestoreSource.includes('findProfilesByActiveEvents') && firestoreSource.includes('activeEventIds') && firestoreSource.includes('eventContext'), 'Event Friends Firestore query or match context is incomplete.');
+check(rulesSource.includes('validEventList') && rulesSource.includes("data.eventContext.id in get(/databases/$(database)/documents/publicProfiles"), 'Event Friends Firestore authorization is incomplete.');
+check(appSource.includes('EventFriendsManagerModal') && appSource.includes('EventFriendsEmptyState') && appSource.includes('discoverMode === "events"'), 'Separate Event Friends discovery flow is missing.');
+check(appSource.includes('WSPÓLNY PLAN') && appSource.includes('Wspólnie:') && appSource.includes('calendar-heart'), 'Shared event context is missing from profile and chat UI.');
 
-for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource })) {
+for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource, 'src/events.ts': eventsSource })) {
   check(!source.includes('\uFFFD'), `${name} contains a Unicode replacement character.`);
   check(!/[ÃÅÄ][^\s]/.test(source), `${name} contains likely UTF-8 mojibake.`);
   check(!/Nie uda\?o|Spr\?buj|zablokowac|Szukaj prosb/.test(source), `${name} contains broken Polish UI text.`);

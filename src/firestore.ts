@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "./firebase";
+import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
 
 export type UserProfileDocument = {
   uid: string;
@@ -32,6 +33,8 @@ export type UserProfileDocument = {
   ageBand?: "18+" | null;
   age?: number | null;
   interests: string[];
+  activeEvents?: SparkEvent[];
+  activeEventIds?: string[];
   photoUrls?: string[];
   mainPhotoUrl?: string | null;
   authProvider?: string;
@@ -145,6 +148,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     : publicPhotoUrls[0] ?? null;
   const desiredAgeMin = Math.max(18, Math.min(99, profile.desiredAgeMin ?? 18));
   const desiredAgeMax = Math.max(desiredAgeMin, Math.min(99, profile.desiredAgeMax ?? 99));
+  const activeEvents = sanitizeActiveEvents(profile.activeEvents);
   await setDoc(publicProfileRef, {
     uid,
     firstName: profile.firstName,
@@ -161,6 +165,8 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     desiredAgeMin,
     desiredAgeMax,
     interests: profile.interests,
+    activeEvents,
+    activeEventIds: activeEvents.map((event) => event.id),
     photoUrls: publicPhotoUrls,
     mainPhotoUrl: publicMainPhotoUrl,
     city: profile.city ?? "",
@@ -226,6 +232,17 @@ export async function updateUserDiscoveryPreferences(uid: string, preferences: D
     { merge: true }
   );
   await syncPublicUserProfile(uid);
+}
+
+export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) {
+  const activeEvents = sanitizeActiveEvents(events);
+  await setDoc(
+    doc(requireDb(), "users", uid),
+    { activeEvents, activeEventIds: activeEvents.map((event) => event.id), updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+  await syncPublicUserProfile(uid);
+  return activeEvents;
 }
 
 export async function recordUserLogin(params: {
@@ -382,6 +399,15 @@ export async function findProfilesByInterest(interests: string[], cursor: Discov
   };
 }
 
+export async function findProfilesByActiveEvents(eventIds: string[]) {
+  const normalizedIds = Array.from(new Set(eventIds.filter((value) => typeof value === "string" && value.length > 0))).slice(0, 10);
+  if (normalizedIds.length === 0) return [];
+  const snapshot = await getDocs(
+    query(collection(requireDb(), "publicProfiles"), where("activeEventIds", "array-contains-any", normalizedIds), limit(50))
+  );
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+}
+
 export async function findIncomingProfileLikes(toUid: string) {
   const currentDb = requireDb();
   const snapshot = await getDocs(
@@ -434,6 +460,7 @@ export async function recordProfileSwipe(params: {
   toProfileKey: string;
   direction: "pass" | "like" | "superlike";
   matchScore?: number;
+  eventContext?: SparkEvent;
   resetAtMs?: number;
 }) {
   const currentDb = requireDb();
@@ -445,6 +472,7 @@ export async function recordProfileSwipe(params: {
     direction: params.direction,
     status: params.direction === "pass" ? "passed" : "liked",
     matchScore: params.matchScore ?? null,
+    eventContext: params.eventContext ? sanitizeActiveEvents([params.eventContext])[0] ?? null : null,
     resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp()
@@ -549,6 +577,7 @@ export async function createMatchThread(params: {
   createdByUid: string;
   source: "mutual-like" | "premium-request";
   introMessage?: string;
+  eventContext?: SparkEvent;
   resetAtMs?: number;
 }) {
   const currentDb = requireDb();
@@ -589,6 +618,7 @@ export async function createMatchThread(params: {
       createdByUid: params.createdByUid,
       source: params.source,
       introMessage: params.introMessage?.trim() ?? null,
+      eventContext: params.eventContext ? sanitizeActiveEvents([params.eventContext])[0] ?? null : null,
       status: params.source === "premium-request" ? "requested" : "matched",
       resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       createdAt: serverTimestamp(),
@@ -627,6 +657,7 @@ export type RealtimeChatThread = {
   createdByUid: string;
   status: "matched" | "requested";
   introMessage?: string;
+  eventContext?: SparkEvent;
   messages: Array<{ id: string; senderUid: string; text: string; createdAtMs: number | null }>;
 };
 
@@ -646,7 +677,14 @@ export function observeUserChats(uid: string, onChange: (threads: RealtimeChatTh
         const resetAtMs = typeof data.resetAt?.toMillis === "function" ? data.resetAt.toMillis() : null;
         if ((resetAtMs !== null && resetAtMs <= Date.now()) || (data.status !== "matched" && data.status !== "requested")) return;
         activeIds.add(item.id);
-        threadDocuments.set(item.id, { id: item.id, memberUids: Array.isArray(data.memberUids) ? data.memberUids : [], createdByUid: String(data.createdByUid ?? ""), status: data.status, introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined });
+        threadDocuments.set(item.id, {
+          id: item.id,
+          memberUids: Array.isArray(data.memberUids) ? data.memberUids : [],
+          createdByUid: String(data.createdByUid ?? ""),
+          status: data.status,
+          introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined,
+          eventContext: normalizeSparkEvent(data.eventContext) ?? undefined
+        });
         if (!messageUnsubscribers.has(item.id)) {
           messageUnsubscribers.set(item.id, onSnapshot(
             query(collection(currentDb, "messages", item.id, "items"), orderBy("createdAt", "desc"), limit(100)),

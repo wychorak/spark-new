@@ -48,6 +48,7 @@ import {
   findIncomingProfileLikes,
   findMatchThreadsForUser,
   findOutgoingProfileSwipes,
+  findProfilesByActiveEvents,
   findProfilesByInterest,
   findTestProfiles,
   getMonthlySuperlikeUsage,
@@ -63,11 +64,26 @@ import {
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
   syncPublicUserProfile,
+  updateUserActiveEvents,
   updateUserDiscoveryPreferences,
   upsertUserProfile,
   upsertUserPrivateSettings,
   type DiscoveryCursor
 } from "./src/firestore";
+import {
+  buildSuggestedEvents,
+  createEventId,
+  eventCategories,
+  formatEventDate,
+  getBundledTestEvents,
+  getSharedActiveEvents,
+  isEventActive,
+  normalizeSparkEvent,
+  sanitizeActiveEvents,
+  type EventCategoryId,
+  type SparkEvent,
+  type SparkEventKind
+} from "./src/events";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
@@ -236,6 +252,7 @@ function formatSocialHandle(value: string) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
+type DiscoverMode = "people" | "events";
 type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number };
 const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
 type AuthMode = "login" | "register";
@@ -254,6 +271,7 @@ type ChatThread = {
   requestDirection?: "incoming" | "outgoing";
   status: ChatStatus;
   introMessage?: string;
+  eventContext?: SparkEvent;
   messages: Array<{ id: string; from: "me" | "them"; text: string; time: string }>;
 };
 
@@ -272,6 +290,8 @@ type MatchProfile = {
   image: any;
   photos?: any[];
   interests: string[];
+  activeEvents?: SparkEvent[];
+  sharedEvents?: SparkEvent[];
   featuredInterests?: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
@@ -524,11 +544,15 @@ function getShareCardName(profile: MatchProfile) {
 }
 
 function buildConversationStarters(profile: MatchProfile, viewerInterests: string[]) {
+  const sharedEvent = profile.sharedEvents?.find(isEventActive);
   const shared = profile.interests.filter((interest) => viewerInterests.includes(interest));
   const topics = Array.from(new Set([...shared, ...getFeaturedInterests(profile), ...profile.interests])).slice(0, 2);
   const firstTopic = topics[0];
   const secondTopic = topics[1] ?? firstTopic;
   const starters = [
+    sharedEvent
+      ? `Hej ${profile.name}! Też wybierasz się na „${sharedEvent.name}”. Co przekonało Cię do tego wydarzenia?`
+      : null,
     firstTopic
       ? `Hej ${profile.name}! Widzę, że też wybierasz „${firstTopic}”. Co najbardziej Cię w tym kręci?`
       : `Hej ${profile.name}! Co ostatnio poprawiło Ci humor?`,
@@ -538,7 +562,7 @@ function buildConversationStarters(profile: MatchProfile, viewerInterests: strin
     "Mamy match, więc szybki wybór: kawa, spacer czy długa rozmowa?"
   ];
 
-  return Array.from(new Set(starters)).slice(0, 3);
+  return Array.from(new Set(starters.filter((starter): starter is string => Boolean(starter)))).slice(0, 3);
 }
 
 function getProfileGallery(profile: MatchProfile) {
@@ -576,13 +600,18 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const locationAvailable = typeof location?.latitude === "number" && typeof location?.longitude === "number";
   const socials = socialHandlesToProfileSocials(getSocialHandles(item.socials));
   const updatedAt = item.updatedAt as { toMillis?: () => number } | undefined;
+  const city = typeof item.city === "string" && item.city.trim() ? repairLegacyText(item.city.trim()) : "Twoja okolica";
+  const remoteEvents = sanitizeActiveEvents(Array.isArray(item.activeEvents) ? item.activeEvents : []);
+  const activeEvents = item.isTestProfile === true && remoteEvents.length === 0
+    ? getBundledTestEvents(id, city)
+    : remoteEvents;
 
   return {
     id,
     name,
     surname,
     age: typeof item.age === "number" ? Math.max(18, Math.min(99, Math.round(item.age))) : 18,
-    city: typeof item.city === "string" && item.city.trim() ? repairLegacyText(item.city.trim()) : "Twoja okolica",
+    city,
     country: typeof item.country === "string" && item.country.trim() ? repairLegacyText(item.country.trim()) : undefined,
     bio: typeof item.bio === "string" && item.bio.trim()
       ? repairLegacyText(item.bio.trim())
@@ -606,6 +635,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     heightCm: typeof item.heightCm === "number" ? item.heightCm : undefined,
     weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined,
     intent: typeof item.intent === "string" ? repairLegacyText(item.intent.trim()) : undefined,
+    activeEvents,
     updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined
   };
 }
@@ -767,7 +797,14 @@ function AppContent() {
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
+  const [discoverMode, setDiscoverMode] = useState<DiscoverMode>("people");
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>(createDefaultDiscoverFilters);
+  const [activeEvents, setActiveEvents] = useState<SparkEvent[]>([]);
+  const [eventProfiles, setEventProfiles] = useState<MatchProfile[]>([]);
+  const [eventManagerOpen, setEventManagerOpen] = useState(false);
+  const [eventProfilesLoading, setEventProfilesLoading] = useState(false);
+  const [eventProfilesError, setEventProfilesError] = useState<string | null>(null);
+  const [expiredEventsCount, setExpiredEventsCount] = useState(0);
 
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
@@ -817,6 +854,7 @@ function AppContent() {
     [discoverFilters.targetInterests, selectedInterests]
   );
   const profileQueryKey = profileLookupInterests.slice().sort().join("|");
+  const activeEventIdsKey = activeEvents.map((event) => event.id).sort().join("|");
   const availableProfiles = useMemo(
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
     [remoteProfiles]
@@ -871,8 +909,57 @@ function AppContent() {
       !chatRequestKeys.includes(key)
     );
   });
-  const activeProfile = discoverProfiles[0] ?? null;
-  const nextProfile = discoverProfiles[1] ?? null;
+  const eventProfileSource = useMemo(() => {
+    const profiles = new Map<string, MatchProfile>();
+    [...availableProfiles, ...eventProfiles].forEach((profile) => profiles.set(getProfileKey(profile), profile));
+    return Array.from(profiles.values());
+  }, [availableProfiles, eventProfiles]);
+  const eventDiscoverProfiles = useMemo(() =>
+    eventProfileSource
+      .filter((profile) => getProfileKey(profile) !== appUser?.uid)
+      .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
+      .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
+      .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
+      .map((profile) => {
+        const storedSharedEvents = getSharedActiveEvents(activeEvents, profile.activeEvents ?? []);
+        const sharedEvents = storedSharedEvents.length > 0 || !profile.isTestProfile
+          ? storedSharedEvents
+          : activeEvents.slice(0, 2);
+        const baseMatch = scoreProfileMatch({
+          profile,
+          selectedInterests,
+          userLocation,
+          userAge,
+          userIntent: intent,
+          viewerUid: appUser?.uid ?? "guest"
+        });
+        const sameCity = Boolean(userCity.trim()) && profile.city.trim().toLocaleLowerCase("pl-PL") === userCity.trim().toLocaleLowerCase("pl-PL");
+        const sharedInterestCount = profile.interests.filter((interest) => selectedInterests.includes(interest)).length;
+        const eventRank = (sharedEvents.some((event) => event.kind === "specific") ? 180 : 100)
+          + sharedEvents.length * 32
+          + sharedInterestCount * 8
+          + (sameCity ? 18 : 0);
+        return {
+          ...profile,
+          sharedEvents,
+          distance: getApproxDistanceLabel(userLocation, profile),
+          matchScore: baseMatch.score,
+          interestMatchPercent: baseMatch.interestMatchPercent,
+          matchReasons: baseMatch.reasons,
+          eventRank
+        };
+      })
+      .filter((profile) => profile.sharedEvents.length > 0)
+      .filter((profile) => {
+        const key = getProfileKey(profile);
+        return !likedProfileKeys.includes(key) && !passedProfileKeys.includes(key) && !matchedProfileKeys.includes(key) && !chatRequestKeys.includes(key);
+      })
+      .sort((left, right) => right.eventRank - left.eventRank || (right.matchScore ?? 0) - (left.matchScore ?? 0) || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0)),
+    [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, intent, likedProfileKeys, matchedProfileKeys, passedProfileKeys, selectedInterests, userAge, userCity, userLocation]
+  );
+  const currentDiscoverProfiles = discoverMode === "events" ? eventDiscoverProfiles : discoverProfiles;
+  const activeProfile = currentDiscoverProfiles[0] ?? null;
+  const nextProfile = currentDiscoverProfiles[1] ?? null;
   const activeProfileKey = activeProfile ? getProfileKey(activeProfile) : null;
   const hasMatchedActiveProfile = activeProfileKey ? matchedProfileKeys.includes(activeProfileKey) : false;
   const hasRequestedActiveProfile = activeProfileKey ? chatRequestKeys.includes(activeProfileKey) : false;
@@ -918,6 +1005,9 @@ function AppContent() {
           if (mounted) {
             setAppUser(null);
             setSocialHandles(emptySocialHandles);
+            setActiveEvents([]);
+            setEventProfiles([]);
+            setDiscoverMode("people");
             setAuthDone(false);
             setOnboarded(false);
             setAuthRestoring(false);
@@ -928,7 +1018,15 @@ function AppContent() {
         try {
           const [profile, privateSettings] = await Promise.all([getUserProfile(user.uid), getUserPrivateSettings(user.uid)]);
           if (profile) {
-            await syncPublicUserProfile(user.uid).catch(() => undefined);
+            const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
+            const currentEvents = sanitizeActiveEvents(storedEvents);
+            const eventsNeedRefresh = storedEvents.length !== currentEvents.length
+              || currentEvents.some((event, index) => (storedEvents[index] as Partial<SparkEvent> | undefined)?.id !== event.id);
+            if (eventsNeedRefresh) {
+              await updateUserActiveEvents(user.uid, currentEvents).catch(() => syncPublicUserProfile(user.uid).catch(() => undefined));
+            } else {
+              await syncPublicUserProfile(user.uid).catch(() => undefined);
+            }
           }
 
           if (!mounted) {
@@ -952,12 +1050,18 @@ function AppContent() {
             setUserCountry(profile.country ?? "");
             setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
+            const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
+            const currentEvents = sanitizeActiveEvents(storedEvents);
+            setActiveEvents(currentEvents);
+            setExpiredEventsCount(Math.max(0, storedEvents.length - currentEvents.length));
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
             setSocialHandles(getSocialHandles(profile.socials));
 
             setOnboarded(Boolean(profile.onboardingComplete) || ((profile.interests?.length ?? 0) >= 3 && Boolean(profile.ageBand)));
           } else {
             setSocialHandles(emptySocialHandles);
+            setActiveEvents([]);
+            setExpiredEventsCount(0);
             setOnboarded(false);
           }
 
@@ -1190,6 +1294,38 @@ function AppContent() {
   }, [appUser, authDone, canViewTestProfiles, onboarded, profileQueryKey, profileReloadKey]);
 
   useEffect(() => {
+    if (!appUser || !authDone || !onboarded || activeEvents.length === 0) {
+      setEventProfiles([]);
+      setEventProfilesLoading(false);
+      setEventProfilesError(null);
+      return;
+    }
+
+    let mounted = true;
+    setEventProfilesLoading(true);
+    setEventProfilesError(null);
+    void findProfilesByActiveEvents(activeEvents.map((event) => event.id))
+      .then((documents) => {
+        if (!mounted) return;
+        const profiles = documents
+          .filter((item) => item.id !== appUser.uid && (canViewTestProfiles || (item as Record<string, unknown>).isTestProfile !== true))
+          .map((item) => mapRemoteProfile(item as Record<string, unknown>))
+          .filter((profile): profile is MatchProfile => Boolean(profile));
+        setEventProfiles(profiles);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setEventProfiles([]);
+        setEventProfilesError("Nie udało się pobrać profili z tych wydarzeń.");
+      })
+      .finally(() => {
+        if (mounted) setEventProfilesLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, [activeEventIdsKey, appUser, authDone, canViewTestProfiles, onboarded, profileReloadKey]);
+
+  useEffect(() => {
     if (!appUser || !authDone || !onboarded || !profilesHaveMore || !profileCursor || profilesLoading || profilesLoadingMore || discoverProfiles.length > 6) return;
     let mounted = true;
     setProfilesLoadingMore(true);
@@ -1269,6 +1405,7 @@ function AppContent() {
           requestDirection: thread.createdByUid === appUser.uid ? "outgoing" : "incoming",
           status: thread.status,
           introMessage: thread.introMessage,
+          eventContext: thread.eventContext,
           messages: thread.messages.map((message) => ({
             id: message.id,
             from: message.senderUid === appUser.uid ? "me" : "them",
@@ -1585,6 +1722,8 @@ function AppContent() {
         ageBand: "18+",
         age: calculatedAge,
         interests: selectedInterests,
+        activeEvents,
+        activeEventIds: activeEvents.map((event) => event.id),
         photoUrls: persistedPhotos,
         mainPhotoUrl: persistedPhotos[0] ?? null,
         desiredAgeMin: discoverFilters.ageMin,
@@ -1636,6 +1775,22 @@ function AppContent() {
       return true;
     } catch {
       Alert.alert("Preferencje", "Nie uda\u0142o si\u0119 zapisa\u0107 preferencji. Spr\u00f3buj ponownie.");
+      return false;
+    }
+  }
+
+  async function saveActiveEvents(nextEvents: SparkEvent[]): Promise<boolean> {
+    if (!appUser) return false;
+    const sanitized = sanitizeActiveEvents(nextEvents);
+    try {
+      const savedEvents = await updateUserActiveEvents(appUser.uid, sanitized);
+      setActiveEvents(savedEvents);
+      setExpiredEventsCount(0);
+      setEventProfilesError(null);
+      setProfileReloadKey((value) => value + 1);
+      return true;
+    } catch {
+      Alert.alert("Event Friends", "Nie udało się zapisać wydarzeń. Sprawdź połączenie i spróbuj ponownie.");
       return false;
     }
   }
@@ -1700,6 +1855,7 @@ function AppContent() {
   async function handleSwipe(action: SwipeAction): Promise<SwipeOutcome> {
     const targetProfile = activeProfile;
     const targetKey = activeProfileKey;
+    const eventContext = discoverMode === "events" ? targetProfile?.sharedEvents?.[0] : undefined;
 
     if (!targetProfile || !targetKey) {
       return "cancelled";
@@ -1727,6 +1883,7 @@ function AppContent() {
           toProfileKey: targetKey,
           direction: action,
           matchScore: targetProfile.matchScore,
+          eventContext,
           resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
         });
         if (typeof swipeResult.superlikesRemaining === "number") {
@@ -1774,6 +1931,7 @@ function AppContent() {
           memberUids: [appUser.uid, targetKey],
           createdByUid: appUser.uid,
           source: "mutual-like",
+          eventContext,
           resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
         });
       } catch {
@@ -1790,6 +1948,7 @@ function AppContent() {
       [targetKey]: threads[targetKey] ?? {
         profileKey: targetKey,
         status: "matched",
+        eventContext,
         messages: []
       }
     }));
@@ -1805,6 +1964,7 @@ function AppContent() {
     if (!appUser) return;
     const profile = availableProfiles.find((item) => getProfileKey(item) === profileKey);
     if (!profile) return;
+    const eventContext = getSharedActiveEvents(activeEvents, profile.activeEvents ?? [])[0];
 
     try {
       await recordProfileSwipe({
@@ -1812,13 +1972,15 @@ function AppContent() {
         fromUid: appUser.uid,
         toProfileKey: profileKey,
         direction: "like",
-        matchScore: profile.matchScore
+        matchScore: profile.matchScore,
+        eventContext
       });
       await createMatchThread({
         matchId: getConversationId(appUser.uid, profileKey),
         memberUids: [appUser.uid, profileKey],
         createdByUid: appUser.uid,
-        source: "mutual-like"
+        source: "mutual-like",
+        eventContext
       });
 
       setIncomingLikeKinds((current) => {
@@ -1834,6 +1996,7 @@ function AppContent() {
           profileKey,
           threadId: getConversationId(appUser.uid, profileKey),
           status: "matched",
+          eventContext,
           messages: []
         }
       }));
@@ -1874,33 +2037,39 @@ function AppContent() {
     }
 
     try {
+      const eventContext = discoverMode === "events" ? activeProfile.sharedEvents?.[0] : undefined;
+      const introMessage = eventContext
+        ? `Hej! Też wybieram się na „${eventContext.name}”. Chcesz pogadać przed wydarzeniem?`
+        : buildConversationStarters(activeProfile, selectedInterests)[0];
       await createMatchThread({
         matchId: getConversationId(appUser.uid, activeProfileKey),
-        introMessage: "Hej, mamy wspólne zainteresowania. Chcesz pogadać?",
+        introMessage,
         memberUids: [appUser.uid, activeProfileKey],
         createdByUid: appUser.uid,
         source: "premium-request",
+        eventContext,
         resetAtMs: activeProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
       });
+      setChatRequestKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
+      setSelectedChatKey(activeProfileKey);
+      setChatThreads((threads) => ({
+        ...threads,
+        [activeProfileKey]: {
+          profileKey: activeProfileKey,
+          threadId: getConversationId(appUser.uid, activeProfileKey),
+          createdByUid: appUser.uid,
+          requestDirection: "outgoing",
+          status: "requested",
+          eventContext,
+          introMessage,
+          messages: []
+        }
+      }));
     } catch {
       Alert.alert("Pro\u015bba o chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 pro\u015bby. Spr\u00f3buj ponownie.");
       return;
     }
 
-    setChatRequestKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
-    setSelectedChatKey(activeProfileKey);
-    setChatThreads((threads) => ({
-      ...threads,
-      [activeProfileKey]: {
-        profileKey: activeProfileKey,
-        threadId: getConversationId(appUser.uid, activeProfileKey),
-        createdByUid: appUser.uid,
-        requestDirection: "outgoing",
-        status: "requested",
-        introMessage: "Hej, mamy wspólne zainteresowania. Chcesz pogadać?",
-        messages: []
-      }
-    }));
     Alert.alert("Pro\u015bba o chat", "Wys\u0142ano pro\u015bb\u0119 do " + activeProfile.name + ".");
   }
 
@@ -2277,6 +2446,8 @@ function AppContent() {
       >
         {tab === "discover" && activeProfile && (
           <DiscoverScreen
+            mode={discoverMode}
+            activeEvents={activeEvents}
             profile={activeProfile}
             nextProfile={nextProfile}
             hasPro={revenueCat.isPro}
@@ -2299,12 +2470,30 @@ function AppContent() {
             onReportProfile={async (reason) => activeProfileKey ? reportProfile(activeProfileKey, reason) : false}
             onRefresh={refreshDiscovery}
             onSavePreferences={saveDiscoveryPreferences}
+            onOpenEventFriends={() => {
+              if (activeEvents.length === 0) setEventManagerOpen(true);
+              else setDiscoverMode("events");
+            }}
+            onBackToPeople={() => setDiscoverMode("people")}
+            onManageEvents={() => setEventManagerOpen(true)}
             onChromeHiddenChange={setBottomNavHidden}
           />
         )}
-        {tab === "discover" && !activeProfile && (
+        {tab === "discover" && !activeProfile && discoverMode === "events" && (
+          <EventFriendsEmptyState
+            screenMinHeight={discoverMinHeight}
+            activeEvents={activeEvents}
+            loading={eventProfilesLoading}
+            error={eventProfilesError}
+            expiredCount={expiredEventsCount}
+            onBack={() => setDiscoverMode("people")}
+            onManage={() => setEventManagerOpen(true)}
+          />
+        )}
+        {tab === "discover" && !activeProfile && discoverMode === "people" && (
           <DiscoverEmptyState
             screenMinHeight={discoverMinHeight}
+            activeEventCount={activeEvents.length}
             likedCount={likedProfileKeys.length}
             loading={profilesLoading}
             error={profileFeedError}
@@ -2318,12 +2507,16 @@ function AppContent() {
             onInvite={() => { void shareSparkInvite(); }}
             discoverFilters={discoverFilters}
             onSavePreferences={saveDiscoveryPreferences}
+            onOpenEventFriends={() => {
+              if (activeEvents.length === 0) setEventManagerOpen(true);
+              else setDiscoverMode("events");
+            }}
             onChromeHiddenChange={setBottomNavHidden}
           />
         )}
         {tab === "matches" && (
           <MatchesScreen
-            profiles={availableProfiles}
+            profiles={eventProfileSource}
             matchedProfileKeys={matchedProfileKeys}
             likedProfileKeys={likedProfileKeys}
             incomingLikeKinds={incomingLikeKinds}
@@ -2339,7 +2532,7 @@ function AppContent() {
         )}
         {tab === "messages" && (
           <MessagesScreen
-            profiles={availableProfiles}
+            profiles={eventProfileSource}
             matchedProfileKeys={matchedProfileKeys}
             chatRequestKeys={chatRequestKeys}
             chatThreads={chatThreads}
@@ -2407,6 +2600,18 @@ function AppContent() {
         )}
         <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
       </ScrollView>
+      <EventFriendsManagerModal
+        visible={eventManagerOpen}
+        events={activeEvents}
+        userCity={userCity}
+        expiredCount={expiredEventsCount}
+        onClose={() => setEventManagerOpen(false)}
+        onSave={async (events) => {
+          const saved = await saveActiveEvents(events);
+          if (saved && events.length > 0) setDiscoverMode("events");
+          return saved;
+        }}
+      />
       <MatchCelebration
         profile={matchCelebrationProfile}
         viewerInterests={selectedInterests}
@@ -2435,6 +2640,7 @@ function AppContent() {
             accessibilityState={{ selected: tab === key }}
             onPress={() => {
               tap();
+              if (key === "discover" && tab === "discover" && discoverMode === "events") setDiscoverMode("people");
               setTab(key as Tab);
             }}
             style={[styles.navButton, tab === key && styles.navButtonActive]}
@@ -2866,6 +3072,8 @@ function OnboardingScreen({
   );
 }
 function DiscoverScreen({
+  mode,
+  activeEvents,
   profile,
   nextProfile,
   hasPro,
@@ -2888,8 +3096,13 @@ function DiscoverScreen({
   onReportProfile,
   onRefresh,
   onSavePreferences,
+  onOpenEventFriends,
+  onBackToPeople,
+  onManageEvents,
   onChromeHiddenChange
 }: {
+  mode: DiscoverMode;
+  activeEvents: SparkEvent[];
   profile: MatchProfile;
   nextProfile: MatchProfile | null;
   hasPro: boolean;
@@ -2912,6 +3125,9 @@ function DiscoverScreen({
   onReportProfile: (reason?: string) => Promise<boolean>;
   onRefresh: () => void;
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
+  onOpenEventFriends: () => void;
+  onBackToPeople: () => void;
+  onManageEvents: () => void;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
@@ -2927,18 +3143,14 @@ function DiscoverScreen({
   const profileKey = getProfileKey(profile);
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
-  const preferenceSummary = [
-    { icon: "map-marker-radius", text: `${discoverFilters.maxDistanceKm} km` },
-    { icon: "calendar-range", text: `${discoverFilters.ageMin}–${discoverFilters.ageMax}` },
-    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} tematów` : "Dowolne" }
-  ];
+  const primarySharedEvent = profile.sharedEvents?.[0];
   const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
   const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
   const swipeScale = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.96, 1, 0.96] });
   const passLabelOpacity = swipeMotion.interpolate({ inputRange: [-260, -80, 0], outputRange: [1, 0.55, 0], extrapolate: "clamp" });
   const matchLabelOpacity = swipeMotion.interpolate({ inputRange: [0, 80, 260], outputRange: [0, 0.55, 1], extrapolate: "clamp" });
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
-  const availableCardHeight = Math.max(210, screenMinHeight - 202);
+  const availableCardHeight = Math.max(210, screenMinHeight - 210);
   const feedCardWidth = Math.max(168, Math.min(viewportWidth - 20, availableCardHeight * 0.8, 428));
   const feedCardHeight = feedCardWidth * 1.25;
 
@@ -3113,15 +3325,35 @@ function DiscoverScreen({
 
   return (
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
-      <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
-      <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.discoverSummaryBar}>
-        {preferenceSummary.map((item, index) => (
-          <View key={item.text} style={[styles.discoverSummaryPill, index > 0 && styles.discoverSummaryPillDivider]}>
-            <MaterialCommunityIcons name={item.icon as any} size={14} color={colors.primary} />
-            <Text style={styles.discoverSummaryText} numberOfLines={1} selectable>{item.text}</Text>
+      <TopBar
+        eyebrow={mode === "events" ? "Event Friends" : "Odkrywaj"}
+        title={mode === "events" ? "Wspólne plany" : "Dla Ciebie"}
+        left={mode === "events" ? "<" : "="}
+        right={mode === "events" ? "calendar-edit" : "tune-variant"}
+        onLeftPress={mode === "events" ? onBackToPeople : () => setMenuOpen(true)}
+        onRightPress={mode === "events" ? onManageEvents : () => setPreferencesOpen(true)}
+      />
+      {mode === "events" ? (
+        <Pressable accessibilityRole="button" onPress={onManageEvents} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive]}>
+          <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
+          <View style={styles.fill}>
+            <Text style={styles.eventFriendsLaunchEyebrow}>WSPÓLNE WYDARZENIE</Text>
+            <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{primarySharedEvent?.name ?? "Event Friends"}</Text>
           </View>
-        ))}
-      </Pressable>
+          <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
+        </Pressable>
+      ) : (
+        <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}>
+          <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
+          <View style={styles.fill}>
+            <Text style={styles.eventFriendsLaunchEyebrow}>NOWY SPOSÓB ODKRYWANIA</Text>
+            <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>Event Friends</Text>
+          </View>
+          {activeEvents.length > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>}
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
+        </Pressable>
+      )}
 
       <View style={styles.stitchMainCanvas}>
         <View style={[styles.feedCardDeck, { width: feedCardWidth, height: feedCardHeight }]}>
@@ -3518,6 +3750,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
   const featuredInterests = getFeaturedInterests(profile);
   const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
+  const sharedEvent = profile.sharedEvents?.[0];
 
   return (
     <View style={[styles.profileCard, compact && styles.profileCardCompact]}>
@@ -3542,6 +3775,13 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
         </View>
       ) : null}
       <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
+        {sharedEvent && (
+          <View style={styles.cardSharedEvent}>
+            <MaterialCommunityIcons name="calendar-heart" size={13} color="#fff" />
+            <Text style={styles.cardSharedEventText} numberOfLines={1}>Wspólnie: {sharedEvent.name}</Text>
+            <Text style={styles.cardSharedEventDate}>{formatEventDate(sharedEvent.date)}</Text>
+          </View>
+        )}
         <View style={styles.profileStatusRow}>
           {profile.premium && (
             <View style={styles.cardProBadge}>
@@ -3633,6 +3873,7 @@ function ProfilePreviewSheet({
   const bioNeedsToggle = profile.bio.trim().length > 125;
   const photoWidth = Math.min(width - 24, 500);
   const compactScreen = width < 380;
+  const sharedEvent = profile.sharedEvents?.[0];
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
     header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 9, backgroundColor: "rgba(5,5,7,0.88)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
@@ -3656,6 +3897,11 @@ function ProfilePreviewSheet({
     title: { color: colors.ink, fontSize: compactScreen ? 24 : 27, lineHeight: compactScreen ? 29 : 33, fontWeight: "900" },
     subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
     subtitleText: { color: "#e4bdc3", fontSize: 12, lineHeight: 17, fontWeight: "800" },
+    eventPanel: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.11)", borderWidth: 1, borderColor: "rgba(255,45,141,0.28)" },
+    eventIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    eventEyebrow: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
+    eventTitle: { marginTop: 2, color: colors.ink, fontSize: 13, fontWeight: "900" },
+    eventMeta: { marginTop: 2, color: colors.muted, fontSize: 10, fontWeight: "800" },
     featuredPanel: { gap: 9, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.07)", borderWidth: 1, borderColor: "rgba(255,45,141,0.17)" },
     featuredLabel: { color: colors.primaryDeep, fontSize: 9, letterSpacing: 0.6, fontWeight: "900" },
     featuredRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
@@ -3767,6 +4013,18 @@ function ProfilePreviewSheet({
               {profile.heightCm && <Text style={local.subtitleText}>• {profile.heightCm} cm</Text>}
             </View>
           </View>
+
+          {sharedEvent && (
+            <View style={local.eventPanel}>
+              <View style={local.eventIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
+              <View style={styles.fill}>
+                <Text style={local.eventEyebrow}>WSPÓLNY PLAN</Text>
+                <Text style={local.eventTitle} numberOfLines={2}>{sharedEvent.name}</Text>
+                <Text style={local.eventMeta}>{formatEventDate(sharedEvent.date)} · {sharedEvent.city}</Text>
+              </View>
+              {profile.sharedEvents && profile.sharedEvents.length > 1 && <Text style={local.eventMeta}>+{profile.sharedEvents.length - 1}</Text>}
+            </View>
+          )}
 
           <View style={local.featuredPanel}>
             <Text style={local.featuredLabel}>WYRÓŻNIONE ZAINTERESOWANIA</Text>
@@ -3931,8 +4189,168 @@ function SwipeFab({
   );
 }
 
+function EventFriendsManagerModal({
+  visible,
+  events,
+  userCity,
+  expiredCount,
+  onClose,
+  onSave
+}: {
+  visible: boolean;
+  events: SparkEvent[];
+  userCity: string;
+  expiredCount: number;
+  onClose: () => void;
+  onSave: (events: SparkEvent[]) => Promise<boolean>;
+}) {
+  const insets = useSafeAreaInsets();
+  const suggestions = useMemo(() => buildSuggestedEvents(userCity), [userCity]);
+  const [draftEvents, setDraftEvents] = useState<SparkEvent[]>(events);
+  const [category, setCategory] = useState<EventCategoryId>("music");
+  const [kind, setKind] = useState<SparkEventKind>("specific");
+  const [name, setName] = useState("");
+  const [city, setCity] = useState(userCity || "Kraków");
+  const [date, setDate] = useState(suggestions[0]?.date ?? "");
+  const [saving, setSaving] = useState(false);
+  const local = StyleSheet.create({
+    root: { flex: 1, backgroundColor: "#050507" },
+    header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
+    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
+    eyebrow: { color: colors.primary, fontSize: 10, fontWeight: "900", letterSpacing: 0.8, textTransform: "uppercase" },
+    title: { marginTop: 2, color: colors.ink, fontSize: 21, fontWeight: "900" },
+    counter: { minWidth: 38, height: 30, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+    counterText: { color: colors.primaryDeep, fontSize: 11, fontWeight: "900" },
+    scroll: { gap: 18, padding: 16 },
+    intro: { color: colors.muted, fontSize: 12, lineHeight: 18, fontWeight: "700" },
+    expiry: { flexDirection: "row", alignItems: "center", gap: 8, padding: 11, borderRadius: 14, backgroundColor: "rgba(255,189,89,0.1)", borderWidth: 1, borderColor: "rgba(255,189,89,0.2)" },
+    expiryText: { flex: 1, color: "#f6ce8a", fontSize: 11, lineHeight: 16, fontWeight: "800" },
+    sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: "900" },
+    activeList: { gap: 8 },
+    activeRow: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
+    activeIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+    activeTitle: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+    meta: { marginTop: 3, color: colors.muted, fontSize: 10, fontWeight: "700" },
+    remove: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    suggestionList: { gap: 8 },
+    suggestion: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    suggestionActive: { backgroundColor: "rgba(66,217,130,0.09)", borderColor: "rgba(66,217,130,0.25)" },
+    categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    categoryCard: { width: "48%", flexGrow: 1, minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    categoryActive: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.34)" },
+    categoryIcon: { width: 35, height: 35, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.13)" },
+    categoryTitle: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+    categoryHint: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "700" },
+    segment: { flexDirection: "row", padding: 4, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.055)" },
+    segmentButton: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+    segmentActive: { backgroundColor: colors.primary },
+    segmentText: { color: colors.muted, fontSize: 11, fontWeight: "900" },
+    segmentTextActive: { color: "#fff" },
+    input: { minHeight: 50, paddingHorizontal: 13, borderRadius: 15, color: colors.ink, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", fontSize: 13, fontWeight: "700" },
+    inputRow: { flexDirection: "row", gap: 8 },
+    inputHalf: { flex: 1 },
+    add: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.13)", borderWidth: 1, borderColor: "rgba(255,45,141,0.28)" },
+    addText: { color: colors.primaryDeep, fontSize: 12, fontWeight: "900" },
+    footer: { flexDirection: "row", gap: 9, paddingHorizontal: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
+    footerButton: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.07)" },
+    saveButton: { flex: 1.5, flexDirection: "row", gap: 8, backgroundColor: colors.primary },
+    footerText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+    saveText: { color: "#fff" }
+  });
+
+  useEffect(() => {
+    if (!visible) return;
+    setDraftEvents(sanitizeActiveEvents(events));
+    setCity(userCity || "Kraków");
+    setDate(suggestions[0]?.date ?? "");
+    setSaving(false);
+  }, [events, suggestions, userCity, visible]);
+
+  function addEvent(event: SparkEvent) {
+    if (draftEvents.some((item) => item.id === event.id)) {
+      setDraftEvents((current) => current.filter((item) => item.id !== event.id));
+      return;
+    }
+    if (draftEvents.length >= 8) {
+      Alert.alert("Event Friends", "Możesz mieć maksymalnie 8 aktywnych wydarzeń.");
+      return;
+    }
+    setDraftEvents((current) => sanitizeActiveEvents([...current, event]));
+    void Haptics.selectionAsync();
+  }
+
+  function addCustomEvent() {
+    const event = normalizeSparkEvent({ category, kind, name, city, date, id: createEventId({ category, kind, name, city, date }) });
+    if (!event) {
+      Alert.alert("Uzupełnij wydarzenie", "Podaj nazwę, miasto i datę w formacie RRRR-MM-DD.");
+      return;
+    }
+    if (!isEventActive(event)) {
+      Alert.alert("Data wydarzenia", "Wydarzenie musi kończyć się dzisiaj lub później.");
+      return;
+    }
+    addEvent(event);
+    setName("");
+  }
+
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    const saved = await onSave(draftEvents);
+    setSaving(false);
+    if (saved) onClose();
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+      <View style={local.root}>
+        <StatusBar style="light" />
+        <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
+          <Pressable accessibilityRole="button" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
+          <View style={styles.fill}><Text style={local.eyebrow}>Event Friends</Text><Text style={local.title}>Twoje wydarzenia</Text></View>
+          <View style={local.counter}><Text style={local.counterText}>{draftEvents.length}/8</Text></View>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={local.scroll}>
+          <Text style={local.intro}>Wybierz wydarzenia, na które naprawdę chcesz iść. Pokażemy wyłącznie osoby z przynajmniej jednym wspólnym wyborem. Nie zapisujemy dokładnego miejsca.</Text>
+          {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
+          {draftEvents.length > 0 && <><Text style={local.sectionTitle}>Aktywne</Text><View style={local.activeList}>{draftEvents.map((event) => { const meta = eventCategories.find((item) => item.id === event.category); return <View key={event.id} style={local.activeRow}><View style={local.activeIcon}><MaterialCommunityIcons name={(meta?.icon ?? "calendar") as any} size={20} color={colors.primary} /></View><View style={styles.fill}><Text style={local.activeTitle} numberOfLines={1}>{event.name}</Text><Text style={local.meta}>{formatEventDate(event.date)} · {event.city}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Usuń ${event.name}`} onPress={() => setDraftEvents((current) => current.filter((item) => item.id !== event.id))} style={local.remove}><MaterialCommunityIcons name="close" size={18} color={colors.muted} /></Pressable></View>; })}</View></>}
+          <Text style={local.sectionTitle}>Szybki wybór</Text>
+          <View style={local.suggestionList}>{suggestions.map((event) => { const selected = draftEvents.some((item) => item.id === event.id); const meta = eventCategories.find((item) => item.id === event.category); return <Pressable key={event.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => addEvent(event)} style={({ pressed }) => [local.suggestion, selected && local.suggestionActive, pressed && styles.controlPressed]}><View style={local.activeIcon}><MaterialCommunityIcons name={(meta?.icon ?? "calendar") as any} size={19} color={selected ? colors.green : colors.primary} /></View><View style={styles.fill}><Text style={local.activeTitle} numberOfLines={1}>{event.name}</Text><Text style={local.meta}>{formatEventDate(event.date)} · {event.city}</Text></View><MaterialCommunityIcons name={selected ? "check-circle" : "plus-circle-outline"} size={21} color={selected ? colors.green : colors.primary} /></Pressable>; })}</View>
+          <Text style={local.sectionTitle}>Dodaj własne wydarzenie</Text>
+          <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => setCategory(item.id)} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
+          <View style={local.segment}>{([['specific', 'Konkretne'], ['general', 'Ogólne']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setKind(value)} style={[local.segmentButton, kind === value && local.segmentActive]}><Text style={[local.segmentText, kind === value && local.segmentTextActive]}>{label}</Text></Pressable>)}</View>
+          <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="Nazwa, np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
+          <View style={local.inputRow}><TextInput value={city} onChangeText={setCity} maxLength={80} placeholder="Miasto" placeholderTextColor={colors.muted} style={[local.input, local.inputHalf]} /><TextInput value={date} onChangeText={setDate} maxLength={10} keyboardType="numbers-and-punctuation" placeholder="RRRR-MM-DD" placeholderTextColor={colors.muted} style={[local.input, local.inputHalf]} /></View>
+          <Pressable accessibilityRole="button" onPress={addCustomEvent} style={({ pressed }) => [local.add, pressed && styles.controlPressed]}><MaterialCommunityIcons name="calendar-plus" size={19} color={colors.primary} /><Text style={local.addText}>Dodaj do aktywnych</Text></Pressable>
+        </ScrollView>
+        <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>Zapisz wybór</Text></Pressable></View>
+      </View>
+    </Modal>
+  );
+}
+
+function EventFriendsEmptyState({
+  screenMinHeight, activeEvents, loading, error, expiredCount, onBack, onManage
+}: {
+  screenMinHeight: number;
+  activeEvents: SparkEvent[];
+  loading: boolean;
+  error: string | null;
+  expiredCount: number;
+  onBack: () => void;
+  onManage: () => void;
+}) {
+  const hasEvents = activeEvents.length > 0;
+  return <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
+    <TopBar eyebrow="Event Friends" title="Wspólne plany" left="<" right="calendar-edit" onLeftPress={onBack} onRightPress={onManage} />
+    <Pressable accessibilityRole="button" onPress={onManage} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive]}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>TWOJE WYDARZENIA</Text><Text style={styles.eventFriendsLaunchTitle}>{hasEvents ? `${activeEvents.length} aktywne` : "Wybierz pierwsze"}</Text></View><MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
+    <View style={styles.discoverEmptyBody}><View style={styles.discoverEmptyIcon}>{loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name={hasEvents ? "calendar-search" : "calendar-heart"} size={38} color={colors.primary} />}</View><Text style={styles.discoverEmptyTitle}>{loading ? "Szukamy wspólnych planów" : error ? "Nie udało się pobrać profili" : hasEvents ? "Jeszcze nikogo tu nie ma" : "Wybierz wydarzenia"}</Text><Text style={styles.discoverEmptyText}>{loading ? "Sprawdzamy osoby wybierające się na te same wydarzenia." : error ?? (hasEvents ? "Gdy ktoś wybierze jedno z tych samych wydarzeń, pojawi się tutaj jako karta do swipe." : "Dodaj koncert, kino, mecz, wyjście lub wyjazd. Zobaczysz tylko osoby z przynajmniej jednym wspólnym wyborem.")}</Text>{expiredCount > 0 && <View style={styles.discoverEmptyStat}><MaterialCommunityIcons name="clock-outline" size={18} color={colors.gold} /><Text style={styles.discoverEmptyStatText}>Usunięto {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}</Text></View>} {!loading && <><Pressable accessibilityRole="button" onPress={onManage} style={styles.primaryButton}><MaterialCommunityIcons name="calendar-edit" size={19} color="#fff" /><Text style={styles.primaryButtonText}>{hasEvents ? "Zarządzaj wydarzeniami" : "Wybierz wydarzenia"}</Text></Pressable><Pressable accessibilityRole="button" onPress={onBack} style={styles.secondaryButtonWide}><Text style={styles.secondaryButtonText}>Wróć do zwykłego feedu</Text></Pressable></>}</View>
+  </View>;
+}
+
 function DiscoverEmptyState({
   screenMinHeight,
+  activeEventCount,
   likedCount,
   loading,
   error,
@@ -3946,9 +4364,11 @@ function DiscoverEmptyState({
   onInvite,
   discoverFilters,
   onSavePreferences,
+  onOpenEventFriends,
   onChromeHiddenChange
 }: {
   screenMinHeight: number;
+  activeEventCount: number;
   likedCount: number;
   loading: boolean;
   error: string | null;
@@ -3962,6 +4382,7 @@ function DiscoverEmptyState({
   onInvite: () => void;
   discoverFilters: DiscoverFilters;
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
+  onOpenEventFriends: () => void;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -3977,6 +4398,7 @@ function DiscoverEmptyState({
   return (
     <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
       <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
+      <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>NOWY SPOSÓB ODKRYWANIA</Text><Text style={styles.eventFriendsLaunchTitle}>Event Friends</Text></View>{activeEventCount > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEventCount}</Text>}<MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
       <View style={styles.discoverEmptyBody}>
         <View style={styles.discoverEmptyIcon}>
           {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
@@ -4530,6 +4952,10 @@ function ChatConversationModal({
     status: { marginTop: 2, color: colors.green, fontSize: 10, fontWeight: "800" },
     headerActions: { flexDirection: "row", gap: 7 },
     headerAction: { width: 38, height: 38, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    eventBanner: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 12, marginTop: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.22)" },
+    eventBannerIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    eventBannerTitle: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+    eventBannerMeta: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "800" },
     messages: { flexGrow: 1, justifyContent: messages.length === 0 ? "center" : "flex-end", gap: 9, paddingHorizontal: 14, paddingVertical: 18 },
     empty: { alignItems: "center", gap: 9, padding: 24 },
     emptyIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
@@ -4562,7 +4988,10 @@ function ChatConversationModal({
   }
 
   const activeConversation = conversation;
-  const conversationStarters = buildConversationStarters(activeConversation.profile, viewerInterests);
+  const conversationProfile = thread?.eventContext
+    ? { ...activeConversation.profile, sharedEvents: [thread.eventContext] }
+    : activeConversation.profile;
+  const conversationStarters = buildConversationStarters(conversationProfile, viewerInterests);
 
   function confirmBlock() {
     Alert.alert("Zablokuj profil", `Czy na pewno chcesz zablokowa\u0107 ${activeConversation.name}?`, [
@@ -4609,6 +5038,13 @@ function ChatConversationModal({
             </Pressable>
           </View>
         </View>
+        {thread?.eventContext && (
+          <View style={local.eventBanner}>
+            <View style={local.eventBannerIcon}><MaterialCommunityIcons name="calendar-heart" size={18} color="#fff" /></View>
+            <View style={styles.fill}><Text style={local.eventBannerTitle} numberOfLines={1}>{thread.eventContext.name}</Text><Text style={local.eventBannerMeta}>{formatEventDate(thread.eventContext.date)} · {thread.eventContext.city}</Text></View>
+            <Text style={local.eventBannerMeta}>Wspólny plan</Text>
+          </View>
+        )}
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.messages} keyboardShouldPersistTaps="handled">
           {messages.length === 0 ? (
@@ -6669,6 +7105,58 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900"
   },
+  eventFriendsLaunch: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,45,141,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.32)",
+    boxShadow: "0 8px 24px rgba(255,45,141,0.13)"
+  },
+  eventFriendsLaunchActive: {
+    backgroundColor: "rgba(255,45,141,0.2)",
+    borderColor: "rgba(255,45,141,0.46)"
+  },
+  eventFriendsLaunchIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary
+  },
+  eventFriendsLaunchEyebrow: {
+    color: "#ff8fc2",
+    fontSize: 8,
+    lineHeight: 10,
+    fontWeight: "900",
+    letterSpacing: 0.55
+  },
+  eventFriendsLaunchTitle: {
+    marginTop: 2,
+    color: "#fff",
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "900"
+  },
+  eventFriendsLaunchCount: {
+    minWidth: 25,
+    height: 25,
+    paddingHorizontal: 7,
+    borderRadius: 999,
+    color: "#fff",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    textAlign: "center",
+    textAlignVertical: "center",
+    fontSize: 10,
+    lineHeight: 25,
+    fontWeight: "900"
+  },
   stitchPlanButtonActive: {
     backgroundColor: colors.primary,
     boxShadow: "0 0 28px rgba(255,76,131,0.28)"
@@ -7551,6 +8039,31 @@ const styles = StyleSheet.create({
   },
   profileCopyCompact: {
     bottom: 16
+  },
+  cardSharedEvent: {
+    alignSelf: "stretch",
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 7,
+    paddingHorizontal: 9,
+    borderRadius: 11,
+    backgroundColor: "rgba(255,45,141,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)"
+  },
+  cardSharedEventText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900"
+  },
+  cardSharedEventDate: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 9,
+    fontWeight: "800"
   },
   profileStatusRow: {
     flexDirection: "row",
