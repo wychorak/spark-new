@@ -155,15 +155,15 @@ function getInterstitialUnitId() {
   return Platform.OS === "ios" ? adUnitIds.iosInterstitial : adUnitIds.androidInterstitial;
 }
 
-function nextSwipeAdThreshold() {
-  return 5 + Math.floor(Math.random() * 6);
-}
+export const SWIPES_PER_INTERSTITIAL = 10;
 
 export function useSwipeInterstitialAds(enabled: boolean) {
   const swipeCount = useRef(0);
-  const nextAdAt = useRef(nextSwipeAdThreshold());
+  const pendingShow = useRef(false);
+  const enabledRef = useRef(enabled);
   const [isLoaded, setIsLoaded] = useState(false);
   const adUnitId = getInterstitialUnitId();
+  enabledRef.current = enabled;
   const interstitial = useRef(
     Platform.OS === "web"
       ? null
@@ -179,6 +179,10 @@ export function useSwipeInterstitialAds(enabled: boolean) {
 
     const loadedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.LOADED, () => {
       setIsLoaded(true);
+      if (pendingShow.current && enabledRef.current) {
+        pendingShow.current = false;
+        void interstitial.current?.show();
+      }
       Purchases.adTracker.trackAdLoaded({
         mediatorName: "AdMob",
         adFormat: "interstitial",
@@ -200,16 +204,21 @@ export function useSwipeInterstitialAds(enabled: boolean) {
 
     const closedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.CLOSED, () => {
       setIsLoaded(false);
+      pendingShow.current = false;
       swipeCount.current = 0;
-      nextAdAt.current = nextSwipeAdThreshold();
       interstitial.current?.load();
     });
 
-    const errorUnsubscribe = interstitial.current.addAdEventListener(AdEventType.ERROR, () => {
+    const errorUnsubscribe = interstitial.current.addAdEventListener(AdEventType.ERROR, (error) => {
       setIsLoaded(false);
-      swipeCount.current = 0;
-      nextAdAt.current = nextSwipeAdThreshold();
+      Purchases.adTracker.trackAdFailedToLoad({
+        mediatorName: "AdMob",
+        adFormat: "interstitial",
+        adUnitId,
+        placement: "swipe-feed"
+      }).catch(() => undefined);
     });
+
 
     interstitial.current.load();
 
@@ -228,12 +237,14 @@ export function useSwipeInterstitialAds(enabled: boolean) {
 
     swipeCount.current += 1;
 
-    if (swipeCount.current < nextAdAt.current) {
+    if (swipeCount.current < SWIPES_PER_INTERSTITIAL) {
       return;
     }
 
+    pendingShow.current = true;
     if (isLoaded) {
-      interstitial.current.show();
+      pendingShow.current = false;
+      void interstitial.current.show();
       return;
     }
 

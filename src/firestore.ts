@@ -84,6 +84,15 @@ function getApproximatePublicLocation(location: UserProfileDocument["location"])
   };
 }
 
+function sanitizePublicSocials(socials: UserProfileDocument["socials"]) {
+  const allowed = ["Instagram", "TikTok", "Facebook"] as const;
+  return Object.fromEntries(
+    allowed
+      .map((label) => [label, typeof socials?.[label] === "string" ? socials[label].trim().replace(/^@+/, "").slice(0, 40) : ""] as const)
+      .filter(([, value]) => value.length > 0 && /^[a-zA-Z0-9._-]+$/.test(value))
+  );
+}
+
 function requireDb() {
   if (!isFirebaseConfigured || !db) {
     throw new Error("Firestore is not configured. Fill EXPO_PUBLIC_FIREBASE_* values in .env.");
@@ -114,7 +123,6 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
 
   const profile = accountSnapshot.data() as UserProfileDocument;
   const isPublishable =
-    profile.privateProfile !== true &&
     profile.moderationStatus !== "suspended" &&
     profile.onboardingComplete === true &&
     profile.ageBand === "18+" &&
@@ -158,6 +166,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     city: profile.city ?? "",
     country: profile.country ?? "",
     location: getApproximatePublicLocation(profile.location),
+    socials: sanitizePublicSocials(profile.socials),
     isPro: claimIsPro,
     isTestProfile: existingData.isTestProfile === true,
     createdAt: existingPublic.exists() ? existingData.createdAt : serverTimestamp(),

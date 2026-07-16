@@ -130,7 +130,7 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'photoUrls', 'mainPhotoUrl',
-          'city', 'country', 'location', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
+          'city', 'country', 'location', 'socials', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
         ])
         && data.uid == uid
         && data.profileNameMode in ['realName', 'nickname']
@@ -156,6 +156,11 @@ service cloud.firestore {
         )
         && data.city is string && data.city.size() <= 120
         && data.country is string && data.country.size() <= 120
+        && data.socials is map
+        && data.socials.keys().hasOnly(['Instagram', 'TikTok', 'Facebook'])
+        && (!('Instagram' in data.socials) || (data.socials.Instagram is string && data.socials.Instagram.size() > 0 && data.socials.Instagram.size() <= 40))
+        && (!('TikTok' in data.socials) || (data.socials.TikTok is string && data.socials.TikTok.size() > 0 && data.socials.TikTok.size() <= 40))
+        && (!('Facebook' in data.socials) || (data.socials.Facebook is string && data.socials.Facebook.size() > 0 && data.socials.Facebook.size() <= 40))
         && data.isPro is bool
         && data.isTestProfile is bool
         && data.createdAt is timestamp

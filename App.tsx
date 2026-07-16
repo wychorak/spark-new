@@ -144,12 +144,16 @@ const demoAccount = {
 function getSocialIcon(label: string): { family: SocialIconFamily; name: string; color: string; backgroundColor: string } {
   const normalized = label.toLowerCase();
 
-  if (normalized.includes("instagram") || normalized === "ig" || normalized.includes("@")) {
+  if (normalized.includes("instagram") || normalized === "ig") {
     return { family: "fontAwesome", name: "instagram", color: "#ff4fa3", backgroundColor: "rgba(255,79,163,0.16)" };
   }
 
   if (normalized.includes("tiktok")) {
     return { family: "fontAwesome5", name: "tiktok", color: "#f4f6ff", backgroundColor: "rgba(244,246,255,0.13)" };
+  }
+
+  if (normalized.includes("facebook") || normalized === "fb") {
+    return { family: "fontAwesome", name: "facebook-square", color: "#1877f2", backgroundColor: "rgba(24,119,242,0.16)" };
   }
 
   if (normalized.includes("spotify") || normalized.includes("muzyka") || normalized.includes("music")) {
@@ -171,6 +175,48 @@ function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
   }
 
   return <MaterialCommunityIcons name={icon.name as any} size={size + 1} color={icon.color} />;
+}
+
+type SocialHandles = { instagram: string; tiktok: string; facebook: string };
+const emptySocialHandles: SocialHandles = { instagram: "", tiktok: "", facebook: "" };
+
+function normalizeSocialHandle(value: string) {
+  let normalized = value.trim().replace(/\s+/g, "");
+  normalized = normalized.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+  const pathParts = normalized.split("/").filter(Boolean);
+  normalized = pathParts.length > 1 ? pathParts[pathParts.length - 1] : normalized;
+  normalized = normalized.split(/[?#]/)[0].replace(/^@+/, "");
+  return normalized.replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 40);
+}
+
+function getSocialHandles(record: unknown): SocialHandles {
+  const source = typeof record === "object" && record !== null ? record as Record<string, unknown> : {};
+  const read = (platform: keyof SocialHandles) => {
+    const entry = Object.entries(source).find(([label]) => label.toLowerCase().includes(platform));
+    return typeof entry?.[1] === "string" ? normalizeSocialHandle(entry[1]) : "";
+  };
+  return { instagram: read("instagram"), tiktok: read("tiktok"), facebook: read("facebook") };
+}
+
+function socialHandlesToRecord(handles: SocialHandles) {
+  return Object.fromEntries(
+    ([
+      ["Instagram", handles.instagram],
+      ["TikTok", handles.tiktok],
+      ["Facebook", handles.facebook]
+    ] as const)
+      .map(([label, value]) => [label, normalizeSocialHandle(value)] as const)
+      .filter(([, value]) => value.length > 0)
+  );
+}
+
+function socialHandlesToProfileSocials(handles: SocialHandles) {
+  return Object.entries(socialHandlesToRecord(handles)).map(([label, value]) => ({ label, value }));
+}
+
+function formatSocialHandle(value: string) {
+  const normalized = normalizeSocialHandle(value);
+  return normalized ? "@" + normalized : "";
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
@@ -490,10 +536,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const latitude = typeof location?.latitude === "number" ? location.latitude : 52.2297;
   const longitude = typeof location?.longitude === "number" ? location.longitude : 21.0122;
   const locationAvailable = typeof location?.latitude === "number" && typeof location?.longitude === "number";
-  const socialsRecord = typeof item.socials === "object" && item.socials !== null ? item.socials as Record<string, unknown> : {};
-  const socials = Object.entries(socialsRecord)
-    .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0 && !entry[0].toLowerCase().includes("linkedin"))
-    .map(([label, value]) => ({ label: repairLegacyText(label), value: repairLegacyText(value) }));
+  const socials = socialHandlesToProfileSocials(getSocialHandles(item.socials));
   const updatedAt = item.updatedAt as { toMillis?: () => number } | undefined;
 
   return {
@@ -610,10 +653,11 @@ function scoreProfileMatch(params: {
   const completenessScore = ((params.profile.photos?.length ?? 1) >= 2 ? 3 : 1) + (params.profile.interests.length >= 5 ? 1 : 0);
   const profileAgeDays = params.profile.updatedAtMs ? Math.max(0, (Date.now() - params.profile.updatedAtMs) / 86_400_000) : null;
   const freshnessScore = profileAgeDays === null ? 1 : profileAgeDays <= 3 ? 5 : profileAgeDays <= 14 ? 3 : profileAgeDays <= 60 ? 2 : 0;
+  const visibilityBoostScore = params.profile.premium ? 4 : 0;
   const dayKey = new Date().toISOString().slice(0, 10);
   const rotationSeed = `${params.viewerUid}:${getProfileKey(params.profile)}:${dayKey}`;
   const rotationScore = Array.from(rotationSeed).reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 7) % 5;
-  const score = Math.max(15, Math.min(98, interestScore + intentScore + distanceScore + ageScore + preferenceScore + completenessScore + freshnessScore + rotationScore));
+  const score = Math.max(15, Math.min(98, interestScore + intentScore + distanceScore + ageScore + preferenceScore + completenessScore + freshnessScore + visibilityBoostScore + rotationScore));
   const reasons = [
     sameIntent ? "oboje wybieracie: " + params.profile.intent : params.profile.intent ? "cel profilu: " + params.profile.intent : "otwarty profil",
     interestMatchPercent + "% zgodności zainteresowań",
@@ -676,6 +720,7 @@ function AppContent() {
   const [nickname, setNickname] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [profileBio, setProfileBio] = useState("");
+  const [socialHandles, setSocialHandles] = useState<SocialHandles>(emptySocialHandles);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -685,7 +730,7 @@ function AppContent() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>(createDefaultDiscoverFilters);
-  const [privateProfile, setPrivateProfile] = useState(false);
+
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -693,9 +738,9 @@ function AppContent() {
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
   const revenueCat = useRevenueCat(appUser?.uid ?? null);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
-  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady);
+  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady && tab === "discover");
   const showCurrentBanner =
-    !revenueCat.isPro && adsReady && (tab === "discover" || tab === "matches" || tab === "messages");
+    !revenueCat.isPro && adsReady && (tab === "matches" || tab === "messages");
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
@@ -706,6 +751,7 @@ function AppContent() {
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
   const sendingMessageKeysRef = useRef(new Set<string>());
   const recentMessageTimesRef = useRef<number[]>([]);
+  const deferredSwipeAdRef = useRef(false);
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
@@ -811,6 +857,12 @@ function AppContent() {
   }, [tab]);
 
   useEffect(() => {
+    if (tab !== "discover" || matchCelebrationProfile || !deferredSwipeAdRef.current) return;
+    deferredSwipeAdRef.current = false;
+    trackSwipeAd();
+  }, [matchCelebrationProfile, tab, trackSwipeAd]);
+
+  useEffect(() => {
     const openRoute = (route: "matches" | "messages") => setTab(route);
     const unsubscribe = observeSparkNotificationResponses(openRoute);
     void getInitialSparkNotificationRoute().then((route) => {
@@ -827,6 +879,7 @@ function AppContent() {
         if (!user) {
           if (mounted) {
             setAppUser(null);
+            setSocialHandles(emptySocialHandles);
             setAuthDone(false);
             setOnboarded(false);
             setAuthRestoring(false);
@@ -862,9 +915,11 @@ function AppContent() {
             setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             setProfilePhotos(Array.isArray(profile.photoUrls) ? profile.photoUrls : []);
-            setPrivateProfile(Boolean(profile.privateProfile));
+            setSocialHandles(getSocialHandles(profile.socials));
+
             setOnboarded(Boolean(profile.onboardingComplete) || ((profile.interests?.length ?? 0) >= 3 && Boolean(profile.ageBand)));
           } else {
+            setSocialHandles(emptySocialHandles);
             setOnboarded(false);
           }
 
@@ -1504,9 +1559,9 @@ function AppContent() {
         city: userCity,
         country: userCountry,
         location: getApproximatePublicLocation(userLocation),
-        privateProfile,
+        privateProfile: false,
         onboardingComplete: true,
-        socials: {}
+        socials: socialHandlesToRecord(socialHandles)
       });
       await upsertUserPrivateSettings(appUser.uid, { birthDate });
 
@@ -1704,8 +1759,8 @@ function AppContent() {
     if (Platform.OS === "ios") {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    deferredSwipeAdRef.current = true;
     setMatchCelebrationProfile(targetProfile);
-    trackSwipeAd();
     return "matched";
   }
   async function likeIncomingProfile(profileKey: string) {
@@ -2294,18 +2349,21 @@ function AppContent() {
             setUserAge={setUserAge}
             profilePhotos={profilePhotos}
             setProfilePhotos={setProfilePhotos}
-            privateProfile={privateProfile}
-            setPrivateProfile={setPrivateProfile}
+
+
             profileName={profileName}
+            socialHandles={socialHandles}
+            setSocialHandles={setSocialHandles}
             premiumPlan={premiumPlan}
             hasPro={revenueCat.isPro}
             openPremium={() => setTab("premium")}
             openCustomerCenter={revenueCat.openCustomerCenter}
             openSafety={() => setTab("safety")}
             onSave={saveProfileToFirestore}
+            onSignOut={confirmSignOut}
           />
         )}
-        <SparkAdBanner enabled={showCurrentBanner && tab !== "discover"} placement={tab} />
+        <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
       </ScrollView>
       <MatchCelebration
         profile={matchCelebrationProfile}
@@ -3449,6 +3507,12 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
         >
           {displayName}, {profile.age}
         </Text>
+        <View style={styles.cardContextRow}>
+          <MaterialCommunityIcons name="map-marker-outline" size={13} color="#ff8cbc" />
+          <Text style={styles.cardContextText} numberOfLines={1}>{[profile.city, profile.country].filter(Boolean).join(", ")}</Text>
+          {profile.intent ? <View style={styles.cardContextDot} /> : null}
+          {profile.intent ? <Text style={styles.cardContextText} numberOfLines={1}>{profile.intent}</Text> : null}
+        </View>
         <View style={styles.featuredInterestRow}>
           {featuredInterests.map((interest, index) => {
             const theme = getInterestTheme(interest, index);
@@ -3460,7 +3524,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
             );
           })}
         </View>
-        <Text style={styles.cardBio} numberOfLines={compact ? 1 : 2} maxFontSizeMultiplier={1.2}>{profile.bio}</Text>
+        <Text style={styles.cardBio} numberOfLines={1} maxFontSizeMultiplier={1.15}>{profile.bio}</Text>
       </View>
     </View>
   );
@@ -3477,7 +3541,6 @@ function ProfilePreviewSheet({
   superlikeLocked = false,
   superlikesRemaining = 0,
   isOwnProfile = false,
-  isPrivateProfile = false,
   readOnly = false
 }: {
   profile: MatchProfile;
@@ -3491,7 +3554,6 @@ function ProfilePreviewSheet({
   superlikeLocked?: boolean;
   superlikesRemaining?: number;
   isOwnProfile?: boolean;
-  isPrivateProfile?: boolean;
   readOnly?: boolean;
 }) {
   const insets = useSafeAreaInsets();
@@ -3562,11 +3624,11 @@ function ProfilePreviewSheet({
     interestIcon: { width: 27, height: 27, borderRadius: 9, alignItems: "center", justifyContent: "center" },
     interestText: { flex: 1, minWidth: 0, color: colors.ink, fontSize: 11, fontWeight: "900" },
     moreInterests: { color: colors.muted, fontSize: 11, fontWeight: "800" },
-    socialList: { gap: 8 },
-    social: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.075)" },
-    socialIcon: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.1)" },
-    socialLabel: { color: colors.ink, fontSize: 12, fontWeight: "900" },
-    socialValue: { marginTop: 2, color: colors.muted, fontSize: 11, fontWeight: "800" },
+    socialList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    social: { width: "48%", flexGrow: 1, minHeight: 62, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1 },
+    socialIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    socialLabel: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+    socialValue: { marginTop: 2, color: "#d8b5c7", fontSize: 10, fontWeight: "800" },
     actions: { position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 92, flexDirection: "row", alignItems: "stretch", gap: 8, paddingHorizontal: 10, paddingTop: 9, backgroundColor: "rgba(5,5,7,0.96)", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
     actionSecondary: { flex: 1, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
     actionPrimary: { flex: 1.25, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 5, borderRadius: 17, backgroundColor: colors.primary, boxShadow: "0 10px 28px rgba(255,45,141,0.3)" },
@@ -3620,24 +3682,22 @@ function ProfilePreviewSheet({
           </View>
 
           <View style={local.identity}>
-            <View style={local.statusRow}>
-              <View style={local.statusBadge}>
-                <MaterialCommunityIcons name={isPrivateProfile ? "lock" : "earth"} size={12} color={colors.green} />
-                <Text style={local.statusText}>{isPrivateProfile ? "Profil prywatny" : "Profil publiczny"}</Text>
+            {(profile.premium || (!isOwnProfile && hasInterestMatch)) && (
+              <View style={local.statusRow}>
+                {profile.premium && (
+                  <View style={[local.statusBadge, local.statusBadgePro]}>
+                    <MaterialCommunityIcons name="crown" size={12} color={colors.gold} />
+                    <Text style={[local.statusText, local.statusTextPro]}>Spark Pro</Text>
+                  </View>
+                )}
+                {!isOwnProfile && hasInterestMatch && (
+                  <View style={[local.statusBadge, local.statusBadgeMatch]}>
+                    <MaterialCommunityIcons name="tag-heart" size={12} color={colors.primary} />
+                    <Text style={[local.statusText, local.statusTextMatch]}>{interestMatchPercent}% zainteresowań</Text>
+                  </View>
+                )}
               </View>
-              {profile.premium && (
-                <View style={[local.statusBadge, local.statusBadgePro]}>
-                  <MaterialCommunityIcons name="crown" size={12} color={colors.gold} />
-                  <Text style={[local.statusText, local.statusTextPro]}>Spark Pro</Text>
-                </View>
-              )}
-              {!isOwnProfile && hasInterestMatch && (
-                <View style={[local.statusBadge, local.statusBadgeMatch]}>
-                  <MaterialCommunityIcons name="tag-heart" size={12} color={colors.primary} />
-                  <Text style={[local.statusText, local.statusTextMatch]}>{interestMatchPercent}% zainteresowań</Text>
-                </View>
-              )}
-            </View>
+            )}
             <Text
               style={local.title}
               numberOfLines={2}
@@ -3736,16 +3796,19 @@ function ProfilePreviewSheet({
               <Text style={local.sectionTitle}>Social media</Text>
               <Text style={local.sectionHint}>Dane kontaktowe są chronione do momentu matcha.</Text>
               <View style={local.socialList}>
-                {profile.socials.map((social) => (
-                  <View key={social.label} style={local.social}>
-                    <View style={local.socialIcon}><SocialIcon label={social.label} size={17} /></View>
-                    <View style={styles.fill}>
-                      <Text style={local.socialLabel}>{social.label}</Text>
-                      <Text style={local.socialValue}>{canViewSocials ? social.value : "Widoczne po matchu"}</Text>
+                {profile.socials.map((social) => {
+                  const socialTheme = getSocialIcon(social.label);
+                  return (
+                    <View key={social.label} style={[local.social, { borderColor: socialTheme.backgroundColor }]}>
+                      <View style={[local.socialIcon, { backgroundColor: socialTheme.backgroundColor }]}><SocialIcon label={social.label} size={19} /></View>
+                      <View style={styles.fill}>
+                        <Text style={local.socialLabel}>{social.label}</Text>
+                        <Text style={local.socialValue}>{canViewSocials ? formatSocialHandle(social.value) : "Widoczne po matchu"}</Text>
+                      </View>
+                      {!canViewSocials && <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
                     </View>
-                    {!canViewSocials && <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </View>
           )}
@@ -4662,6 +4725,45 @@ function PremiumScreen({
     </View>
   );
 }
+function SocialHandleField({
+  platform,
+  label,
+  value,
+  onChangeText
+}: {
+  platform: keyof SocialHandles;
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+}) {
+  const icon = getSocialIcon(platform);
+
+  return (
+    <View style={[styles.socialHandleField, { borderColor: icon.backgroundColor }]}>
+      <View style={[styles.socialHandleIcon, { backgroundColor: icon.backgroundColor }]}>
+        <SocialIcon label={platform} size={19} />
+      </View>
+      <View style={styles.fill}>
+        <Text style={styles.socialHandleLabel}>{label}</Text>
+        <View style={styles.socialHandleInputRow}>
+          <Text style={styles.socialHandleAt}>@</Text>
+          <TextInput
+            value={value}
+            onChangeText={(text) => onChangeText(normalizeSocialHandle(text))}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={40}
+            placeholder="twoj.nick"
+            placeholderTextColor={colors.muted}
+            selectionColor="rgba(255,45,141,0.35)"
+            cursorColor={colors.primary}
+            style={styles.socialHandleInput}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
 function ProfileScreen({
   firstName,
   setFirstName,
@@ -4689,14 +4791,15 @@ function ProfileScreen({
   setUserAge,
   profilePhotos,
   setProfilePhotos,
-  privateProfile,
-  setPrivateProfile,
   profileName,
+  socialHandles,
+  setSocialHandles,
   hasPro,
   openPremium,
   openCustomerCenter,
   openSafety,
-  onSave
+  onSave,
+  onSignOut
 }: {
   firstName: string;
   setFirstName: (value: string) => void;
@@ -4724,15 +4827,16 @@ function ProfileScreen({
   setUserAge: (value: number) => void;
   profilePhotos: ProfilePhoto[];
   setProfilePhotos: (value: ProfilePhoto[]) => void;
-  privateProfile: boolean;
-  setPrivateProfile: (value: boolean) => void;
   profileName: string;
+  socialHandles: SocialHandles;
+  setSocialHandles: React.Dispatch<React.SetStateAction<SocialHandles>>;
   premiumPlan: SparkPlanId;
   hasPro: boolean;
   openPremium: () => void;
   openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
   onSave: () => Promise<boolean>;
+  onSignOut: () => void;
 }) {
   const [saveBusy, setSaveBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -4760,7 +4864,7 @@ function ProfileScreen({
     photos: previewPhotos,
     interests: selectedInterests,
     featuredInterests: selectedInterests.slice(0, 3),
-    socials: [],
+    socials: socialHandlesToProfileSocials(socialHandles),
     premium: hasPro,
     desiredAgeMin: discoverFilters.ageMin,
     desiredAgeMax: discoverFilters.ageMax
@@ -4840,10 +4944,7 @@ function ProfileScreen({
                 <MaterialCommunityIcons name="calendar" size={14} color={colors.primary} />
                 <Text style={styles.profileMetaText} selectable>{userAge} lat</Text>
               </View>
-              <View style={styles.profileMetaPill}>
-                <MaterialCommunityIcons name={privateProfile ? "eye-off" : "eye"} size={14} color={colors.primary} />
-                <Text style={styles.profileMetaText} selectable>{privateProfile ? "Prywatny" : "Publiczny"}</Text>
-              </View>
+
             </View>
           </View>
         </View>
@@ -4885,6 +4986,22 @@ function ProfileScreen({
         <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
         <ProfileBioInput value={profileBio} onChangeText={setProfileBio} />
         <LocationControl city={userCity} country={userCountry} status={locationStatus} busy={locationBusy} onPress={onRequestLocation} />
+      </View>
+
+      <View style={styles.profilePanel}>
+        <View style={styles.profileSectionHeader}>
+          <View style={styles.fill}>
+            <Text style={styles.eyebrow}>Social media</Text>
+            <Text style={styles.profileDescription}>{"Dodaj same nicki. Bez link\u00f3w i adres\u00f3w URL."}</Text>
+          </View>
+          <MaterialCommunityIcons name="at" size={22} color={colors.primary} />
+        </View>
+        <View style={styles.socialHandleGrid}>
+          <SocialHandleField platform="instagram" label="Instagram" value={socialHandles.instagram} onChangeText={(value) => setSocialHandles((current) => ({ ...current, instagram: value }))} />
+          <SocialHandleField platform="tiktok" label="TikTok" value={socialHandles.tiktok} onChangeText={(value) => setSocialHandles((current) => ({ ...current, tiktok: value }))} />
+          <SocialHandleField platform="facebook" label="Facebook" value={socialHandles.facebook} onChangeText={(value) => setSocialHandles((current) => ({ ...current, facebook: value }))} />
+        </View>
+        <Text style={styles.socialHandleHint}>{"Nicki zobacz\u0105 dopiero osoby, z kt\u00f3rymi masz match."}</Text>
       </View>
 
       <View style={styles.profileGalleryPanel}>
@@ -4935,7 +5052,6 @@ function ProfileScreen({
       </View>
 
       <View style={styles.settingsList}>
-        <View style={styles.settingRow}><Text style={styles.settingLabel} selectable>Profil prywatny</Text><Switch value={privateProfile} onValueChange={setPrivateProfile} trackColor={{ true: colors.green }} /></View>
         <SettingRow label="Spark Pro" value={hasPro ? "Aktywne" : "Zobacz"} onPress={openPremium} />
         <SettingRow
           label="Subskrypcja"
@@ -4949,6 +5065,14 @@ function ProfileScreen({
         />
         <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
       </View>
+      <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOutButton}>
+        <View style={styles.signOutIcon}><MaterialCommunityIcons name="logout" size={20} color="#ff668f" /></View>
+        <View style={styles.fill}>
+          <Text style={styles.signOutTitle}>{"Wyloguj si\u0119"}</Text>
+          <Text style={styles.signOutHint}>{"Zako\u0144cz sesj\u0119 na tym urz\u0105dzeniu"}</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={21} color={colors.muted} />
+      </Pressable>
 
       <Pressable accessibilityRole="button" disabled={saveBusy} onPress={() => void handleSaveProfile()} style={[styles.primaryButton, saveBusy && styles.primaryButtonDisabled]}>
         <MaterialCommunityIcons name="content-save" size={19} color="#fff" />
@@ -4962,7 +5086,6 @@ function ProfileScreen({
           onClose={() => setPreviewOpen(false)}
           canViewSocials
           isOwnProfile
-          isPrivateProfile={privateProfile}
         />
       )}
     </View>
@@ -7018,6 +7141,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900"
   },
+  cardContextRow: {
+    minHeight: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 4
+  },
+  cardContextText: {
+    flexShrink: 1,
+    minWidth: 0,
+    color: "#f0d3dd",
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5
+  },
+  cardContextDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.58)"
+  },
   featuredInterestRow: {
     flexDirection: "row",
     flexWrap: "nowrap",
@@ -8492,6 +8639,86 @@ const styles = StyleSheet.create({
   socialLinkCopy: {
     flex: 1,
     gap: 2
+  },
+  socialHandleGrid: {
+    gap: 9
+  },
+  socialHandleField: {
+    minHeight: 66,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(22,22,29,0.82)",
+    borderWidth: 1
+  },
+  socialHandleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  socialHandleLabel: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  socialHandleInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 32
+  },
+  socialHandleAt: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  socialHandleInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    color: "#f6eaf0",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  socialHandleHint: {
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700"
+  },
+  signOutButton: {
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,62,105,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,102,143,0.2)"
+  },
+  signOutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,102,143,0.12)"
+  },
+  signOutTitle: {
+    color: "#ff8bab",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  signOutHint: {
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "700"
   },
   settingsList: {
     gap: 10,
