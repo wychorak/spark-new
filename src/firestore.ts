@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "./firebase";
+import { isSparkOwnerAccount } from "./access";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
 
 export type UserProfileDocument = {
@@ -105,6 +106,17 @@ function requireDb() {
   return db;
 }
 
+function requireCurrentUserUid(expectedUid?: string) {
+  const uid = auth?.currentUser?.uid;
+  if (!uid) {
+    throw new Error("Musisz być zalogowany, aby wykonać tę operację.");
+  }
+  if (expectedUid && uid !== expectedUid) {
+    throw new Error("Identyfikator użytkownika nie pasuje do zalogowanego konta.");
+  }
+  return uid;
+}
+
 async function keepPublishedSparkEvents(eventsInput: unknown) {
   const events = sanitizeActiveEvents(eventsInput);
   if (events.length === 0) return [];
@@ -123,12 +135,53 @@ async function getVerifiedProClaim(uid: string) {
   const currentUser = auth?.currentUser;
   if (!currentUser || currentUser.uid !== uid) return false;
 
+  if (isSparkOwnerAccount(currentUser.email, currentUser.emailVerified)) return true;
+
   const token = await currentUser.getIdTokenResult();
   const entitlements = token.claims.activeEntitlements;
   return Array.isArray(entitlements) && entitlements.includes("Sparknew Pro");
 }
 
+export type ProfileViewDocument = {
+  viewerUid: string;
+  targetUid: string;
+  viewCount: number;
+  lastViewedAtMs: number | null;
+};
+
+export async function recordCurrentUserProfileView(targetUid: string) {
+  const viewerUid = auth?.currentUser?.uid;
+  if (!viewerUid || !targetUid || viewerUid === targetUid) return;
+
+  await setDoc(
+    doc(requireDb(), "users", targetUid, "profileViews", viewerUid),
+    { viewerUid, targetUid, viewCount: increment(1), lastViewedAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+export function observeRecentProfileViews(
+  uid: string,
+  onChange: (views: ProfileViewDocument[]) => void,
+  onError?: (error: Error) => void
+) {
+  return onSnapshot(
+    query(collection(requireDb(), "users", uid, "profileViews"), orderBy("lastViewedAt", "desc"), limit(30)),
+    (snapshot) => onChange(snapshot.docs.map((item) => {
+      const data = item.data();
+      return {
+        viewerUid: String(data.viewerUid ?? item.id),
+        targetUid: String(data.targetUid ?? uid),
+        viewCount: typeof data.viewCount === "number" ? data.viewCount : 1,
+        lastViewedAtMs: typeof data.lastViewedAt?.toMillis === "function" ? data.lastViewedAt.toMillis() : null
+      };
+    })),
+    (error) => onError?.(error)
+  );
+}
+
 export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean) {
+  requireCurrentUserUid(uid);
   const currentDb = requireDb();
   const claimIsPro = typeof verifiedIsPro === "boolean" ? verifiedIsPro : await getVerifiedProClaim(uid);
   const accountSnapshot = await getDoc(doc(currentDb, "users", uid));
@@ -196,6 +249,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
 }
 
 export async function upsertUserProfile(profile: UserProfileDocument) {
+  requireCurrentUserUid(profile.uid);
   const currentDb = requireDb();
   const profileRef = doc(currentDb, "users", profile.uid);
   const existing = await getDoc(profileRef);
@@ -223,6 +277,7 @@ export type DiscoveryPreferencesDocument = {
 };
 
 export async function registerDevicePushToken(uid: string, token: string, platform: "ios" | "android") {
+  requireCurrentUserUid(uid);
   const currentDb = requireDb();
   const tokenId = token.replace(/[^a-zA-Z0-9_-]/g, "_").slice(-180);
 
@@ -239,6 +294,7 @@ export async function registerDevicePushToken(uid: string, token: string, platfo
 }
 
 export async function updateUserDiscoveryPreferences(uid: string, preferences: DiscoveryPreferencesDocument) {
+  requireCurrentUserUid(uid);
   const currentDb = requireDb();
 
   await setDoc(
@@ -250,6 +306,7 @@ export async function updateUserDiscoveryPreferences(uid: string, preferences: D
 }
 
 export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) {
+  requireCurrentUserUid(uid);
   const activeEvents = await keepPublishedSparkEvents(events);
   await setDoc(
     doc(requireDb(), "users", uid),
@@ -273,6 +330,7 @@ export function observeSparkEvents(
 }
 
 export async function publishSparkEvent(uid: string, eventInput: SparkEvent) {
+  requireCurrentUserUid(uid);
   const event = normalizeSparkEvent(eventInput);
   if (!event) throw new Error("Nieprawidłowe dane wydarzenia.");
   const deleteAtMs = new Date(event.endsAt).getTime() + 60 * 60 * 1000;
@@ -302,6 +360,7 @@ export async function recordUserLogin(params: {
   fallbackFirstName?: string;
   fallbackLastName?: string;
 }) {
+  requireCurrentUserUid(params.uid);
   const currentDb = requireDb();
   const profileRef = doc(currentDb, "users", params.uid);
   const existing = await getDoc(profileRef);
@@ -342,6 +401,7 @@ export type UserPrivateSettingsDocument = {
 };
 
 export async function upsertUserPrivateSettings(uid: string, settings: UserPrivateSettingsDocument) {
+  requireCurrentUserUid(uid);
   const currentDb = requireDb();
   await setDoc(
     doc(currentDb, "privateProfiles", uid),
@@ -372,6 +432,7 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
   uid: string;
   reason?: string;
 }) {
+  requireCurrentUserUid(params.uid);
   const currentDb = requireDb();
   const deletionRef = doc(currentDb, "accountDeletions", params.uid);
   const profileRef = doc(currentDb, "users", params.uid);
@@ -491,6 +552,7 @@ export async function createReport(params: {
   reason: string;
   context?: string;
 }) {
+  requireCurrentUserUid(params.reporterUid);
   const currentDb = requireDb();
   const reportRef = doc(collection(currentDb, "reports"));
 
@@ -512,6 +574,7 @@ export async function recordProfileSwipe(params: {
   eventContext?: SparkEvent;
   resetAtMs?: number;
 }) {
+  requireCurrentUserUid(params.fromUid);
   const currentDb = requireDb();
   const swipeRef = doc(currentDb, "swipes", params.swipeId);
 
@@ -629,6 +692,11 @@ export async function createMatchThread(params: {
   eventContext?: SparkEvent;
   resetAtMs?: number;
 }) {
+  const currentUid = requireCurrentUserUid(params.createdByUid);
+  const uniqueMemberUids = Array.from(new Set(params.memberUids));
+  if (uniqueMemberUids.length !== 2 || !uniqueMemberUids.includes(currentUid)) {
+    throw new Error("Match musi łączyć dwa różne identyfikatory użytkowników.");
+  }
   const currentDb = requireDb();
   const matchRef = doc(currentDb, "matches", params.matchId);
 
@@ -683,6 +751,7 @@ export async function sendChatMessage(params: {
   senderUid: string;
   text: string;
 }) {
+  requireCurrentUserUid(params.senderUid);
   const currentDb = requireDb();
   const text = params.text.trim();
   if (!text || text.length > 2000) {
@@ -759,10 +828,12 @@ export function observeBlockedProfileKeys(uid: string, onChange: (profileKeys: s
 }
 
 export async function acceptChatRequest(threadId: string, uid: string) {
+  requireCurrentUserUid(uid);
   await updateDoc(doc(requireDb(), "matches", threadId), { status: "matched", acceptedByUid: uid, updatedAt: serverTimestamp() });
 }
 
 export async function rejectChatRequest(threadId: string, uid: string) {
+  requireCurrentUserUid(uid);
   await updateDoc(doc(requireDb(), "matches", threadId), { status: "rejected", rejectedByUid: uid, updatedAt: serverTimestamp() });
 }
 export async function cancelChatRequest(threadId: string) {
@@ -775,6 +846,7 @@ export async function cancelProfileLike(swipeId: string) {
 
 
 export async function blockUser(params: { blockerUid: string; blockedUid: string; threadId?: string }) {
+  requireCurrentUserUid(params.blockerUid);
   const currentDb = requireDb();
   const blockRef = doc(currentDb, "users", params.blockerUid, "blocks", params.blockedUid);
   await runTransaction(currentDb, async (transaction) => {

@@ -15,10 +15,14 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('moderationStatus', 'active') != 'suspended';
     }
 
-    function isEventAdmin() {
+    function isSparkOwner() {
       return signedIn()
         && request.auth.token.get('email_verified', false) == true
         && request.auth.token.get('email', '') == 'wychor234@gmail.com';
+    }
+
+    function isEventAdmin() {
+      return isSparkOwner();
     }
 
     function allowedUserText(text) {
@@ -27,9 +31,11 @@ service cloud.firestore {
     }
 
     function hasRevenueCatPro() {
-      return signedIn()
-        && request.auth.token.get('activeEntitlements', []) is list
-        && 'Sparknew Pro' in request.auth.token.get('activeEntitlements', []);
+      return isSparkOwner() || (
+        signedIn()
+          && request.auth.token.get('activeEntitlements', []) is list
+          && 'Sparknew Pro' in request.auth.token.get('activeEntitlements', [])
+      );
     }
 
     function validPremiumUsageUpdate() {
@@ -278,6 +284,29 @@ service cloud.firestore {
           && request.resource.data.blockedUid == blockedUid
           && request.resource.data.createdAt == request.time;
         allow update: if false;
+      }
+
+      match /profileViews/{viewerUid} {
+        allow read, delete: if isOwner(uid) && hasRevenueCatPro();
+        allow create: if activeUser()
+          && request.auth.uid == viewerUid
+          && uid != viewerUid
+          && request.resource.data.keys().hasOnly(['viewerUid', 'targetUid', 'viewCount', 'lastViewedAt'])
+          && request.resource.data.viewerUid == viewerUid
+          && request.resource.data.targetUid == uid
+          && request.resource.data.viewCount == 1
+          && request.resource.data.lastViewedAt == request.time;
+        allow update: if activeUser()
+          && request.auth.uid == viewerUid
+          && uid != viewerUid
+          && request.resource.data.keys().hasOnly(['viewerUid', 'targetUid', 'viewCount', 'lastViewedAt'])
+          && request.resource.data.viewerUid == resource.data.viewerUid
+          && request.resource.data.targetUid == resource.data.targetUid
+          && request.resource.data.viewerUid == viewerUid
+          && request.resource.data.targetUid == uid
+          && request.resource.data.viewCount == resource.data.viewCount + 1
+          && request.time > resource.data.lastViewedAt + duration.value(10, 'm')
+          && request.resource.data.lastViewedAt == request.time;
       }
 
       match /devices/{deviceId} {

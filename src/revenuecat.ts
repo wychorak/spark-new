@@ -109,7 +109,7 @@ function getOfferingWithPackages(offerings: PurchasesOfferings) {
 
   return candidates.find((offering) => offering.availablePackages.length > 0) ?? preferredOffering;
 }
-export function useRevenueCat(appUserId: string | null): RevenueCatState {
+export function useRevenueCat(appUserId: string | null, ownerAccess = false): RevenueCatState {
   const [configured, setConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -241,6 +241,12 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
         const result = await Purchases.purchasePackage(selectedPackage);
         setCustomerInfo(result.customerInfo);
         await refreshOfferings();
+        if (!ownerAccess && !hasSparknewPro(result.customerInfo)) {
+          return {
+            ok: false,
+            message: `Zakup zakończony, ale produkt nie aktywował dostępu ${revenueCatEntitlementId}. Sprawdź przypisanie produktu do entitlementu w RevenueCat.`
+          };
+        }
         return { ok: true, customerInfo: result.customerInfo };
       } catch (purchaseError) {
         if (isUserCancelled(purchaseError)) {
@@ -250,20 +256,25 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
         return { ok: false, message: getErrorMessage(purchaseError) };
       }
     },
-    [packages, refreshOfferings]
+    [ownerAccess, packages, refreshOfferings]
   );
 
   const restorePurchases = useCallback(async (): Promise<RevenueCatActionResult> => {
     try {
       const info = await Purchases.restorePurchases();
       setCustomerInfo(info);
+      if (!ownerAccess && !hasSparknewPro(info)) {
+        return { ok: false, message: "Nie znaleziono aktywnego dostępu Spark Pro do przywrócenia." };
+      }
       return { ok: true, customerInfo: info };
     } catch (restoreError) {
       return { ok: false, message: getErrorMessage(restoreError) };
     }
-  }, []);
+  }, [ownerAccess]);
 
   const presentPaywallIfNeeded = useCallback(async () => {
+    if (ownerAccess) return true;
+
     try {
       const offerings = await Purchases.getOfferings();
       const offering = getOfferingWithPackages(offerings);
@@ -275,18 +286,14 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
         displayCloseButton: true
       });
 
-      await refreshCustomerInfo();
-
-      return (
-        result === PAYWALL_RESULT.PURCHASED ||
-        result === PAYWALL_RESULT.RESTORED ||
-        result === PAYWALL_RESULT.NOT_PRESENTED
-      );
+      const refreshedInfo = await refreshCustomerInfo();
+      const completed = result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED || result === PAYWALL_RESULT.NOT_PRESENTED;
+      return completed && hasSparknewPro(refreshedInfo);
     } catch (paywallError) {
       setError(getErrorMessage(paywallError));
       return false;
     }
-  }, [refreshCustomerInfo]);
+  }, [ownerAccess, refreshCustomerInfo]);
 
   const openCustomerCenter = useCallback(async (): Promise<RevenueCatActionResult> => {
     try {
@@ -312,7 +319,7 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
     () => ({
       configured,
       isLoading,
-      isPro: hasSparknewPro(customerInfo),
+      isPro: ownerAccess || hasSparknewPro(customerInfo),
       customerInfo,
       packages,
       prices,
@@ -329,6 +336,7 @@ export function useRevenueCat(appUserId: string | null): RevenueCatState {
       error,
       isLoading,
       openCustomerCenter,
+      ownerAccess,
       packages,
       prices,
       presentPaywallIfNeeded,

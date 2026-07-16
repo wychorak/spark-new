@@ -17,6 +17,7 @@ import { auth, firebaseAuthRestConfig, isFirebaseConfigured } from "./firebase";
 export type AppAuthUser = {
   uid: string;
   email: string | null;
+  emailVerified: boolean;
   displayName: string | null;
   photoURL: string | null;
 };
@@ -49,6 +50,7 @@ export function mapFirebaseUser(user: User): AppAuthUser {
   return {
     uid: user.uid,
     email: user.email,
+    emailVerified: user.emailVerified,
     displayName: user.displayName,
     photoURL: user.photoURL
   };

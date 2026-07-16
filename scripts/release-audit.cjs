@@ -130,6 +130,15 @@ check(appSource.includes('sparkEventAdminEmail') && appSource.includes('PANEL OR
 check(eventsSource.includes('eventIconOptions') && appSource.includes('Ikona wydarzenia') && rulesSource.includes("'microphone-variant'"), 'Curated thematic event icons are missing.');
 check(appSource.includes('WSPÓLNY PLAN') && appSource.includes('Wspólnie:') && appSource.includes('calendar-heart'), 'Shared event context is missing from profile and chat UI.');
 
+check(revenueCatSource.includes('!hasSparknewPro(result.customerInfo)') && revenueCatSource.includes('completed && hasSparknewPro(refreshedInfo)'), 'RevenueCat purchases must verify the active Spark Pro entitlement before unlocking access.');
+check(appSource.includes('ownerProAccess') && rulesSource.includes('function isSparkOwner()') && firestoreSource.includes('isSparkOwnerAccount'), 'Verified Spark owner Pro access must stay consistent across UI and Firestore.');
+check(firestoreSource.includes('recordCurrentUserProfileView') && firestoreSource.includes('observeRecentProfileViews') && rulesSource.includes('match /profileViews/{viewerUid}'), 'Private Spark Pro profile-view tracking is incomplete.');
+check(rulesSource.includes("duration.value(10, 'm')") && rulesSource.includes('allow read, delete: if isOwner(uid) && hasRevenueCatPro()'), 'Profile views must be rate-limited and private to their Pro owner.');
+check(appSource.includes('ProfileViewerPanel') && appSource.includes('Kto oglądał Twój profil'), 'Spark Pro profile viewers UI is missing.');
+check(authSource.includes('uid: user.uid') && revenueCatSource.includes('Purchases.logIn(appUserId)'), 'Firebase UID must be the canonical RevenueCat customer identity.');
+check(firestoreSource.includes('function requireCurrentUserUid') && firestoreSource.includes('requireCurrentUserUid(profile.uid)') && rulesSource.includes('request.resource.data.uid == uid'), 'User profile writes must enforce the authenticated Firebase UID.');
+check(appSource.includes('id: \"bundled-test-aisha\"') && appSource.includes('return profile.id;'), 'Every real and bundled test profile must have a stable unique ID.');
+
 for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource, 'src/events.ts': eventsSource })) {
   check(!source.includes('\uFFFD'), `${name} contains a Unicode replacement character.`);
   check(!/[ÃÅÄ][^\s]/.test(source), `${name} contains likely UTF-8 mojibake.`);

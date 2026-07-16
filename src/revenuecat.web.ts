@@ -34,7 +34,7 @@ export function hasSparknewPro() {
   return false;
 }
 
-export function useRevenueCat(_appUserId: string | null): RevenueCatState {
+export function useRevenueCat(_appUserId: string | null, ownerAccess = false): RevenueCatState {
   const refreshCustomerInfo = useCallback(async () => null, []);
   const unavailable = useCallback(
     async (): Promise<RevenueCatActionResult> => ({
@@ -49,7 +49,7 @@ export function useRevenueCat(_appUserId: string | null): RevenueCatState {
     () => ({
       configured: false,
       isLoading: false,
-      isPro: false,
+      isPro: ownerAccess,
       customerInfo: null,
       packages: [],
       prices: {},
@@ -60,6 +60,6 @@ export function useRevenueCat(_appUserId: string | null): RevenueCatState {
       presentPaywallIfNeeded,
       openCustomerCenter: unavailable
     }),
-    [presentPaywallIfNeeded, refreshCustomerInfo, unavailable]
+    [ownerAccess, presentPaywallIfNeeded, refreshCustomerInfo, unavailable]
   );
 }

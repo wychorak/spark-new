@@ -37,6 +37,7 @@ import { captureRef } from "react-native-view-shot";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { currentUserUsesAppleSignIn, deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
+import { isSparkOwnerAccount } from "./src/access";
 import { findModerationViolation } from "./src/content-moderation";
 import {
   acceptChatRequest,
@@ -57,9 +58,11 @@ import {
   getUserPrivateSettings,
   hasIncomingProfileLike,
   observeBlockedProfileKeys,
+  observeRecentProfileViews,
   observeSparkEvents,
   observeUserChats,
   publishSparkEvent,
+  recordCurrentUserProfileView,
   recordProfileSwipe,
   recordUserLogin,
   rejectChatRequest,
@@ -283,7 +286,7 @@ type ChatThread = {
 };
 
 type MatchProfile = {
-  id?: string;
+  id: string;
   name: string;
   surname: string;
   age: number;
@@ -358,6 +361,8 @@ const interestThemes: Record<string, { soft: string; active: string; border: str
 
 const matchProfiles: MatchProfile[] = [
   {
+    id: "bundled-test-aisha",
+    isTestProfile: true,
     name: "Aisha",
     surname: "Nowak",
     age: 24,
@@ -380,6 +385,8 @@ const matchProfiles: MatchProfile[] = [
     likedYou: true
   },
   {
+    id: "bundled-test-lena",
+    isTestProfile: true,
     name: "Lena",
     surname: "Kowalska",
     age: 27,
@@ -400,6 +407,8 @@ const matchProfiles: MatchProfile[] = [
     ]
   },
   {
+    id: "bundled-test-kuba",
+    isTestProfile: true,
     name: "Kuba",
     surname: "Zieliński",
     age: 29,
@@ -419,6 +428,8 @@ const matchProfiles: MatchProfile[] = [
     ]
   },
   {
+    id: "bundled-test-mia",
+    isTestProfile: true,
     name: "Mia",
     surname: "Wiśniewska",
     age: 25,
@@ -543,7 +554,7 @@ function getInterestIcon(item: string, fallback: string) {
 }
 
 function getProfileKey(profile: MatchProfile) {
-  return profile.id ?? `${profile.name}-${profile.surname}`;
+  return profile.id;
 }
 
 function getShareCardName(profile: MatchProfile) {
@@ -818,7 +829,8 @@ function AppContent() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
-  const revenueCat = useRevenueCat(appUser?.uid ?? null);
+  const ownerProAccess = isSparkOwnerAccount(appUser?.email, appUser?.emailVerified);
+  const revenueCat = useRevenueCat(appUser?.uid ?? null, ownerProAccess);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady && tab === "discover");
   const showCurrentBanner =
@@ -846,6 +858,9 @@ function AppContent() {
   const [profilePhotos, setProfilePhotos] = useState<ProfilePhoto[]>([]);
   const [bottomNavHidden, setBottomNavHidden] = useState(false);
   const [remoteProfiles, setRemoteProfiles] = useState<MatchProfile[]>([]);
+  const [profileViewers, setProfileViewers] = useState<MatchProfile[]>([]);
+  const [profileViewerCount, setProfileViewerCount] = useState(0);
+  const [profileViewersLoading, setProfileViewersLoading] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileFeedError, setProfileFeedError] = useState<string | null>(null);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
@@ -1482,7 +1497,7 @@ function AppContent() {
       try {
         const claims = await getRevenueCatEntitlements(true);
         if (cancelled) return;
-        const claimIsPro = claims.includes(revenueCatEntitlementId);
+        const claimIsPro = ownerProAccess || claims.includes(revenueCatEntitlementId);
 
         if (claimIsPro || !revenueCat.isPro) {
           await syncPublicUserProfile(appUser.uid, claimIsPro);
@@ -1490,12 +1505,12 @@ function AppContent() {
           return;
         }
 
-        if (attempt < 3) {
-          retryTimer = setTimeout(() => void syncVerifiedPro(attempt + 1), 5000 * (attempt + 1));
+        if (attempt < 7) {
+          retryTimer = setTimeout(() => void syncVerifiedPro(attempt + 1), Math.min(30000, 5000 * (attempt + 1)));
         }
       } catch {
-        if (!cancelled && attempt < 3) {
-          retryTimer = setTimeout(() => void syncVerifiedPro(attempt + 1), 5000 * (attempt + 1));
+        if (!cancelled && attempt < 7) {
+          retryTimer = setTimeout(() => void syncVerifiedPro(attempt + 1), Math.min(30000, 5000 * (attempt + 1)));
         }
       }
     };
@@ -1505,7 +1520,7 @@ function AppContent() {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [appUser, onboarded, revenueCat.configured, revenueCat.isLoading, revenueCat.isPro]);
+  }, [appUser, onboarded, ownerProAccess, revenueCat.configured, revenueCat.isLoading, revenueCat.isPro]);
 
   useEffect(() => {
     if (!appUser || !revenueCat.isPro) {
@@ -1523,6 +1538,48 @@ function AppContent() {
       mounted = false;
     };
   }, [appUser, revenueCat.isPro]);
+
+  useEffect(() => {
+    if (!appUser || !revenueCat.isPro) {
+      setProfileViewers([]);
+      setProfileViewerCount(0);
+      setProfileViewersLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setProfileViewersLoading(true);
+    const unsubscribe = observeRecentProfileViews(
+      appUser.uid,
+      (views) => {
+        setProfileViewerCount(views.length);
+        void Promise.all(views.map((view) => getPublicProfile(view.viewerUid)))
+          .then((documents) => {
+            if (!active) return;
+            const profiles = documents
+              .map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null)
+              .filter((profile): profile is MatchProfile => Boolean(profile));
+            setProfileViewers(profiles);
+            setProfileViewersLoading(false);
+          })
+          .catch(() => {
+            if (active) setProfileViewersLoading(false);
+          });
+      },
+      () => {
+        if (active) {
+          setProfileViewers([]);
+          setProfileViewerCount(0);
+          setProfileViewersLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [appUser, profileReloadKey, revenueCat.isPro]);
 
   useEffect(() => {
     if (!nextTestResetAt) return undefined;
@@ -2629,6 +2686,9 @@ function AppContent() {
             setSocialHandles={setSocialHandles}
             premiumPlan={premiumPlan}
             hasPro={revenueCat.isPro}
+            profileViewers={profileViewers}
+            profileViewerCount={profileViewerCount}
+            profileViewersLoading={profileViewersLoading}
             openPremium={() => setTab("premium")}
             openCustomerCenter={revenueCat.openCustomerCenter}
             openSafety={() => setTab("safety")}
@@ -3941,6 +4001,15 @@ function ProfilePreviewSheet({
   const photoWidth = Math.min(width - 24, 500);
   const compactScreen = width < 380;
   const sharedEvent = profile.sharedEvents?.[0];
+  const recordedProfileKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const profileKey = getProfileKey(profile);
+    if (isOwnProfile || profile.isTestProfile || recordedProfileKeyRef.current === profileKey) return;
+    recordedProfileKeyRef.current = profileKey;
+    void recordCurrentUserProfileView(profileKey).catch(() => undefined);
+  }, [isOwnProfile, profile]);
+
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
     header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 9, backgroundColor: "rgba(5,5,7,0.88)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
@@ -5382,6 +5451,7 @@ function PremiumScreen({
   const benefitRows = [
     ["advertisements-off", "Zero reklam", "Przeglądanie profili bez przerw i bez bannerów."],
     ["eye-check", "Zobacz, kto Cię polubił", "Odkrywaj osoby, które już dały Ci swipe."],
+    ["account-eye", "Kto oglądał Twój profil", "Prywatna lista osób, które otworzyły szczegóły Twojej karty."],
     ["message-badge", "Prośba o chat", "Napisz do profilu przed matchem i czekaj na akceptację."],
     ["crown", "Korona Pro", "Widoczny status premium przy Twoim profilu."],
     ["image-multiple", "Do 15 zdjęć", "Więcej miejsca na zdjęcia i lepszy podgląd profilu."],
@@ -5581,6 +5651,79 @@ function SocialHandleField({
     </View>
   );
 }
+const profileViewerStyles = StyleSheet.create({
+  panel: { gap: 14, padding: 18, borderRadius: 24, backgroundColor: "rgba(20,20,26,0.92)", borderWidth: 1, borderColor: "rgba(255,45,141,0.22)" },
+  header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  title: { color: colors.ink, fontSize: 18, fontWeight: "900" },
+  hint: { marginTop: 3, color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
+  badge: { minWidth: 32, height: 32, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  badgeText: { color: "#fff", fontSize: 11, fontWeight: "900" },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  viewer: { width: "48%", flexGrow: 1, minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  avatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: "#111" },
+  name: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+  meta: { marginTop: 3, color: colors.muted, fontSize: 9, fontWeight: "800" },
+  empty: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.035)" },
+  emptyTitle: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+  emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: "center", fontWeight: "700" },
+  unlock: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 17, backgroundColor: colors.primary },
+  unlockText: { color: "#fff", fontSize: 13, fontWeight: "900" }
+});
+
+function ProfileViewerPanel({ hasPro, viewers, viewerCount, loading, viewerInterests, onUpgrade }: {
+  hasPro: boolean;
+  viewers: MatchProfile[];
+  viewerCount: number;
+  loading: boolean;
+  viewerInterests: string[];
+  onUpgrade: () => void;
+}) {
+  const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
+  return (
+    <View style={profileViewerStyles.panel}>
+      <View style={profileViewerStyles.header}>
+        <View style={profileViewerStyles.icon}><MaterialCommunityIcons name="account-eye" size={23} color={colors.primary} /></View>
+        <View style={styles.fill}>
+          <Text style={profileViewerStyles.title}>Kto oglądał Twój profil</Text>
+          <Text style={profileViewerStyles.hint}>{hasPro ? "Ostatnie osoby, które otworzyły szczegóły Twojej karty." : "Prywatna lista dostępna w Spark Pro."}</Text>
+        </View>
+        {hasPro && <View style={profileViewerStyles.badge}><Text style={profileViewerStyles.badgeText}>{viewerCount}</Text></View>}
+      </View>
+      {!hasPro ? (
+        <Pressable accessibilityRole="button" onPress={onUpgrade} style={profileViewerStyles.unlock}>
+          <MaterialCommunityIcons name="crown" size={18} color="#fff" />
+          <Text style={profileViewerStyles.unlockText}>Odblokuj w Spark Pro</Text>
+        </Pressable>
+      ) : loading ? (
+        <View style={profileViewerStyles.empty}><ActivityIndicator color={colors.primary} /><Text style={profileViewerStyles.emptyText}>Odświeżamy wizyty...</Text></View>
+      ) : viewers.length === 0 ? (
+        <View style={profileViewerStyles.empty}>
+          <MaterialCommunityIcons name="eye-outline" size={23} color={colors.primary} />
+          <Text style={profileViewerStyles.emptyTitle}>Jeszcze bez wizyt</Text>
+          <Text style={profileViewerStyles.emptyText}>Gdy ktoś otworzy pełne szczegóły Twojego profilu, zobaczysz go tutaj.</Text>
+        </View>
+      ) : (
+        <View style={profileViewerStyles.grid}>
+          {viewers.slice(0, 6).map((viewer) => (
+            <Pressable key={getProfileKey(viewer)} accessibilityRole="button" accessibilityLabel={"Otwórz profil " + viewer.name} onPress={() => setPreviewProfile(viewer)} style={profileViewerStyles.viewer}>
+              <Image source={viewer.image} style={profileViewerStyles.avatar} contentFit="cover" />
+              <View style={styles.fill}>
+                <Text style={profileViewerStyles.name} numberOfLines={1}>{viewer.name}, {viewer.age}</Text>
+                <Text style={profileViewerStyles.meta} numberOfLines={1}>{viewer.city || "Profil Spark"}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {previewProfile && (
+        <ProfilePreviewSheet profile={previewProfile} viewerInterests={viewerInterests} onClose={() => setPreviewProfile(null)} canViewSocials={false} readOnly />
+      )}
+    </View>
+  );
+}
+
 function ProfileScreen({
   firstName,
   setFirstName,
@@ -5612,6 +5755,9 @@ function ProfileScreen({
   socialHandles,
   setSocialHandles,
   hasPro,
+  profileViewers,
+  profileViewerCount,
+  profileViewersLoading,
   openPremium,
   openCustomerCenter,
   openSafety,
@@ -5650,6 +5796,9 @@ function ProfileScreen({
   setSocialHandles: React.Dispatch<React.SetStateAction<SocialHandles>>;
   premiumPlan: SparkPlanId;
   hasPro: boolean;
+  profileViewers: MatchProfile[];
+  profileViewerCount: number;
+  profileViewersLoading: boolean;
   openPremium: () => void;
   openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
@@ -5788,6 +5937,15 @@ function ProfileScreen({
           </View>
         ))}
       </View>
+
+      <ProfileViewerPanel
+        hasPro={hasPro}
+        viewers={profileViewers}
+        viewerCount={profileViewerCount}
+        loading={profileViewersLoading}
+        viewerInterests={selectedInterests}
+        onUpgrade={openPremium}
+      />
 
       <LinearGradient colors={["rgba(255,45,141,0.2)", "rgba(74,18,54,0.34)", "rgba(20,20,26,0.92)"]} style={styles.profileGrowthPanel}>
         <View style={styles.profileGrowthHeader}>
