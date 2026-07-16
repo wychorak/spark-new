@@ -2186,7 +2186,6 @@ function AppContent() {
           <DiscoverScreen
             profile={activeProfile}
             nextProfile={nextProfile}
-            remainingCount={discoverProfiles.length}
             hasPro={revenueCat.isPro}
             requestProAccess={revenueCat.presentPaywallIfNeeded}
             onSwipe={handleSwipe}
@@ -2763,7 +2762,6 @@ function OnboardingScreen({
 function DiscoverScreen({
   profile,
   nextProfile,
-  remainingCount,
   hasPro,
   requestProAccess,
   onSwipe,
@@ -2787,7 +2785,6 @@ function DiscoverScreen({
 }: {
   profile: MatchProfile;
   nextProfile: MatchProfile | null;
-  remainingCount: number;
   hasPro: boolean;
   requestProAccess: () => Promise<boolean>;
   onSwipe: (action: SwipeAction) => Promise<SwipeOutcome>;
@@ -2823,9 +2820,9 @@ function DiscoverScreen({
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
   const preferenceSummary = [
-    { icon: "map-marker", text: `do ${discoverFilters.maxDistanceKm} km` },
-    { icon: "calendar", text: `${discoverFilters.ageMin}-${discoverFilters.ageMax} lat` },
-    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} szukanych tematów` : "dowolne zainteresowania" }
+    { icon: "map-marker-radius", text: `${discoverFilters.maxDistanceKm} km` },
+    { icon: "calendar-range", text: `${discoverFilters.ageMin}–${discoverFilters.ageMax}` },
+    { icon: "tag-heart", text: discoverFilters.targetInterests.length ? `${discoverFilters.targetInterests.length} tematów` : "Dowolne" }
   ];
   const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
   const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
@@ -2833,8 +2830,8 @@ function DiscoverScreen({
   const passLabelOpacity = swipeMotion.interpolate({ inputRange: [-260, -80, 0], outputRange: [1, 0.55, 0], extrapolate: "clamp" });
   const matchLabelOpacity = swipeMotion.interpolate({ inputRange: [0, 80, 260], outputRange: [0, 0.55, 1], extrapolate: "clamp" });
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
-  const availableCardHeight = Math.max(210, screenMinHeight - 218);
-  const feedCardWidth = Math.max(168, Math.min(viewportWidth - 28, availableCardHeight * 0.8, 420));
+  const availableCardHeight = Math.max(210, screenMinHeight - 202);
+  const feedCardWidth = Math.max(168, Math.min(viewportWidth - 20, availableCardHeight * 0.8, 428));
   const feedCardHeight = feedCardWidth * 1.25;
 
   useEffect(() => {
@@ -3010,8 +3007,8 @@ function DiscoverScreen({
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
       <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
       <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.discoverSummaryBar}>
-        {preferenceSummary.map((item) => (
-          <View key={item.text} style={styles.discoverSummaryPill}>
+        {preferenceSummary.map((item, index) => (
+          <View key={item.text} style={[styles.discoverSummaryPill, index > 0 && styles.discoverSummaryPillDivider]}>
             <MaterialCommunityIcons name={item.icon as any} size={14} color={colors.primary} />
             <Text style={styles.discoverSummaryText} numberOfLines={1} selectable>{item.text}</Text>
           </View>
@@ -3032,7 +3029,23 @@ function DiscoverScreen({
               { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
             ]}
           >
-            <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz profil " + profile.name} onPress={() => setPreviewOpen(true)} style={styles.feedProfilePressable}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={"Profil " + profile.name}
+              accessibilityHint="Przesuń w lewo, aby pominąć, lub w prawo, aby polubić."
+              accessibilityActions={[
+                { name: "activate", label: "Otwórz szczegóły profilu" },
+                { name: "decrement", label: "Pomiń profil" },
+                { name: "increment", label: "Polub profil" }
+              ]}
+              onAccessibilityAction={({ nativeEvent }) => {
+                if (nativeEvent.actionName === "decrement") void runSwipeAction("pass");
+                else if (nativeEvent.actionName === "increment") void runSwipeAction("like");
+                else setPreviewOpen(true);
+              }}
+              onPress={() => setPreviewOpen(true)}
+              style={styles.feedProfilePressable}
+            >
               <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
             </Pressable>
             <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
@@ -3042,9 +3055,7 @@ function DiscoverScreen({
               <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIĘ</Text>
             </Animated.View>
           </Animated.View>
-          <View pointerEvents="none" style={styles.deckCounter}>
-            <Text style={styles.deckCounterText}>{remainingCount} w kolejce</Text>
-          </View>
+
           {swipeFeedback && (
             <View pointerEvents="none" style={styles.swipeFeedback}>
               <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
@@ -3056,11 +3067,10 @@ function DiscoverScreen({
 
       <View style={styles.stitchBottomPanel}>
         <View style={styles.stitchFabDock} pointerEvents="box-none">
-          <SwipeFab label="Pomiń" icon="close" onPress={() => void runSwipeAction("pass")} />
           <SwipeFab label="Szczegóły" icon="account" small onPress={() => setPreviewOpen(true)} />
           <SwipeFab label="SPARKLIKE" sublabel={`${superlikesRemaining}/10`} icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro)} />
           <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile)} />
-          <SwipeFab label="Lubię" icon="heart" onPress={() => void runSwipeAction("like")} />
+
         </View>
       </View>
 
@@ -6074,26 +6084,29 @@ const styles = StyleSheet.create({
     display: "none"
   },
   discoverSummaryBar: {
-    minHeight: 38,
-    marginHorizontal: 4,
+    minHeight: 40,
+    marginHorizontal: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 0
+    padding: 3,
+    borderRadius: 18,
+    backgroundColor: "rgba(18,17,22,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.18)"
   },
   discoverSummaryPill: {
     flex: 1,
     minWidth: 0,
-    minHeight: 34,
+    minHeight: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 7,
-    borderRadius: 999,
-    backgroundColor: "rgba(22,20,26,0.86)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.18)"
+    gap: 5,
+    paddingHorizontal: 6
+  },
+  discoverSummaryPillDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: "rgba(255,255,255,0.08)"
   },
   discoverSummaryText: {
     minWidth: 0,
@@ -6172,26 +6185,7 @@ const styles = StyleSheet.create({
   swipeCueTextLike: {
     color: colors.green
   },
-  deckCounter: {
-    position: "absolute",
-    right: 18,
-    bottom: 18,
-    zIndex: 8,
-    minHeight: 28,
-    paddingHorizontal: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: "rgba(5,5,7,0.7)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
-  },
-  deckCounterText: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "900",
-    fontVariant: ["tabular-nums"]
-  },
+
   swipeFeedback: {
     position: "absolute",
     top: 16,
@@ -6213,23 +6207,16 @@ const styles = StyleSheet.create({
   },
   stitchBottomPanel: {
     marginTop: 0,
-    marginHorizontal: 4,
-    minHeight: 88,
-    paddingTop: 6,
-    paddingHorizontal: 6,
-    paddingBottom: 6,
-    borderRadius: 26,
-    backgroundColor: "rgba(7,7,10,0.9)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.2)",
-    boxShadow: "0 -10px 34px rgba(0,0,0,0.3)"
+    minHeight: 72,
+    paddingTop: 3,
+    paddingBottom: 2
   },
   stitchFabDock: {
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 4,
-    paddingHorizontal: 0
+    justifyContent: "center",
+    gap: 18,
+    paddingHorizontal: 10
   },
   stitchProHintRow: {
     minHeight: 38,
@@ -6273,8 +6260,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   swipeFabButton: {
-    flex: 1,
-    minWidth: 0,
+    width: 78,
     alignItems: "center",
     gap: 3
   },
