@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
-import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 initializeApp();
 
@@ -122,5 +123,60 @@ export const notifyNewMessage = onDocumentCreated(
       body: text,
       data: { route: "messages", threadId: event.params.threadId, senderUid }
     });
+  }
+);
+
+async function removeEventFromProfiles(collectionName: "users" | "publicProfiles", eventId: string) {
+  while (true) {
+    const snapshot = await db.collection(collectionName)
+      .where("activeEventIds", "array-contains", eventId)
+      .limit(400)
+      .get();
+    if (snapshot.empty) return;
+
+    const batch = db.batch();
+    snapshot.docs.forEach((document) => {
+      const data = document.data();
+      const activeEvents = Array.isArray(data.activeEvents)
+        ? data.activeEvents.filter((item) => item && typeof item === "object" && item.id !== eventId)
+        : [];
+      const activeEventIds = Array.isArray(data.activeEventIds)
+        ? data.activeEventIds.filter((id): id is string => typeof id === "string" && id !== eventId)
+        : [];
+      batch.update(document.ref, {
+        activeEvents,
+        activeEventIds,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+  }
+}
+
+export const cleanupDeletedSparkEvent = onDocumentDeleted(
+  { document: "sparkEvents/{eventId}", region },
+  async (event) => {
+    await Promise.all([
+      removeEventFromProfiles("users", event.params.eventId),
+      removeEventFromProfiles("publicProfiles", event.params.eventId)
+    ]);
+  }
+);
+
+export const cleanupExpiredSparkEvents = onSchedule(
+  { schedule: "every 15 minutes", timeZone: "Europe/Warsaw", region },
+  async () => {
+    const expiredSnapshot = await db.collection("sparkEvents")
+      .where("deleteAt", "<=", Timestamp.now())
+      .limit(100)
+      .get();
+
+    for (const eventDocument of expiredSnapshot.docs) {
+      await Promise.all([
+        removeEventFromProfiles("users", eventDocument.id),
+        removeEventFromProfiles("publicProfiles", eventDocument.id)
+      ]);
+      await eventDocument.ref.delete();
+    }
   }
 );

@@ -57,10 +57,13 @@ import {
   getUserPrivateSettings,
   hasIncomingProfileLike,
   observeBlockedProfileKeys,
+  observeSparkEvents,
   observeUserChats,
+  publishSparkEvent,
   recordProfileSwipe,
   recordUserLogin,
   rejectChatRequest,
+  removeSparkEvent,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
   syncPublicUserProfile,
@@ -71,18 +74,18 @@ import {
   type DiscoveryCursor
 } from "./src/firestore";
 import {
-  buildSuggestedEvents,
-  createEventId,
   eventCategories,
   formatEventDate,
-  getBundledTestEvents,
+  formatEventDateRange,
+  getDefaultEventDateTimes,
   getSharedActiveEvents,
   isEventActive,
+  maxSelectedEvents,
   normalizeSparkEvent,
+  parseEventDateTimeInput,
   sanitizeActiveEvents,
   type EventCategoryId,
-  type SparkEvent,
-  type SparkEventKind
+  type SparkEvent
 } from "./src/events";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
@@ -117,6 +120,7 @@ const configuredTestProfileViewerEmails = (process.env.EXPO_PUBLIC_TEST_PROFILE_
   .split(",")
   .map((value: string) => value.trim().toLowerCase())
   .filter(Boolean);
+const sparkEventAdminEmail = "wychor234@gmail.com";
 
 function openSupportEmail(subject = "Spark - pomoc") {
   const mailto = "mailto:" + supportEmail + "?subject=" + encodeURIComponent(subject);
@@ -601,10 +605,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const socials = socialHandlesToProfileSocials(getSocialHandles(item.socials));
   const updatedAt = item.updatedAt as { toMillis?: () => number } | undefined;
   const city = typeof item.city === "string" && item.city.trim() ? repairLegacyText(item.city.trim()) : "Twoja okolica";
-  const remoteEvents = sanitizeActiveEvents(Array.isArray(item.activeEvents) ? item.activeEvents : []);
-  const activeEvents = item.isTestProfile === true && remoteEvents.length === 0
-    ? getBundledTestEvents(id, city)
-    : remoteEvents;
+  const activeEvents = sanitizeActiveEvents(Array.isArray(item.activeEvents) ? item.activeEvents : []);
 
   return {
     id,
@@ -800,6 +801,9 @@ function AppContent() {
   const [discoverMode, setDiscoverMode] = useState<DiscoverMode>("people");
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilters>(createDefaultDiscoverFilters);
   const [activeEvents, setActiveEvents] = useState<SparkEvent[]>([]);
+  const [sparkEvents, setSparkEvents] = useState<SparkEvent[]>([]);
+  const [sparkEventsLoading, setSparkEventsLoading] = useState(false);
+  const [sparkEventsError, setSparkEventsError] = useState<string | null>(null);
   const [eventProfiles, setEventProfiles] = useState<MatchProfile[]>([]);
   const [eventManagerOpen, setEventManagerOpen] = useState(false);
   const [eventProfilesLoading, setEventProfilesLoading] = useState(false);
@@ -861,6 +865,7 @@ function AppContent() {
   );
   const profileName = getProfileDisplayName(profileNameMode, nickname, firstName, lastName);
   const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
+  const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
   const sortedProfiles = useMemo(
     () =>
       availableProfiles
@@ -935,7 +940,7 @@ function AppContent() {
         });
         const sameCity = Boolean(userCity.trim()) && profile.city.trim().toLocaleLowerCase("pl-PL") === userCity.trim().toLocaleLowerCase("pl-PL");
         const sharedInterestCount = profile.interests.filter((interest) => selectedInterests.includes(interest)).length;
-        const eventRank = (sharedEvents.some((event) => event.kind === "specific") ? 180 : 100)
+        const eventRank = 180
           + sharedEvents.length * 32
           + sharedInterestCount * 8
           + (sameCity ? 18 : 0);
@@ -1292,6 +1297,37 @@ function AppContent() {
       mounted = false;
     };
   }, [appUser, authDone, canViewTestProfiles, onboarded, profileQueryKey, profileReloadKey]);
+
+  useEffect(() => {
+    if (!appUser || !authDone || !onboarded) {
+      setSparkEvents([]);
+      setSparkEventsLoading(false);
+      setSparkEventsError(null);
+      return;
+    }
+
+    setSparkEventsLoading(true);
+    setSparkEventsError(null);
+    const unsubscribe = observeSparkEvents(
+      (catalogEvents) => {
+        setSparkEvents(catalogEvents);
+        setSparkEventsLoading(false);
+        setActiveEvents((current) => {
+          const catalogIds = new Set(catalogEvents.map((event) => event.id));
+          const reconciled = sanitizeActiveEvents(current).filter((event) => catalogIds.has(event.id));
+          if (reconciled.length !== current.length) {
+            void updateUserActiveEvents(appUser.uid, reconciled).catch(() => undefined);
+          }
+          return reconciled;
+        });
+      },
+      () => {
+        setSparkEventsLoading(false);
+        setSparkEventsError("Nie udało się pobrać aktualnych wydarzeń.");
+      }
+    );
+    return unsubscribe;
+  }, [appUser, authDone, onboarded]);
 
   useEffect(() => {
     if (!appUser || !authDone || !onboarded || activeEvents.length === 0) {
@@ -2603,13 +2639,41 @@ function AppContent() {
       <EventFriendsManagerModal
         visible={eventManagerOpen}
         events={activeEvents}
+        availableEvents={sparkEvents}
         userCity={userCity}
         expiredCount={expiredEventsCount}
+        canManage={canManageSparkEvents}
+        catalogLoading={sparkEventsLoading}
+        catalogError={sparkEventsError}
         onClose={() => setEventManagerOpen(false)}
         onSave={async (events) => {
           const saved = await saveActiveEvents(events);
           if (saved && events.length > 0) setDiscoverMode("events");
           return saved;
+        }}
+        onCreate={async (event) => {
+          if (!appUser || !canManageSparkEvents) return false;
+          try {
+            await publishSparkEvent(appUser.uid, event);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            return true;
+          } catch (error) {
+            Alert.alert("Nie udało się opublikować", error instanceof Error ? error.message : "Spróbuj ponownie.");
+            return false;
+          }
+        }}
+        onDelete={async (event) => {
+          if (!canManageSparkEvents) return false;
+          try {
+            await removeSparkEvent(event.id);
+            if (activeEvents.some((item) => item.id === event.id)) {
+              await saveActiveEvents(activeEvents.filter((item) => item.id !== event.id));
+            }
+            return true;
+          } catch {
+            Alert.alert("Nie udało się usunąć", "Sprawdź połączenie i spróbuj ponownie.");
+            return false;
+          }
         }}
       />
       <MatchCelebration
@@ -3779,7 +3843,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
           <View style={styles.cardSharedEvent}>
             <MaterialCommunityIcons name="calendar-heart" size={13} color="#fff" />
             <Text style={styles.cardSharedEventText} numberOfLines={1}>Wspólnie: {sharedEvent.name}</Text>
-            <Text style={styles.cardSharedEventDate}>{formatEventDate(sharedEvent.date)}</Text>
+            <Text style={styles.cardSharedEventDate}>{formatEventDate(sharedEvent)}</Text>
           </View>
         )}
         <View style={styles.profileStatusRow}>
@@ -4020,7 +4084,7 @@ function ProfilePreviewSheet({
               <View style={styles.fill}>
                 <Text style={local.eventEyebrow}>WSPÓLNY PLAN</Text>
                 <Text style={local.eventTitle} numberOfLines={2}>{sharedEvent.name}</Text>
-                <Text style={local.eventMeta}>{formatEventDate(sharedEvent.date)} · {sharedEvent.city}</Text>
+                <Text style={local.eventMeta}>{formatEventDateRange(sharedEvent)} · {sharedEvent.city}</Text>
               </View>
               {profile.sharedEvents && profile.sharedEvents.length > 1 && <Text style={local.eventMeta}>+{profile.sharedEvents.length - 1}</Text>}
             </View>
@@ -4189,30 +4253,84 @@ function SwipeFab({
   );
 }
 
+function EventEmptyAnimation({ compact = false }: { compact?: boolean }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+
+  const orbitSize = compact ? 76 : 104;
+  return (
+    <Animated.View
+      style={{
+        width: orbitSize,
+        height: orbitSize,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 999,
+        backgroundColor: "rgba(255,45,141,0.08)",
+        borderWidth: 1,
+        borderColor: "rgba(255,45,141,0.18)",
+        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] }),
+        transform: [
+          { translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [3, -5] }) },
+          { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] }) }
+        ]
+      }}
+    >
+      <View style={{ width: compact ? 48 : 62, height: compact ? 48 : 62, alignItems: "center", justifyContent: "center", borderRadius: compact ? 17 : 22, backgroundColor: colors.primarySoft }}>
+        <MaterialCommunityIcons name="calendar-heart" size={compact ? 25 : 32} color={colors.primary} />
+      </View>
+    </Animated.View>
+  );
+}
+
 function EventFriendsManagerModal({
   visible,
   events,
+  availableEvents,
   userCity,
   expiredCount,
+  canManage,
+  catalogLoading,
+  catalogError,
   onClose,
-  onSave
+  onSave,
+  onCreate,
+  onDelete
 }: {
   visible: boolean;
   events: SparkEvent[];
+  availableEvents: SparkEvent[];
   userCity: string;
   expiredCount: number;
+  canManage: boolean;
+  catalogLoading: boolean;
+  catalogError: string | null;
   onClose: () => void;
   onSave: (events: SparkEvent[]) => Promise<boolean>;
+  onCreate: (event: SparkEvent) => Promise<boolean>;
+  onDelete: (event: SparkEvent) => Promise<boolean>;
 }) {
   const insets = useSafeAreaInsets();
-  const suggestions = useMemo(() => buildSuggestedEvents(userCity), [userCity]);
   const [draftEvents, setDraftEvents] = useState<SparkEvent[]>(events);
   const [category, setCategory] = useState<EventCategoryId>("music");
-  const [kind, setKind] = useState<SparkEventKind>("specific");
   const [name, setName] = useState("");
   const [city, setCity] = useState(userCity || "Kraków");
-  const [date, setDate] = useState(suggestions[0]?.date ?? "");
+  const defaults = useMemo(() => getDefaultEventDateTimes(), [visible]);
+  const [startsAtInput, setStartsAtInput] = useState(defaults.start);
+  const [endsAtInput, setEndsAtInput] = useState(defaults.end);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
@@ -4221,8 +4339,12 @@ function EventFriendsManagerModal({
     title: { marginTop: 2, color: colors.ink, fontSize: 21, fontWeight: "900" },
     counter: { minWidth: 38, height: 30, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
     counterText: { color: colors.primaryDeep, fontSize: 11, fontWeight: "900" },
-    scroll: { gap: 18, padding: 16 },
+    scroll: { gap: 18, padding: 16, paddingBottom: 30 },
     intro: { color: colors.muted, fontSize: 12, lineHeight: 18, fontWeight: "700" },
+    hero: { overflow: "hidden", padding: 16, borderRadius: 20, backgroundColor: "rgba(255,45,141,0.11)", borderWidth: 1, borderColor: "rgba(255,45,141,0.26)" },
+    heroEyebrow: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+    heroTitle: { marginTop: 6, color: colors.ink, fontSize: 19, lineHeight: 24, fontWeight: "900" },
+    heroText: { marginTop: 6, color: colors.muted, fontSize: 11, lineHeight: 17, fontWeight: "700" },
     expiry: { flexDirection: "row", alignItems: "center", gap: 8, padding: 11, borderRadius: 14, backgroundColor: "rgba(255,189,89,0.1)", borderWidth: 1, borderColor: "rgba(255,189,89,0.2)" },
     expiryText: { flex: 1, color: "#f6ce8a", fontSize: 11, lineHeight: 16, fontWeight: "800" },
     sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: "900" },
@@ -4233,8 +4355,19 @@ function EventFriendsManagerModal({
     meta: { marginTop: 3, color: colors.muted, fontSize: 10, fontWeight: "700" },
     remove: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
     suggestionList: { gap: 8 },
-    suggestion: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    suggestion: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     suggestionActive: { backgroundColor: "rgba(66,217,130,0.09)", borderColor: "rgba(66,217,130,0.25)" },
+    datePill: { alignSelf: "flex-start", marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.11)" },
+    datePillText: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900" },
+    emptyWrap: { minHeight: 260, alignItems: "center", justifyContent: "center", padding: 22, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.03)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
+    emptyOrbit: { width: 104, height: 104, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
+    emptyIcon: { width: 62, height: 62, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: colors.primarySoft },
+    emptyTitle: { marginTop: 17, color: colors.ink, fontSize: 18, fontWeight: "900", textAlign: "center" },
+    emptyText: { marginTop: 7, maxWidth: 300, color: colors.muted, fontSize: 11, lineHeight: 17, fontWeight: "700", textAlign: "center" },
+    adminPanel: { gap: 12, padding: 15, borderRadius: 20, backgroundColor: "rgba(255,189,89,0.06)", borderWidth: 1, borderColor: "rgba(255,189,89,0.2)" },
+    adminBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(255,189,89,0.13)" },
+    adminBadgeText: { color: colors.gold, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
+    fieldLabel: { marginBottom: -5, color: colors.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.5, textTransform: "uppercase" },
     categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     categoryCard: { width: "48%", flexGrow: 1, minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     categoryActive: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.34)" },
@@ -4249,8 +4382,9 @@ function EventFriendsManagerModal({
     input: { minHeight: 50, paddingHorizontal: 13, borderRadius: 15, color: colors.ink, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", fontSize: 13, fontWeight: "700" },
     inputRow: { flexDirection: "row", gap: 8 },
     inputHalf: { flex: 1 },
-    add: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.13)", borderWidth: 1, borderColor: "rgba(255,45,141,0.28)" },
-    addText: { color: colors.primaryDeep, fontSize: 12, fontWeight: "900" },
+    add: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary },
+    addText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+    adminDelete: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,77,109,0.11)" },
     footer: { flexDirection: "row", gap: 9, paddingHorizontal: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
     footerButton: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.07)" },
     saveButton: { flex: 1.5, flexDirection: "row", gap: 8, backgroundColor: colors.primary },
@@ -4260,37 +4394,71 @@ function EventFriendsManagerModal({
 
   useEffect(() => {
     if (!visible) return;
-    setDraftEvents(sanitizeActiveEvents(events));
+    const catalogIds = new Set(availableEvents.map((event) => event.id));
+    setDraftEvents(sanitizeActiveEvents(events).filter((event) => catalogIds.has(event.id)));
     setCity(userCity || "Kraków");
-    setDate(suggestions[0]?.date ?? "");
+    setStartsAtInput(defaults.start);
+    setEndsAtInput(defaults.end);
+    setName("");
     setSaving(false);
-  }, [events, suggestions, userCity, visible]);
+    setCreating(false);
+    setDeletingId(null);
+  }, [availableEvents, defaults.end, defaults.start, events, userCity, visible]);
 
   function addEvent(event: SparkEvent) {
     if (draftEvents.some((item) => item.id === event.id)) {
       setDraftEvents((current) => current.filter((item) => item.id !== event.id));
       return;
     }
-    if (draftEvents.length >= 8) {
-      Alert.alert("Event Friends", "Możesz mieć maksymalnie 8 aktywnych wydarzeń.");
+    if (draftEvents.length >= maxSelectedEvents) {
+      Alert.alert("Event Friends", `Możesz obserwować maksymalnie ${maxSelectedEvents} wydarzenia jednocześnie.`);
       return;
     }
     setDraftEvents((current) => sanitizeActiveEvents([...current, event]));
     void Haptics.selectionAsync();
   }
 
-  function addCustomEvent() {
-    const event = normalizeSparkEvent({ category, kind, name, city, date, id: createEventId({ category, kind, name, city, date }) });
+  async function addCustomEvent() {
+    if (!canManage || creating) return;
+    const startsAt = parseEventDateTimeInput(startsAtInput);
+    const endsAt = parseEventDateTimeInput(endsAtInput);
+    const event = startsAt && endsAt
+      ? normalizeSparkEvent({ category, name, city, startsAt, endsAt, date: startsAt.slice(0, 10), kind: "specific" })
+      : null;
     if (!event) {
-      Alert.alert("Uzupełnij wydarzenie", "Podaj nazwę, miasto i datę w formacie RRRR-MM-DD.");
+      Alert.alert("Uzupełnij wydarzenie", "Podaj nazwę, miasto oraz start i koniec w formacie RRRR-MM-DD GG:MM.");
       return;
     }
     if (!isEventActive(event)) {
-      Alert.alert("Data wydarzenia", "Wydarzenie musi kończyć się dzisiaj lub później.");
+      Alert.alert("Data wydarzenia", "Koniec wydarzenia musi przypadać w przyszłości.");
       return;
     }
-    addEvent(event);
-    setName("");
+    setCreating(true);
+    const created = await onCreate(event);
+    setCreating(false);
+    if (created) {
+      setName("");
+      const nextDefaults = getDefaultEventDateTimes();
+      setStartsAtInput(nextDefaults.start);
+      setEndsAtInput(nextDefaults.end);
+    }
+  }
+
+  async function deleteCatalogEvent(event: SparkEvent) {
+    if (!canManage || deletingId) return;
+    Alert.alert("Usuń wydarzenie", `Usunąć „${event.name}” z katalogu i wyborów użytkowników?`, [
+      { text: "Anuluj", style: "cancel" },
+      {
+        text: "Usuń",
+        style: "destructive",
+        onPress: () => {
+          setDeletingId(event.id);
+          void onDelete(event).then((deleted) => {
+            if (deleted) setDraftEvents((current) => current.filter((item) => item.id !== event.id));
+          }).finally(() => setDeletingId(null));
+        }
+      }
+    ]);
   }
 
   async function save() {
@@ -4308,20 +4476,62 @@ function EventFriendsManagerModal({
         <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
           <Pressable accessibilityRole="button" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
           <View style={styles.fill}><Text style={local.eyebrow}>Event Friends</Text><Text style={local.title}>Twoje wydarzenia</Text></View>
-          <View style={local.counter}><Text style={local.counterText}>{draftEvents.length}/8</Text></View>
+          <View style={local.counter}><Text style={local.counterText}>{draftEvents.length}/{maxSelectedEvents}</Text></View>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={local.scroll}>
-          <Text style={local.intro}>Wybierz wydarzenia, na które naprawdę chcesz iść. Pokażemy wyłącznie osoby z przynajmniej jednym wspólnym wyborem. Nie zapisujemy dokładnego miejsca.</Text>
+          <View style={local.hero}>
+            <Text style={local.heroEyebrow}>POZNAJCIE SIĘ PRZED WYJŚCIEM</Text>
+            <Text style={local.heroTitle}>Jedno wydarzenie, właściwi ludzie</Text>
+            <Text style={local.heroText}>Wybierz jeden lub kilka konkretnych eventów. W tym feedzie zobaczysz wyłącznie osoby, które wybrały przynajmniej ten sam event.</Text>
+          </View>
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
-          {draftEvents.length > 0 && <><Text style={local.sectionTitle}>Aktywne</Text><View style={local.activeList}>{draftEvents.map((event) => { const meta = eventCategories.find((item) => item.id === event.category); return <View key={event.id} style={local.activeRow}><View style={local.activeIcon}><MaterialCommunityIcons name={(meta?.icon ?? "calendar") as any} size={20} color={colors.primary} /></View><View style={styles.fill}><Text style={local.activeTitle} numberOfLines={1}>{event.name}</Text><Text style={local.meta}>{formatEventDate(event.date)} · {event.city}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Usuń ${event.name}`} onPress={() => setDraftEvents((current) => current.filter((item) => item.id !== event.id))} style={local.remove}><MaterialCommunityIcons name="close" size={18} color={colors.muted} /></Pressable></View>; })}</View></>}
-          <Text style={local.sectionTitle}>Szybki wybór</Text>
-          <View style={local.suggestionList}>{suggestions.map((event) => { const selected = draftEvents.some((item) => item.id === event.id); const meta = eventCategories.find((item) => item.id === event.category); return <Pressable key={event.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => addEvent(event)} style={({ pressed }) => [local.suggestion, selected && local.suggestionActive, pressed && styles.controlPressed]}><View style={local.activeIcon}><MaterialCommunityIcons name={(meta?.icon ?? "calendar") as any} size={19} color={selected ? colors.green : colors.primary} /></View><View style={styles.fill}><Text style={local.activeTitle} numberOfLines={1}>{event.name}</Text><Text style={local.meta}>{formatEventDate(event.date)} · {event.city}</Text></View><MaterialCommunityIcons name={selected ? "check-circle" : "plus-circle-outline"} size={21} color={selected ? colors.green : colors.primary} /></Pressable>; })}</View>
-          <Text style={local.sectionTitle}>Dodaj własne wydarzenie</Text>
-          <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => setCategory(item.id)} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
-          <View style={local.segment}>{([['specific', 'Konkretne'], ['general', 'Ogólne']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setKind(value)} style={[local.segmentButton, kind === value && local.segmentActive]}><Text style={[local.segmentText, kind === value && local.segmentTextActive]}>{label}</Text></Pressable>)}</View>
-          <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="Nazwa, np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
-          <View style={local.inputRow}><TextInput value={city} onChangeText={setCity} maxLength={80} placeholder="Miasto" placeholderTextColor={colors.muted} style={[local.input, local.inputHalf]} /><TextInput value={date} onChangeText={setDate} maxLength={10} keyboardType="numbers-and-punctuation" placeholder="RRRR-MM-DD" placeholderTextColor={colors.muted} style={[local.input, local.inputHalf]} /></View>
-          <Pressable accessibilityRole="button" onPress={addCustomEvent} style={({ pressed }) => [local.add, pressed && styles.controlPressed]}><MaterialCommunityIcons name="calendar-plus" size={19} color={colors.primary} /><Text style={local.addText}>Dodaj do aktywnych</Text></Pressable>
+          <Text style={local.sectionTitle}>Aktualne wydarzenia</Text>
+          {catalogLoading ? (
+            <View style={local.emptyWrap}><ActivityIndicator color={colors.primary} size="large" /><Text style={local.emptyTitle}>Pobieramy wydarzenia</Text></View>
+          ) : availableEvents.length === 0 ? (
+            <View style={local.emptyWrap}>
+              <EventEmptyAnimation />
+              <Text style={local.emptyTitle}>Brak aktualnych wydarzeń</Text>
+              <Text style={local.emptyText}>{canManage ? "Utwórz pierwszy konkretny event poniżej. Lista pozostaje pusta, dopóki go nie opublikujesz." : "Nowe wydarzenia pojawią się tutaj, gdy zostaną opublikowane przez Spark."}</Text>
+            </View>
+          ) : (
+            <View style={local.suggestionList}>
+              {availableEvents.map((event) => {
+                const selected = draftEvents.some((item) => item.id === event.id);
+                const meta = eventCategories.find((item) => item.id === event.category);
+                return (
+                  <Pressable key={event.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => addEvent(event)} style={({ pressed }) => [local.suggestion, selected && local.suggestionActive, pressed && styles.controlPressed]}>
+                    <View style={local.activeIcon}><MaterialCommunityIcons name={(meta?.icon ?? "calendar") as any} size={21} color={selected ? colors.green : colors.primary} /></View>
+                    <View style={styles.fill}>
+                      <Text style={local.activeTitle} numberOfLines={2}>{event.name}</Text>
+                      <Text style={local.meta} numberOfLines={1}>{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
+                      <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
+                    </View>
+                    {canManage && <Pressable accessibilityRole="button" accessibilityLabel={`Usuń wydarzenie ${event.name}`} onPress={(pressEvent) => { pressEvent.stopPropagation(); void deleteCatalogEvent(event); }} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
+                    <MaterialCommunityIcons name={selected ? "check-circle" : "circle-outline"} size={22} color={selected ? colors.green : colors.muted} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+          {catalogError && <View style={local.expiry}><MaterialCommunityIcons name="wifi-alert" size={18} color={colors.gold} /><Text style={local.expiryText}>{catalogError}</Text></View>}
+          {canManage && (
+            <View style={local.adminPanel}>
+              <View style={local.adminBadge}><MaterialCommunityIcons name="shield-crown-outline" size={15} color={colors.gold} /><Text style={local.adminBadgeText}>PANEL ORGANIZATORA</Text></View>
+              <Text style={local.sectionTitle}>Opublikuj wydarzenie</Text>
+              <Text style={local.intro}>Tylko Twoje konto może dodawać eventy. Wydarzenie oraz wybory użytkowników zostaną usunięte godzinę po jego zakończeniu.</Text>
+              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => setCategory(item.id)} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
+              <Text style={local.fieldLabel}>Nazwa wydarzenia</Text>
+              <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
+              <Text style={local.fieldLabel}>Miasto</Text>
+              <TextInput value={city} onChangeText={setCity} maxLength={80} placeholder="np. Gdynia" placeholderTextColor={colors.muted} style={local.input} />
+              <Text style={local.fieldLabel}>Start · RRRR-MM-DD GG:MM</Text>
+              <TextInput value={startsAtInput} onChangeText={setStartsAtInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 18:00" placeholderTextColor={colors.muted} style={local.input} />
+              <Text style={local.fieldLabel}>Koniec · RRRR-MM-DD GG:MM</Text>
+              <TextInput value={endsAtInput} onChangeText={setEndsAtInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 21:00" placeholderTextColor={colors.muted} style={local.input} />
+              <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>Opublikuj wydarzenie</Text></Pressable>
+            </View>
+          )}
         </ScrollView>
         <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>Zapisz wybór</Text></Pressable></View>
       </View>
@@ -4344,7 +4554,7 @@ function EventFriendsEmptyState({
   return <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
     <TopBar eyebrow="Event Friends" title="Wspólne plany" left="<" right="calendar-edit" onLeftPress={onBack} onRightPress={onManage} />
     <Pressable accessibilityRole="button" onPress={onManage} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive]}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>TWOJE WYDARZENIA</Text><Text style={styles.eventFriendsLaunchTitle}>{hasEvents ? `${activeEvents.length} aktywne` : "Wybierz pierwsze"}</Text></View><MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
-    <View style={styles.discoverEmptyBody}><View style={styles.discoverEmptyIcon}>{loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name={hasEvents ? "calendar-search" : "calendar-heart"} size={38} color={colors.primary} />}</View><Text style={styles.discoverEmptyTitle}>{loading ? "Szukamy wspólnych planów" : error ? "Nie udało się pobrać profili" : hasEvents ? "Jeszcze nikogo tu nie ma" : "Wybierz wydarzenia"}</Text><Text style={styles.discoverEmptyText}>{loading ? "Sprawdzamy osoby wybierające się na te same wydarzenia." : error ?? (hasEvents ? "Gdy ktoś wybierze jedno z tych samych wydarzeń, pojawi się tutaj jako karta do swipe." : "Dodaj koncert, kino, mecz, wyjście lub wyjazd. Zobaczysz tylko osoby z przynajmniej jednym wspólnym wyborem.")}</Text>{expiredCount > 0 && <View style={styles.discoverEmptyStat}><MaterialCommunityIcons name="clock-outline" size={18} color={colors.gold} /><Text style={styles.discoverEmptyStatText}>Usunięto {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}</Text></View>} {!loading && <><Pressable accessibilityRole="button" onPress={onManage} style={styles.primaryButton}><MaterialCommunityIcons name="calendar-edit" size={19} color="#fff" /><Text style={styles.primaryButtonText}>{hasEvents ? "Zarządzaj wydarzeniami" : "Wybierz wydarzenia"}</Text></Pressable><Pressable accessibilityRole="button" onPress={onBack} style={styles.secondaryButtonWide}><Text style={styles.secondaryButtonText}>Wróć do zwykłego feedu</Text></Pressable></>}</View>
+    <View style={styles.discoverEmptyBody}>{loading ? <View style={styles.discoverEmptyIcon}><ActivityIndicator color={colors.primary} size="large" /></View> : <EventEmptyAnimation compact />}<Text style={styles.discoverEmptyTitle}>{loading ? "Szukamy wspólnych planów" : error ? "Nie udało się pobrać profili" : hasEvents ? "Jeszcze nikogo tu nie ma" : "Brak wybranych wydarzeń"}</Text><Text style={styles.discoverEmptyText}>{loading ? "Sprawdzamy osoby wybierające się na te same wydarzenia." : error ?? (hasEvents ? "Gdy ktoś wybierze jedno z tych samych wydarzeń, pojawi się tutaj jako karta do swipe." : "Wybierz jeden lub kilka eventów z oficjalnej listy Spark. Zobaczysz tylko osoby z przynajmniej jednym identycznym wyborem.")}</Text>{expiredCount > 0 && <View style={styles.discoverEmptyStat}><MaterialCommunityIcons name="clock-outline" size={18} color={colors.gold} /><Text style={styles.discoverEmptyStatText}>Usunięto {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}</Text></View>} {!loading && <><Pressable accessibilityRole="button" onPress={onManage} style={styles.primaryButton}><MaterialCommunityIcons name="calendar-search" size={19} color="#fff" /><Text style={styles.primaryButtonText}>{hasEvents ? "Zmień wydarzenia" : "Zobacz wydarzenia"}</Text></Pressable><Pressable accessibilityRole="button" onPress={onBack} style={styles.secondaryButtonWide}><Text style={styles.secondaryButtonText}>Wróć do zwykłego feedu</Text></Pressable></>}</View>
   </View>;
 }
 
@@ -5041,7 +5251,7 @@ function ChatConversationModal({
         {thread?.eventContext && (
           <View style={local.eventBanner}>
             <View style={local.eventBannerIcon}><MaterialCommunityIcons name="calendar-heart" size={18} color="#fff" /></View>
-            <View style={styles.fill}><Text style={local.eventBannerTitle} numberOfLines={1}>{thread.eventContext.name}</Text><Text style={local.eventBannerMeta}>{formatEventDate(thread.eventContext.date)} · {thread.eventContext.city}</Text></View>
+            <View style={styles.fill}><Text style={local.eventBannerTitle} numberOfLines={1}>{thread.eventContext.name}</Text><Text style={local.eventBannerMeta}>{formatEventDateRange(thread.eventContext)} · {thread.eventContext.city}</Text></View>
             <Text style={local.eventBannerMeta}>Wspólny plan</Text>
           </View>
         )}

@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   setDoc,
   startAfter,
+  Timestamp,
   updateDoc,
   where
 } from "firebase/firestore";
@@ -104,6 +105,20 @@ function requireDb() {
   return db;
 }
 
+async function keepPublishedSparkEvents(eventsInput: unknown) {
+  const events = sanitizeActiveEvents(eventsInput);
+  if (events.length === 0) return [];
+  const snapshots = await Promise.all(events.map((event) => getDoc(doc(requireDb(), "sparkEvents", event.id))));
+  const publishedIds = new Set(
+    snapshots
+      .filter((snapshot) => snapshot.exists())
+      .map((snapshot) => normalizeSparkEvent({ id: snapshot.id, ...snapshot.data() }))
+      .filter((event): event is SparkEvent => Boolean(event))
+      .map((event) => event.id)
+  );
+  return events.filter((event) => publishedIds.has(event.id));
+}
+
 async function getVerifiedProClaim(uid: string) {
   const currentUser = auth?.currentUser;
   if (!currentUser || currentUser.uid !== uid) return false;
@@ -148,7 +163,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     : publicPhotoUrls[0] ?? null;
   const desiredAgeMin = Math.max(18, Math.min(99, profile.desiredAgeMin ?? 18));
   const desiredAgeMax = Math.max(desiredAgeMin, Math.min(99, profile.desiredAgeMax ?? 99));
-  const activeEvents = sanitizeActiveEvents(profile.activeEvents);
+  const activeEvents = await keepPublishedSparkEvents(profile.activeEvents);
   await setDoc(publicProfileRef, {
     uid,
     firstName: profile.firstName,
@@ -235,7 +250,7 @@ export async function updateUserDiscoveryPreferences(uid: string, preferences: D
 }
 
 export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) {
-  const activeEvents = sanitizeActiveEvents(events);
+  const activeEvents = await keepPublishedSparkEvents(events);
   await setDoc(
     doc(requireDb(), "users", uid),
     { activeEvents, activeEventIds: activeEvents.map((event) => event.id), updatedAt: serverTimestamp() },
@@ -243,6 +258,40 @@ export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) 
   );
   await syncPublicUserProfile(uid);
   return activeEvents;
+}
+
+export function observeSparkEvents(
+  onChange: (events: SparkEvent[]) => void,
+  onError: (error: Error) => void
+) {
+  const eventsQuery = query(collection(requireDb(), "sparkEvents"), orderBy("startsAt", "asc"), limit(50));
+  return onSnapshot(
+    eventsQuery,
+    (snapshot) => onChange(sanitizeActiveEvents(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))),
+    (error) => onError(error)
+  );
+}
+
+export async function publishSparkEvent(uid: string, eventInput: SparkEvent) {
+  const event = normalizeSparkEvent(eventInput);
+  if (!event) throw new Error("Nieprawidłowe dane wydarzenia.");
+  const deleteAtMs = new Date(event.endsAt).getTime() + 60 * 60 * 1000;
+  if (!Number.isFinite(deleteAtMs) || deleteAtMs <= Date.now()) {
+    throw new Error("Wydarzenie musi kończyć się w przyszłości.");
+  }
+
+  await setDoc(doc(requireDb(), "sparkEvents", event.id), {
+    ...event,
+    createdByUid: uid,
+    deleteAt: Timestamp.fromMillis(deleteAtMs),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return event;
+}
+
+export async function removeSparkEvent(eventId: string) {
+  await deleteDoc(doc(requireDb(), "sparkEvents", eventId));
 }
 
 export async function recordUserLogin(params: {
