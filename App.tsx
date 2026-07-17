@@ -1790,7 +1790,7 @@ function AppContent() {
       }
 
       if (authMode === "register" && password.length < 8) {
-        setAuthError("Has\u0142o musi mie\u0107 co najmniej 8 znak\u00f3w.");
+        setAuthError("Has\u0142o musi mie\u0107 co najmniej 8 znaków.");
         return;
       }
 
@@ -3054,10 +3054,10 @@ function AuthScreen({
               setAuthMode("login");
               setConfirmPassword("");
             }}
-            style={styles.forgotPasswordButton}
+            style={styles.authBackToLoginButton}
           >
-            <MaterialCommunityIcons name="arrow-left" size={17} color={colors.primary} />
-            <Text style={styles.forgotPasswordText}>Wróć do logowania</Text>
+            <MaterialCommunityIcons name="arrow-left" size={18} color={colors.primary} />
+            <Text style={styles.authBackToLoginText}>Mam już konto — Zaloguj się</Text>
           </Pressable>
         )}
       </View>
@@ -3127,7 +3127,7 @@ function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText:
     <View style={styles.fieldGroup}>
       <View style={styles.profileBioHeader}>
         <Text style={styles.fieldLabel}>Opis profilu</Text>
-        <Text style={styles.profileBioCounter}>{remaining} znak\u00f3w</Text>
+        <Text style={styles.profileBioCounter}>{remaining} znaków</Text>
       </View>
       <TextInput
         value={value}
@@ -3141,7 +3141,7 @@ function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText:
         cursorColor={colors.primary}
         style={[styles.fieldInput, styles.profileBioInput]}
       />
-      <Text style={styles.profileBioHint}>{value.trim().length < 20 ? "Minimum 20 znak\u00f3w" : "Opis b\u0119dzie widoczny na Twojej karcie"}</Text>
+      <Text style={styles.profileBioHint}>{value.trim().length < 20 ? "Minimum 20 znaków" : "Opis będzie widoczny na Twojej karcie"}</Text>
     </View>
   );
 }
@@ -7133,6 +7133,23 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep,
     fontSize: 14,
     fontWeight: "800"
+  },
+  authBackToLoginButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 2,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.34)",
+    backgroundColor: "rgba(255,45,141,0.08)"
+  },
+  authBackToLoginText: {
+    color: colors.primaryDeep,
+    fontSize: 14,
+    fontWeight: "900"
   },
   socialLoginButtonDisabled: {
     opacity: 0.48
