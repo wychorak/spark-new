@@ -180,7 +180,7 @@ export function observeRecentProfileViews(
   onError?: (error: Error) => void
 ) {
   return onSnapshot(
-    query(collection(requireDb(), "users", uid, "profileViews"), orderBy("lastViewedAt", "desc"), limit(30)),
+    query(collection(requireDb(), "users", uid, "profileViews"), orderBy("lastViewedAt", "desc"), limit(100)),
     (snapshot) => onChange(snapshot.docs.map((item) => {
       const data = item.data();
       return {

@@ -18,6 +18,7 @@ import {
   Alert,
   Animated,
   Easing,
+  FlatList,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -342,6 +343,8 @@ type MatchProfile = {
   interestMatchPercent?: number;
   matchReasons?: string[];
   recommendationTier?: number;
+  profileViewCount?: number;
+  profileLastViewedAtMs?: number | null;
   intent?: string;
   intents?: SparkIntent[];
   updatedAtMs?: number;
@@ -1605,9 +1608,17 @@ function AppContent() {
         void Promise.all(views.map((view) => getPublicProfile(view.viewerUid)))
           .then((documents) => {
             if (!active) return;
-            const profiles = documents
-              .map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null)
-              .filter((profile): profile is MatchProfile => Boolean(profile));
+            const profiles = documents.reduce<MatchProfile[]>((items, document, index) => {
+              const profile = document ? mapRemoteProfile(document as Record<string, unknown>) : null;
+              if (profile) {
+                items.push({
+                  ...profile,
+                  profileViewCount: views[index]?.viewCount ?? 1,
+                  profileLastViewedAtMs: views[index]?.lastViewedAtMs ?? null
+                });
+              }
+              return items;
+            }, []);
             setProfileViewers(profiles);
             setProfileViewersLoading(false);
           })
@@ -5766,25 +5777,208 @@ function SocialHandleField({
     </View>
   );
 }
+type ProfileViewerRange = "day" | "week" | "all";
+type ProfileViewerSort = "recent" | "frequent";
+
+function formatProfileViewTime(timestamp: number | null | undefined) {
+  if (!timestamp) return "Ostatnio";
+  const elapsed = Math.max(0, Date.now() - timestamp);
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "Przed chwilą";
+  if (minutes < 60) return String(minutes) + ' min temu';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return String(hours) + ' godz. temu';
+  const days = Math.floor(hours / 24);
+  if (days < 7) return String(days) + ' dni temu';
+  return new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "short" }).format(new Date(timestamp));
+}
+
 const profileViewerStyles = StyleSheet.create({
-  panel: { gap: 14, padding: 18, borderRadius: 24, backgroundColor: "rgba(20,20,26,0.92)", borderWidth: 1, borderColor: "rgba(255,45,141,0.22)" },
+  panel: { gap: 14, padding: 18, borderRadius: 24, backgroundColor: "rgba(20,20,26,0.94)", borderWidth: 1, borderColor: "rgba(255,45,141,0.24)", boxShadow: "0 14px 34px rgba(0,0,0,0.2)" },
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   title: { color: colors.ink, fontSize: 18, fontWeight: "900" },
   hint: { marginTop: 3, color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
-  badge: { minWidth: 32, height: 32, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  badge: { minWidth: 34, height: 34, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
   badgeText: { color: "#fff", fontSize: 11, fontWeight: "900" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  viewer: { width: "48%", flexGrow: 1, minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  avatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: "#111" },
-  name: { color: colors.ink, fontSize: 12, fontWeight: "900" },
-  meta: { marginTop: 3, color: colors.muted, fontSize: 9, fontWeight: "800" },
-  empty: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.035)" },
-  emptyTitle: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+  preview: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  avatarStack: { width: 92, height: 52, position: "relative" },
+  stackedAvatar: { position: "absolute", top: 2, width: 48, height: 48, borderRadius: 17, backgroundColor: "#111", borderWidth: 2, borderColor: "#17171d" },
+  previewTitle: { color: colors.ink, fontSize: 13, fontWeight: "900" },
+  previewMeta: { marginTop: 4, color: colors.muted, fontSize: 10, lineHeight: 14, fontWeight: "700" },
+  empty: { minHeight: 90, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.035)" },
+  emptyTitle: { color: colors.ink, fontSize: 13, fontWeight: "900" },
   emptyText: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: "center", fontWeight: "700" },
   unlock: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 17, backgroundColor: colors.primary },
-  unlockText: { color: "#fff", fontSize: 13, fontWeight: "900" }
+  unlockText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  openButton: { minHeight: 49, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 17, backgroundColor: colors.primary },
+  openButtonText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  screen: { flex: 1, backgroundColor: "#07070a" },
+  screenHeader: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
+  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+  screenEyebrow: { color: colors.primary, fontSize: 9, letterSpacing: 0.8, fontWeight: "900" },
+  screenTitle: { marginTop: 2, color: colors.ink, fontSize: 23, fontWeight: "900" },
+  screenCount: { minWidth: 40, height: 40, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, borderRadius: 15, backgroundColor: colors.primarySoft },
+  screenCountText: { color: colors.primary, fontSize: 13, fontWeight: "900" },
+  controls: { gap: 12, padding: 16, paddingBottom: 10 },
+  search: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+  searchInput: { flex: 1, minWidth: 0, color: colors.ink, fontSize: 14, fontWeight: "700" },
+  filterRow: { flexDirection: "row", gap: 7 },
+  filter: { flex: 1, minHeight: 39, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
+  filterActive: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.36)" },
+  filterText: { color: colors.muted, fontSize: 10, fontWeight: "900" },
+  filterTextActive: { color: colors.primary },
+  resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 17, paddingVertical: 8 },
+  resultsText: { color: colors.muted, fontSize: 10, fontWeight: "800" },
+  sort: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 34, paddingHorizontal: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.05)" },
+  sortText: { color: colors.ink, fontSize: 10, fontWeight: "900" },
+  list: { gap: 9, paddingHorizontal: 16, paddingTop: 4 },
+  row: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 12, padding: 11, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  rowAvatar: { width: 58, height: 58, borderRadius: 19, backgroundColor: "#111" },
+  rowName: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+  rowMeta: { marginTop: 4, color: colors.muted, fontSize: 10, fontWeight: "700" },
+  rowAside: { alignItems: "flex-end", gap: 6 },
+  visits: { minHeight: 25, paddingHorizontal: 8, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: colors.primarySoft },
+  visitsText: { color: colors.primary, fontSize: 9, fontWeight: "900" },
+  screenEmpty: { flex: 1, minHeight: 280, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 36 },
+  screenEmptyTitle: { color: colors.ink, fontSize: 17, fontWeight: "900" },
+  screenEmptyText: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: "center", fontWeight: "700" }
 });
+
+function ProfileViewersScreen({
+  visible,
+  viewers,
+  viewerCount,
+  loading,
+  viewerInterests,
+  onClose
+}: {
+  visible: boolean;
+  viewers: MatchProfile[];
+  viewerCount: number;
+  loading: boolean;
+  viewerInterests: string[];
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState("");
+  const [range, setRange] = useState<ProfileViewerRange>("all");
+  const [sort, setSort] = useState<ProfileViewerSort>("recent");
+  const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
+  const normalizedQuery = query.trim().toLocaleLowerCase("pl-PL");
+  const filteredViewers = useMemo(() => {
+    const now = Date.now();
+    const rangeMs = range === "day" ? 86_400_000 : range === "week" ? 7 * 86_400_000 : null;
+    return viewers
+      .filter((viewer) => {
+        if (rangeMs && (!viewer.profileLastViewedAtMs || now - viewer.profileLastViewedAtMs > rangeMs)) return false;
+        if (!normalizedQuery) return true;
+        const haystack = [
+          viewer.name,
+          viewer.surname,
+          viewer.city,
+          viewer.country,
+          ...viewer.interests
+        ].filter(Boolean).join(" ").toLocaleLowerCase("pl-PL");
+        return haystack.includes(normalizedQuery);
+      })
+      .sort((left, right) => sort === "frequent"
+        ? (right.profileViewCount ?? 1) - (left.profileViewCount ?? 1) || (right.profileLastViewedAtMs ?? 0) - (left.profileLastViewedAtMs ?? 0)
+        : (right.profileLastViewedAtMs ?? 0) - (left.profileLastViewedAtMs ?? 0));
+  }, [normalizedQuery, range, sort, viewers]);
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+      <LinearGradient colors={["#07070a", "#160911", "#07070a"]} style={profileViewerStyles.screen}>
+        <StatusBar style="light" />
+        <View style={[profileViewerStyles.screenHeader, { paddingTop: Math.max(insets.top, 12) }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Wróć do profilu" onPress={onClose} style={profileViewerStyles.back}>
+            <MaterialCommunityIcons name="chevron-left" size={25} color={colors.ink} />
+          </Pressable>
+          <View style={styles.fill}>
+            <Text style={profileViewerStyles.screenEyebrow}>SPARK PRO</Text>
+            <Text style={profileViewerStyles.screenTitle}>Kto Cię zauważył</Text>
+          </View>
+          <View style={profileViewerStyles.screenCount}><Text style={profileViewerStyles.screenCountText}>{viewerCount}</Text></View>
+        </View>
+
+        <View style={profileViewerStyles.controls}>
+          <View style={profileViewerStyles.search}>
+            <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Szukaj po nazwie, mieście lub zainteresowaniu"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={profileViewerStyles.searchInput}
+            />
+            {query.length > 0 && (
+              <Pressable accessibilityRole="button" accessibilityLabel="Wyczyść wyszukiwanie" onPress={() => setQuery("")}>
+                <MaterialCommunityIcons name="close-circle" size={20} color={colors.muted} />
+              </Pressable>
+            )}
+          </View>
+          <View style={profileViewerStyles.filterRow}>
+            {([
+              ["day", "24 godz."],
+              ["week", "7 dni"],
+              ["all", "Wszystkie"]
+            ] as [ProfileViewerRange, string][]).map(([value, label]) => (
+              <Pressable key={value} accessibilityRole="button" onPress={() => setRange(value)} style={[profileViewerStyles.filter, range === value && profileViewerStyles.filterActive]}>
+                <Text style={[profileViewerStyles.filterText, range === value && profileViewerStyles.filterTextActive]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={profileViewerStyles.resultsHeader}>
+          <Text style={profileViewerStyles.resultsText}>{filteredViewers.length} wyników</Text>
+          <Pressable accessibilityRole="button" onPress={() => setSort((value) => value === "recent" ? "frequent" : "recent")} style={profileViewerStyles.sort}>
+            <MaterialCommunityIcons name={sort === "recent" ? "clock-outline" : "repeat"} size={14} color={colors.primary} />
+            <Text style={profileViewerStyles.sortText}>{sort === "recent" ? "Najnowsze" : "Najczęstsze"}</Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          data={filteredViewers}
+          keyExtractor={getProfileKey}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[profileViewerStyles.list, { paddingBottom: Math.max(insets.bottom, 14) + 18 }]}
+          renderItem={({ item }) => {
+            const displayName = [item.name, item.surname].filter(Boolean).join(" ");
+            return (
+              <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz profil " + displayName} onPress={() => setPreviewProfile(item)} style={profileViewerStyles.row}>
+                <Image source={item.image} style={profileViewerStyles.rowAvatar} contentFit="cover" />
+                <View style={styles.fill}>
+                  <Text style={profileViewerStyles.rowName} numberOfLines={1}>{displayName}, {item.age}</Text>
+                  <Text style={profileViewerStyles.rowMeta} numberOfLines={1}>{[item.city, formatProfileViewTime(item.profileLastViewedAtMs)].filter(Boolean).join(" • ")}</Text>
+                </View>
+                <View style={profileViewerStyles.rowAside}>
+                  <View style={profileViewerStyles.visits}><Text style={profileViewerStyles.visitsText}>{item.profileViewCount ?? 1} wizyt</Text></View>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
+                </View>
+              </Pressable>
+            );
+          }}
+          ListEmptyComponent={
+            <View style={profileViewerStyles.screenEmpty}>
+              {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="account-search-outline" size={38} color={colors.primary} />}
+              <Text style={profileViewerStyles.screenEmptyTitle}>{loading ? "Ładujemy wizyty" : "Brak pasujących osób"}</Text>
+              <Text style={profileViewerStyles.screenEmptyText}>{loading ? "To potrwa tylko chwilę." : "Zmień filtr czasu albo wpisaną frazę."}</Text>
+            </View>
+          }
+        />
+
+        {previewProfile && (
+          <ProfilePreviewSheet profile={previewProfile} viewerInterests={viewerInterests} onClose={() => setPreviewProfile(null)} canViewSocials={false} readOnly />
+        )}
+      </LinearGradient>
+    </Modal>
+  );
+}
 
 function ProfileViewerPanel({ hasPro, viewers, viewerCount, loading, viewerInterests, onUpgrade }: {
   hasPro: boolean;
@@ -5794,14 +5988,15 @@ function ProfileViewerPanel({ hasPro, viewers, viewerCount, loading, viewerInter
   viewerInterests: string[];
   onUpgrade: () => void;
 }) {
-  const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
+  const [screenOpen, setScreenOpen] = useState(false);
+  const totalVisits = viewers.reduce((total, viewer) => total + (viewer.profileViewCount ?? 1), 0);
   return (
     <View style={profileViewerStyles.panel}>
       <View style={profileViewerStyles.header}>
         <View style={profileViewerStyles.icon}><MaterialCommunityIcons name="account-eye" size={23} color={colors.primary} /></View>
         <View style={styles.fill}>
           <Text style={profileViewerStyles.title}>Kto oglądał Twój profil</Text>
-          <Text style={profileViewerStyles.hint}>{hasPro ? "Ostatnie osoby, które otworzyły szczegóły Twojej karty." : "Prywatna lista dostępna w Spark Pro."}</Text>
+          <Text style={profileViewerStyles.hint}>{hasPro ? "Sprawdź osoby, które zatrzymały się przy Twojej karcie." : "Prywatna lista dostępna w Spark Pro."}</Text>
         </View>
         {hasPro && <View style={profileViewerStyles.badge}><Text style={profileViewerStyles.badgeText}>{viewerCount}</Text></View>}
       </View>
@@ -5819,22 +6014,33 @@ function ProfileViewerPanel({ hasPro, viewers, viewerCount, loading, viewerInter
           <Text style={profileViewerStyles.emptyText}>Gdy ktoś otworzy pełne szczegóły Twojego profilu, zobaczysz go tutaj.</Text>
         </View>
       ) : (
-        <View style={profileViewerStyles.grid}>
-          {viewers.slice(0, 6).map((viewer) => (
-            <Pressable key={getProfileKey(viewer)} accessibilityRole="button" accessibilityLabel={"Otwórz profil " + viewer.name} onPress={() => setPreviewProfile(viewer)} style={profileViewerStyles.viewer}>
-              <Image source={viewer.image} style={profileViewerStyles.avatar} contentFit="cover" />
-              <View style={styles.fill}>
-                <Text style={profileViewerStyles.name} numberOfLines={1}>{viewer.name}, {viewer.age}</Text>
-                <Text style={profileViewerStyles.meta} numberOfLines={1}>{viewer.city || "Profil Spark"}</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
-            </Pressable>
-          ))}
-        </View>
+        <>
+          <Pressable accessibilityRole="button" accessibilityLabel="Otwórz listę odwiedzających profil" onPress={() => setScreenOpen(true)} style={profileViewerStyles.preview}>
+            <View style={profileViewerStyles.avatarStack}>
+              {viewers.slice(0, 3).map((viewer, index) => (
+                <Image key={getProfileKey(viewer)} source={viewer.image} style={[profileViewerStyles.stackedAvatar, { left: index * 22, zIndex: 3 - index }]} contentFit="cover" />
+              ))}
+            </View>
+            <View style={styles.fill}>
+              <Text style={profileViewerStyles.previewTitle}>{viewerCount} osób • {totalVisits} wizyt</Text>
+              <Text style={profileViewerStyles.previewMeta} numberOfLines={2}>Ostatnio: {viewers[0]?.name}. Dotknij, aby przeglądać i filtrować.</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={21} color={colors.primary} />
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setScreenOpen(true)} style={profileViewerStyles.openButton}>
+            <MaterialCommunityIcons name="account-search" size={18} color="#fff" />
+            <Text style={profileViewerStyles.openButtonText}>Przeglądaj wszystkie wizyty</Text>
+          </Pressable>
+        </>
       )}
-      {previewProfile && (
-        <ProfilePreviewSheet profile={previewProfile} viewerInterests={viewerInterests} onClose={() => setPreviewProfile(null)} canViewSocials={false} readOnly />
-      )}
+      <ProfileViewersScreen
+        visible={screenOpen}
+        viewers={viewers}
+        viewerCount={viewerCount}
+        loading={loading}
+        viewerInterests={viewerInterests}
+        onClose={() => setScreenOpen(false)}
+      />
     </View>
   );
 }
