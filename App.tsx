@@ -270,10 +270,10 @@ function formatSocialHandle(value: string) {
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type DiscoverMode = "people" | "events";
 type SparkIntent = "Randki" | "Znajomi" | "LGBT+ / Społeczność";
-const sparkIntentOptions: ReadonlyArray<{ label: SparkIntent; description: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = [
-  { label: "Randki", description: "Chemia, rozmowy, spotkania", icon: "heart-outline" },
-  { label: "Znajomi", description: "Kawa, planszówki, miasto", icon: "coffee-outline" },
-  { label: "LGBT+ / Społeczność", description: "Grupy, wydarzenia, znajomości", icon: "account-group-outline" }
+const sparkIntentOptions: ReadonlyArray<{ label: SparkIntent; displayLabel: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; rainbow?: boolean }> = [
+  { label: "Randki", displayLabel: "Randki", icon: "heart-outline" },
+  { label: "Znajomi", displayLabel: "Znajomi", icon: "coffee-outline" },
+  { label: "LGBT+ / Społeczność", displayLabel: "LGBT+", icon: "account-group-outline", rainbow: true }
 ];
 const sparkIntentLabels = sparkIntentOptions.map((option) => option.label);
 
@@ -3152,12 +3152,13 @@ function IntentMultiSelect({ selected, onChange, compact = false }: { selected: 
 
   return (
     <View style={[styles.intentList, compact && styles.intentListCompact]}>
-      {sparkIntentOptions.map(({ label, description, icon }) => {
+      {sparkIntentOptions.map(({ label, displayLabel, icon, rainbow }) => {
         const active = selected.includes(label);
+        const iconContent = <MaterialCommunityIcons name={active ? "check-bold" : icon} size={compact ? 21 : 25} color={rainbow ? "#fff" : colors.primaryDeep} />;
         return (
           <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggleIntent(label)} style={({ pressed }) => [styles.intentCard, compact && styles.intentCardCompact, active && styles.intentCardActive, pressed && styles.controlPressed]}>
-            <View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon} size={compact ? 21 : 25} color={colors.primaryDeep} /></View>
-            <View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text>{!compact && <Text style={styles.intentDescription}>{description}</Text>}</View>
+            {rainbow ? <LinearGradient colors={["#ff4f9a", "#9a5cff", "#35c6ff", "#45d18f"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.intentIcon, styles.intentIconRainbow]}>{iconContent}</LinearGradient> : <View style={styles.intentIcon}>{iconContent}</View>}
+            <View style={styles.fill}><Text style={styles.intentTitle}>{displayLabel}</Text></View>
             <MaterialCommunityIcons name={active ? "checkbox-marked" : "checkbox-blank-outline"} size={22} color={active ? colors.primary : colors.muted} />
           </Pressable>
         );
@@ -7256,7 +7257,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   intentCard: {
-    minHeight: 82,
+    minHeight: 70,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
@@ -7284,6 +7285,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primarySoft
+  },
+  intentIconRainbow: {
+    backgroundColor: "transparent"
   },
   intentIconText: {
     color: colors.primaryDeep,
