@@ -69,6 +69,7 @@ check(firebaseJson.storage?.rules === 'storage.rules', 'Storage rules are not wi
 check(Boolean(firebaseJson.auth?.providers?.googleSignIn), 'Google auth provider must remain enabled in release configuration.');
 check(firebaseSource.includes('projectId: "spark-70b03"'), 'Firebase runtime defaults point to the wrong project.');
 check(firebaseSource.includes('storageBucket: "spark-70b03.firebasestorage.app"'), 'Firebase runtime storage bucket is wrong.');
+check(firebaseSource.includes('getFunctions(firebaseApp, "europe-west1")'), 'Firebase callable functions must use the deployed europe-west1 region.');
 check(googleSource.includes('defaultGoogleClientIds') && googleSource.includes('.apps.googleusercontent.com'), 'Production Google client ID fallback is missing.');
 check(googlePlistSource.includes('com.googleusercontent.apps.271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0') && googleSource.includes('271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0.apps.googleusercontent.com'), 'Google iOS redirect scheme and client ID are inconsistent.');
 check(revenueCatSource.includes('__DEV__ ? "test_') && revenueCatSource.includes('!apiKey.startsWith("test_")'), 'RevenueCat simulated key guard is missing.');
@@ -78,7 +79,7 @@ check(rulesSource.includes('activeEntitlements') && !rulesSource.includes('reven
 check(rulesSource.includes('allowedUserText') && appSource.includes('findModerationViolation'), 'UGC text filtering is missing.');
 check(appSource.includes('onReportProfile(description)') && appSource.includes('targetProfile: targetProfile ?'), 'In-app reporting must preserve the user reason and profile context.');
 check(appSource.indexOf('requestAccountDeletionAndDeleteProfile') < appSource.indexOf('deleteProfilePhotos(appUser.uid, profilePhotos)'), 'Account deletion request must not be blocked by photo cleanup.');
-check(rulesSource.includes("data.source == 'premium-request' && data.status == 'requested' && hasRevenueCatPro()"), 'Premium chat requests must be enforced by Firestore.');
+check(functionsSource.includes('createPremiumChatRequest = onCall') && functionsSource.includes('maxPremiumRequestsPerDay = 10') && functionsSource.includes('hasVerifiedPro') && firestoreSource.includes('"createPremiumChatRequest"'), 'Premium chat requests must use the verified server-side callable and daily limit.');
 check(rulesSource.includes('data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)'), 'Free and Pro public photo limits must be enforced by Firestore.');
 check(storageRulesSource.includes('request.resource.size < 8 * 1024 * 1024') && storageRulesSource.includes("contentType.matches('image/.*')"), 'Profile photo storage validation is missing.');
 check(firestoreSource.includes('getApproximatePublicLocation(profile.location)'), 'Public profile location must be rounded before publishing.');
@@ -112,7 +113,7 @@ check(firestoreSource.includes('await runTransaction(currentDb, async (transacti
 check(firestoreSource.includes('orderBy("updatedAt", "desc")') && firestoreSource.includes('startAfter(cursor)') && appSource.includes('profilesHaveMore'), 'Discovery pagination and freshness ordering are missing.');
 check(appSource.includes('userIntents: intents') && appSource.includes('sharedIntentCount') && appSource.includes('recommendationTier') && appSource.includes('targetIntents') && appSource.includes('rotationScore') && firestoreSource.includes('citySnapshot'), 'Tiered multi-intent discovery ranking or local fallback is missing.');
 check(appSource.includes('includeProfilesWithoutLocation') && appSource.includes('Uwzględniaj profile bez lokalizacji'), 'Unknown-location discovery behavior must be explicit.');
-check(appSource.includes('recentMessageTimesRef') && rulesSource.includes('data.createdAt == request.time'), 'Chat burst protection or trusted server timestamps are missing.');
+check(functionsSource.includes('sendChatMessage = onCall') && functionsSource.includes('maxMessagesPerMinute = 20') && functionsSource.includes('minMessageIntervalMs = 700') && firestoreSource.includes('"sendChatMessage"') && rulesSource.includes('allow create: if false;'), 'Chat must use trusted server timestamps and server-side burst limits.');
 check(publicProfileSync.includes('desiredAgeMin') && publicProfileSync.includes('desiredAgeMax'), 'Reciprocal age preferences must be published for matching.');
 check(rulesSource.includes("hasLike(request.auth.uid, otherMember(resource.data))"), 'Mutual likes must be allowed to promote an existing chat request to a match.');
 check(appSource.includes('isOwnProfile') && appSource.includes('WYRÓŻNIONE ZAINTERESOWANIA'), 'Profile-card preview and highlighted interests are missing.');
@@ -140,7 +141,7 @@ check(authSource.includes('uid: user.uid') && revenueCatSource.includes('Purchas
 check(firestoreSource.includes('function requireCurrentUserUid') && firestoreSource.includes('requireCurrentUserUid(profile.uid)') && rulesSource.includes('request.resource.data.uid == uid'), 'User profile writes must enforce the authenticated Firebase UID.');
 check(appSource.includes('id: \"bundled-test-aisha\"') && appSource.includes('return profile.id;'), 'Every real and bundled test profile must have a stable unique ID.');
 
-for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource, 'src/events.ts': eventsSource })) {
+for (const [name, source] of Object.entries({ 'app.json': appJsonSource, 'App.tsx': appSource, 'src/auth.ts': authSource, 'src/firestore.ts': firestoreSource, 'src/events.ts': eventsSource, 'functions/src/index.ts': functionsSource })) {
   check(!source.includes('\uFFFD'), `${name} contains a Unicode replacement character.`);
   check(!/[ÃÅÄ][^\s]/.test(source), `${name} contains likely UTF-8 mojibake.`);
   check(!/Nie uda\?o|Spr\?buj|zablokowac|Szukaj prosb/.test(source), `${name} contains broken Polish UI text.`);

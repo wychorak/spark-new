@@ -18,7 +18,8 @@ import {
   where
 } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
-import { auth, db, isFirebaseConfigured } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
 import { isSparkOwnerAccount } from "./access";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
 
@@ -620,7 +621,10 @@ export async function recordProfileSwipe(params: {
   if (params.direction === "superlike") {
     const accountRef = doc(currentDb, "users", params.fromUid);
     const superlikesRemaining = await runTransaction(currentDb, async (transaction) => {
-      const accountSnapshot = await transaction.get(accountRef);
+      const [accountSnapshot, swipeSnapshot] = await Promise.all([
+        transaction.get(accountRef),
+        transaction.get(swipeRef)
+      ]);
       if (!accountSnapshot.exists()) {
         throw new Error("Nie znaleziono konta użytkownika.");
       }
@@ -631,6 +635,9 @@ export async function recordProfileSwipe(params: {
       const used = account.superlikePeriod === currentPeriod && typeof account.superlikesUsed === "number"
         ? account.superlikesUsed
         : 0;
+      if (swipeSnapshot.exists() && swipeSnapshot.data().direction === "superlike") {
+        return Math.max(0, 10 - used);
+      }
       if (used >= 10) {
         throw new Error("Miesięczny limit SparkLike został wykorzystany.");
       }
@@ -710,11 +717,55 @@ export async function findMatchThreadsForUser(uid: string) {
     .filter((item) => item.resetAtMs === null || item.resetAtMs > now);
 }
 
+type PremiumChatRequestResponse = {
+  status: "requested" | "matched";
+  threadId: string;
+  remainingToday: number;
+};
+
+function requireCloudFunctions() {
+  if (!cloudFunctions) {
+    throw new Error("Usługa wiadomości jest chwilowo niedostępna.");
+  }
+  return cloudFunctions;
+}
+
+function getCallableErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    const message = error.message.replace(/^FirebaseError:\s*/i, "").trim();
+    if (message) return message;
+  }
+  return fallback;
+}
+
+export async function createPremiumChatRequest(params: {
+  targetUid: string;
+  introMessage: string;
+  eventContext?: SparkEvent;
+}) {
+  requireCurrentUserUid();
+  const callable = httpsCallable<
+    { targetUid: string; introMessage: string; eventId?: string },
+    PremiumChatRequestResponse
+  >(requireCloudFunctions(), "createPremiumChatRequest");
+
+  try {
+    const response = await callable({
+      targetUid: params.targetUid,
+      introMessage: params.introMessage.trim(),
+      eventId: params.eventContext?.id
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się wysłać prośby. Spróbuj ponownie."));
+  }
+}
+
 export async function createMatchThread(params: {
   matchId: string;
   memberUids: string[];
   createdByUid: string;
-  source: "mutual-like" | "premium-request";
+  source: "mutual-like" | "premium-request" | "superlike";
   introMessage?: string;
   eventContext?: SparkEvent;
   resetAtMs?: number;
@@ -745,7 +796,7 @@ export async function createMatchThread(params: {
       const existing = snapshot.data();
       if (existing.status === "matched") return;
       if (existing.status === "requested") {
-        if (params.source === "mutual-like") {
+        if (params.source !== "premium-request") {
           transaction.update(matchRef, {
             status: "matched",
             acceptedByUid: params.createdByUid,
@@ -779,20 +830,21 @@ export async function sendChatMessage(params: {
   text: string;
 }) {
   requireCurrentUserUid(params.senderUid);
-  const currentDb = requireDb();
   const text = params.text.trim();
   if (!text || text.length > 2000) {
     throw new Error("Wiadomość musi mieć od 1 do 2000 znaków.");
   }
-  const messageRef = doc(collection(currentDb, "messages", params.threadId, "items"));
+  const callable = httpsCallable<
+    { threadId: string; text: string },
+    { messageId: string }
+  >(requireCloudFunctions(), "sendChatMessage");
 
-  await setDoc(messageRef, {
-    senderUid: params.senderUid,
-    text,
-    createdAt: serverTimestamp()
-  });
-
-  return messageRef.id;
+  try {
+    const response = await callable({ threadId: params.threadId, text });
+    return response.data.messageId;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się wysłać wiadomości. Spróbuj ponownie."));
+  }
 }
 
 

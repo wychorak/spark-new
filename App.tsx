@@ -46,6 +46,7 @@ import {
   cancelChatRequest,
   cancelProfileLike,
   createMatchThread,
+  createPremiumChatRequest,
   createReport,
   findIncomingProfileLikes,
   findMatchThreadsForUser,
@@ -893,6 +894,7 @@ function AppContent() {
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
   const [matchCelebrationProfile, setMatchCelebrationProfile] = useState<MatchProfile | null>(null);
+  const [matchCelebrationKind, setMatchCelebrationKind] = useState<"mutual" | "sparkLike">("mutual");
   const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
   const [incomingLikeKinds, setIncomingLikeKinds] = useState<Record<string, "like" | "superlike">>({});
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
@@ -2005,10 +2007,8 @@ function AppContent() {
     const currentInfo = await revenueCat.refreshCustomerInfo();
     if (hasSparknewPro(currentInfo)) return true;
 
-    const completed = await revenueCat.presentPaywallIfNeeded();
-    if (!completed) return false;
-
-    return hasSparknewPro(await revenueCat.refreshCustomerInfo());
+    setTab("premium");
+    return false;
   }
 
   async function handleSwipe(action: SwipeAction): Promise<SwipeOutcome> {
@@ -2061,6 +2061,48 @@ function AppContent() {
       setPassedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
       trackSwipeAd();
       return "passed";
+    }
+
+    if (action === "superlike") {
+      if (!appUser) {
+        Alert.alert("SparkLike", "Zaloguj się ponownie, aby utworzyć match.");
+        return "cancelled";
+      }
+      const currentUserUid = appUser.uid;
+      try {
+        await createMatchThread({
+          matchId: getConversationId(currentUserUid, targetKey),
+          memberUids: [currentUserUid, targetKey],
+          createdByUid: currentUserUid,
+          source: "superlike",
+          eventContext,
+          resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
+        });
+      } catch (error) {
+        Alert.alert("SparkLike", error instanceof Error ? error.message : "Nie udało się utworzyć matchu. Spróbuj ponownie.");
+        return "cancelled";
+      }
+
+      setLikedProfileKeys((keys) => keys.filter((key) => key !== targetKey));
+      setMatchedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
+      setSelectedChatKey(targetKey);
+      setChatThreads((threads) => ({
+        ...threads,
+        [targetKey]: threads[targetKey] ?? {
+          profileKey: targetKey,
+          threadId: getConversationId(currentUserUid, targetKey),
+          status: "matched",
+          eventContext,
+          messages: []
+        }
+      }));
+      if (Platform.OS === "ios") {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      deferredSwipeAdRef.current = true;
+      setMatchCelebrationKind("sparkLike");
+      setMatchCelebrationProfile(targetProfile);
+      return "matched";
     }
 
     let isMutualMatch = Boolean(targetProfile.likedYou);
@@ -2116,6 +2158,7 @@ function AppContent() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     deferredSwipeAdRef.current = true;
+    setMatchCelebrationKind("mutual");
     setMatchCelebrationProfile(targetProfile);
     return "matched";
   }
@@ -2159,6 +2202,7 @@ function AppContent() {
           messages: []
         }
       }));
+      setMatchCelebrationKind("mutual");
       setMatchCelebrationProfile(profile);
       if (Platform.OS === "ios") {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -2200,22 +2244,26 @@ function AppContent() {
       const introMessage = eventContext
         ? `Hej! Też wybieram się na „${eventContext.name}”. Chcesz pogadać przed wydarzeniem?`
         : buildConversationStarters(activeProfile, selectedInterests)[0];
-      await createMatchThread({
-        matchId: getConversationId(appUser.uid, activeProfileKey),
+      const requestResult = await createPremiumChatRequest({
+        targetUid: activeProfileKey,
         introMessage,
-        memberUids: [appUser.uid, activeProfileKey],
-        createdByUid: appUser.uid,
-        source: "premium-request",
-        eventContext,
-        resetAtMs: activeProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
+        eventContext
       });
+      if (requestResult.status === "matched") {
+        setChatRequestKeys((keys) => keys.filter((key) => key !== activeProfileKey));
+        setMatchedProfileKeys((keys) => keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]);
+        setSelectedChatKey(activeProfileKey);
+        setTab("messages");
+        Alert.alert("Chat", "Rozmowa z " + activeProfile.name + " jest już aktywna.");
+        return;
+      }
       setChatRequestKeys((keys) => (keys.includes(activeProfileKey) ? keys : [...keys, activeProfileKey]));
       setSelectedChatKey(activeProfileKey);
       setChatThreads((threads) => ({
         ...threads,
         [activeProfileKey]: {
           profileKey: activeProfileKey,
-          threadId: getConversationId(appUser.uid, activeProfileKey),
+          threadId: requestResult.threadId,
           createdByUid: appUser.uid,
           requestDirection: "outgoing",
           status: "requested",
@@ -2224,12 +2272,14 @@ function AppContent() {
           messages: []
         }
       }));
-    } catch {
-      Alert.alert("Pro\u015bba o chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 pro\u015bby. Spr\u00f3buj ponownie.");
+      Alert.alert(
+        "Pro\u015bba o chat",
+        "Wys\u0142ano pro\u015bb\u0119 do " + activeProfile.name + ". Pozosta\u0142o dzi\u015b: " + requestResult.remainingToday + "."
+      );
+    } catch (error) {
+      Alert.alert("Pro\u015bba o chat", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 wys\u0142a\u0107 pro\u015bby. Spr\u00f3buj ponownie.");
       return;
     }
-
-    Alert.alert("Pro\u015bba o chat", "Wys\u0142ano pro\u015bb\u0119 do " + activeProfile.name + ".");
   }
 
   async function sendMessageToProfile(profileKey: string, text: string) {
@@ -2284,8 +2334,8 @@ function AppContent() {
       });
       recentMessageTimesRef.current.push(Date.now());
       setMessageDraft("");
-    } catch {
-      Alert.alert("Chat", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
+    } catch (error) {
+      Alert.alert("Chat", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
     } finally {
       sendingMessageKeysRef.current.delete(profileKey);
     }
@@ -2329,6 +2379,66 @@ function AppContent() {
       setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
     } catch {
       Alert.alert("Polubienie", "Nie uda\u0142o si\u0119 usun\u0105\u0107 oczekuj\u0105cego polubienia. Spr\u00f3buj ponownie.");
+    }
+  }
+
+  async function superlikePendingProfile(profileKey: string) {
+    if (!appUser) {
+      Alert.alert("SparkLike", "Zaloguj się ponownie, aby utworzyć match.");
+      return;
+    }
+    if (!(await ensureProAccess())) return;
+    if (superlikesRemaining <= 0) {
+      Alert.alert("SparkLike", "Miesięczny limit SparkLike został wykorzystany.");
+      return;
+    }
+
+    const profile = eventProfileSource.find((item) => getProfileKey(item) === profileKey);
+    if (!profile) {
+      Alert.alert("SparkLike", "Nie udało się odnaleźć tego profilu. Odśwież listę i spróbuj ponownie.");
+      return;
+    }
+
+    const eventContext = chatThreads[profileKey]?.eventContext;
+    try {
+      const swipeResult = await recordProfileSwipe({
+        swipeId: getThreadId(appUser.uid, profileKey),
+        fromUid: appUser.uid,
+        toProfileKey: profileKey,
+        direction: "superlike",
+        matchScore: profile.matchScore,
+        eventContext
+      });
+      await createMatchThread({
+        matchId: getConversationId(appUser.uid, profileKey),
+        memberUids: [appUser.uid, profileKey],
+        createdByUid: appUser.uid,
+        source: "superlike",
+        eventContext
+      });
+
+      if (typeof swipeResult.superlikesRemaining === "number") {
+        setSuperlikesRemaining(swipeResult.superlikesRemaining);
+      }
+      setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
+      setMatchedProfileKeys((keys) => (keys.includes(profileKey) ? keys : [...keys, profileKey]));
+      setSelectedChatKey(profileKey);
+      setChatThreads((threads) => ({
+        ...threads,
+        [profileKey]: {
+          ...(threads[profileKey] ?? { profileKey, messages: [] }),
+          threadId: getConversationId(appUser.uid, profileKey),
+          status: "matched",
+          eventContext
+        }
+      }));
+      if (Platform.OS === "ios") {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      setMatchCelebrationKind("sparkLike");
+      setMatchCelebrationProfile(profile);
+    } catch (error) {
+      Alert.alert("SparkLike", error instanceof Error ? error.message : "Nie udało się utworzyć matchu. Spróbuj ponownie.");
     }
   }
 
@@ -2610,7 +2720,6 @@ function AppContent() {
             profile={activeProfile}
             nextProfile={nextProfile}
             hasPro={revenueCat.isPro}
-            requestProAccess={revenueCat.presentPaywallIfNeeded}
             onSwipe={handleSwipe}
             onPremiumChatRequest={sendPremiumChatRequest}
             onOpenMessages={() => setTab("messages")}
@@ -2685,6 +2794,7 @@ function AppContent() {
             viewerInterests={selectedInterests}
             onLikeIncomingProfile={likeIncomingProfile}
             onCancelPendingLike={cancelOutgoingLike}
+            onSuperlikePendingProfile={superlikePendingProfile}
             onCancelRequest={cancelOutgoingRequest}
             onOpenMessages={() => setTab("messages")}
           />
@@ -2806,13 +2916,18 @@ function AppContent() {
       <MatchCelebration
         profile={matchCelebrationProfile}
         viewerInterests={selectedInterests}
-        onContinue={() => setMatchCelebrationProfile(null)}
+        sparkLike={matchCelebrationKind === "sparkLike"}
+        onContinue={() => {
+          setMatchCelebrationProfile(null);
+          setMatchCelebrationKind("mutual");
+        }}
         onOpenChat={(starter) => {
           if (matchCelebrationProfile) {
             setSelectedChatKey(getProfileKey(matchCelebrationProfile));
           }
           setMessageDraft(starter ?? "");
           setMatchCelebrationProfile(null);
+          setMatchCelebrationKind("mutual");
           setTab("messages");
         }}
       />
@@ -3299,7 +3414,6 @@ function DiscoverScreen({
   profile,
   nextProfile,
   hasPro,
-  requestProAccess,
   onSwipe,
   onPremiumChatRequest,
   onOpenMessages,
@@ -3328,7 +3442,6 @@ function DiscoverScreen({
   profile: MatchProfile;
   nextProfile: MatchProfile | null;
   hasPro: boolean;
-  requestProAccess: () => Promise<boolean>;
   onSwipe: (action: SwipeAction) => Promise<SwipeOutcome>;
   onPremiumChatRequest: () => void;
   onOpenMessages: () => void;
@@ -3396,10 +3509,8 @@ function DiscoverScreen({
 
   async function runProAction(action: () => void | Promise<void>, locked: boolean) {
     if (locked) {
-      const granted = await requestProAccess();
-      if (!granted) {
-        return;
-      }
+      onOpenPremium();
+      return;
     }
 
     await action();
@@ -3433,7 +3544,7 @@ function DiscoverScreen({
               : outcome === "passed"
                 ? "Profil pominięty"
                 : outcome === "matched"
-                  ? "To match!"
+                  ? action === "superlike" ? "SPARKLIKE! Match od razu" : "To match!"
                   : null;
 
           if (feedback) {
@@ -4893,22 +5004,26 @@ function DiscoverEmptyState({
 function MatchCelebration({
   profile,
   viewerInterests,
+  sparkLike,
   onContinue,
   onOpenChat
 }: {
   profile: MatchProfile | null;
   viewerInterests: string[];
+  sparkLike: boolean;
   onContinue: () => void;
   onOpenChat: (starter?: string) => void;
 }) {
   const [selectedStarter, setSelectedStarter] = useState<string | null>(null);
   const starterAnimations = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  const sparkPulse = useRef(new Animated.Value(0)).current;
   const starters = profile ? buildConversationStarters(profile, viewerInterests) : [];
 
   useEffect(() => {
     if (!profile) return;
     setSelectedStarter(null);
     starterAnimations.forEach((animation) => animation.setValue(0));
+    sparkPulse.setValue(0);
     Animated.stagger(
       90,
       starterAnimations.map((animation) => Animated.spring(animation, {
@@ -4918,7 +5033,15 @@ function MatchCelebration({
         useNativeDriver: true
       }))
     ).start();
-  }, [profile, starterAnimations]);
+
+    if (!sparkLike) return undefined;
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(sparkPulse, { toValue: 1, duration: 720, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(sparkPulse, { toValue: 0, duration: 720, easing: Easing.in(Easing.quad), useNativeDriver: true })
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [profile, sparkLike, sparkPulse, starterAnimations]);
 
   if (!profile) {
     return null;
@@ -4927,15 +5050,25 @@ function MatchCelebration({
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onContinue}>
       <View style={styles.matchCelebrationBackdrop}>
-        <LinearGradient colors={["rgba(44,7,28,0.98)", "rgba(5,5,7,0.99)"]} style={styles.matchCelebrationCard}>
-          <View style={styles.matchCelebrationGlow} />
-          <View style={styles.matchCelebrationIcon}>
-            <MaterialCommunityIcons name="heart-multiple" size={34} color="#fff" />
+        <LinearGradient colors={sparkLike ? ["rgba(78,13,50,0.99)", "rgba(16,5,13,0.99)"] : ["rgba(44,7,28,0.98)", "rgba(5,5,7,0.99)"]} style={styles.matchCelebrationCard}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.matchCelebrationGlow,
+              sparkLike && styles.sparkLikeCelebrationGlow,
+              sparkLike && {
+                opacity: sparkPulse.interpolate({ inputRange: [0, 1], outputRange: [0.46, 0.94] }),
+                transform: [{ scale: sparkPulse.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1.18] }) }]
+              }
+            ]}
+          />
+          <View style={[styles.matchCelebrationIcon, sparkLike && styles.sparkLikeCelebrationIcon]}>
+            <MaterialCommunityIcons name={sparkLike ? "fire" : "heart-multiple"} size={34} color="#fff" />
           </View>
-          <Text style={styles.matchCelebrationKicker} selectable>WZAJEMNE POLUBIENIE</Text>
-          <Text style={styles.matchCelebrationTitle} selectable>To match!</Text>
+          <Text style={styles.matchCelebrationKicker} selectable>{sparkLike ? "SPARKLIKE • MATCH OD RAZU" : "WZAJEMNE POLUBIENIE"}</Text>
+          <Text style={styles.matchCelebrationTitle} selectable>{sparkLike ? "Jest iskra!" : "To match!"}</Text>
           <Text style={styles.matchCelebrationText} selectable>
-            Ty i {profile.name} polubiliście się. Rozmowa jest już odblokowana.
+            {sparkLike ? "SPARKLIKE połączył Cię z " + profile.name + ". Rozmowa jest już odblokowana." : "Ty i " + profile.name + " polubiliście się. Rozmowa jest już odblokowana."}
           </Text>
           <Image source={profile.image} style={styles.matchCelebrationPhoto} contentFit="cover" />
           <View style={styles.matchStarterSection}>
@@ -4990,6 +5123,7 @@ function MatchesScreen({
   viewerInterests,
   onLikeIncomingProfile,
   onCancelPendingLike,
+  onSuperlikePendingProfile,
   onCancelRequest,
   onOpenMessages
 }: {
@@ -5003,6 +5137,7 @@ function MatchesScreen({
   viewerInterests: string[];
   onLikeIncomingProfile: (profileKey: string) => Promise<void>;
   onCancelPendingLike: (profileKey: string) => Promise<void>;
+  onSuperlikePendingProfile: (profileKey: string) => Promise<void>;
   onCancelRequest: (profileKey: string) => Promise<void>;
   onOpenMessages: () => void;
 }) {
@@ -5123,8 +5258,19 @@ function MatchesScreen({
                 <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                 <View style={styles.fill}>
                   <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
-                  <Text style={styles.pendingMatchText} selectable>Oczekuje na wzajemne polubienie</Text>
+                  <Text style={styles.pendingMatchText} selectable>Wyślij SparkLike, aby od razu utworzyć match</Text>
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={"Wyślij SparkLike do " + profile.name + " i utwórz match"}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void onSuperlikePendingProfile(getProfileKey(profile));
+                  }}
+                  style={styles.pendingSparkLikeButton}
+                >
+                  <MaterialCommunityIcons name="fire" size={18} color="#fff" />
+                </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={"Usu\u0144 polubienie profilu " + profile.name}
@@ -5568,7 +5714,7 @@ function PremiumScreen({
   const hasPackages = revenueCat.packages.length > 0;
   const getPlanPrice = (planId: SparkPlanId, fallback: string) => revenueCat.prices[planId] ?? (revenueCat.configured ? "-" : fallback);
   const selectedPlanPrice = getPlanPrice(premiumPlan, selectedPlan.price);
-  const primaryDisabled = busyAction !== null || revenueCat.isLoading || revenueCat.isPro;
+  const primaryDisabled = busyAction !== null || revenueCat.isLoading || revenueCat.isPro || !hasPackages;
   const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
     weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Dobry start" },
     monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór" },
@@ -9325,6 +9471,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     boxShadow: "0 8px 20px rgba(255,45,141,0.28)"
   },
+  pendingSparkLikeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ff7a18",
+    boxShadow: "0 8px 20px rgba(255,122,24,0.32)"
+  },
   pendingCancelButton: {
     width: 42,
     height: 42,
@@ -10773,6 +10928,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.primary,
     boxShadow: "0 12px 32px rgba(255,45,141,0.42)"
+  },
+  sparkLikeCelebrationGlow: {
+    top: -74,
+    backgroundColor: "rgba(255,112,30,0.34)",
+    boxShadow: "0 0 110px rgba(255,86,26,0.68)"
+  },
+  sparkLikeCelebrationIcon: {
+    backgroundColor: "#ff6a22",
+    boxShadow: "0 12px 38px rgba(255,97,31,0.6)"
   },
   matchCelebrationKicker: {
     color: colors.primaryDeep,

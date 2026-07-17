@@ -119,7 +119,7 @@ service cloud.firestore {
         && data.memberUids is list && data.memberUids.size() == 2
         && data.memberUids[0] != data.memberUids[1]
         && data.createdByUid is string && data.createdByUid in data.memberUids
-        && data.source in ['mutual-like', 'premium-request']
+        && data.source in ['mutual-like', 'premium-request', 'superlike']
         && data.status in ['matched', 'requested', 'rejected', 'blocked']
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
@@ -136,6 +136,14 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid))
         && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.fromUid == fromUid
         && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.toProfileKey == toUid
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.status == 'liked';
+    }
+
+    function hasSuperlike(fromUid, toUid) {
+      return exists(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid))
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.fromUid == fromUid
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.toProfileKey == toUid
+        && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.direction == 'superlike'
         && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.status == 'liked';
     }
 
@@ -159,7 +167,7 @@ service cloud.firestore {
         )
         && (
           (data.source == 'mutual-like' && data.status == 'matched' && hasLike(request.auth.uid, otherUid) && hasLike(otherUid, request.auth.uid)) ||
-          (data.source == 'premium-request' && data.status == 'requested' && hasRevenueCatPro())
+          (data.source == 'superlike' && data.status == 'matched' && hasSuperlike(request.auth.uid, otherUid))
         );
     }
 
@@ -187,13 +195,6 @@ service cloud.firestore {
         && data.updatedAt == request.time;
     }
 
-    function validMessage(data) {
-      return data.keys().hasOnly(['senderUid', 'text', 'createdAt'])
-        && data.senderUid == request.auth.uid
-        && data.createdAt == request.time
-        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
-        && allowedUserText(data.text);
-    }
 
     function validReport(data) {
       return data.keys().hasOnly(['reporterUid', 'targetUid', 'reason', 'context', 'status', 'createdAt'])
@@ -442,8 +443,9 @@ service cloud.firestore {
                 && (
                   request.auth.uid != resource.data.createdByUid
                   || (
-                    hasLike(request.auth.uid, otherMember(resource.data))
-                    && hasLike(otherMember(resource.data), request.auth.uid)
+                    (hasLike(request.auth.uid, otherMember(resource.data))
+                      && hasLike(otherMember(resource.data), request.auth.uid))
+                    || hasSuperlike(request.auth.uid, otherMember(resource.data))
                   )
                 )
               )
@@ -467,10 +469,9 @@ service cloud.firestore {
     match /messages/{threadId}/items/{messageId} {
       allow read: if signedIn()
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids;
-      allow create: if activeUser()
-        && get(/databases/$(database)/documents/matches/$(threadId)).data.status == 'matched'
-        && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids
-        && validMessage(request.resource.data);
+      // Callable function enforces membership, moderation and rate limits
+      // with trusted server time.
+      allow create: if false;
       allow update: if false;
       allow delete: if signedIn()
         && request.auth.uid in get(/databases/$(database)/documents/matches/$(threadId)).data.memberUids;

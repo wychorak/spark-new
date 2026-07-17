@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth, initializeAuth, type Persistence } from "firebase/auth";
 import * as FirebaseAuthReactNative from "@firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
@@ -72,4 +73,5 @@ function createAuth() {
 
 export const auth = createAuth();
 export const db = firebaseApp ? getFirestore(firebaseApp) : null;
+export const cloudFunctions = firebaseApp ? getFunctions(firebaseApp, "europe-west1") : null;
 export const storage = firebaseApp ? getStorage(firebaseApp) : null;
