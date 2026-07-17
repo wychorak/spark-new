@@ -341,6 +341,7 @@ type MatchProfile = {
   matchScore?: number;
   interestMatchPercent?: number;
   matchReasons?: string[];
+  recommendationTier?: number;
   intent?: string;
   intents?: SparkIntent[];
   updatedAtMs?: number;
@@ -635,7 +636,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const nickname = typeof item.nickname === "string" ? repairLegacyText(item.nickname.trim()) : "";
   const firstName = typeof item.firstName === "string" ? repairLegacyText(item.firstName.trim()) : "";
   const name = nameMode === "nickname" && nickname ? nickname : firstName;
-  const surname = typeof item.lastName === "string" ? repairLegacyText(item.lastName.trim()) : "";
+  const rawSurname = typeof item.lastName === "string" ? repairLegacyText(item.lastName.trim()) : "";
+  const surname = nameMode === "nickname" && nickname ? "" : rawSurname;
   const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string").map(repairLegacyText) : [];
   const storedIntents = normalizeSparkIntents(item.intents, item.intent);
   const intents = storedIntents.length > 0 ? storedIntents : (id && item.isTestProfile === true ? bundledTestProfileIntents[id] ?? ["Znajomi"] : []);
@@ -747,6 +749,7 @@ function scoreProfileMatch(params: {
   userLocation: UserLocation | null;
   userAge: number;
   userIntents: SparkIntent[];
+  userCity: string;
   viewerUid: string;
 }) {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
@@ -757,6 +760,10 @@ function scoreProfileMatch(params: {
   const interestScore = params.selectedInterests.length > 0
     ? Math.min(34, sharedInterests.length * 7 + Math.round(sharedRatio * 12))
     : 12;
+  const normalizedViewerCity = params.userCity.trim().toLocaleLowerCase("pl-PL");
+  const sameCity = Boolean(normalizedViewerCity) && params.profile.city.trim().toLocaleLowerCase("pl-PL") === normalizedViewerCity;
+  const localFallback = sameCity || (distanceKm !== null && distanceKm <= 50);
+  const recommendationTier = sharedInterests.length > 0 ? 2 : localFallback ? 1 : 0;
   const viewerIntents = normalizeSparkIntents(params.userIntents);
   const profileIntents = getProfileIntents(params.profile);
   const sharedIntents = profileIntents.filter((value) => viewerIntents.includes(value));
@@ -786,7 +793,11 @@ function scoreProfileMatch(params: {
     interestMatchPercent + "% zgodności zainteresowań",
     distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie"
   ];
-  return { score, reasons, sharedInterests, interestMatchPercent };
+  return { score, reasons, sharedInterests, interestMatchPercent, recommendationTier };
+}
+
+function showInterestMatchInfo() {
+  Alert.alert("Zgodność zainteresowań", "Ten procent jest liczony wyłącznie na podstawie wspólnych zainteresowań. Wiek, odległość i cele poznania są używane osobno do doboru feedu.");
 }
 
 function isDailyTestProfileKey(profileKey: string) {
@@ -915,7 +926,7 @@ function AppContent() {
     () => Array.from(new Set([...discoverFilters.targetInterests, ...selectedInterests])).slice(0, 10),
     [discoverFilters.targetInterests, selectedInterests]
   );
-  const profileQueryKey = [...profileLookupInterests, ...discoverFilters.targetIntents].slice().sort().join("|");
+  const profileQueryKey = [...profileLookupInterests, ...discoverFilters.targetIntents, userCity.trim().toLocaleLowerCase("pl-PL")].slice().sort().join("|");
   const activeEventIdsKey = activeEvents.map((event) => event.id).sort().join("|");
   const availableProfiles = useMemo(
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
@@ -947,6 +958,7 @@ function AppContent() {
             userLocation,
             userAge,
             userIntents: intents,
+            userCity,
             viewerUid: appUser?.uid ?? "guest"
           });
 
@@ -955,14 +967,16 @@ function AppContent() {
             distance: getApproxDistanceLabel(userLocation, profile),
             matchScore: result.score,
             interestMatchPercent: result.interestMatchPercent,
+            recommendationTier: result.recommendationTier,
             matchReasons: result.reasons
           };
         })
         .sort((left, right) => {
+          const tierDifference = (right.recommendationTier ?? 0) - (left.recommendationTier ?? 0);
           const scoreDifference = (right.matchScore ?? 0) - (left.matchScore ?? 0);
-          return scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
+          return tierDifference || scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
         }),
-    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, intents, selectedInterests, userAge, userLocation]
+    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, intents, selectedInterests, userAge, userCity, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -989,27 +1003,19 @@ function AppContent() {
         const sharedEvents = storedSharedEvents.length > 0 || !profile.isTestProfile
           ? storedSharedEvents
           : activeEvents.slice(0, 2);
-        const baseMatch = scoreProfileMatch({
-          profile,
-          selectedInterests,
-          userLocation,
-          userAge,
-          userIntents: intents,
-          viewerUid: appUser?.uid ?? "guest"
-        });
-        const sameCity = Boolean(userCity.trim()) && profile.city.trim().toLocaleLowerCase("pl-PL") === userCity.trim().toLocaleLowerCase("pl-PL");
-        const sharedInterestCount = profile.interests.filter((interest) => selectedInterests.includes(interest)).length;
-        const eventRank = 180
-          + sharedEvents.length * 32
-          + sharedInterestCount * 8
-          + (sameCity ? 18 : 0);
+        const ageGap = Math.abs(profile.age - userAge);
+        const ageAffinity = ageGap <= 2 ? 28 : ageGap <= 5 ? 20 : ageGap <= 10 ? 12 : 5;
+        const eventRank = 200 + sharedEvents.length * 40 + ageAffinity;
         return {
           ...profile,
           sharedEvents,
-          distance: getApproxDistanceLabel(userLocation, profile),
-          matchScore: baseMatch.score,
-          interestMatchPercent: baseMatch.interestMatchPercent,
-          matchReasons: baseMatch.reasons,
+          distance: "",
+          matchScore: eventRank,
+          interestMatchPercent: undefined,
+          matchReasons: [
+            sharedEvents.length > 1 ? String(sharedEvents.length) + " wspólne wydarzenia" : "Wspólne wydarzenie: " + (sharedEvents[0]?.name ?? "Event Friends"),
+            String(profile.age) + " lat"
+          ],
           eventRank
         };
       })
@@ -1019,7 +1025,7 @@ function AppContent() {
         return !likedProfileKeys.includes(key) && !passedProfileKeys.includes(key) && !matchedProfileKeys.includes(key) && !chatRequestKeys.includes(key);
       })
       .sort((left, right) => right.eventRank - left.eventRank || (right.matchScore ?? 0) - (left.matchScore ?? 0) || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0)),
-    [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, intents, likedProfileKeys, matchedProfileKeys, passedProfileKeys, selectedInterests, userAge, userCity, userLocation]
+    [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, likedProfileKeys, matchedProfileKeys, passedProfileKeys, userAge]
   );
   const currentDiscoverProfiles = discoverMode === "events" ? eventDiscoverProfiles : discoverProfiles;
   const activeProfile = currentDiscoverProfiles[0] ?? null;
@@ -1276,7 +1282,7 @@ function AppContent() {
     setProfileFeedError(null);
 
     Promise.allSettled([
-      findProfilesByInterest(profileLookupInterests, null, discoverFilters.targetIntents),
+      findProfilesByInterest(profileLookupInterests, null, discoverFilters.targetIntents, userCity),
       canViewTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       findMatchThreadsForUser(appUser.uid)
@@ -1426,7 +1432,7 @@ function AppContent() {
     if (!appUser || !authDone || !onboarded || !profilesHaveMore || !profileCursor || profilesLoading || profilesLoadingMore || discoverProfiles.length > 6) return;
     let mounted = true;
     setProfilesLoadingMore(true);
-    void findProfilesByInterest(profileLookupInterests, profileCursor, discoverFilters.targetIntents)
+    void findProfilesByInterest(profileLookupInterests, profileCursor, discoverFilters.targetIntents, userCity)
       .then((page) => {
         if (!mounted) return;
         const nextProfiles = page.profiles
@@ -3214,6 +3220,7 @@ function OnboardingScreen({
 
       <View style={styles.setupSection}>
         <View style={styles.setupSectionHeading}><View style={styles.setupIcon}><MaterialCommunityIcons name="account-edit" size={21} color={colors.primary} /></View><View style={styles.fill}><Text style={styles.panelTitle}>Jak mamy Cię pokazać?</Text><Text style={styles.panelText}>Wybierz prawdziwe imię albo nick.</Text></View></View>
+        <Text style={styles.setupHelper}>Możesz pokazywać imię i nazwisko albo wyłącznie nick.</Text>
         <View style={styles.segmentedChoice}>
           <Pressable onPress={() => setProfileNameMode("realName")} style={[styles.segmentedChoiceItem, profileNameMode === "realName" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "realName" && styles.segmentedChoiceTextActive]}>Imię i nazwisko</Text></Pressable>
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
@@ -3538,10 +3545,10 @@ function DiscoverScreen({
         onRightPress={mode === "events" ? onManageEvents : () => setPreferencesOpen(true)}
       />
       {mode === "events" ? (
-        <Pressable accessibilityRole="button" onPress={onManageEvents} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive]}>
-          <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name={(primarySharedEvent?.icon ?? "calendar-heart") as any} size={20} color="#fff" /></View>
+        <Pressable accessibilityRole="button" onPress={onManageEvents} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive, styles.eventFriendsLaunchParty]}>
+          <View style={[styles.eventFriendsLaunchIcon, styles.eventFriendsLaunchPartyIcon]}><MaterialCommunityIcons name={(primarySharedEvent?.icon ?? "calendar-heart") as any} size={20} color="#fff" /></View>
           <View style={styles.fill}>
-            <Text style={styles.eventFriendsLaunchEyebrow}>WSPÓLNE WYDARZENIE</Text>
+            <Text style={[styles.eventFriendsLaunchEyebrow, styles.eventFriendsLaunchPartyEyebrow]}>TRYB EVENTOWY • TWOJA EKIPA</Text>
             <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{primarySharedEvent?.name ?? "Event Friends"}</Text>
           </View>
           <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>
@@ -3966,7 +3973,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
   const sharedEvent = profile.sharedEvents?.[0];
 
   return (
-    <View style={[styles.profileCard, compact && styles.profileCardCompact]}>
+    <View style={[styles.profileCard, sharedEvent && styles.profileCardEvent, compact && styles.profileCardCompact]}>
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
       <LinearGradient colors={["transparent", "rgba(0,0,0,0.48)", "rgba(0,0,0,0.94)"]} locations={[0, 0.48, 1]} style={styles.cardShade} />
       {onReport && (
@@ -4002,7 +4009,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
               <Text style={styles.cardProText} maxFontSizeMultiplier={1.15}>SPARK PRO</Text>
             </View>
           )}
-          <Text style={styles.matchInlinePill} maxFontSizeMultiplier={1.15}>{interestMatchPercent}% zgodności</Text>
+          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel="Informacja o zgodności zainteresowań" accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={showInterestMatchInfo} style={styles.matchInlinePill}><Text style={styles.matchInlinePillText} maxFontSizeMultiplier={1.15}>{interestMatchPercent}% zgodności</Text></Pressable>}
         </View>
         <Text
           style={styles.cardTitle}
@@ -4013,13 +4020,13 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
         >
           {displayName}, {profile.age}
         </Text>
-        <View style={styles.cardContextRow}>
+        {!sharedEvent && <View style={styles.cardContextRow}>
           <MaterialCommunityIcons name="map-marker-outline" size={13} color="#ff8cbc" />
           <Text style={styles.cardContextText} numberOfLines={1}>{[profile.city, profile.country].filter(Boolean).join(", ")}</Text>
           {profile.intent ? <View style={styles.cardContextDot} /> : null}
           {profile.intent ? <Text style={styles.cardContextText} numberOfLines={1}>{profile.intent}</Text> : null}
-        </View>
-        <View style={styles.featuredInterestRow}>
+        </View>}
+        {!sharedEvent && <View style={styles.featuredInterestRow}>
           {featuredInterests.map((interest, index) => {
             const theme = getInterestTheme(interest, index);
             return (
@@ -4029,7 +4036,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
               </View>
             );
           })}
-        </View>
+        </View>}
         <Text style={styles.cardBio} numberOfLines={1} maxFontSizeMultiplier={1.15}>{profile.bio}</Text>
       </View>
     </View>
@@ -4203,7 +4210,7 @@ function ProfilePreviewSheet({
           </View>
 
           <View style={local.identity}>
-            {(profile.premium || (!isOwnProfile && hasInterestMatch)) && (
+            {(profile.premium || (!isOwnProfile && hasInterestMatch && !sharedEvent)) && (
               <View style={local.statusRow}>
                 {profile.premium && (
                   <View style={[local.statusBadge, local.statusBadgePro]}>
@@ -4211,11 +4218,11 @@ function ProfilePreviewSheet({
                     <Text style={[local.statusText, local.statusTextPro]}>Spark Pro</Text>
                   </View>
                 )}
-                {!isOwnProfile && hasInterestMatch && (
-                  <View style={[local.statusBadge, local.statusBadgeMatch]}>
+                {!isOwnProfile && hasInterestMatch && !sharedEvent && (
+                  <Pressable accessibilityRole="button" accessibilityLabel="Informacja o zgodności zainteresowań" accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={showInterestMatchInfo} style={[local.statusBadge, local.statusBadgeMatch]}>
                     <MaterialCommunityIcons name="tag-heart" size={12} color={colors.primary} />
                     <Text style={[local.statusText, local.statusTextMatch]}>{interestMatchPercent}% zainteresowań</Text>
-                  </View>
+                  </Pressable>
                 )}
               </View>
             )}
@@ -4265,21 +4272,43 @@ function ProfilePreviewSheet({
 
           {!isOwnProfile && (
             <View style={local.metrics}>
-              <View style={local.metric}>
-                <MaterialCommunityIcons name="account-heart" size={17} color={colors.primary} />
-                <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{sharedInterests.length}</Text>
-                <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne</Text>
-              </View>
-              <View style={local.metric}>
-                <MaterialCommunityIcons name="compass-outline" size={17} color={colors.primary} />
-                <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{profile.intent || "Nowe znajomości"}</Text>
-                <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>cel profilu</Text>
-              </View>
-              <View style={local.metric}>
-                <MaterialCommunityIcons name="map-marker-distance" size={17} color={colors.primary} />
-                <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{distanceFact}</Text>
-                <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>odległość</Text>
-              </View>
+              {sharedEvent ? (
+                <>
+                  <View style={local.metric}>
+                    <MaterialCommunityIcons name="calendar-heart" size={17} color={colors.gold} />
+                    <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{profile.sharedEvents?.length ?? 1}</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne eventy</Text>
+                  </View>
+                  <View style={local.metric}>
+                    <MaterialCommunityIcons name="cake-variant" size={17} color={colors.gold} />
+                    <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{profile.age}</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>lat</Text>
+                  </View>
+                  <View style={local.metric}>
+                    <MaterialCommunityIcons name={sharedEvent.icon as any} size={17} color={colors.gold} />
+                    <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{formatEventDate(sharedEvent)}</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>kiedy</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={local.metric}>
+                    <MaterialCommunityIcons name="account-heart" size={17} color={colors.primary} />
+                    <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{sharedInterests.length}</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne</Text>
+                  </View>
+                  <View style={local.metric}>
+                    <MaterialCommunityIcons name="compass-outline" size={17} color={colors.primary} />
+                    <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{profile.intent || "Nowe znajomości"}</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>cel profilu</Text>
+                  </View>
+                  <View style={local.metric}>
+                    <MaterialCommunityIcons name="map-marker-distance" size={17} color={colors.primary} />
+                    <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{distanceFact}</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>odległość</Text>
+                  </View>
+                </>
+              )}
             </View>
           )}
 
@@ -4295,7 +4324,7 @@ function ProfilePreviewSheet({
 
           <View style={local.section}>
             <Text style={local.sectionTitle}>Zainteresowania</Text>
-            <Text style={local.sectionHint}>{isOwnProfile ? "Pierwsze trzy są wyróżnione na karcie." : "Wspólne zainteresowania mają mocniejsze obramowanie."}</Text>
+            <Text style={local.sectionHint}>{isOwnProfile ? "Pierwsze trzy są wyróżnione na karcie." : sharedEvent ? "W Event Friends zainteresowania opisują profil, ale nie wpływają na dobór." : "Wspólne zainteresowania mają mocniejsze obramowanie."}</Text>
             <View style={local.interestGrid}>
               {visibleInterests.map((interest, index) => {
                 const theme = getInterestTheme(interest, index);
@@ -6064,7 +6093,7 @@ function ProfileScreen({
         <View style={styles.profileSectionHeader}>
           <View style={styles.fill}>
             <Text style={styles.eyebrow} selectable>Podstawy</Text>
-            <Text style={styles.profileDescription} selectable>Najważniejsze dane widoczne na profilu.</Text>
+            <Text style={styles.profileDescription} selectable>Wybierz nazwę, którą inni zobaczą na Twojej karcie.</Text>
           </View>
           <Text style={styles.profilePlanBadge} selectable>{hasPro ? "PRO" : "FREE"}</Text>
         </View>
@@ -7607,6 +7636,19 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,45,141,0.2)",
     borderColor: "rgba(255,45,141,0.46)"
   },
+  eventFriendsLaunchParty: {
+    backgroundColor: "rgba(135,61,255,0.2)",
+    borderColor: "rgba(255,189,89,0.52)",
+    boxShadow: "0 10px 28px rgba(150,79,255,0.26)"
+  },
+  eventFriendsLaunchPartyIcon: {
+    backgroundColor: "#7d43e8",
+    borderWidth: 1,
+    borderColor: "rgba(255,218,133,0.7)"
+  },
+  eventFriendsLaunchPartyEyebrow: {
+    color: "#ffd17b"
+  },
   eventFriendsLaunchIcon: {
     width: 34,
     height: 34,
@@ -8525,6 +8567,10 @@ const styles = StyleSheet.create({
   profileCopyCompact: {
     bottom: 16
   },
+  profileCardEvent: {
+    borderColor: "rgba(178,114,255,0.52)",
+    boxShadow: "0 16px 36px rgba(135,61,255,0.16)"
+  },
   cardSharedEvent: {
     alignSelf: "stretch",
     minHeight: 30,
@@ -8626,7 +8672,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
     backgroundColor: "rgba(255,45,141,0.16)",
     borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.22)",
+    borderColor: "rgba(255,45,141,0.22)"
+  },
+  matchInlinePillText: {
+    color: colors.primary,
     fontSize: 11,
     fontWeight: "900"
   },

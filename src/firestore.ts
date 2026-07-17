@@ -504,7 +504,7 @@ export async function findTestProfiles() {
 
 export type DiscoveryCursor = QueryDocumentSnapshot<DocumentData>;
 
-export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null, intents: string[] = []) {
+export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null, intents: string[] = [], city = "") {
   const currentDb = requireDb();
   const publicProfiles = collection(currentDb, "publicProfiles");
   const pageSize = 30;
@@ -512,17 +512,21 @@ export async function findProfilesByInterest(interests: string[], cursor: Discov
     ? query(publicProfiles, orderBy("updatedAt", "desc"), startAfter(cursor), limit(pageSize))
     : query(publicProfiles, orderBy("updatedAt", "desc"), limit(pageSize));
   const normalizedIntents = Array.from(new Set(intents.filter((value) => sparkIntentLabels.includes(value as typeof sparkIntentLabels[number])))).slice(0, 3);
-  const [pageSnapshot, interestSnapshot, intentSnapshot] = await Promise.all([
+  const normalizedCity = city.trim().slice(0, 120);
+  const [pageSnapshot, interestSnapshot, intentSnapshot, citySnapshot] = await Promise.all([
     getDocs(pageQuery),
     !cursor && interests.length > 0
       ? getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(20)))
       : Promise.resolve(null),
     !cursor && normalizedIntents.length > 0
       ? getDocs(query(publicProfiles, where("intents", "array-contains-any", normalizedIntents), limit(30)))
+      : Promise.resolve(null),
+    !cursor && normalizedCity.length > 0
+      ? getDocs(query(publicProfiles, where("city", "==", normalizedCity), limit(30)))
       : Promise.resolve(null)
   ]);
   const profiles = new Map<string, { id: string; [key: string]: unknown }>();
-  [interestSnapshot, intentSnapshot, pageSnapshot].forEach((snapshot) => {
+  [interestSnapshot, intentSnapshot, citySnapshot, pageSnapshot].forEach((snapshot) => {
     snapshot?.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
   });
   return {
