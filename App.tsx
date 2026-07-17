@@ -100,6 +100,7 @@ import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInter
 import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
 import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, registerSparkPushNotifications } from "./src/notifications";
+import { registerPositiveMatchForReview } from "./src/store-review";
 
 
 const colors = {
@@ -271,6 +272,7 @@ function formatSocialHandle(value: string) {
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type DiscoverMode = "people" | "events";
+type PremiumEntrySource = "navigation" | "spark_like" | "chat_request" | "profile_views" | "photos";
 type SparkIntent = "Randki" | "Znajomi" | "LGBT+ / Społeczność";
 const sparkIntentOptions: ReadonlyArray<{ label: SparkIntent; displayLabel: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; rainbow?: boolean }> = [
   { label: "Randki", displayLabel: "Randki", icon: "heart-outline" },
@@ -307,6 +309,7 @@ type ChatThread = {
   profileKey: string;
   threadId?: string;
   createdByUid?: string;
+  createdAtMs?: number | null;
   requestDirection?: "incoming" | "outgoing";
   status: ChatStatus;
   introMessage?: string;
@@ -880,6 +883,7 @@ function AppContent() {
   const [expiredEventsCount, setExpiredEventsCount] = useState(0);
 
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
+  const [premiumEntrySource, setPremiumEntrySource] = useState<PremiumEntrySource>("navigation");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
@@ -888,8 +892,7 @@ function AppContent() {
   const revenueCat = useRevenueCat(appUser?.uid ?? null, ownerProAccess);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady && tab === "discover");
-  const showCurrentBanner =
-    !revenueCat.isPro && adsReady && (tab === "matches" || tab === "messages");
+  const showCurrentBanner = !revenueCat.isPro && adsReady && tab === "matches";
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
@@ -938,6 +941,10 @@ function AppContent() {
     [remoteProfiles]
   );
   const profileName = getProfileDisplayName(profileNameMode, nickname, firstName, lastName);
+  function openPremium(source: PremiumEntrySource = "navigation") {
+    setPremiumEntrySource(source);
+    setTab("premium");
+  }
   const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
   const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
   const sortedProfiles = useMemo(
@@ -1510,6 +1517,7 @@ function AppContent() {
           profileKey,
           threadId: thread.id,
           createdByUid: thread.createdByUid,
+          createdAtMs: thread.createdAtMs,
           requestDirection: thread.createdByUid === appUser.uid ? "outgoing" : "incoming",
           status: thread.status,
           introMessage: thread.introMessage,
@@ -2725,7 +2733,7 @@ function AppContent() {
             onOpenMessages={() => setTab("messages")}
             onOpenMatches={() => setTab("matches")}
             onOpenProfile={() => setTab("profile")}
-            onOpenPremium={() => setTab("premium")}
+            onOpenPremium={openPremium}
             onOpenSafety={() => setTab("safety")}
             onSignOut={confirmSignOut}
             onInvite={() => { void shareSparkInvite(); }}
@@ -2769,7 +2777,7 @@ function AppContent() {
             onOpenMatches={() => setTab("matches")}
             onOpenMessages={() => setTab("messages")}
             onOpenProfile={() => setTab("profile")}
-            onOpenPremium={() => setTab("premium")}
+            onOpenPremium={openPremium}
             onOpenSafety={() => setTab("safety")}
             onSignOut={confirmSignOut}
             onInvite={() => { void shareSparkInvite(); }}
@@ -2817,7 +2825,7 @@ function AppContent() {
             viewerInterests={selectedInterests}
           />
         )}
-        {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} />}
+        {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} entrySource={premiumEntrySource} />}
         {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} />}
         {tab === "profile" && (
           <ProfileScreen
@@ -2863,7 +2871,7 @@ function AppContent() {
             profileViewers={profileViewers}
             profileViewerCount={profileViewerCount}
             profileViewersLoading={profileViewersLoading}
-            openPremium={() => setTab("premium")}
+            openPremium={openPremium}
             openCustomerCenter={revenueCat.openCustomerCenter}
             openSafety={() => setTab("safety")}
             onSave={saveProfileToFirestore}
@@ -2918,12 +2926,18 @@ function AppContent() {
         viewerInterests={selectedInterests}
         sparkLike={matchCelebrationKind === "sparkLike"}
         onContinue={() => {
+          if (appUser && matchCelebrationProfile) {
+            void registerPositiveMatchForReview(appUser.uid);
+          }
           setMatchCelebrationProfile(null);
           setMatchCelebrationKind("mutual");
         }}
         onOpenChat={(starter) => {
           if (matchCelebrationProfile) {
             setSelectedChatKey(getProfileKey(matchCelebrationProfile));
+            if (appUser) {
+              void registerPositiveMatchForReview(appUser.uid);
+            }
           }
           setMessageDraft(starter ?? "");
           setMatchCelebrationProfile(null);
@@ -2947,7 +2961,8 @@ function AppContent() {
             onPress={() => {
               tap();
               if (key === "discover" && tab === "discover" && discoverMode === "events") setDiscoverMode("people");
-              setTab(key as Tab);
+              if (key === "premium") openPremium();
+              else setTab(key as Tab);
             }}
             style={[styles.navButton, tab === key && styles.navButtonActive]}
           >
@@ -3447,7 +3462,7 @@ function DiscoverScreen({
   onOpenMessages: () => void;
   onOpenMatches: () => void;
   onOpenProfile: () => void;
-  onOpenPremium: () => void;
+  onOpenPremium: (source?: PremiumEntrySource) => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
   onInvite: () => void;
@@ -3507,9 +3522,9 @@ function DiscoverScreen({
     };
   }, []);
 
-  async function runProAction(action: () => void | Promise<void>, locked: boolean) {
+  async function runProAction(action: () => void | Promise<void>, locked: boolean, source: PremiumEntrySource) {
     if (locked) {
-      onOpenPremium();
+      onOpenPremium(source);
       return;
     }
 
@@ -3608,7 +3623,7 @@ function DiscoverScreen({
       );
     }
 
-    await runProAction(action, locked);
+    await runProAction(action, locked, kind === "superlike" ? "spark_like" : "chat_request");
   }
   function handlePremiumChat() {
     if (hasMatchedProfile) {
@@ -3873,7 +3888,7 @@ function DiscoveryMenuModal({
   onOpenMatches: () => void;
   onOpenMessages: () => void;
   onOpenProfile: () => void;
-  onOpenPremium: () => void;
+  onOpenPremium: (source?: PremiumEntrySource) => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
   onInvite: () => void;
@@ -4926,7 +4941,7 @@ function DiscoverEmptyState({
   onOpenMatches: () => void;
   onOpenMessages: () => void;
   onOpenProfile: () => void;
-  onOpenPremium: () => void;
+  onOpenPremium: (source?: PremiumEntrySource) => void;
   onOpenSafety: () => void;
   onSignOut: () => void;
   onInvite: () => void;
@@ -5142,22 +5157,28 @@ function MatchesScreen({
   onOpenMessages: () => void;
 }) {
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
-  const matchedProfiles = profiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile)));
-  const pendingLikes = profiles.filter((profile) => {
+  const [matchFilter, setMatchFilter] = useState<"all" | "active" | "likes" | "requests">("all");
+  const [matchView, setMatchView] = useState<"list" | "grid">("list");
+  const sortNewest = (items: MatchProfile[]) => [...items].sort((left, right) =>
+    (chatThreads[getProfileKey(right)]?.createdAtMs ?? right.updatedAtMs ?? 0) - (chatThreads[getProfileKey(left)]?.createdAtMs ?? left.updatedAtMs ?? 0) || left.name.localeCompare(right.name, "pl")
+  );
+  const matchedProfiles = sortNewest(profiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile))));
+  const pendingLikes = sortNewest(profiles.filter((profile) => {
     const key = getProfileKey(profile);
     return likedProfileKeys.includes(key) && !matchedProfileKeys.includes(key);
-  });
+  }));
   const incomingLikes = hasPro
-    ? profiles.filter((profile) => {
+    ? sortNewest(profiles.filter((profile) => {
         const key = getProfileKey(profile);
         return Boolean(incomingLikeKinds[key]) && !matchedProfileKeys.includes(key);
-      })
+      }))
     : [];
-  const pendingRequests = profiles.filter((profile) => {
+  const pendingRequests = sortNewest(profiles.filter((profile) => {
     const key = getProfileKey(profile);
     return chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
-  });
+  }));
   const isEmpty = matchedProfiles.length === 0 && incomingLikes.length === 0 && pendingLikes.length === 0 && pendingRequests.length === 0;
+  const selectedFilterCount = matchFilter === "active" ? matchedProfiles.length : matchFilter === "likes" ? incomingLikes.length + pendingLikes.length : matchFilter === "requests" ? pendingRequests.length : matchedProfiles.length + incomingLikes.length + pendingLikes.length + pendingRequests.length;
 
   return (
     <View style={styles.gapLg}>
@@ -5169,6 +5190,31 @@ function MatchesScreen({
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prośby</Text></View>
       </View>
 
+      <View style={styles.matchToolbar}>
+        <View style={styles.matchFilterRow}>
+          {([
+            ["all", "Wszystkie"],
+            ["active", "Matche"],
+            ["likes", "Polubienia"],
+            ["requests", "Prośby"]
+          ] as const).map(([value, label]) => {
+            const active = matchFilter === value;
+            return (
+              <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setMatchFilter(value)} style={[styles.matchFilterPill, active && styles.matchFilterPillActive]}>
+                <Text style={[styles.matchFilterText, active && styles.matchFilterTextActive]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.matchViewSwitch}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Widok listy" accessibilityState={{ selected: matchView === "list" }} onPress={() => setMatchView("list")} style={[styles.matchViewButton, matchView === "list" && styles.matchViewButtonActive]}>
+            <MaterialCommunityIcons name="format-list-bulleted" size={18} color={matchView === "list" ? "#fff" : colors.muted} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Widok kafelków" accessibilityState={{ selected: matchView === "grid" }} onPress={() => setMatchView("grid")} style={[styles.matchViewButton, matchView === "grid" && styles.matchViewButtonActive]}>
+            <MaterialCommunityIcons name="view-grid-outline" size={18} color={matchView === "grid" ? "#fff" : colors.muted} />
+          </Pressable>
+        </View>
+      </View>
       {isEmpty && (
         <View style={styles.emptyStateCard}>
           <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="heart-outline" size={28} color={colors.primary} /></View>
@@ -5177,16 +5223,23 @@ function MatchesScreen({
         </View>
       )}
 
-      {matchedProfiles.length > 0 && (
+      {!isEmpty && selectedFilterCount === 0 && (
+        <View style={styles.matchFilterEmpty}>
+          <MaterialCommunityIcons name="filter-variant-remove" size={22} color={colors.primary} />
+          <Text style={styles.matchFilterEmptyText}>Brak pozycji w tym filtrze</Text>
+        </View>
+      )}
+
+      {(matchFilter === "all" || matchFilter === "active") && matchedProfiles.length > 0 && (
         <View style={styles.matchSection}>
           <View style={styles.matchSectionHeader}>
             <Text style={styles.matchSectionTitle} selectable>Aktywne matche</Text>
             <Text style={styles.matchSectionCount}>{matchedProfiles.length}</Text>
           </View>
-          <View style={styles.matchGrid}>
+          <View style={[styles.matchGrid, matchView === "list" && styles.matchList]}>
             {matchedProfiles.map((profile) => (
-              <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.matchCard}>
-                <Image source={profile.image} style={styles.matchImage} contentFit="cover" />
+              <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={[styles.matchCard, matchView === "list" && styles.matchCardList]}>
+                <Image source={profile.image} style={[styles.matchImage, matchView === "list" && styles.matchImageList]} contentFit="cover" />
                 <View style={styles.matchCardCopy}>
                   <Text style={styles.matchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text>
                   <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie już pisać</Text>
@@ -5208,7 +5261,7 @@ function MatchesScreen({
         </View>
       )}
 
-      {incomingLikes.length > 0 && (
+      {(matchFilter === "all" || matchFilter === "likes") && incomingLikes.length > 0 && (
         <View style={styles.matchSection}>
           <View style={styles.matchSectionHeader}>
             <View>
@@ -5246,7 +5299,7 @@ function MatchesScreen({
         </View>
       )}
 
-      {pendingLikes.length > 0 && (
+      {(matchFilter === "all" || matchFilter === "likes") && pendingLikes.length > 0 && (
         <View style={styles.matchSection}>
           <View style={styles.matchSectionHeader}>
             <Text style={styles.matchSectionTitle} selectable>Polubione profile</Text>
@@ -5291,7 +5344,7 @@ function MatchesScreen({
         </View>
       )}
 
-      {pendingRequests.length > 0 && (
+      {(matchFilter === "all" || matchFilter === "requests") && pendingRequests.length > 0 && (
         <View style={styles.matchSection}>
           <View style={styles.matchSectionHeader}>
             <Text style={styles.matchSectionTitle} selectable>Prośby o chat</Text>
@@ -5703,22 +5756,38 @@ function ChatConversationModal({
 function PremiumScreen({
   premiumPlan,
   setPremiumPlan,
-  revenueCat
+  revenueCat,
+  entrySource
 }: {
   premiumPlan: SparkPlanId;
   setPremiumPlan: (value: SparkPlanId) => void;
   revenueCat: RevenueCatState;
+  entrySource: PremiumEntrySource;
 }) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const premiumMessages: Record<PremiumEntrySource, { badge: string; title: string; body: string }> = {
+    navigation: { badge: "Spark Pro", title: "Więcej możliwości, mniej ograniczeń", body: "Zwiększ widoczność, odkrywaj zainteresowane osoby i korzystaj ze Spark bez reklam." },
+    spark_like: { badge: "SparkLike", title: "Wyróżnij profil, który naprawdę Cię interesuje", body: "SparkLike zwiększa szansę, że druga osoba zauważy Cię od razu." },
+    chat_request: { badge: "Rozmowa Pro", title: "Napisz przed matchem", body: "Wyślij krótką prośbę o chat i zacznij rozmowę bez czekania na wzajemne polubienie." },
+    profile_views: { badge: "Odwiedziny", title: "Zobacz, kto ogląda Twój profil", body: "Przeglądaj pełną listę odwiedzin, filtruj ją i wracaj do interesujących osób." },
+    photos: { badge: "Więcej zdjęć", title: "Pokaż więcej siebie", body: "Dodaj do 15 zdjęć i zbuduj profil, który łatwiej rozpoczyna rozmowę." }
+  };
+  const premiumMessage = premiumMessages[entrySource];
+
+  useEffect(() => {
+    if (!revenueCat.isPro) {
+      void revenueCat.trackPaywallView(entrySource);
+    }
+  }, [entrySource, revenueCat.isPro, revenueCat.trackPaywallView]);
   const selectedPlan = premiumPlans.find((plan) => plan.id === premiumPlan) ?? premiumPlans[1];
   const hasPackages = revenueCat.packages.length > 0;
   const getPlanPrice = (planId: SparkPlanId, fallback: string) => revenueCat.prices[planId] ?? (revenueCat.configured ? "-" : fallback);
   const selectedPlanPrice = getPlanPrice(premiumPlan, selectedPlan.price);
   const primaryDisabled = busyAction !== null || revenueCat.isLoading || revenueCat.isPro || !hasPackages;
   const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
-    weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Dobry start" },
-    monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór" },
-    lifetime: { label: "Na zawsze", period: "jednorazowo", helper: "Pełny dostęp", badge: "Best value" }
+    weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Na próbę" },
+    monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór", badge: "Popularny" },
+    lifetime: { label: "Na zawsze", period: "jednorazowo", helper: "Zakup jednorazowy" }
   };
   const benefitRows = [
     ["advertisements-off", "Zero reklam", "Przeglądanie profili bez przerw i bez bannerów."],
@@ -5763,7 +5832,10 @@ function PremiumScreen({
     primaryCtaDisabled: { opacity: 0.48 },
     primaryText: { color: "#fff", fontSize: 15, fontWeight: "900" },
     statusBox: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.2)" },
-    statusText: { flex: 1, color: colors.primaryDeep, fontSize: 12, lineHeight: 18, fontWeight: "800" },
+    statusCopy: { flex: 1, gap: 7 },
+    statusText: { color: colors.primaryDeep, fontSize: 12, lineHeight: 18, fontWeight: "800" },
+    retryButton: { alignSelf: "flex-start", minHeight: 34, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.18)", borderWidth: 1, borderColor: "rgba(255,45,141,0.28)" },
+    retryText: { color: colors.primary, fontSize: 11, fontWeight: "900" },
     footerActions: { alignItems: "center", gap: 12, paddingTop: 2, paddingBottom: 6 },
     restoreButton: { minHeight: 44, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
     restoreText: { color: colors.ink, fontSize: 13, fontWeight: "900" },
@@ -5776,7 +5848,7 @@ function PremiumScreen({
     setBusyAction("purchase");
     try {
       if (!hasPackages) {
-        const activated = await revenueCat.presentPaywallIfNeeded();
+        const activated = false;
         if (!activated && revenueCat.error) {
           Alert.alert("Spark Pro", "Nie udało się otworzyć pakietów. Spróbuj ponownie później.");
         }
@@ -5791,6 +5863,16 @@ function PremiumScreen({
       }
     } finally {
       setBusyAction(null);
+    }
+  }
+
+  async function retryOfferings() {
+    setBusyAction("offerings");
+    const available = await revenueCat.refreshOfferings();
+    setBusyAction(null);
+
+    if (!available) {
+      Alert.alert("Spark Pro", "Pakiety nadal nie są dostępne. Sprawdź połączenie i spróbuj ponownie.");
     }
   }
 
@@ -5813,9 +5895,9 @@ function PremiumScreen({
       <TopBar eyebrow={revenueCat.isPro ? "Aktywne" : "Premium"} title="Spark Pro" left="pro" right={revenueCat.isPro ? "on" : "off"} />
 
       <View style={local.hero}>
-        <Text style={local.heroBadge} selectable>{revenueCat.isPro ? "Aktywne" : "Premium"}</Text>
-        <Text style={local.heroTitle} selectable>Odblokuj pełen potencjał</Text>
-        <Text style={local.heroText} selectable>Zdobądź więcej matchy, lepszą widoczność i funkcje premium z Spark Pro.</Text>
+        <Text style={local.heroBadge} selectable>{revenueCat.isPro ? "Aktywne" : premiumMessage.badge}</Text>
+        <Text style={local.heroTitle} selectable>{revenueCat.isPro ? "Spark Pro jest aktywny" : premiumMessage.title}</Text>
+        <Text style={local.heroText} selectable>{revenueCat.isPro ? "Wszystkie funkcje premium są dostępne na tym koncie." : premiumMessage.body}</Text>
       </View>
 
       <View style={local.tierGrid}>
@@ -5856,12 +5938,18 @@ function PremiumScreen({
       {!revenueCat.isPro && !hasPackages && (
         <View style={local.statusBox}>
           <MaterialCommunityIcons name="alert-circle-outline" size={19} color={colors.primaryDeep} />
-          <Text style={local.statusText} selectable>Subskrypcje są chwilowo niedostępne. Spróbuj ponownie później.</Text>
+          <View style={local.statusCopy}>
+            <Text style={local.statusText} selectable>Nie udało się pobrać aktualnych pakietów z App Store.</Text>
+            <Pressable accessibilityRole="button" disabled={busyAction !== null} onPress={() => void retryOfferings()} style={local.retryButton}>
+              {busyAction === "offerings" ? <ActivityIndicator size="small" color={colors.primary} /> : <MaterialCommunityIcons name="refresh" size={15} color={colors.primary} />}
+              <Text style={local.retryText}>{busyAction === "offerings" ? "Pobieranie..." : "Spróbuj ponownie"}</Text>
+            </Pressable>
+          </View>
         </View>
       )}
       <Pressable disabled={primaryDisabled} onPress={() => void activateSelectedPlan()} style={[local.primaryCta, primaryDisabled && local.primaryCtaDisabled]}>
         <MaterialCommunityIcons name={(revenueCat.isPro ? "check" : "star-four-points") as any} size={18} color="#fff" />
-        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : revenueCat.isLoading ? "Ładowanie pakietów..." : busyAction === "purchase" ? "Łączenie..." : !hasPackages ? "Otwórz paywall Pro" : "Kontynuuj za " + selectedPlanPrice}</Text>
+        <Text style={local.primaryText}>{revenueCat.isPro ? "Spark Pro aktywny" : revenueCat.isLoading ? "Ładowanie pakietów..." : busyAction === "purchase" ? "Łączenie..." : !hasPackages ? "Pakiety chwilowo niedostępne" : "Kontynuuj za " + selectedPlanPrice}</Text>
       </Pressable>
 
       {!revenueCat.isPro && (
@@ -6268,7 +6356,7 @@ function ProfileScreen({
   profileViewers: MatchProfile[];
   profileViewerCount: number;
   profileViewersLoading: boolean;
-  openPremium: () => void;
+  openPremium: (source?: PremiumEntrySource) => void;
   openCustomerCenter: () => Promise<{ ok: boolean; message?: string }>;
   openSafety: () => void;
   onSave: () => Promise<boolean>;
@@ -6415,7 +6503,7 @@ function ProfileScreen({
         viewerCount={profileViewerCount}
         loading={profileViewersLoading}
         viewerInterests={selectedInterests}
-        onUpgrade={openPremium}
+        onUpgrade={() => openPremium("profile_views")}
       />
 
       <LinearGradient colors={["rgba(255,45,141,0.2)", "rgba(74,18,54,0.34)", "rgba(20,20,26,0.92)"]} style={styles.profileGrowthPanel}>
@@ -6495,7 +6583,7 @@ function ProfileScreen({
             <Text style={styles.photoFormatHint} selectable>{visiblePhotoCount}/{maxPhotos} zdjęć - format 4:5</Text>
             <Text style={styles.photoProHint} selectable>{hasPro ? "Spark Pro: limit 15 zdj\u0119\u0107 aktywny" : hiddenPhotoCount > 0 ? `${hiddenPhotoCount} zdj\u0119\u0107 zachowanych - odblokuj Pro, aby je ponownie pokaza\u0107` : "Spark Pro odblokuje do 15 zdj\u0119\u0107"}</Text>
           </View>
-          <Pressable onPress={() => (profilePhotos.length >= maxPhotos && !hasPro ? openPremium() : pickProfilePhoto())} style={styles.photoAddButton}>
+          <Pressable onPress={() => (profilePhotos.length >= maxPhotos && !hasPro ? openPremium("photos") : pickProfilePhoto())} style={styles.photoAddButton}>
             <MaterialCommunityIcons name={profilePhotos.length >= maxPhotos ? "lock" : "plus"} size={16} color="#fff" />
             <Text style={styles.photoAddText}>{profilePhotos.length >= maxPhotos ? "Limit" : "Dodaj"}</Text>
           </Pressable>
@@ -9387,6 +9475,76 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 12
   },
+  matchToolbar: {
+    gap: 10
+  },
+  matchFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap"
+  },
+  matchFilterPill: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  matchFilterPillActive: {
+    backgroundColor: "rgba(255,45,141,0.18)",
+    borderColor: "rgba(255,45,141,0.72)"
+  },
+  matchFilterText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  matchFilterTextActive: {
+    color: "#fff"
+  },
+  matchViewSwitch: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 5,
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  matchViewButton: {
+    width: 38,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  matchViewButtonActive: {
+    backgroundColor: colors.primary
+  },
+  matchFilterEmpty: {
+    minHeight: 92,
+    gap: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)"
+  },
+  matchFilterEmptyText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  matchList: {
+    flexDirection: "column",
+    flexWrap: "nowrap",
+    gap: 8
+  },
   matchCard: {
     position: "relative",
     width: "48%",
@@ -9398,9 +9556,22 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
     boxShadow: "0 16px 34px rgba(0,0,0,0.26)"
   },
+  matchCardList: {
+    width: "100%",
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center"
+  },
   matchImage: {
     width: "100%",
     aspectRatio: 4 / 5
+  },
+  matchImageList: {
+    width: 68,
+    height: 68,
+    marginLeft: 10,
+    borderRadius: 18,
+    aspectRatio: undefined
   },
   matchCardCopy: {
     gap: 3,

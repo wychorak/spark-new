@@ -35,6 +35,8 @@ export type RevenueCatState = {
   prices: Partial<Record<SparkPlanId, string>>;
   error: string | null;
   refreshCustomerInfo: () => Promise<CustomerInfo | null>;
+  refreshOfferings: () => Promise<boolean>;
+  trackPaywallView: (source: string) => Promise<void>;
   purchasePlan: (planId: SparkPlanId) => Promise<RevenueCatActionResult>;
   restorePurchases: () => Promise<RevenueCatActionResult>;
   presentPaywallIfNeeded: () => Promise<boolean>;
@@ -141,7 +143,7 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
 
   const refreshOfferings = useCallback(async () => {
     if (Platform.OS === "web") {
-      return;
+      return false;
     }
 
     try {
@@ -149,10 +151,35 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
       const selectedOffering = getOfferingWithPackages(offerings);
       setPackages(selectedOffering?.availablePackages ?? []);
       setError(null);
+      return Boolean(selectedOffering?.availablePackages.length);
     } catch (offeringsError) {
       setError(getErrorMessage(offeringsError));
+      return false;
     }
   }, []);
+
+  const trackPaywallView = useCallback(async (source: string) => {
+    if (!configured || Platform.OS === "web") {
+      return;
+    }
+
+    try {
+      const offerings = await Purchases.getOfferings();
+      const offering = getOfferingWithPackages(offerings);
+      await Purchases.setAttributes({
+        last_paywall_source: source,
+        paywall_variant: "spark-pro-v1"
+      });
+      await Purchases.trackCustomPaywallImpression({
+        paywallId: "spark-pro-v1",
+        offering
+      });
+    } catch (trackingError) {
+      if (__DEV__) {
+        console.warn("RevenueCat paywall impression tracking failed", trackingError);
+      }
+    }
+  }, [configured]);
 
   useEffect(() => {
     if (Platform.OS === "web") {
@@ -238,6 +265,9 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
       }
 
       try {
+        Purchases.setAttributes({
+          last_selected_pro_plan: planId
+        }).catch(() => undefined);
         const result = await Purchases.purchasePackage(selectedPackage);
         setCustomerInfo(result.customerInfo);
         await refreshOfferings();
@@ -325,6 +355,8 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
       prices,
       error,
       refreshCustomerInfo,
+      refreshOfferings,
+      trackPaywallView,
       purchasePlan,
       restorePurchases,
       presentPaywallIfNeeded,
@@ -342,7 +374,9 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
       presentPaywallIfNeeded,
       purchasePlan,
       refreshCustomerInfo,
-      restorePurchases
+      refreshOfferings,
+      restorePurchases,
+      trackPaywallView
     ]
   );
 }

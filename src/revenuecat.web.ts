@@ -24,6 +24,8 @@ export type RevenueCatState = {
   prices: Partial<Record<SparkPlanId, string>>;
   error: string | null;
   refreshCustomerInfo: () => Promise<null>;
+  refreshOfferings: () => Promise<boolean>;
+  trackPaywallView: (source: string) => Promise<void>;
   purchasePlan: (planId: SparkPlanId) => Promise<RevenueCatActionResult>;
   restorePurchases: () => Promise<RevenueCatActionResult>;
   presentPaywallIfNeeded: () => Promise<boolean>;
@@ -44,6 +46,8 @@ export function useRevenueCat(_appUserId: string | null, ownerAccess = false): R
     []
   );
   const presentPaywallIfNeeded = useCallback(async () => false, []);
+  const refreshOfferings = useCallback(async () => false, []);
+  const trackPaywallView = useCallback(async (_source: string) => undefined, []);
 
   return useMemo(
     () => ({
@@ -55,11 +59,13 @@ export function useRevenueCat(_appUserId: string | null, ownerAccess = false): R
       prices: {},
       error: null,
       refreshCustomerInfo,
+      refreshOfferings,
+      trackPaywallView,
       purchasePlan: unavailable,
       restorePurchases: unavailable,
       presentPaywallIfNeeded,
       openCustomerCenter: unavailable
     }),
-    [ownerAccess, presentPaywallIfNeeded, refreshCustomerInfo, unavailable]
+    [ownerAccess, presentPaywallIfNeeded, refreshCustomerInfo, refreshOfferings, trackPaywallView, unavailable]
   );
 }

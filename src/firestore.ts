@@ -852,6 +852,7 @@ export type RealtimeChatThread = {
   id: string;
   memberUids: string[];
   createdByUid: string;
+  createdAtMs: number | null;
   status: "matched" | "requested";
   introMessage?: string;
   eventContext?: SparkEvent;
@@ -878,6 +879,7 @@ export function observeUserChats(uid: string, onChange: (threads: RealtimeChatTh
           id: item.id,
           memberUids: Array.isArray(data.memberUids) ? data.memberUids : [],
           createdByUid: String(data.createdByUid ?? ""),
+          createdAtMs: typeof data.createdAt?.toMillis === "function" ? data.createdAt.toMillis() : null,
           status: data.status,
           introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined,
           eventContext: normalizeSparkEvent(data.eventContext) ?? undefined

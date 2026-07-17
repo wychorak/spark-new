@@ -16,6 +16,23 @@ import mobileAds, {
 
 
 let mobileAdsStartPromise: Promise<boolean> | null = null;
+let adImpressionSequence = 0;
+
+function createAdImpressionId(placement: string, format: string) {
+  adImpressionSequence += 1;
+  return [placement, format, Date.now(), adImpressionSequence].join("-");
+}
+
+function getRevenueCatAdPrecision(precision: number) {
+  if (precision === 3) return "exact";
+  if (precision === 2) return "publisher_defined";
+  if (precision === 1) return "estimated";
+  return "unknown";
+}
+
+function toRevenueMicros(value: number) {
+  return Math.max(0, Math.round(value * 1_000_000));
+}
 
 export async function openAdsPrivacyOptions() {
   if (Platform.OS === "web") {
@@ -156,11 +173,17 @@ function getInterstitialUnitId() {
 }
 
 export const SWIPES_PER_INTERSTITIAL = 10;
+const MIN_INTERSTITIAL_INTERVAL_MS = 2 * 60 * 1000;
+const MAX_INTERSTITIALS_PER_SESSION = 4;
 
 export function useSwipeInterstitialAds(enabled: boolean) {
   const swipeCount = useRef(0);
   const pendingShow = useRef(false);
   const enabledRef = useRef(enabled);
+  const lastShownAt = useRef(0);
+  const sessionImpressionCount = useRef(0);
+  const impressionId = useRef("");
+  if (!impressionId.current) impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
   const [isLoaded, setIsLoaded] = useState(false);
   const adUnitId = getInterstitialUnitId();
   enabledRef.current = enabled;
@@ -187,17 +210,38 @@ export function useSwipeInterstitialAds(enabled: boolean) {
         mediatorName: "AdMob",
         adFormat: "interstitial",
         adUnitId,
-        impressionId: "swipe-interstitial",
+        impressionId: impressionId.current,
         placement: "swipe-feed"
       }).catch(() => undefined);
     });
 
     const openedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.OPENED, () => {
+      lastShownAt.current = Date.now();
+      sessionImpressionCount.current += 1;
       Purchases.adTracker.trackAdDisplayed({
         mediatorName: "AdMob",
         adFormat: "interstitial",
         adUnitId,
-        impressionId: "swipe-interstitial",
+        impressionId: impressionId.current,
+        placement: "swipe-feed"
+      }).catch(() => undefined);
+    });
+
+    const paidUnsubscribe = interstitial.current.addAdEventListener(AdEventType.PAID, (payload) => {
+      const paidEvent = payload as unknown as PaidEvent;
+
+      if (!paidEvent?.currency || typeof paidEvent.value !== "number") {
+        return;
+      }
+
+      Purchases.adTracker.trackAdRevenue({
+        mediatorName: "AdMob",
+        adFormat: "interstitial",
+        adUnitId,
+        impressionId: impressionId.current,
+        revenueMicros: toRevenueMicros(paidEvent.value),
+        currency: paidEvent.currency,
+        precision: getRevenueCatAdPrecision(Number(paidEvent.precision)),
         placement: "swipe-feed"
       }).catch(() => undefined);
     });
@@ -206,6 +250,7 @@ export function useSwipeInterstitialAds(enabled: boolean) {
       setIsLoaded(false);
       pendingShow.current = false;
       swipeCount.current = 0;
+      impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
       interstitial.current?.load();
     });
 
@@ -217,6 +262,7 @@ export function useSwipeInterstitialAds(enabled: boolean) {
         adUnitId,
         placement: "swipe-feed"
       }).catch(() => undefined);
+      impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
     });
 
 
@@ -225,6 +271,7 @@ export function useSwipeInterstitialAds(enabled: boolean) {
     return () => {
       loadedUnsubscribe();
       openedUnsubscribe();
+      paidUnsubscribe();
       closedUnsubscribe();
       errorUnsubscribe();
     };
@@ -241,6 +288,13 @@ export function useSwipeInterstitialAds(enabled: boolean) {
       return;
     }
 
+    if (
+      sessionImpressionCount.current >= MAX_INTERSTITIALS_PER_SESSION ||
+      Date.now() - lastShownAt.current < MIN_INTERSTITIAL_INTERVAL_MS
+    ) {
+      return;
+    }
+
     pendingShow.current = true;
     if (isLoaded) {
       pendingShow.current = false;
@@ -253,6 +307,9 @@ export function useSwipeInterstitialAds(enabled: boolean) {
 }
 
 export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placement: string }) {
+  const impressionId = useRef("");
+  if (!impressionId.current) impressionId.current = createAdImpressionId(placement, "banner");
+
   if (!enabled || Platform.OS === "web") {
     return null;
   }
@@ -278,11 +335,12 @@ export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placem
           }).catch(() => undefined);
         }}
         onAdLoaded={() => {
+          impressionId.current = createAdImpressionId(placement, "banner");
           Purchases.adTracker.trackAdLoaded({
             mediatorName: "AdMob",
             adFormat: "banner",
             adUnitId,
-            impressionId: `${placement}-banner`,
+            impressionId: impressionId.current,
             placement
           }).catch(() => undefined);
         }}
@@ -291,7 +349,7 @@ export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placem
             mediatorName: "AdMob",
             adFormat: "banner",
             adUnitId,
-            impressionId: `${placement}-banner`,
+            impressionId: impressionId.current,
             placement
           }).catch(() => undefined);
         }}
@@ -300,10 +358,10 @@ export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placem
             mediatorName: "AdMob",
             adFormat: "banner",
             adUnitId,
-            impressionId: `${placement}-banner`,
-            revenueMicros: event.value,
+            impressionId: impressionId.current,
+            revenueMicros: toRevenueMicros(event.value),
             currency: event.currency,
-            precision: String(event.precision),
+            precision: getRevenueCatAdPrecision(Number(event.precision)),
             placement
           }).catch(() => undefined);
         }}
