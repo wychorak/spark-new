@@ -176,6 +176,12 @@ const bundledTestProfileImages: Record<string, any> = {
   spark_test_alex: profileImages[5]
 };
 
+const bundledTestProfileIntents: Record<string, SparkIntent[]> = {
+  spark_test_kuba: ["Znajomi", "Randki"],
+  spark_test_maja: ["Znajomi", "LGBT+ / Społeczność"],
+  spark_test_alex: ["Randki", "LGBT+ / Społeczność"]
+};
+
 const demoAccount = {
   email: "tester@spark.app",
   password: "sparkdemo",
@@ -263,8 +269,29 @@ function formatSocialHandle(value: string) {
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
 type DiscoverMode = "people" | "events";
-type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; maxDistanceKm: number; ageMin: number; ageMax: number };
-const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
+type SparkIntent = "Randki" | "Znajomi" | "LGBT+ / Społeczność";
+const sparkIntentOptions: ReadonlyArray<{ label: SparkIntent; description: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = [
+  { label: "Randki", description: "Chemia, rozmowy, spotkania", icon: "heart-outline" },
+  { label: "Znajomi", description: "Kawa, planszówki, miasto", icon: "coffee-outline" },
+  { label: "LGBT+ / Społeczność", description: "Grupy, wydarzenia, znajomości", icon: "account-group-outline" }
+];
+const sparkIntentLabels = sparkIntentOptions.map((option) => option.label);
+
+function normalizeSparkIntents(value: unknown, legacyIntent?: unknown): SparkIntent[] {
+  const values = Array.isArray(value) ? value : legacyIntent ? [legacyIntent] : [];
+  const normalized = values
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => repairLegacyText(item.trim()))
+    .filter((item): item is SparkIntent => sparkIntentLabels.includes(item as SparkIntent));
+  return Array.from(new Set(normalized)).slice(0, 3) as SparkIntent[];
+}
+
+function getProfileIntents(profile: Pick<MatchProfile, "intents" | "intent">) {
+  return normalizeSparkIntents(profile.intents, profile.intent);
+}
+
+type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; targetIntents: SparkIntent[]; maxDistanceKm: number; ageMin: number; ageMax: number };
+const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], targetIntents: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -315,6 +342,7 @@ type MatchProfile = {
   interestMatchPercent?: number;
   matchReasons?: string[];
   intent?: string;
+  intents?: SparkIntent[];
   updatedAtMs?: number;
 };
 
@@ -373,6 +401,8 @@ const matchProfiles: MatchProfile[] = [
     longitude: 21.0122,
     image: profileImages[0],
     interests: ["Kawa", "Sztuka", "Filmy", "Taco Hemingway"],
+    intent: "Randki",
+    intents: ["Randki", "Znajomi"],
     desiredAgeMin: 22,
     desiredAgeMax: 31,
     heightCm: 168,
@@ -397,6 +427,8 @@ const matchProfiles: MatchProfile[] = [
     longitude: 19.945,
     image: profileImages[1],
     interests: ["Fotografia", "Natura", "Kuchnia", "Kendrick Lamar"],
+    intent: "Znajomi",
+    intents: ["Znajomi", "LGBT+ / Społeczność"],
     desiredAgeMin: 24,
     desiredAgeMax: 34,
     heightCm: 172,
@@ -419,6 +451,8 @@ const matchProfiles: MatchProfile[] = [
     longitude: 18.6466,
     image: profileImages[2],
     interests: ["Muzyka", "Koncerty", "Playboi Carti", "Travis Scott"],
+    intent: "Randki",
+    intents: ["Randki"],
     desiredAgeMin: 23,
     desiredAgeMax: 35,
     heightCm: 184,
@@ -440,6 +474,8 @@ const matchProfiles: MatchProfile[] = [
     longitude: 16.9252,
     image: profileImages[3],
     interests: ["Sztuka", "Natura", "Joga", "Quebonafide"],
+    intent: "LGBT+ / Społeczność",
+    intents: ["LGBT+ / Społeczność", "Znajomi"],
     desiredAgeMin: 21,
     desiredAgeMax: 30,
     heightCm: 165,
@@ -601,6 +637,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const name = nameMode === "nickname" && nickname ? nickname : firstName;
   const surname = typeof item.lastName === "string" ? repairLegacyText(item.lastName.trim()) : "";
   const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string").map(repairLegacyText) : [];
+  const storedIntents = normalizeSparkIntents(item.intents, item.intent);
+  const intents = storedIntents.length > 0 ? storedIntents : (id && item.isTestProfile === true ? bundledTestProfileIntents[id] ?? ["Znajomi"] : []);
   const photoUrls = Array.isArray(item.photoUrls) ? item.photoUrls.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
   const mainPhotoUrl = typeof item.mainPhotoUrl === "string" && item.mainPhotoUrl.length > 0 ? item.mainPhotoUrl : photoUrls[0];
   const bundledTestImage = id && item.isTestProfile === true ? bundledTestProfileImages[id] : undefined;
@@ -627,8 +665,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     country: typeof item.country === "string" && item.country.trim() ? repairLegacyText(item.country.trim()) : undefined,
     bio: typeof item.bio === "string" && item.bio.trim()
       ? repairLegacyText(item.bio.trim())
-      : typeof item.intent === "string" && item.intent.trim()
-        ? "Jestem tu po: " + repairLegacyText(item.intent.trim()) + "."
+      : intents[0]
+        ? "Jestem tu po: " + intents[0] + "."
         : "Nowy profil w Spark. Poznajcie się przez wspólne zainteresowania.",
     distance: locationAvailable ? "w pobliżu" : "Twoja okolica",
     latitude,
@@ -646,7 +684,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     desiredAgeMax: typeof item.desiredAgeMax === "number" ? item.desiredAgeMax : 99,
     heightCm: typeof item.heightCm === "number" ? item.heightCm : undefined,
     weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined,
-    intent: typeof item.intent === "string" ? repairLegacyText(item.intent.trim()) : undefined,
+    intent: intents[0],
+    intents,
     activeEvents,
     updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined
   };
@@ -707,7 +746,7 @@ function scoreProfileMatch(params: {
   selectedInterests: string[];
   userLocation: UserLocation | null;
   userAge: number;
-  userIntent: string;
+  userIntents: SparkIntent[];
   viewerUid: string;
 }) {
   const distanceKm = getDistanceKm(params.userLocation, params.profile);
@@ -718,11 +757,15 @@ function scoreProfileMatch(params: {
   const interestScore = params.selectedInterests.length > 0
     ? Math.min(34, sharedInterests.length * 7 + Math.round(sharedRatio * 12))
     : 12;
-  const viewerIntent = params.userIntent.trim().toLocaleLowerCase("pl");
-  const profileIntent = (params.profile.intent ?? "").trim().toLocaleLowerCase("pl");
-  const sameIntent = Boolean(viewerIntent && profileIntent && viewerIntent === profileIntent);
-  const communityPair = viewerIntent.includes("społeczność") || profileIntent.includes("społeczność");
-  const intentScore = sameIntent ? 18 : communityPair ? 9 : viewerIntent && profileIntent ? 5 : 3;
+  const viewerIntents = normalizeSparkIntents(params.userIntents);
+  const profileIntents = getProfileIntents(params.profile);
+  const sharedIntents = profileIntents.filter((value) => viewerIntents.includes(value));
+  const sharedIntentCount = sharedIntents.length;
+  const intentScore = sharedIntentCount > 0
+    ? Math.min(20, 10 + sharedIntentCount * 5)
+    : viewerIntents.length > 0 && profileIntents.length > 0
+      ? 3
+      : 5;
   const distanceScore = distanceKm === null ? 5 : distanceKm <= 5 ? 18 : distanceKm <= 15 ? 14 : distanceKm <= 35 ? 10 : distanceKm <= 100 ? 6 : 2;
   const ageGap = Math.abs(params.profile.age - params.userAge);
   const ageScore = ageGap <= 3 ? 12 : ageGap <= 7 ? 9 : ageGap <= 12 ? 5 : 2;
@@ -739,7 +782,7 @@ function scoreProfileMatch(params: {
   const rotationScore = Array.from(rotationSeed).reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 7) % 5;
   const score = Math.max(15, Math.min(98, interestScore + intentScore + distanceScore + ageScore + preferenceScore + completenessScore + freshnessScore + visibilityBoostScore + rotationScore));
   const reasons = [
-    sameIntent ? "oboje wybieracie: " + params.profile.intent : params.profile.intent ? "cel profilu: " + params.profile.intent : "otwarty profil",
+    sharedIntentCount > 0 ? "wspólny cel: " + sharedIntents.join(" + ") : profileIntents[0] ? "cel profilu: " + profileIntents[0] : "otwarty profil",
     interestMatchPercent + "% zgodności zainteresowań",
     distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie"
   ];
@@ -805,7 +848,7 @@ function AppContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [onboarded, setOnboarded] = useState(false);
-  const [intent, setIntent] = useState("Randki");
+  const [intents, setIntents] = useState<SparkIntent[]>(["Randki"]);
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
@@ -872,7 +915,7 @@ function AppContent() {
     () => Array.from(new Set([...discoverFilters.targetInterests, ...selectedInterests])).slice(0, 10),
     [discoverFilters.targetInterests, selectedInterests]
   );
-  const profileQueryKey = profileLookupInterests.slice().sort().join("|");
+  const profileQueryKey = [...profileLookupInterests, ...discoverFilters.targetIntents].slice().sort().join("|");
   const activeEventIdsKey = activeEvents.map((event) => event.id).sort().join("|");
   const availableProfiles = useMemo(
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
@@ -892,6 +935,7 @@ function AppContent() {
           const distance = getDistanceKm(userLocation, profile);
           return distance === null ? discoverFilters.includeProfilesWithoutLocation : distance <= discoverFilters.maxDistanceKm;
         })
+        .filter((profile) => discoverFilters.targetIntents.length === 0 || getProfileIntents(profile).some((profileIntent) => discoverFilters.targetIntents.includes(profileIntent)))
         .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
@@ -902,7 +946,7 @@ function AppContent() {
             selectedInterests,
             userLocation,
             userAge,
-            userIntent: intent,
+            userIntents: intents,
             viewerUid: appUser?.uid ?? "guest"
           });
 
@@ -918,7 +962,7 @@ function AppContent() {
           const scoreDifference = (right.matchScore ?? 0) - (left.matchScore ?? 0);
           return scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
         }),
-    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, intent, selectedInterests, userAge, userLocation]
+    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, intents, selectedInterests, userAge, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -950,7 +994,7 @@ function AppContent() {
           selectedInterests,
           userLocation,
           userAge,
-          userIntent: intent,
+          userIntents: intents,
           viewerUid: appUser?.uid ?? "guest"
         });
         const sameCity = Boolean(userCity.trim()) && profile.city.trim().toLocaleLowerCase("pl-PL") === userCity.trim().toLocaleLowerCase("pl-PL");
@@ -975,7 +1019,7 @@ function AppContent() {
         return !likedProfileKeys.includes(key) && !passedProfileKeys.includes(key) && !matchedProfileKeys.includes(key) && !chatRequestKeys.includes(key);
       })
       .sort((left, right) => right.eventRank - left.eventRank || (right.matchScore ?? 0) - (left.matchScore ?? 0) || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0)),
-    [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, intent, likedProfileKeys, matchedProfileKeys, passedProfileKeys, selectedInterests, userAge, userCity, userLocation]
+    [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, intents, likedProfileKeys, matchedProfileKeys, passedProfileKeys, selectedInterests, userAge, userCity, userLocation]
   );
   const currentDiscoverProfiles = discoverMode === "events" ? eventDiscoverProfiles : discoverProfiles;
   const activeProfile = currentDiscoverProfiles[0] ?? null;
@@ -1062,13 +1106,15 @@ function AppContent() {
             setProfileNameMode(profile.profileNameMode ?? "realName");
             setNickname(repairLegacyText(profile.nickname ?? ""));
             setBirthDate(privateSettings?.birthDate ?? "");
-            setIntent(profile.intent ?? "Randki");
+            const loadedIntents = normalizeSparkIntents(profile.intents, profile.intent);
+            const nextIntents: SparkIntent[] = loadedIntents.length ? loadedIntents : ["Randki"];
+            setIntents(nextIntents);
             setProfileBio(typeof profile.bio === "string" && profile.bio.trim().length >= 20 ? profile.bio.trim().slice(0, 300) : "Poznajmy si\u0119 przez wsp\u00f3lne zainteresowania i dobr\u0105 rozmow\u0119.");
             setAgeBand(profile.ageBand ?? null);
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
-            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
             const currentEvents = sanitizeActiveEvents(storedEvents);
@@ -1230,7 +1276,7 @@ function AppContent() {
     setProfileFeedError(null);
 
     Promise.allSettled([
-      findProfilesByInterest(profileLookupInterests),
+      findProfilesByInterest(profileLookupInterests, null, discoverFilters.targetIntents),
       canViewTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       findMatchThreadsForUser(appUser.uid)
@@ -1380,7 +1426,7 @@ function AppContent() {
     if (!appUser || !authDone || !onboarded || !profilesHaveMore || !profileCursor || profilesLoading || profilesLoadingMore || discoverProfiles.length > 6) return;
     let mounted = true;
     setProfilesLoadingMore(true);
-    void findProfilesByInterest(profileLookupInterests, profileCursor)
+    void findProfilesByInterest(profileLookupInterests, profileCursor, discoverFilters.targetIntents)
       .then((page) => {
         if (!mounted) return;
         const nextProfiles = page.profiles
@@ -1810,7 +1856,8 @@ function AppContent() {
         profileNameMode,
         nickname: nickname.trim(),
         email: appUser.email ?? email,
-        intent,
+        intent: intents[0] ?? "Randki",
+        intents,
         bio: profileBio.trim().slice(0, 300),
         ageBand: "18+",
         age: calculatedAge,
@@ -1823,6 +1870,7 @@ function AppContent() {
         desiredAgeMax: discoverFilters.ageMax,
         maxDistanceKm: discoverFilters.maxDistanceKm,
         desiredInterests: discoverFilters.targetInterests,
+        desiredIntents: discoverFilters.targetIntents.length ? discoverFilters.targetIntents : intents,
         requireCommonInterests: discoverFilters.requireCommonInterests,
         proOnly: discoverFilters.proOnly,
         includeProfilesWithoutLocation: discoverFilters.includeProfilesWithoutLocation,
@@ -1859,6 +1907,7 @@ function AppContent() {
         desiredAgeMax: nextFilters.ageMax,
         maxDistanceKm: nextFilters.maxDistanceKm,
         desiredInterests: nextFilters.targetInterests,
+        desiredIntents: nextFilters.targetIntents,
         requireCommonInterests: nextFilters.requireCommonInterests,
         proOnly: nextFilters.proOnly,
         includeProfilesWithoutLocation: nextFilters.includeProfilesWithoutLocation
@@ -2478,8 +2527,8 @@ function AppContent() {
     return (
       <ScreenFrame contentPadding={contentPadding}>
         <OnboardingScreen
-          intent={intent}
-          setIntent={setIntent}
+          intents={intents}
+          setIntents={setIntents}
           profileNameMode={profileNameMode}
           setProfileNameMode={setProfileNameMode}
           firstName={firstName}
@@ -2654,7 +2703,8 @@ function AppContent() {
             nickname={nickname}
             setNickname={setNickname}
             birthDate={birthDate}
-            intent={intent}
+            intents={intents}
+            setIntents={setIntents}
             profileBio={profileBio}
             setProfileBio={setProfileBio}
             onBirthDateChange={(value) => {
@@ -2986,9 +3036,22 @@ function AuthScreen({
         <Pressable accessibilityRole="button" disabled={submitDisabled} onPress={onContinue} style={[styles.primaryButton, submitDisabled && styles.primaryButtonDisabled]}>
           <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
         </Pressable>
-        {authMode === "login" && (
+        {authMode === "login" ? (
           <Pressable accessibilityRole="button" disabled={authBusy} onPress={onForgotPassword} style={styles.forgotPasswordButton}>
             <Text style={styles.forgotPasswordText}>Nie pamiętasz hasła?</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            disabled={authBusy}
+            onPress={() => {
+              setAuthMode("login");
+              setConfirmPassword("");
+            }}
+            style={styles.forgotPasswordButton}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={17} color={colors.primary} />
+            <Text style={styles.forgotPasswordText}>Wróć do logowania</Text>
           </Pressable>
         )}
       </View>
@@ -3077,13 +3140,39 @@ function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText:
   );
 }
 
+function IntentMultiSelect({ selected, onChange, compact = false }: { selected: SparkIntent[]; onChange: (value: SparkIntent[]) => void; compact?: boolean }) {
+  function toggleIntent(label: SparkIntent) {
+    const next = selected.includes(label) ? selected.filter((item) => item !== label) : [...selected, label];
+    if (next.length === 0) {
+      Alert.alert("Wybierz cel", "Zaznacz przynajmniej jedną kategorię.");
+      return;
+    }
+    onChange(next.slice(0, 3));
+  }
+
+  return (
+    <View style={[styles.intentList, compact && styles.intentListCompact]}>
+      {sparkIntentOptions.map(({ label, description, icon }) => {
+        const active = selected.includes(label);
+        return (
+          <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggleIntent(label)} style={({ pressed }) => [styles.intentCard, compact && styles.intentCardCompact, active && styles.intentCardActive, pressed && styles.controlPressed]}>
+            <View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon} size={compact ? 21 : 25} color={colors.primaryDeep} /></View>
+            <View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text>{!compact && <Text style={styles.intentDescription}>{description}</Text>}</View>
+            <MaterialCommunityIcons name={active ? "checkbox-marked" : "checkbox-blank-outline"} size={22} color={active ? colors.primary : colors.muted} />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function OnboardingScreen({
-  intent, setIntent, profileNameMode, setProfileNameMode, firstName, setFirstName, lastName, setLastName,
+  intents, setIntents, profileNameMode, setProfileNameMode, firstName, setFirstName, lastName, setLastName,
   nickname, setNickname, birthDate, onBirthDateChange, profileBio, setProfileBio, profilePhotos, setProfilePhotos,
   discoverFilters, setDiscoverFilters, userCity, userCountry, locationStatus, locationBusy, onRequestLocation, selectedInterests, setSelectedInterests,
   canContinue, onContinue
 }: {
-  intent: string; setIntent: (value: string) => void;
+  intents: SparkIntent[]; setIntents: (value: SparkIntent[]) => void;
   profileNameMode: ProfileNameMode; setProfileNameMode: (value: ProfileNameMode) => void;
   firstName: string; setFirstName: (value: string) => void; lastName: string; setLastName: (value: string) => void;
   nickname: string; setNickname: (value: string) => void; birthDate: string; onBirthDateChange: (value: string) => void;
@@ -3093,13 +3182,7 @@ function OnboardingScreen({
   userCity: string; userCountry: string; locationStatus: "idle" | "granted" | "denied"; locationBusy: boolean; onRequestLocation: () => void; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
   canContinue: boolean; onContinue: () => void;
 }) {
-  const [selectedIntent, setSelectedIntent] = useState(intent);
   const derivedAge = calculateAge(birthDate);
-
-  function selectIntent(label: string) {
-    setSelectedIntent(label);
-    setIntent(label);
-  }
 
   async function pickPhoto(index?: number) {
     const uri = await pickImageFromLibrary();
@@ -3172,14 +3255,10 @@ function OnboardingScreen({
 
       <View style={styles.setupSection}>
         <Text style={styles.panelTitle}>Kogo chcesz poznać?</Text>
-        <View style={styles.intentList}>
-          {[["Randki", "Chemia, rozmowy, spotkania", "heart-outline"], ["Znajomi", "Kawa, planszówki, miasto", "coffee-outline"], ["LGBT+ / Społeczność", "Grupy, wydarzenia, znajomości", "account-group-outline"]].map(([label, description, icon]) => {
-            const active = selectedIntent === label;
-            return <Pressable key={label} onPress={() => selectIntent(label)} style={[styles.intentCard, active && styles.intentCardActive]}><View style={styles.intentIcon}><MaterialCommunityIcons name={active ? "check-bold" : icon as any} size={25} color={colors.primaryDeep} /></View><View style={styles.fill}><Text style={styles.intentTitle}>{label}</Text><Text style={styles.intentDescription}>{description}</Text></View></Pressable>;
-          })}
-        </View>
+        <Text style={styles.panelText}>Wybierz jeden lub kilka klimatów. Feed połączy wszystkie wybrane kategorie.</Text>
+        <IntentMultiSelect selected={intents} onChange={setIntents} />
         <Text style={styles.fieldLabel}>Preferowany wiek</Text>
-        <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax }))} />
+        <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax, targetIntents: current.targetIntents.length ? current.targetIntents : intents }))} />
         <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspólnego zainteresowania</Text><Text style={styles.settingHint}>Opcjonalne. Ukryje profile bez wspólnych tagów.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
       </View>
 
@@ -3635,6 +3714,7 @@ function countActiveDiscoverFilters(filters: DiscoverFilters) {
     filters.ageMin !== defaults.ageMin || filters.ageMax !== defaults.ageMax,
     filters.maxDistanceKm !== defaults.maxDistanceKm,
     filters.targetInterests.length > 0,
+    filters.targetIntents.length > 0,
     filters.requireCommonInterests,
     !filters.includeProfilesWithoutLocation,
     filters.proOnly
@@ -3763,14 +3843,14 @@ function DiscoveryPreferencesModal({
   onApply: (nextFilters: DiscoverFilters) => Promise<boolean>;
 }) {
   const insets = useSafeAreaInsets();
-  const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests] }));
+  const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents] }));
   const [saving, setSaving] = useState(false);
   const activeFilters = countActiveDiscoverFilters(draft);
   const distanceOptions = [25, 50, 100, 250, 500];
 
   useEffect(() => {
     if (visible) {
-      setDraft({ ...filters, targetInterests: [...filters.targetInterests] });
+      setDraft({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents] });
       setSaving(false);
     }
   }, [filters, visible]);
@@ -3801,6 +3881,14 @@ function DiscoveryPreferencesModal({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.discoveryFilterScroll} keyboardShouldPersistTaps="handled">
+            <View style={styles.discoveryFilterSection}>
+              <View style={styles.discoveryFilterSectionHeader}>
+                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="account-heart-outline" size={19} color={colors.primary} /></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukam teraz</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetIntents.length ? "Pokaż profile z dowolnej wybranej kategorii." : "Dowolne kategorie - bez zawężania celu."}</Text></View>
+              </View>
+              <IntentMultiSelect compact selected={draft.targetIntents} onChange={(targetIntents) => setDraft((current) => ({ ...current, targetIntents }))} />
+            </View>
+
             <View style={styles.discoveryFilterSection}>
               <View style={styles.discoveryFilterSectionHeader}>
                 <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="calendar-range" size={19} color={colors.primary} /></View>
@@ -4560,8 +4648,8 @@ function EventFriendsManagerModal({
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={local.scroll}>
           <View style={local.hero}>
             <Text style={local.heroEyebrow}>POZNAJCIE SIĘ PRZED WYJŚCIEM</Text>
-            <Text style={local.heroTitle}>Jedno wydarzenie, właściwi ludzie</Text>
-            <Text style={local.heroText}>Wybierz jeden lub kilka konkretnych eventów. W tym feedzie zobaczysz wyłącznie osoby, które wybrały przynajmniej ten sam event.</Text>
+            <Text style={local.heroTitle}>Znajdź znajomych na evencie, na którym też będziesz!</Text>
+            <Text style={local.heroText}>Wybierz jeden lub kilka konkretnych eventów. W tym feedzie zobaczysz wyłącznie osoby, które wybrały ten sam event.</Text>
           </View>
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
           <Text style={local.sectionTitle}>Aktualne wydarzenia</Text>
@@ -5731,7 +5819,8 @@ function ProfileScreen({
   nickname,
   setNickname,
   birthDate,
-  intent,
+  intents,
+  setIntents,
   profileBio,
   setProfileBio,
   onBirthDateChange,
@@ -5771,7 +5860,8 @@ function ProfileScreen({
   nickname: string;
   setNickname: (value: string) => void;
   birthDate: string;
-  intent: string;
+  intents: SparkIntent[];
+  setIntents: (value: SparkIntent[]) => void;
   profileBio: string;
   setProfileBio: (value: string) => void;
   onBirthDateChange: (value: string) => void;
@@ -5829,6 +5919,8 @@ function ProfileScreen({
     image: previewSource,
     photos: previewPhotos,
     interests: selectedInterests,
+    intent: intents[0],
+    intents,
     featuredInterests: selectedInterests.slice(0, 3),
     socials: socialHandlesToProfileSocials(socialHandles),
     premium: hasPro,
@@ -5984,6 +6076,18 @@ function ProfileScreen({
         <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
         <ProfileBioInput value={profileBio} onChangeText={setProfileBio} />
         <LocationControl city={userCity} country={userCountry} status={locationStatus} busy={locationBusy} onPress={onRequestLocation} />
+      </View>
+
+      <View style={styles.profilePanel}>
+        <View style={styles.profileSectionHeader}>
+          <View style={styles.fill}>
+            <Text style={styles.eyebrow}>Twój cel</Text>
+            <Text style={styles.panelTitle}>Kogo chcesz poznać?</Text>
+            <Text style={styles.profileDescription}>Możesz połączyć kilka kategorii. Zmiany zapiszesz przyciskiem na dole.</Text>
+          </View>
+          <MaterialCommunityIcons name="account-heart-outline" size={22} color={colors.primary} />
+        </View>
+        <IntentMultiSelect selected={intents} onChange={setIntents} />
       </View>
 
       <View style={styles.profilePanel}>
@@ -7148,6 +7252,9 @@ const styles = StyleSheet.create({
   intentList: {
     gap: 12
   },
+  intentListCompact: {
+    gap: 8
+  },
   intentCard: {
     minHeight: 82,
     flexDirection: "row",
@@ -7160,6 +7267,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,45,141,0.16)",
     backgroundColor: "rgba(18,18,25,0.82)",
     boxShadow: "0 14px 34px rgba(99,51,61,0.07)"
+  },
+  intentCardCompact: {
+    minHeight: 58,
+    paddingVertical: 9
   },
   intentCardActive: {
     borderColor: "rgba(255,45,141,0.32)",

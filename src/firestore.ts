@@ -31,6 +31,7 @@ export type UserProfileDocument = {
   email: string | null;
   displayName?: string | null;
   intent: string;
+  intents?: string[];
   bio?: string;
   ageBand?: "18+" | null;
   age?: number | null;
@@ -48,6 +49,7 @@ export type UserProfileDocument = {
   desiredAgeMax?: number;
   maxDistanceKm?: number;
   desiredInterests?: string[];
+  desiredIntents?: string[];
   requireCommonInterests?: boolean;
   proOnly?: boolean;
   includeProfilesWithoutLocation?: boolean;
@@ -73,6 +75,18 @@ export type UserProfileDocument = {
   createdAt?: unknown;
   updatedAt?: unknown;
 };
+
+const sparkIntentLabels = ["Randki", "Znajomi", "LGBT+ / Społeczność"] as const;
+
+function normalizeSparkIntents(value: unknown, legacyIntent?: unknown) {
+  const source = Array.isArray(value) ? value : legacyIntent ? [legacyIntent] : [];
+  return Array.from(new Set(
+    source
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => sparkIntentLabels.includes(item as typeof sparkIntentLabels[number]))
+  )).slice(0, 3) as string[];
+}
 
 function roundPublicCoordinate(value: number) {
   return Math.round(value * 100) / 100;
@@ -214,6 +228,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
   const publicMainPhotoUrl = typeof profile.mainPhotoUrl === "string" && publicPhotoUrls.includes(profile.mainPhotoUrl)
     ? profile.mainPhotoUrl
     : publicPhotoUrls[0] ?? null;
+  const intents = normalizeSparkIntents(profile.intents, profile.intent);
   const desiredAgeMin = Math.max(18, Math.min(99, profile.desiredAgeMin ?? 18));
   const desiredAgeMax = Math.max(desiredAgeMin, Math.min(99, profile.desiredAgeMax ?? 99));
   const activeEvents = await keepPublishedSparkEvents(profile.activeEvents);
@@ -223,7 +238,8 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     lastName: profile.lastName,
     profileNameMode: profile.profileNameMode ?? "realName",
     nickname: profile.nickname ?? "",
-    intent: profile.intent,
+    intent: intents[0] ?? "Randki",
+    intents,
     bio:
       typeof profile.bio === "string" && profile.bio.trim().length >= 20
         ? profile.bio.trim().slice(0, 300)
@@ -271,6 +287,7 @@ export type DiscoveryPreferencesDocument = {
   desiredAgeMax: number;
   maxDistanceKm: number;
   desiredInterests: string[];
+  desiredIntents: string[];
   requireCommonInterests: boolean;
   proOnly: boolean;
   includeProfilesWithoutLocation: boolean;
@@ -384,6 +401,8 @@ export async function recordUserLogin(params: {
             firstName,
             lastName,
             intent: "Randki",
+            intents: ["Randki"],
+            desiredIntents: ["Randki"],
             ageBand: params.authProvider === "demo" ? "18+" : null,
             interests: [],
             premiumPlan: "free",
@@ -485,21 +504,25 @@ export async function findTestProfiles() {
 
 export type DiscoveryCursor = QueryDocumentSnapshot<DocumentData>;
 
-export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null) {
+export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null, intents: string[] = []) {
   const currentDb = requireDb();
   const publicProfiles = collection(currentDb, "publicProfiles");
   const pageSize = 30;
   const pageQuery = cursor
     ? query(publicProfiles, orderBy("updatedAt", "desc"), startAfter(cursor), limit(pageSize))
     : query(publicProfiles, orderBy("updatedAt", "desc"), limit(pageSize));
-  const [pageSnapshot, interestSnapshot] = await Promise.all([
+  const normalizedIntents = Array.from(new Set(intents.filter((value) => sparkIntentLabels.includes(value as typeof sparkIntentLabels[number])))).slice(0, 3);
+  const [pageSnapshot, interestSnapshot, intentSnapshot] = await Promise.all([
     getDocs(pageQuery),
     !cursor && interests.length > 0
       ? getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(20)))
+      : Promise.resolve(null),
+    !cursor && normalizedIntents.length > 0
+      ? getDocs(query(publicProfiles, where("intents", "array-contains-any", normalizedIntents), limit(30)))
       : Promise.resolve(null)
   ]);
   const profiles = new Map<string, { id: string; [key: string]: unknown }>();
-  [interestSnapshot, pageSnapshot].forEach((snapshot) => {
+  [interestSnapshot, intentSnapshot, pageSnapshot].forEach((snapshot) => {
     snapshot?.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
   });
   return {
