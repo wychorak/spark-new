@@ -118,6 +118,7 @@ check(rulesSource.includes("hasLike(request.auth.uid, otherMember(resource.data)
 check(appSource.includes('isOwnProfile') && appSource.includes('WYRÓŻNIONE ZAINTERESOWANIA'), 'Profile-card preview and highlighted interests are missing.');
 check(appSource.includes('sendingMessageKeysRef') && firestoreSource.includes('text.length > 2000'), 'Chat duplicate-send and message-length guards are missing.');
 check(appSource.includes('captureRef(cardRef') && appSource.includes('ShareProfileCardModal') && appSource.includes('appInstallUrl'), 'Shareable privacy-safe profile card is missing.');
+check(appSource.includes('Dołącz ze mną') && appSource.includes('source={brandLogoImage}') && !appSource.includes('NOWA ISKRA JEST BLIŻEJ NIŻ MYŚLISZ') && !appSource.includes('Karta zawiera tylko pierwsze imię'), 'Share card must keep the simplified single-logo mobile design.');
 check(appSource.includes('buildConversationStarters') && appSource.includes('Wybierz pierwszą iskrę') && appSource.includes('viewerInterests={selectedInterests}'), 'Personalized first-message starters are missing.');
 check(appSource.includes('shareSparkInvite') && appSource.includes('Zaproś znajomych'), 'Install-link invitation flow is missing.');
 check(eventsSource.includes('isEventActive') && eventsSource.includes('sanitizeActiveEvents') && eventsSource.includes('getSharedActiveEvents'), 'Event Friends expiry or shared-event filtering is missing.');

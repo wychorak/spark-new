@@ -557,9 +557,6 @@ function getProfileKey(profile: MatchProfile) {
   return profile.id;
 }
 
-function getShareCardName(profile: MatchProfile) {
-  return profile.name.trim().split(/\s+/)[0]?.slice(0, 24) || "Nowa osoba";
-}
 
 function buildConversationStarters(profile: MatchProfile, viewerInterests: string[]) {
   const sharedEvent = profile.sharedEvents?.find(isEventActive);
@@ -6107,61 +6104,43 @@ function ShareProfileCardModal({
   const { width, height } = useWindowDimensions();
   const cardRef = useRef<View>(null);
   const entrance = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
   const [sharing, setSharing] = useState(false);
-  const safeName = getShareCardName(profile);
-  const featuredInterests = getFeaturedInterests(profile);
-  const cardWidth = Math.max(238, Math.min(width - 36, 342, ((height - 210) * 9) / 16));
+  const featuredInterests = getFeaturedInterests(profile).slice(0, 3);
+  const availableCardHeight = Math.max(390, height - Math.max(insets.top, 10) - Math.max(insets.bottom, 10) - 250);
+  const cardWidth = Math.max(220, Math.min(width - 28, 360, (availableCardHeight * 9) / 16));
   const cardHeight = cardWidth * 16 / 9;
   const local = StyleSheet.create({
-    root: { flex: 1, backgroundColor: "#050507", alignItems: "center" },
-    header: { width: "100%", minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
-    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
-    headerTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
-    headerSpacer: { width: 42 },
-    stage: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", paddingVertical: 8 },
-    card: { overflow: "hidden", borderRadius: 30, borderCurve: "continuous", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", backgroundColor: "#171018", boxShadow: "0 28px 70px rgba(255,45,141,0.34)" },
+    root: { flex: 1, backgroundColor: "#050507" },
+    header: { width: "100%", minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18 },
+    close: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.075)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    headerTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+    headerSpacer: { width: 40 },
+    stage: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", paddingHorizontal: 14, paddingVertical: 10 },
+    card: { overflow: "hidden", borderRadius: 26, borderCurve: "continuous", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "#111116", boxShadow: "0 24px 64px rgba(255,45,141,0.28)" },
     photo: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
     photoVeil: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-    ambientGlow: { position: "absolute", top: -60, right: -70, width: 210, height: 210, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.32)" },
-    content: { flex: 1, justifyContent: "space-between", padding: 20 },
-    brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    brand: { flexDirection: "row", alignItems: "center", gap: 8 },
-    logo: { width: 38, height: 18 },
-    brandText: { color: "#fff", fontSize: 11, fontWeight: "900", letterSpacing: 1.2 },
-    formatPill: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.4)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
-    formatText: { color: "rgba(255,255,255,0.82)", fontSize: 8, fontWeight: "900" },
-    bottom: { gap: 11 },
-    kicker: { color: "#ff8fc4", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
-    name: { color: "#fff", fontSize: 35, lineHeight: 39, fontWeight: "900" },
-    intro: { maxWidth: "90%", color: "rgba(255,255,255,0.84)", fontSize: 12, lineHeight: 17, fontWeight: "700" },
+    content: { flex: 1, justifyContent: "space-between", padding: 18 },
+    logoTile: { width: 58, height: 58, overflow: "hidden", borderRadius: 17, borderCurve: "continuous", backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(255,255,255,0.7)" },
+    logo: { width: "100%", height: "100%" },
+    bottom: { gap: 12 },
+    invite: { maxWidth: "94%", color: "#fff", fontSize: 34, lineHeight: 37, fontWeight: "900" },
     interests: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    interest: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(5,5,7,0.62)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+    interest: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(5,5,7,0.64)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
     interestText: { color: "#fff", fontSize: 9, fontWeight: "900" },
-    install: { flexDirection: "row", alignItems: "center", gap: 9, paddingTop: 11, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.18)" },
-    installIcon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-    installLabel: { color: "#fff", fontSize: 10, fontWeight: "900" },
-    installUrl: { marginTop: 2, color: "rgba(255,255,255,0.72)", fontSize: 7.5, fontWeight: "700" },
-    footer: { width: "100%", paddingHorizontal: 16, gap: 9 },
-    privacy: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: "center", fontWeight: "700" },
-    shareButton: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 999, backgroundColor: colors.primary, boxShadow: "0 14px 34px rgba(255,45,141,0.32)" },
+    install: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.18)" },
+    installLabel: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "900" },
+    footer: { width: "100%", paddingHorizontal: 18, paddingTop: 8, gap: 8 },
+    shareButton: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 18, borderCurve: "continuous", backgroundColor: colors.primary, boxShadow: "0 12px 30px rgba(255,45,141,0.28)" },
     shareText: { color: "#fff", fontSize: 14, fontWeight: "900" },
-    inviteButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-    inviteText: { color: colors.primaryDeep, fontSize: 12, fontWeight: "900" }
+    inviteButton: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+    inviteText: { color: colors.primaryDeep, fontSize: 11, fontWeight: "900" }
   });
 
   useEffect(() => {
     if (!visible) return;
     entrance.setValue(0);
-    pulse.setValue(0);
-    Animated.spring(entrance, { toValue: 1, damping: 16, stiffness: 150, useNativeDriver: true }).start();
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [entrance, pulse, visible]);
+    Animated.spring(entrance, { toValue: 1, damping: 17, stiffness: 155, useNativeDriver: true }).start();
+  }, [entrance, visible]);
 
   async function shareCard() {
     if (sharing) return;
@@ -6197,43 +6176,33 @@ function ShareProfileCardModal({
         <StatusBar style="light" />
         <View style={local.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zamknij kartę" onPress={onClose} style={local.close}>
-            <MaterialCommunityIcons name="close" size={21} color={colors.ink} />
+            <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
           </Pressable>
-          <Text style={local.headerTitle}>Karta do udostępnienia</Text>
+          <Text style={local.headerTitle}>Udostępnij profil</Text>
           <View style={local.headerSpacer} />
         </View>
         <View style={local.stage}>
-          <Animated.View style={{ opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }] }}>
+          <Animated.View style={{ opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }] }}>
             <View ref={cardRef} collapsable={false} style={[local.card, { width: cardWidth, height: cardHeight }]}>
               <Image source={profile.image} style={local.photo} contentFit="cover" transition={0} />
-              <LinearGradient colors={["rgba(3,3,5,0.16)", "rgba(3,3,5,0.05)", "rgba(5,5,7,0.94)"]} locations={[0, 0.4, 1]} style={local.photoVeil} />
-              <Animated.View style={[local.ambientGlow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.08] }) }] }]} />
+              <LinearGradient colors={["rgba(3,3,5,0.08)", "rgba(3,3,5,0.03)", "rgba(5,5,7,0.96)"]} locations={[0, 0.46, 1]} style={local.photoVeil} />
               <View style={local.content}>
-                <View style={local.brandRow}>
-                  <View style={local.brand}>
-                    <Image source={headerLogoImage} style={local.logo} contentFit="contain" />
-                    <Text style={local.brandText}>SPARK</Text>
-                  </View>
-                  <View style={local.formatPill}><Text style={local.formatText}>POZNAJMY SIĘ</Text></View>
+                <View style={local.logoTile}>
+                  <Image source={brandLogoImage} style={local.logo} contentFit="cover" transition={0} />
                 </View>
                 <View style={local.bottom}>
-                  <Text style={local.kicker}>NOWA ISKRA JEST BLIŻEJ NIŻ MYŚLISZ</Text>
-                  <Text style={local.name} numberOfLines={1}>Poznaj {safeName}</Text>
-                  <Text style={local.intro}>Łączą nas zainteresowania. Resztę historii dopiszemy w Spark.</Text>
+                  <Text style={local.invite}>Dołącz ze mną{String.fromCharCode(10)}do Spark!</Text>
                   <View style={local.interests}>
                     {featuredInterests.map((interest) => (
                       <View key={interest} style={local.interest}>
                         <MaterialCommunityIcons name={getInterestIcon(interest, "star-four-points") as any} size={11} color="#ff8fc4" />
-                        <Text style={local.interestText}>{interest}</Text>
+                        <Text style={local.interestText} numberOfLines={1}>{interest}</Text>
                       </View>
                     ))}
                   </View>
                   <View style={local.install}>
-                    <View style={local.installIcon}><MaterialCommunityIcons name="heart-multiple" size={18} color="#fff" /></View>
-                    <View style={styles.fill}>
-                      <Text style={local.installLabel}>Pobierz Spark i znajdź swoją iskrę</Text>
-                      <Text style={local.installUrl} numberOfLines={1}>{appInstallUrl}</Text>
-                    </View>
+                    <Text style={local.installLabel}>Pobierz Spark w App Store</Text>
+                    <MaterialCommunityIcons name="arrow-top-right" size={17} color="#fff" />
                   </View>
                 </View>
               </View>
@@ -6241,14 +6210,13 @@ function ShareProfileCardModal({
           </Animated.View>
         </View>
         <View style={local.footer}>
-          <Text style={local.privacy}>Karta zawiera tylko pierwsze imię lub nick, zdjęcie i wyróżnione zainteresowania.</Text>
           <Pressable accessibilityRole="button" disabled={sharing} onPress={() => { void shareCard(); }} style={[local.shareButton, sharing && styles.primaryButtonDisabled]}>
-            {sharing ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="instagram" size={20} color="#fff" />}
-            <Text style={local.shareText}>{sharing ? "Tworzenie karty..." : "Udostępnij jako Story"}</Text>
+            {sharing ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="share-variant" size={19} color="#fff" />}
+            <Text style={local.shareText}>{sharing ? "Tworzenie karty..." : "Udostępnij kartę"}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => { void shareSparkInvite(); }} style={local.inviteButton}>
-            <MaterialCommunityIcons name="link-variant" size={18} color={colors.primaryDeep} />
-            <Text style={local.inviteText}>Wyślij klikalny link do aplikacji</Text>
+            <MaterialCommunityIcons name="link-variant" size={17} color={colors.primaryDeep} />
+            <Text style={local.inviteText}>Wyślij link do aplikacji</Text>
           </Pressable>
         </View>
       </View>
