@@ -3023,6 +3023,7 @@ function AppContent() {
             onBlockProfile={blockProfile}
             onReportProfile={reportProfile}
             viewerInterests={selectedInterests}
+            showChatListAd={!revenueCat.isPro && adsReady}
           />
         )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} entrySource={premiumEntrySource} />}
@@ -3971,8 +3972,8 @@ function DiscoverScreen({
         <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}>
           <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
           <View style={styles.fill}>
-            <Text style={styles.eventFriendsLaunchEyebrow}>NOWY SPOSÓB ODKRYWANIA</Text>
-            <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>Event Friends</Text>
+            <Text style={styles.eventFriendsLaunchEyebrow}>{activeEvents.length > 0 ? "UCZESTNICZYSZ W WYDARZENIU" : "NOWY SPOSÓB ODKRYWANIA"}</Text>
+            <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{activeEvents.length > 0 ? "Otwórz feed wydarzeń" : "Event Friends"}</Text>
           </View>
           {activeEvents.length > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>}
           <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
@@ -4397,9 +4398,10 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
   const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
   const sharedEvent = profile.sharedEvents?.[0];
+  const activeEvent = sharedEvent ?? profile.activeEvents?.find(isEventActive);
 
   return (
-    <View style={[styles.profileCard, sharedEvent && styles.profileCardEvent, compact && styles.profileCardCompact]}>
+    <View style={[styles.profileCard, activeEvent && styles.profileCardEvent, compact && styles.profileCardCompact]}>
       <Image source={profile.image} style={styles.profileImage} contentFit="cover" />
       <LinearGradient colors={["transparent", "rgba(0,0,0,0.48)", "rgba(0,0,0,0.94)"]} locations={[0, 0.48, 1]} style={styles.cardShade} />
       {onReport && (
@@ -4421,11 +4423,11 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
         </View>
       ) : null}
       <View style={[styles.profileCopy, compact && styles.profileCopyCompact]}>
-        {sharedEvent && (
+        {activeEvent && (
           <View style={styles.cardSharedEvent}>
-            <MaterialCommunityIcons name={sharedEvent.icon as any} size={13} color="#fff" />
-            <Text style={styles.cardSharedEventText} numberOfLines={1}>Wspólnie: {sharedEvent.name}</Text>
-            <Text style={styles.cardSharedEventDate}>{formatEventDate(sharedEvent)}</Text>
+            <MaterialCommunityIcons name={activeEvent.icon as any} size={13} color="#fff" />
+            <Text style={styles.cardSharedEventText} numberOfLines={1}>{sharedEvent ? "Razem na" : "Uczestniczy"}: {activeEvent.name}</Text>
+            <Text style={styles.cardSharedEventDate}>{formatEventDate(activeEvent)}</Text>
           </View>
         )}
         <View style={styles.profileStatusRow}>
@@ -4524,6 +4526,7 @@ function ProfilePreviewSheet({
   const photoWidth = Math.min(width - 24, 500);
   const compactScreen = width < 380;
   const sharedEvent = profile.sharedEvents?.[0];
+  const activeEvent = sharedEvent ?? profile.activeEvents?.find(isEventActive);
   const recordedProfileKeyRef = useRef<string | null>(null);
   const isMatchedRelationship = relationshipStatus === "matched";
   const isRequestedRelationship = relationshipStatus === "requested";
@@ -4679,15 +4682,15 @@ function ProfilePreviewSheet({
             </View>
           </View>
 
-          {sharedEvent && (
+          {activeEvent && (
             <View style={local.eventPanel}>
-              <View style={local.eventIcon}><MaterialCommunityIcons name={sharedEvent.icon as any} size={20} color="#fff" /></View>
+              <View style={local.eventIcon}><MaterialCommunityIcons name={activeEvent.icon as any} size={20} color="#fff" /></View>
               <View style={styles.fill}>
-                <Text style={local.eventEyebrow}>WSPÓLNY PLAN</Text>
-                <Text style={local.eventTitle} numberOfLines={2}>{sharedEvent.name}</Text>
-                <Text style={local.eventMeta}>{formatEventDateRange(sharedEvent)} · {sharedEvent.city}</Text>
+                <Text style={local.eventEyebrow}>{sharedEvent ? "WSPÓLNY PLAN" : "UCZESTNICZY W WYDARZENIU"}</Text>
+                <Text style={local.eventTitle} numberOfLines={2}>{activeEvent.name}</Text>
+                <Text style={local.eventMeta}>{formatEventDateRange(activeEvent)} · {activeEvent.city}</Text>
               </View>
-              {profile.sharedEvents && profile.sharedEvents.length > 1 && <Text style={local.eventMeta}>+{profile.sharedEvents.length - 1}</Text>}
+              {sharedEvent && profile.sharedEvents && profile.sharedEvents.length > 1 && <Text style={local.eventMeta}>+{profile.sharedEvents.length - 1}</Text>}
             </View>
           )}
 
@@ -5000,6 +5003,10 @@ function EventFriendsManagerModal({
     suggestionActive: { backgroundColor: "rgba(66,217,130,0.09)", borderColor: "rgba(66,217,130,0.25)" },
     datePill: { alignSelf: "flex-start", marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.11)" },
     datePillText: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900" },
+    participationPill: { minHeight: 31, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.25)" },
+    participationPillActive: { backgroundColor: colors.green, borderColor: colors.green },
+    participationText: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900" },
+    participationTextActive: { color: "#062817" },
     emptyWrap: { minHeight: 260, alignItems: "center", justifyContent: "center", padding: 22, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.03)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
     emptyOrbit: { width: 104, height: 104, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
     emptyIcon: { width: 62, height: 62, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: colors.primarySoft },
@@ -5162,7 +5169,7 @@ function EventFriendsManagerModal({
                       <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
                     </View>
                     {canManage && <Pressable accessibilityRole="button" accessibilityLabel={`Usuń wydarzenie ${event.name}`} onPress={(pressEvent) => { pressEvent.stopPropagation(); void deleteCatalogEvent(event); }} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
-                    <MaterialCommunityIcons name={selected ? "check-circle" : "circle-outline"} size={22} color={selected ? colors.green : colors.muted} />
+                    <View style={[local.participationPill, selected && local.participationPillActive]}><MaterialCommunityIcons name={selected ? "check" : "plus"} size={14} color={selected ? "#062817" : colors.primary} /><Text style={[local.participationText, selected && local.participationTextActive]}>{selected ? "Uczestniczę" : "Dołącz"}</Text></View>
                   </Pressable>
                 );
               })}
@@ -5208,7 +5215,7 @@ function EventFriendsManagerModal({
             </View>
           )}
         </ScrollView>
-        <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>Zapisz wybór</Text></Pressable></View>
+        <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>Zapisz udział</Text></Pressable></View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -5285,7 +5292,7 @@ function DiscoverEmptyState({
   return (
     <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
       <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
-      <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>NOWY SPOSÓB ODKRYWANIA</Text><Text style={styles.eventFriendsLaunchTitle}>Event Friends</Text></View>{activeEventCount > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEventCount}</Text>}<MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
+      <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>{activeEventCount > 0 ? "UCZESTNICZYSZ W WYDARZENIU" : "NOWY SPOSÓB ODKRYWANIA"}</Text><Text style={styles.eventFriendsLaunchTitle}>{activeEventCount > 0 ? "Otwórz feed wydarzeń" : "Event Friends"}</Text></View>{activeEventCount > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEventCount}</Text>}<MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
       <View style={styles.discoverEmptyBody}>
         <View style={styles.discoverEmptyIcon}>
           {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
@@ -5753,7 +5760,8 @@ function MessagesScreen({
   onRejectRequest,
   onBlockProfile,
   onReportProfile,
-  viewerInterests
+  viewerInterests,
+  showChatListAd
 }: {
   profiles: MatchProfile[];
   matchedProfileKeys: string[];
@@ -5769,6 +5777,7 @@ function MessagesScreen({
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
   viewerInterests: string[];
+  showChatListAd: boolean;
 }) {
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
@@ -5874,18 +5883,23 @@ function MessagesScreen({
         </View>
       ) : (
         <View style={styles.chatList}>
-          {visibleConversations.map((conversation) => (
-            <Pressable key={conversation.key} accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (conversation.unreadCount > 0 ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
-              <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
-              <View style={styles.fill}>
-                <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} selectable>{conversation.name}</Text>
-                <Text style={[styles.chatMessage, conversation.unreadCount > 0 && styles.chatMessageUnread]} numberOfLines={2} selectable>{conversation.message}</Text>
-              </View>
-              <View style={styles.chatMetaColumn}>
-                <Text style={styles.chatTime} selectable>{conversation.time}</Text>
-                {conversation.unreadCount > 0 && <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>}
-              </View>
-            </Pressable>
+          {visibleConversations.map((conversation, index) => (
+            <React.Fragment key={conversation.key}>
+              <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (conversation.unreadCount > 0 ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
+                <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
+                <View style={styles.fill}>
+                  <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} selectable>{conversation.name}</Text>
+                  <Text style={[styles.chatMessage, conversation.unreadCount > 0 && styles.chatMessageUnread]} numberOfLines={2} selectable>{conversation.message}</Text>
+                </View>
+                <View style={styles.chatMetaColumn}>
+                  <Text style={styles.chatTime} selectable>{conversation.time}</Text>
+                  {conversation.unreadCount > 0 && <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>}
+                </View>
+              </Pressable>
+              {showChatListAd && messageView === "chats" && !normalizedQuery && visibleConversations.length >= 2 && index === Math.min(2, visibleConversations.length - 1) && (
+                <SparkAdBanner enabled placement="messages-list" tone="dark" />
+              )}
+            </React.Fragment>
           ))}
         </View>
       )}

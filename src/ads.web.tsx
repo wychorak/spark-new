@@ -11,6 +11,6 @@ export function useSwipeInterstitialAds(_enabled: boolean) {
   return useCallback(() => undefined, []);
 }
 
-export function SparkAdBanner(_props: { enabled: boolean; placement: string }) {
+export function SparkAdBanner(_props: { enabled: boolean; placement: string; tone?: "light" | "dark" }) {
   return null;
 }

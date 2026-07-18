@@ -160,11 +160,17 @@ const productionAdUnitIds = {
 const adUnitIds = {
   ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.ios),
   android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.android),
+  iosChat: process.env.EXPO_PUBLIC_ADMOB_IOS_CHAT_BANNER_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.ios),
+  androidChat: process.env.EXPO_PUBLIC_ADMOB_ANDROID_CHAT_BANNER_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.android),
   iosInterstitial: process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID || (__DEV__ ? TestIds.INTERSTITIAL : productionAdUnitIds.iosInterstitial),
   androidInterstitial: process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID || (__DEV__ ? TestIds.INTERSTITIAL : productionAdUnitIds.androidInterstitial)
 };
 
-function getBannerUnitId() {
+function getBannerUnitId(placement: string) {
+  if (placement === "messages-list") {
+    return Platform.OS === "ios" ? adUnitIds.iosChat : adUnitIds.androidChat;
+  }
+
   return Platform.OS === "ios" ? adUnitIds.ios : adUnitIds.android;
 }
 
@@ -306,7 +312,7 @@ export function useSwipeInterstitialAds(enabled: boolean) {
   }, [enabled, isLoaded]);
 }
 
-export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placement: string }) {
+export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled: boolean; placement: string; tone?: "light" | "dark" }) {
   const impressionId = useRef("");
   if (!impressionId.current) impressionId.current = createAdImpressionId(placement, "banner");
 
@@ -314,11 +320,11 @@ export function SparkAdBanner({ enabled, placement }: { enabled: boolean; placem
     return null;
   }
 
-  const adUnitId = getBannerUnitId();
+  const adUnitId = getBannerUnitId(placement);
 
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.label}>Reklama</Text>
+    <View style={[styles.wrapper, tone === "dark" && styles.wrapperDark]}>
+      <Text style={[styles.label, tone === "dark" && styles.labelDark]}>Reklama</Text>
       <BannerAd
         unitId={adUnitId}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
@@ -382,10 +388,17 @@ const styles = StyleSheet.create({
     borderColor: "rgba(145,110,111,0.16)",
     overflow: "hidden"
   },
+  wrapperDark: {
+    backgroundColor: "rgba(20,20,26,0.9)",
+    borderColor: "rgba(255,45,141,0.16)"
+  },
   label: {
     color: "#86868b",
     fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase"
+  },
+  labelDark: {
+    color: "#8f8791"
   }
 });
