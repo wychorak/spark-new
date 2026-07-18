@@ -34,17 +34,19 @@ export async function registerSparkPushNotifications(uid: string) {
   return true;
 }
 export type SparkNotificationTarget = {
-  route: "matches" | "messages";
+  route: "matches" | "messages" | "eventFriends";
   threadId?: string;
+  eventId?: string;
 };
 
 function getTarget(response: Notifications.NotificationResponse): SparkNotificationTarget | null {
   const data = response.notification.request.content.data;
   const route = data?.route;
-  if (route !== "matches" && route !== "messages") return null;
+  if (route !== "matches" && route !== "messages" && route !== "eventFriends") return null;
   return {
     route,
-    threadId: typeof data?.threadId === "string" ? data.threadId : undefined
+    threadId: typeof data?.threadId === "string" ? data.threadId : undefined,
+    eventId: typeof data?.eventId === "string" ? data.eventId : undefined
   };
 }
 

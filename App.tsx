@@ -1098,7 +1098,13 @@ function AppContent() {
   }, [matchCelebrationProfile, tab, trackSwipeAd]);
 
   useEffect(() => {
-    const openTarget = (target: { route: "matches" | "messages"; threadId?: string }) => {
+    const openTarget = (target: { route: "matches" | "messages" | "eventFriends"; threadId?: string; eventId?: string }) => {
+      if (target.route === "eventFriends") {
+        setTab("discover");
+        setDiscoverMode("events");
+        setEventManagerOpen(true);
+        return;
+      }
       setTab(target.route);
       if (target.route === "messages" && target.threadId) setPendingNotificationThreadId(target.threadId);
     };

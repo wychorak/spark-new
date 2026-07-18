@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -34,8 +34,7 @@ async function getPushTokens(uid: string) {
   return Array.from(new Set(snapshot.docs.map((document) => String(document.data().token ?? "")).filter(Boolean)));
 }
 
-async function sendPush(uid: string, payload: NotificationPayload) {
-  const tokens = await getPushTokens(uid);
+async function sendPushToTokens(tokens: string[], payload: NotificationPayload) {
   for (let offset = 0; offset < tokens.length; offset += 100) {
     const messages = tokens.slice(offset, offset + 100).map((to) => ({
       to,
@@ -55,6 +54,10 @@ async function sendPush(uid: string, payload: NotificationPayload) {
       throw new Error("Expo push request failed with status " + response.status);
     }
   }
+}
+
+async function sendPush(uid: string, payload: NotificationPayload) {
+  await sendPushToTokens(await getPushTokens(uid), payload);
 }
 
 async function getProfileName(uid: string) {
@@ -587,6 +590,48 @@ async function removeEventFromProfiles(collectionName: "users" | "publicProfiles
   }
 }
 
+export const notifyNewSparkEvent = onDocumentCreated(
+  { document: "sparkEvents/{eventId}", region, timeoutSeconds: 540 },
+  async (event) => {
+    if (!event.data || !(await claimEvent(event.id))) return;
+    const eventData = event.data.data();
+    const eventName = stringValue(eventData.name) || "nowe wydarzenie";
+    const seenTokens = new Set<string>();
+    let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+
+    try {
+      while (true) {
+        let devicesQuery = db.collectionGroup("devices")
+          .orderBy(FieldPath.documentId())
+          .limit(500);
+        if (cursor) devicesQuery = devicesQuery.startAfter(cursor);
+        const devices = await devicesQuery.get();
+        if (devices.empty) break;
+
+        const tokens: string[] = [];
+        devices.docs.forEach((document) => {
+          const data = document.data();
+          const token = data.enabled === true ? stringValue(data.token) : "";
+          if (token && !seenTokens.has(token)) {
+            seenTokens.add(token);
+            tokens.push(token);
+          }
+        });
+        await sendPushToTokens(tokens, {
+          title: "Nowe wydarzenie w aplikacji Spark!",
+          body: "Teraz mo\u017cecie razem i\u015b\u0107 na popularne eventy. Kliknij, aby zobaczy\u0107: " + eventName + ".",
+          data: { route: "eventFriends", eventId: event.params.eventId }
+        });
+
+        cursor = devices.docs[devices.docs.length - 1] ?? null;
+        if (devices.size < 500) break;
+      }
+    } catch (error) {
+      await db.collection("notificationEvents").doc(event.id).delete().catch(() => undefined);
+      throw error;
+    }
+  }
+);
 export const cleanupDeletedSparkEvent = onDocumentDeleted(
   { document: "sparkEvents/{eventId}", region },
   async (event) => {
