@@ -71,6 +71,7 @@ import {
   rejectChatRequest,
   removeSparkEvent,
   requestAccountDeletionAndDeleteProfile,
+  resetPassedProfiles,
   sendChatMessage,
   sendSparkLike,
   syncPublicUserProfile,
@@ -921,6 +922,7 @@ function AppContent() {
   const markingReadThreadIdsRef = useRef(new Set<string>());
   const recentMessageTimesRef = useRef<number[]>([]);
   const deferredSwipeAdRef = useRef(false);
+  const discoveryRefreshBusyRef = useRef(false);
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
   const [pendingNotificationThreadId, setPendingNotificationThreadId] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
@@ -2063,10 +2065,19 @@ function AppContent() {
     }
   }
 
-  function refreshDiscovery() {
+  async function refreshDiscovery() {
+    if (discoveryRefreshBusyRef.current) return;
+    discoveryRefreshBusyRef.current = true;
     tap();
-    setPassedProfileKeys([]);
-    setProfileReloadKey((value) => value + 1);
+    try {
+      if (appUser) await resetPassedProfiles();
+      setPassedProfileKeys([]);
+      setProfileReloadKey((value) => value + 1);
+    } catch (error) {
+      Alert.alert("Pomini\u0119te profile", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 przywr\u00f3ci\u0107 profili. Spr\u00f3buj ponownie.");
+    } finally {
+      discoveryRefreshBusyRef.current = false;
+    }
   }
 
   async function ensureProAccess() {

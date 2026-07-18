@@ -935,6 +935,17 @@ export async function cancelChatRequest(threadId: string) {
   await deleteDoc(doc(requireDb(), "matches", threadId));
 }
 
+export async function resetPassedProfiles() {
+  requireCurrentUserUid();
+  const callable = httpsCallable<Record<string, never>, { removed: number }>(requireCloudFunctions(), "resetPassedProfiles");
+  try {
+    const response = await callable({});
+    return response.data;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udalo sie przywrocic pominietych profili. Sprobuj ponownie."));
+  }
+}
+
 export async function cancelProfileLike(targetUid: string) {
   requireCurrentUserUid();
   const callable = httpsCallable<{ targetUid: string }, { removed: number }>(requireCloudFunctions(), "cancelProfileLike");

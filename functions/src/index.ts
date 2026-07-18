@@ -104,6 +104,32 @@ function validateTargetUid(uid: string, targetUid: string) {
   }
 }
 
+export const resetPassedProfiles = onCall(
+  { region, timeoutSeconds: 30 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj sie ponownie, aby przywrocic pominiete profile.");
+
+    let removed = 0;
+    for (let round = 0; round < 20; round += 1) {
+      const passedSwipes = await db.collection("swipes")
+        .where("fromUid", "==", uid)
+        .where("status", "==", "passed")
+        .limit(400)
+        .get();
+      if (passedSwipes.empty) break;
+
+      const batch = db.batch();
+      passedSwipes.docs.forEach((snapshot) => batch.delete(snapshot.ref));
+      await batch.commit();
+      removed += passedSwipes.size;
+      if (passedSwipes.size < 400) break;
+    }
+
+    return { removed };
+  }
+);
+
 export const cancelProfileLike = onCall(
   { region, timeoutSeconds: 15 },
   async (request) => {
