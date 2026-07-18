@@ -97,6 +97,157 @@ function conversationId(leftUid: string, rightUid: string) {
   return [leftUid, rightUid].sort().join("_");
 }
 
+
+function validateTargetUid(uid: string, targetUid: string) {
+  if (!targetUid || targetUid.length > 128 || targetUid.includes("/") || targetUid === uid) {
+    throw new HttpsError("invalid-argument", "Nieprawidlowy profil odbiorcy.");
+  }
+}
+
+export const cancelProfileLike = onCall(
+  { region, timeoutSeconds: 15 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj sie ponownie, aby usunac polubienie.");
+    const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
+    const targetUid = stringValue(data.targetUid);
+    validateTargetUid(uid, targetUid);
+    const swipes = await db.collection("swipes").where("fromUid", "==", uid).where("toProfileKey", "==", targetUid).limit(20).get();
+    if (swipes.empty) return { removed: 0 };
+    const batch = db.batch();
+    swipes.docs.forEach((snapshot) => batch.delete(snapshot.ref));
+    await batch.commit();
+    return { removed: swipes.size };
+  }
+);
+
+export const sendSparkLike = onCall(
+  { region, timeoutSeconds: 15 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj sie ponownie, aby wyslac SparkLike.");
+    const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
+    const targetUid = stringValue(data.targetUid);
+    const eventId = stringValue(data.eventId);
+    validateTargetUid(uid, targetUid);
+    if (!(await hasVerifiedPro(uid, request.auth?.token ?? {}))) {
+      throw new HttpsError("permission-denied", "Spark Pro nie jest jeszcze aktywny po stronie serwera. Odswiez dostep Pro i sprobuj ponownie za chwile.");
+    }
+
+    const nowMs = Date.now();
+    const now = new Date(nowMs);
+    const currentPeriod = now.getUTCFullYear() * 100 + now.getUTCMonth() + 1;
+    const canonicalSwipeRef = db.collection("swipes").doc(uid + "_" + targetUid);
+    const accountRef = db.collection("users").doc(uid);
+    const senderProfileRef = db.collection("publicProfiles").doc(uid);
+    const targetProfileRef = db.collection("publicProfiles").doc(targetUid);
+    const senderBlockRef = accountRef.collection("blocks").doc(targetUid);
+    const targetBlockRef = db.collection("users").doc(targetUid).collection("blocks").doc(uid);
+    const matchRef = db.collection("matches").doc(conversationId(uid, targetUid));
+    const eventRef = eventId ? db.collection("sparkEvents").doc(eventId) : null;
+    const legacySwipes = await db.collection("swipes").where("fromUid", "==", uid).where("toProfileKey", "==", targetUid).limit(20).get();
+
+    return db.runTransaction(async (transaction) => {
+      const account = await transaction.get(accountRef);
+      const senderProfile = await transaction.get(senderProfileRef);
+      const targetProfile = await transaction.get(targetProfileRef);
+      const senderBlock = await transaction.get(senderBlockRef);
+      const targetBlock = await transaction.get(targetBlockRef);
+      const canonicalSwipe = await transaction.get(canonicalSwipeRef);
+      const existingMatch = await transaction.get(matchRef);
+      const event = eventRef ? await transaction.get(eventRef) : null;
+
+      if (!account.exists || account.data()?.moderationStatus === "suspended") {
+        throw new HttpsError("permission-denied", "To konto nie moze teraz wysylac SparkLike.");
+      }
+      if (!senderProfile.exists || !targetProfile.exists) {
+        throw new HttpsError("not-found", "Ten profil nie jest juz dostepny.");
+      }
+      if (senderBlock.exists || targetBlock.exists) {
+        throw new HttpsError("permission-denied", "Nie mozesz wyslac SparkLike do tego profilu.");
+      }
+
+      const accountData = account.data() ?? {};
+      const used = accountData.superlikePeriod === currentPeriod && typeof accountData.superlikesUsed === "number" ? accountData.superlikesUsed : 0;
+      const alreadySuperliked = canonicalSwipe.exists && canonicalSwipe.data()?.direction === "superlike";
+      if (!alreadySuperliked && used >= 10) {
+        throw new HttpsError("resource-exhausted", "Miesieczny limit 10 SparkLike zostal wykorzystany.");
+      }
+
+      const targetData = targetProfile.data() ?? {};
+      const resetAt = targetData.isTestProfile === true ? Timestamp.fromMillis(nowMs + 24 * 60 * 60 * 1000) : null;
+      const previousSwipe = legacySwipes.docs.find((snapshot) => snapshot.data().eventContext)?.data() ?? {};
+      const senderData = senderProfile.data() ?? {};
+      const senderEvents = Array.isArray(senderData.activeEventIds) ? senderData.activeEventIds : [];
+      const targetEvents = Array.isArray(targetData.activeEventIds) ? targetData.activeEventIds : [];
+      const eventData = event?.exists ? event.data() ?? {} : {};
+      const hasSharedEvent = Boolean(eventId && event?.exists && senderEvents.includes(eventId) && (targetEvents.includes(eventId) || targetData.isTestProfile === true));
+      const eventContext = hasSharedEvent ? {
+        id: eventId,
+        category: eventData.category,
+        name: eventData.name,
+        city: eventData.city,
+        date: eventData.date,
+        kind: "specific",
+        icon: eventData.icon,
+        startsAt: eventData.startsAt,
+        endsAt: eventData.endsAt
+      } : previousSwipe.eventContext ?? null;
+      const matchData = existingMatch.data() ?? {};
+      if (existingMatch.exists && ["blocked", "rejected"].includes(String(matchData.status))) {
+        throw new HttpsError("failed-precondition", "Ta relacja zostala wczesniej zamknieta.");
+      }
+
+      transaction.set(canonicalSwipeRef, {
+        fromUid: uid,
+        toProfileKey: targetUid,
+        direction: "superlike",
+        status: "liked",
+        matchScore: typeof data.matchScore === "number" ? Math.max(0, Math.min(100, data.matchScore)) : null,
+        eventContext,
+        resetAt,
+        createdAt: canonicalSwipe.exists ? canonicalSwipe.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      if (!alreadySuperliked) {
+        transaction.update(accountRef, {
+          superlikePeriod: currentPeriod,
+          superlikesUsed: used + 1,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      if (existingMatch.exists) {
+        transaction.update(matchRef, {
+          status: "matched",
+          source: "superlike",
+          eventContext: matchData.eventContext ?? eventContext,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+      } else {
+        transaction.create(matchRef, {
+          memberUids: [uid, targetUid],
+          createdByUid: uid,
+          source: "superlike",
+          eventContext,
+          status: "matched",
+          resetAt,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      legacySwipes.docs.filter((snapshot) => snapshot.ref.path !== canonicalSwipeRef.path).forEach((snapshot) => transaction.delete(snapshot.ref));
+      return {
+        status: "matched" as const,
+        threadId: matchRef.id,
+        superlikesRemaining: Math.max(0, 10 - used - (alreadySuperliked ? 0 : 1))
+      };
+    });
+  }
+);
+
 export const createPremiumChatRequest = onCall(
   { region, timeoutSeconds: 15 },
   async (request) => {

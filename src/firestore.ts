@@ -935,8 +935,29 @@ export async function cancelChatRequest(threadId: string) {
   await deleteDoc(doc(requireDb(), "matches", threadId));
 }
 
-export async function cancelProfileLike(swipeId: string) {
-  await deleteDoc(doc(requireDb(), "swipes", swipeId));
+export async function cancelProfileLike(targetUid: string) {
+  requireCurrentUserUid();
+  const callable = httpsCallable<{ targetUid: string }, { removed: number }>(requireCloudFunctions(), "cancelProfileLike");
+  try {
+    const response = await callable({ targetUid });
+    return response.data;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udalo sie usunac polubienia. Sprobuj ponownie."));
+  }
+}
+
+export async function sendSparkLike(params: { targetUid: string; matchScore?: number; eventId?: string }) {
+  requireCurrentUserUid();
+  const callable = httpsCallable<
+    { targetUid: string; matchScore?: number; eventId?: string },
+    { status: "matched"; threadId: string; superlikesRemaining: number }
+  >(requireCloudFunctions(), "sendSparkLike");
+  try {
+    const response = await callable(params);
+    return response.data;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udalo sie wyslac SparkLike. Sprobuj ponownie."));
+  }
 }
 
 

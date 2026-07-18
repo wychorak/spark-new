@@ -72,6 +72,7 @@ import {
   removeSparkEvent,
   requestAccountDeletionAndDeleteProfile,
   sendChatMessage,
+  sendSparkLike,
   syncPublicUserProfile,
   updateUserActiveEvents,
   updateUserDiscoveryPreferences,
@@ -2101,7 +2102,7 @@ function AppContent() {
 
     }
 
-    if (appUser) {
+    if (appUser && action !== "superlike") {
       try {
         const swipeResult = await recordProfileSwipe({
           swipeId: getThreadId(appUser.uid, targetKey),
@@ -2137,16 +2138,14 @@ function AppContent() {
       }
       const currentUserUid = appUser.uid;
       try {
-        await createMatchThread({
-          matchId: getConversationId(currentUserUid, targetKey),
-          memberUids: [currentUserUid, targetKey],
-          createdByUid: currentUserUid,
-          source: "superlike",
-          eventContext,
-          resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
+        const result = await sendSparkLike({
+          targetUid: targetKey,
+          matchScore: targetProfile.matchScore,
+          eventId: eventContext?.id
         });
+        setSuperlikesRemaining(result.superlikesRemaining);
       } catch (error) {
-        Alert.alert("SparkLike", error instanceof Error ? error.message : "Nie udało się utworzyć matchu. Spróbuj ponownie.");
+        Alert.alert("SparkLike", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 wys\u0142a\u0107 SparkLike. Spr\u00f3buj ponownie.");
         return "cancelled";
       }
 
@@ -2442,7 +2441,7 @@ function AppContent() {
   async function cancelOutgoingLike(profileKey: string) {
     if (!appUser) return;
     try {
-      await cancelProfileLike(getThreadId(appUser.uid, profileKey));
+      await cancelProfileLike(profileKey);
       setLikedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
     } catch {
       Alert.alert("Polubienie", "Nie uda\u0142o si\u0119 usun\u0105\u0107 oczekuj\u0105cego polubienia. Spr\u00f3buj ponownie.");
@@ -2468,20 +2467,10 @@ function AppContent() {
 
     const eventContext = chatThreads[profileKey]?.eventContext;
     try {
-      const swipeResult = await recordProfileSwipe({
-        swipeId: getThreadId(appUser.uid, profileKey),
-        fromUid: appUser.uid,
-        toProfileKey: profileKey,
-        direction: "superlike",
+      const swipeResult = await sendSparkLike({
+        targetUid: profileKey,
         matchScore: profile.matchScore,
-        eventContext
-      });
-      await createMatchThread({
-        matchId: getConversationId(appUser.uid, profileKey),
-        memberUids: [appUser.uid, profileKey],
-        createdByUid: appUser.uid,
-        source: "superlike",
-        eventContext
+        eventId: eventContext?.id
       });
 
       if (typeof swipeResult.superlikesRemaining === "number") {
