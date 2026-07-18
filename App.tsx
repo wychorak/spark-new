@@ -77,6 +77,7 @@ import {
   sendChatMessage,
   sendSparkLike,
   syncPublicUserProfile,
+  unblockUser,
   updateUserActiveEvents,
   updateUserDiscoveryPreferences,
   upsertUserProfile,
@@ -2672,6 +2673,22 @@ function AppContent() {
     }
   }
 
+  async function unblockProfile(profileKey: string): Promise<boolean> {
+    if (!appUser) return false;
+    try {
+      await unblockUser(appUser.uid, profileKey);
+      setBlockedProfileKeys((keys) => keys.filter((key) => key !== profileKey));
+      setChatThreads((threads) => {
+        const next = { ...threads };
+        if (next[profileKey]?.status === "blocked") delete next[profileKey];
+        return next;
+      });
+      return true;
+    } catch {
+      Alert.alert("Odblokowanie", "Nie udało się odblokować profilu. Sprawdź połączenie i spróbuj ponownie.");
+      return false;
+    }
+  }
   async function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomo\u015b\u0107"): Promise<boolean> {
     if (!appUser) {
       Alert.alert("Zg\u0142oszenie", "Zaloguj si\u0119 ponownie, aby wys\u0142a\u0107 zg\u0142oszenie.");
@@ -3027,7 +3044,7 @@ function AppContent() {
           />
         )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} entrySource={premiumEntrySource} />}
-        {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} />}
+        {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} blockedProfileKeys={blockedProfileKeys} onUnblock={unblockProfile} onReport={reportProfile} />}
         {tab === "profile" && (
           <ProfileScreen
             firstName={firstName}
@@ -4485,7 +4502,8 @@ function ProfilePreviewSheet({
   superlikesRemaining = 0,
   relationshipStatus = "none",
   isOwnProfile = false,
-  readOnly = false
+  readOnly = false,
+  blocked = false
 }: {
   profile: MatchProfile;
   viewerInterests: string[];
@@ -4500,6 +4518,7 @@ function ProfilePreviewSheet({
   relationshipStatus?: "none" | "liked" | "requested" | "matched";
   isOwnProfile?: boolean;
   readOnly?: boolean;
+  blocked?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -4563,6 +4582,10 @@ function ProfilePreviewSheet({
     subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
     subtitleText: { color: "#e4bdc3", fontSize: 12, lineHeight: 17, fontWeight: "800" },
     eventPanel: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.11)", borderWidth: 1, borderColor: "rgba(255,45,141,0.28)" },
+    blockedPanel: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,77,109,0.1)", borderWidth: 1, borderColor: "rgba(255,77,109,0.3)" },
+    blockedIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,77,109,0.16)" },
+    blockedTitle: { color: "#ff8298", fontSize: 12, fontWeight: "900" },
+    blockedText: { marginTop: 2, color: colors.muted, fontSize: 10, lineHeight: 14, fontWeight: "700" },
     eventIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
     eventEyebrow: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
     eventTitle: { marginTop: 2, color: colors.ink, fontSize: 13, fontWeight: "900" },
@@ -4682,6 +4705,16 @@ function ProfilePreviewSheet({
             </View>
           </View>
 
+          {blocked && (
+            <View style={local.blockedPanel}>
+              <View style={local.blockedIcon}><MaterialCommunityIcons name="account-cancel" size={20} color="#ff8298" /></View>
+              <View style={styles.fill}>
+                <Text style={local.blockedTitle}>Profil zablokowany</Text>
+                <Text style={local.blockedText}>Ta osoba nie może zobaczyć Twojego profilu ani wysyłać Ci wiadomości.</Text>
+              </View>
+              <MaterialCommunityIcons name="shield-check" size={20} color="#ff8298" />
+            </View>
+          )}
           {activeEvent && (
             <View style={local.eventPanel}>
               <View style={local.eventIcon}><MaterialCommunityIcons name={activeEvent.icon as any} size={20} color="#fff" /></View>
@@ -5141,9 +5174,9 @@ function EventFriendsManagerModal({
         </View>
         <ScrollView ref={eventFormScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={local.scroll}>
           <View style={local.hero}>
-            <Text style={local.heroEyebrow}>POZNAJCIE SIĘ PRZED WYJŚCIEM</Text>
-            <Text style={local.heroTitle}>Znajdź znajomych na evencie, na którym też będziesz!</Text>
-            <Text style={local.heroText}>Wybierz jeden lub kilka konkretnych eventów. W tym feedzie zobaczysz wyłącznie osoby, które wybrały ten sam event.</Text>
+            <Text style={local.heroEyebrow}>TYMCZASOWE BADGE I FILTRY</Text>
+            <Text style={local.heroTitle}>Wybierz wydarzenia, na które idziesz</Text>
+            <Text style={local.heroText}>Na profilu pojawi się tymczasowe oznaczenie, a specjalny feed pokaże osoby z tego samego wydarzenia i pasującego wieku. Wybór znika godzinę po zakończeniu.</Text>
           </View>
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
           <Text style={local.sectionTitle}>Aktualne wydarzenia</Text>
@@ -5782,6 +5815,7 @@ function MessagesScreen({
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const [profilePreview, setProfilePreview] = useState<MatchProfile | null>(null);
+  const [profileReturnChatKey, setProfileReturnChatKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState(
     pendingMessageDraft?.profileKey === selectedChatKey ? pendingMessageDraft.text : ""
   );
@@ -5839,6 +5873,22 @@ function MessagesScreen({
     setSelectedChatKey(null);
   }
 
+  function openConversationProfile() {
+    if (!selectedConversation) return;
+    const profile = selectedConversation.profile;
+    setProfileReturnChatKey(selectedConversation.key);
+    setSelectedChatKey(null);
+    setTimeout(() => setProfilePreview(profile), 0);
+  }
+
+  function closeConversationProfile(returnToChat = true) {
+    const returnKey = profileReturnChatKey;
+    setProfilePreview(null);
+    setProfileReturnChatKey(null);
+    if (returnToChat && returnKey) {
+      setTimeout(() => setSelectedChatKey(returnKey), 40);
+    }
+  }
   return (
     <View style={styles.gapLg}>
       <TopBar eyebrow="Wiadomości" title="Rozmowy" left="message-text-outline" right="account-group-outline" />
@@ -5915,17 +5965,17 @@ function MessagesScreen({
         onReject={onRejectRequest}
         onBlock={onBlockProfile}
         onReport={onReportProfile}
-        onOpenProfile={() => setProfilePreview(selectedConversation?.profile ?? null)}
+        onOpenProfile={openConversationProfile}
         viewerInterests={viewerInterests}
       />
       {profilePreview && (
         <ProfilePreviewSheet
           profile={profilePreview}
           viewerInterests={viewerInterests}
-          onClose={() => setProfilePreview(null)}
+          onClose={() => closeConversationProfile(true)}
           canViewSocials={matchedProfileKeys.includes(getProfileKey(profilePreview))}
           relationshipStatus={matchedProfileKeys.includes(getProfileKey(profilePreview)) ? "matched" : chatRequestKeys.includes(getProfileKey(profilePreview)) ? "requested" : "none"}
-          onMessage={() => setProfilePreview(null)}
+          onMessage={() => closeConversationProfile(true)}
         />
       )}
     </View>
@@ -5988,7 +6038,11 @@ function ChatConversationModal({
     starterList: { width: "100%", gap: 8, marginTop: 4 },
     starterChip: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
     starterChipText: { flex: 1, color: "#f5dce7", fontSize: 11, lineHeight: 16, fontWeight: "800" },
-    bubble: { maxWidth: "82%", paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18 },
+    messageRow: { width: "100%", flexDirection: "row", alignItems: "flex-end", gap: 7 },
+    messageRowMine: { justifyContent: "flex-end" },
+    messageAvatar: { width: 28, height: 28, borderRadius: 10, borderCurve: "continuous", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+    messageAvatarSpacer: { width: 28, height: 28 },
+    bubble: { maxWidth: "78%", paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18 },
     bubbleMe: { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 6 },
     bubbleThem: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.08)", borderBottomLeftRadius: 6 },
     bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20, fontWeight: "600" },
@@ -6058,7 +6112,7 @@ function ChatConversationModal({
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style="light" />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Wroc" onPress={onClose} style={local.back}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} style={local.back}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`Otwórz profil ${activeConversation.name}`} onPress={onOpenProfile} style={local.identityButton}>
@@ -6088,12 +6142,22 @@ function ChatConversationModal({
           ref={messageListRef}
           data={messages}
           keyExtractor={(item) => item.id}
-          renderItem={({ item: message }) => (
-            <View style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
-              <Text style={local.bubbleText} selectable>{message.text}</Text>
-              <Text style={local.bubbleTime}>{message.time}</Text>
-            </View>
-          )}
+          renderItem={({ item: message, index }) => {
+            const isMine = message.from === "me";
+            const nextMessage = messages[index + 1];
+            const showAvatar = !isMine && (!nextMessage || nextMessage.from === "me");
+            return (
+              <View style={[local.messageRow, isMine && local.messageRowMine]}>
+                {!isMine && (showAvatar
+                  ? <Image source={activeConversation.profile.image} style={local.messageAvatar} contentFit="cover" />
+                  : <View style={local.messageAvatarSpacer} />)}
+                <View style={[local.bubble, isMine ? local.bubbleMe : local.bubbleThem]}>
+                  <Text style={local.bubbleText} selectable>{message.text}</Text>
+                  <Text style={local.bubbleTime}>{message.time}</Text>
+                </View>
+              </View>
+            );
+          }}
           ListEmptyComponent={
             <View style={local.empty}>
               <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
@@ -7455,30 +7519,181 @@ function TextField({ label, value, onChangeText, secureTextEntry = false, keyboa
     </View>
   );
 }
-function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDeleteAccount: () => void }) {
+function BlockedProfilesModal({
+  visible,
+  blockedProfileKeys,
+  onClose,
+  onUnblock,
+  onReport
+}: {
+  visible: boolean;
+  blockedProfileKeys: string[];
+  onClose: () => void;
+  onUnblock: (profileKey: string) => Promise<boolean>;
+  onReport: (profileKey: string, reason?: string) => Promise<boolean>;
+}) {
+  const insets = useSafeAreaInsets();
+  const [entries, setEntries] = useState<Array<{ key: string; profile: MatchProfile | null }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (blockedProfileKeys.length === 0) {
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    void getPublicProfiles(blockedProfileKeys).then((documents) => {
+      if (!active) return;
+      setEntries(blockedProfileKeys.map((key, index) => ({
+        key,
+        profile: documents[index] ? mapRemoteProfile(documents[index] as Record<string, unknown>) : null
+      })));
+    }).catch(() => {
+      if (active) setEntries(blockedProfileKeys.map((key) => ({ key, profile: null })));
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [blockedProfileKeys.join("|"), visible]);
+
+  const local = StyleSheet.create({
+    root: { flex: 1, backgroundColor: "#050507" },
+    header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
+    back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
+    title: { color: colors.ink, fontSize: 19, fontWeight: "900" },
+    subtitle: { marginTop: 2, color: colors.muted, fontSize: 10, fontWeight: "700" },
+    count: { minWidth: 34, height: 28, textAlign: "center", textAlignVertical: "center", paddingHorizontal: 9, borderRadius: 999, color: "#ff8298", backgroundColor: "rgba(255,77,109,0.13)", fontSize: 10, fontWeight: "900" },
+    content: { gap: 10, padding: 14 },
+    intro: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,77,109,0.08)", borderWidth: 1, borderColor: "rgba(255,77,109,0.2)" },
+    introText: { flex: 1, color: "#d9c9d1", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+    item: { gap: 11, padding: 13, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,77,109,0.18)" },
+    itemTop: { flexDirection: "row", alignItems: "center", gap: 11 },
+    avatar: { width: 52, height: 52, borderRadius: 17, borderCurve: "continuous", opacity: 0.78 },
+    avatarFallback: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,77,109,0.12)" },
+    name: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+    meta: { marginTop: 3, color: colors.muted, fontSize: 10, fontWeight: "700" },
+    badge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(255,77,109,0.13)" },
+    badgeText: { color: "#ff8298", fontSize: 8, fontWeight: "900", textTransform: "uppercase" },
+    actions: { flexDirection: "row", gap: 8 },
+    action: { flex: 1, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.06)" },
+    actionDanger: { backgroundColor: "rgba(255,77,109,0.11)" },
+    actionText: { color: colors.ink, fontSize: 10, fontWeight: "900" },
+    actionDangerText: { color: "#ff8298" },
+    empty: { alignItems: "center", gap: 10, paddingVertical: 70, paddingHorizontal: 24 },
+    emptyIcon: { width: 68, height: 68, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(66,217,130,0.1)" },
+    emptyTitle: { color: colors.ink, fontSize: 17, fontWeight: "900", textAlign: "center" },
+    emptyText: { color: colors.muted, fontSize: 11, lineHeight: 17, fontWeight: "700", textAlign: "center" }
+  });
+
+  function confirmUnblock(entry: { key: string; profile: MatchProfile | null }) {
+    const name = entry.profile ? [entry.profile.name, entry.profile.surname].filter(Boolean).join(" ") : "tę osobę";
+    Alert.alert("Odblokuj profil", "Odblokować " + name + "? Profil może ponownie pojawić się w odkrywaniu, ale stary match nie zostanie automatycznie przywrócony.", [
+      { text: "Anuluj", style: "cancel" },
+      {
+        text: "Odblokuj",
+        onPress: () => {
+          setBusyKey(entry.key);
+          void onUnblock(entry.key).finally(() => setBusyKey(null));
+        }
+      }
+    ]);
+  }
+
+  function report(entry: { key: string; profile: MatchProfile | null }) {
+    const name = entry.profile?.name ?? "ten profil";
+    Alert.alert("Zgłoś profil", "Wybierz powód zgłoszenia: " + name + ".", [
+      { text: "Spam", onPress: () => { void onReport(entry.key, "Spam lub reklamy"); } },
+      { text: "Nękanie", onPress: () => { void onReport(entry.key, "Nękanie lub obraźliwe zachowanie"); } },
+      { text: "Fałszywy profil", onPress: () => { void onReport(entry.key, "Fałszywy profil"); } },
+      { text: "Anuluj", style: "cancel" }
+    ]);
+  }
+
+  return (
+    <>
+      <Modal visible={visible && !previewProfile} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+        <View style={local.root}>
+          <StatusBar style="light" />
+          <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} style={local.back}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
+            <View style={styles.fill}><Text style={local.title}>Zablokowane osoby</Text><Text style={local.subtitle}>Zarządzaj bezpieczeństwem i widocznością profili.</Text></View>
+            <Text style={local.count}>{blockedProfileKeys.length}</Text>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[local.content, { paddingBottom: Math.max(insets.bottom, 18) }]}>
+            <View style={local.intro}><MaterialCommunityIcons name="shield-lock-outline" size={22} color="#ff8298" /><Text style={local.introText}>Zablokowane osoby nie widzą Twojego profilu i nie mogą wysyłać Ci wiadomości. Nadal możesz je zgłosić.</Text></View>
+            {loading ? (
+              <View style={local.empty}><ActivityIndicator color={colors.primary} size="large" /><Text style={local.emptyText}>Pobieramy listę zablokowanych osób.</Text></View>
+            ) : entries.length === 0 ? (
+              <View style={local.empty}><View style={local.emptyIcon}><MaterialCommunityIcons name="shield-check" size={31} color={colors.green} /></View><Text style={local.emptyTitle}>Lista jest pusta</Text><Text style={local.emptyText}>Nie masz obecnie zablokowanych osób.</Text></View>
+            ) : entries.map((entry) => {
+              const displayName = entry.profile ? [entry.profile.name, entry.profile.surname].filter(Boolean).join(" ") : "Profil niedostępny";
+              return (
+                <View key={entry.key} style={local.item}>
+                  <Pressable accessibilityRole="button" disabled={!entry.profile} onPress={() => entry.profile && setPreviewProfile(entry.profile)} style={local.itemTop}>
+                    {entry.profile ? <Image source={entry.profile.image} style={local.avatar} contentFit="cover" /> : <View style={local.avatarFallback}><MaterialCommunityIcons name="account-off" size={24} color="#ff8298" /></View>}
+                    <View style={styles.fill}><Text style={local.name} numberOfLines={1}>{displayName}</Text><Text style={local.meta}>{entry.profile ? [entry.profile.city, entry.profile.age + " lat"].filter(Boolean).join(" · ") : "Konto usunięte lub ukryte"}</Text></View>
+                    <View style={local.badge}><MaterialCommunityIcons name="cancel" size={11} color="#ff8298" /><Text style={local.badgeText}>Zablokowany</Text></View>
+                  </Pressable>
+                  <View style={local.actions}>
+                    <Pressable accessibilityRole="button" onPress={() => report(entry)} style={local.action}><MaterialCommunityIcons name="alert-outline" size={16} color={colors.primaryDeep} /><Text style={local.actionText}>Zgłoś</Text></Pressable>
+                    <Pressable accessibilityRole="button" disabled={busyKey === entry.key} onPress={() => confirmUnblock(entry)} style={[local.action, local.actionDanger]}>{busyKey === entry.key ? <ActivityIndicator size="small" color="#ff8298" /> : <MaterialCommunityIcons name="account-check-outline" size={16} color="#ff8298" />}<Text style={[local.actionText, local.actionDangerText]}>Odblokuj</Text></Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+      {previewProfile && (
+        <ProfilePreviewSheet profile={previewProfile} viewerInterests={[]} onClose={() => setPreviewProfile(null)} canViewSocials={false} readOnly blocked />
+      )}
+    </>
+  );
+}
+
+function SafetyCenter({
+  onBack,
+  onDeleteAccount,
+  blockedProfileKeys,
+  onUnblock,
+  onReport
+}: {
+  onBack: () => void;
+  onDeleteAccount: () => void;
+  blockedProfileKeys: string[];
+  onUnblock: (profileKey: string) => Promise<boolean>;
+  onReport: (profileKey: string, reason?: string) => Promise<boolean>;
+}) {
+  const [blockedListOpen, setBlockedListOpen] = useState(false);
+
   const manageAdPrivacy = async () => {
     try {
       const opened = await openAdsPrivacyOptions();
       if (!opened) {
-        Alert.alert("Prywatno\u015b\u0107 reklam", "Dla Twojego regionu nie s\u0105 wymagane dodatkowe ustawienia zg\u00f3d reklamowych.");
+        Alert.alert("Prywatność reklam", "Dla Twojego regionu nie są wymagane dodatkowe ustawienia zgód reklamowych.");
       }
     } catch {
-      Alert.alert("Prywatno\u015b\u0107 reklam", "Nie uda\u0142o si\u0119 otworzy\u0107 ustawie\u0144. Sprawd\u017a po\u0142\u0105czenie i spr\u00f3buj ponownie.");
+      Alert.alert("Prywatność reklam", "Nie udało się otworzyć ustawień. Sprawdź połączenie i spróbuj ponownie.");
     }
   };
 
   const actions = [
     {
-      title: "Zgłoś profil",
-      body: "Wy\u015blij zg\u0142oszenie do moderacji z ostatnim kontekstem rozmowy.",
-      cta: "W feedzie",
-      onPress: () => Alert.alert("Zgłoś profil", "Zgłoszenia wysyłasz z karty profilu lub wątku rozmowy.")
+      title: "Zablokowane osoby",
+      body: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) + " zablokowane. Otwórz listę, aby zarządzać." : "Lista zablokowanych profili jest pusta.",
+      cta: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) : "Otwórz",
+      onPress: () => setBlockedListOpen(true)
     },
     {
-      title: "Zablokuj u\u017cytkownika",
-      body: "Ukryj profil, przerwij match i zablokuj wiadomości.",
-      cta: "W feedzie",
-      onPress: () => Alert.alert("Blokuj", "Blokowanie jest dostępne na karcie profilu i w wiadomościach.")
+      title: "Zgłoś profil",
+      body: "Wyślij zgłoszenie do moderacji z karty profilu lub rozmowy.",
+      cta: "W profilu",
+      onPress: () => Alert.alert("Zgłoś profil", "Zgłoszenia wysyłasz z karty profilu lub wątku rozmowy.")
     },
     {
       title: "Zasady społeczności",
@@ -7493,8 +7708,8 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
       onPress: () => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
     },
     {
-      title: "Prywatno\u015b\u0107 reklam",
-      body: "Zmie\u0144 wyb\u00f3r dotycz\u0105cy zg\u00f3d i sposobu wy\u015bwietlania reklam.",
+      title: "Prywatność reklam",
+      body: "Zmień wybór dotyczący zgód i sposobu wyświetlania reklam.",
       cta: "Ustaw",
       onPress: () => void manageAdPrivacy()
     },
@@ -7516,14 +7731,14 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
           <Text style={styles.eyebrow} selectable>Bezpieczeństwo</Text>
           <Text style={styles.screenTitle} selectable>Centrum bezpieczeństwa</Text>
         </View>
-        <IconButton label="?" onPress={() => openSupportEmail("Spark - pomoc i bezpiecze\u0144stwo")} />
+        <IconButton label="?" onPress={() => openSupportEmail("Spark - pomoc i bezpieczeństwo")} />
       </View>
 
       <View style={styles.safetyHero}>
         <View style={styles.safetyHeroIcon}><MaterialCommunityIcons name={"shield-heart" as any} size={28} color={colors.primaryDeep} /></View>
         <Text style={styles.safetyHeroTitle} selectable>Bezpieczne poznawanie ludzi</Text>
         <Text style={styles.safetyHeroText} selectable>
-          Ka\u017cdy profil mo\u017ce zosta\u0107 zg\u0142oszony lub zablokowany. Zg\u0142oszenia trafiaj\u0105 do moderacji, a blokada natychmiast ukrywa profil i przerywa kontakt.
+          Każdy profil może zostać zgłoszony lub zablokowany. Zgłoszenia trafiają do moderacji, a blokada natychmiast ukrywa profil i przerywa kontakt.
         </Text>
       </View>
 
@@ -7542,16 +7757,17 @@ function SafetyCenter({ onBack, onDeleteAccount }: { onBack: () => void; onDelet
       <View style={styles.deleteCard}>
         <Text style={styles.deleteTitle} selectable>Usunięcie konta w aplikacji</Text>
         <Text style={styles.deleteText} selectable>
-          Usunie konto, zdj\u0119cia, profil, polubienia, matche i wiadomo\u015bci. Minimalne dane bezpiecze\u0144stwa i rozlicze\u0144 mog\u0105 zosta\u0107 zachowane zgodnie z polityk\u0105 prywatno\u015bci.
+          Usunie konto, zdjęcia, profil, polubienia, matche i wiadomości. Minimalne dane bezpieczeństwa i rozliczeń mogą zostać zachowane zgodnie z polityką prywatności.
         </Text>
         <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={styles.deleteAccountButton}>
           <Text style={styles.deleteAccountButtonText}>Usuń konto</Text>
         </Pressable>
       </View>
+
+      <BlockedProfilesModal visible={blockedListOpen} blockedProfileKeys={blockedProfileKeys} onClose={() => setBlockedListOpen(false)} onUnblock={onUnblock} onReport={onReport} />
     </View>
   );
 }
-
 function TopBar({
   eyebrow,
   title,

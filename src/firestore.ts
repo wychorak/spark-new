@@ -379,14 +379,14 @@ export async function updateUserDiscoveryPreferences(uid: string, preferences: D
 
 export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) {
   requireCurrentUserUid(uid);
-  const activeEvents = await keepPublishedSparkEvents(events);
-  await setDoc(
-    doc(requireDb(), "users", uid),
-    { activeEvents, activeEventIds: activeEvents.map((event) => event.id), updatedAt: serverTimestamp() },
-    { merge: true }
-  );
-  await syncPublicUserProfile(uid);
-  return activeEvents;
+  const requestedEvents = sanitizeActiveEvents(events);
+  const callable = httpsCallable<{ eventIds: string[] }, { events: SparkEvent[] }>(requireCloudFunctions(), "updateActiveEvents");
+  try {
+    const response = await callable({ eventIds: requestedEvents.map((event) => event.id) });
+    return sanitizeActiveEvents(response.data.events);
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się zapisać udziału w wydarzeniach. Spróbuj ponownie."));
+  }
 }
 
 export function observeSparkEvents(
@@ -1058,4 +1058,11 @@ export async function blockUser(params: { blockerUid: string; blockedUid: string
       transaction.update(matchRef, { status: "blocked", blockedByUid: params.blockerUid, updatedAt: serverTimestamp() });
     }
   });
+}
+export async function unblockUser(blockerUid: string, blockedUid: string) {
+  requireCurrentUserUid(blockerUid);
+  if (!blockedUid || blockedUid.includes("/") || blockedUid === blockerUid) {
+    throw new Error("Nieprawidłowy profil do odblokowania.");
+  }
+  await deleteDoc(doc(requireDb(), "users", blockerUid, "blocks", blockedUid));
 }

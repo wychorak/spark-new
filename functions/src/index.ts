@@ -103,15 +103,79 @@ function conversationId(leftUid: string, rightUid: string) {
 
 function validateTargetUid(uid: string, targetUid: string) {
   if (!targetUid || targetUid.length > 128 || targetUid.includes("/") || targetUid === uid) {
-    throw new HttpsError("invalid-argument", "Nieprawidlowy profil odbiorcy.");
+    throw new HttpsError("invalid-argument", "Nieprawidłowy profil odbiorcy.");
   }
 }
 
+function eventSelectionFromSnapshot(snapshot: FirebaseFirestore.DocumentSnapshot) {
+  if (!snapshot.exists) return null;
+  const data = snapshot.data() ?? {};
+  const endsAt = stringValue(data.endsAt);
+  const expiresAt = new Date(endsAt).getTime() + 60 * 60 * 1000;
+  if (!endsAt || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
+
+  const event = {
+    id: snapshot.id,
+    category: stringValue(data.category),
+    name: stringValue(data.name),
+    city: stringValue(data.city),
+    date: stringValue(data.date),
+    kind: "specific",
+    icon: stringValue(data.icon),
+    startsAt: stringValue(data.startsAt),
+    endsAt
+  };
+  if (!event.category || !event.name || !event.city || !event.date || !event.icon || !event.startsAt) return null;
+  return event;
+}
+
+export const updateActiveEvents = onCall(
+  { region, timeoutSeconds: 20 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie, aby zapisać wydarzenia.");
+    const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
+    const eventIds = Array.isArray(data.eventIds)
+      ? Array.from(new Set(data.eventIds.map(stringValue).filter((id) => id && id.length <= 220 && !id.includes("/")))).slice(0, 4)
+      : [];
+    if (!Array.isArray(data.eventIds) || data.eventIds.length > 4) {
+      throw new HttpsError("invalid-argument", "Możesz wybrać maksymalnie 4 wydarzenia.");
+    }
+
+    const eventSnapshots = eventIds.length > 0
+      ? await db.getAll(...eventIds.map((eventId) => db.collection("sparkEvents").doc(eventId)))
+      : [];
+    const events = eventSnapshots.map(eventSelectionFromSnapshot).filter((event): event is NonNullable<typeof event> => Boolean(event));
+    const activeEventIds = events.map((event) => event.id);
+    const userRef = db.collection("users").doc(uid);
+    const publicProfileRef = db.collection("publicProfiles").doc(uid);
+
+    await db.runTransaction(async (transaction) => {
+      const user = await transaction.get(userRef);
+      const publicProfile = await transaction.get(publicProfileRef);
+      if (!user.exists || user.data()?.moderationStatus === "suspended") {
+        throw new HttpsError("permission-denied", "To konto nie może teraz aktualizować wydarzeń.");
+      }
+      if (!publicProfile.exists) {
+        throw new HttpsError("failed-precondition", "Najpierw dokończ profil, aby dołączyć do wydarzenia.");
+      }
+      const update = { activeEvents: events, activeEventIds };
+      transaction.update(userRef, update);
+      transaction.update(publicProfileRef, {
+        activeEvents: events,
+        activeEventIds,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    });
+
+    return { events };
+  }
+);
 export const resetPassedProfiles = onCall(
   { region, timeoutSeconds: 30 },
   async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj sie ponownie, aby przywrocic pominiete profile.");
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie, aby przywrócić pominięte profile.");
 
     let removed = 0;
     for (let round = 0; round < 20; round += 1) {
@@ -137,7 +201,7 @@ export const cancelProfileLike = onCall(
   { region, timeoutSeconds: 15 },
   async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj sie ponownie, aby usunac polubienie.");
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie, aby usunąć polubienie.");
     const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
     const targetUid = stringValue(data.targetUid);
     validateTargetUid(uid, targetUid);
@@ -154,13 +218,13 @@ export const sendSparkLike = onCall(
   { region, timeoutSeconds: 15 },
   async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj sie ponownie, aby wyslac SparkLike.");
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie, aby wysłać SparkLike.");
     const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
     const targetUid = stringValue(data.targetUid);
     const eventId = stringValue(data.eventId);
     validateTargetUid(uid, targetUid);
     if (!(await hasVerifiedPro(uid, request.auth?.token ?? {}))) {
-      throw new HttpsError("permission-denied", "Spark Pro nie jest jeszcze aktywny po stronie serwera. Odswiez dostep Pro i sprobuj ponownie za chwile.");
+      throw new HttpsError("permission-denied", "Spark Pro nie jest jeszcze aktywny po stronie serwera. Odśwież dostęp Pro i spróbuj ponownie za chwilę.");
     }
 
     const nowMs = Date.now();
@@ -187,20 +251,20 @@ export const sendSparkLike = onCall(
       const event = eventRef ? await transaction.get(eventRef) : null;
 
       if (!account.exists || account.data()?.moderationStatus === "suspended") {
-        throw new HttpsError("permission-denied", "To konto nie moze teraz wysylac SparkLike.");
+        throw new HttpsError("permission-denied", "To konto nie może teraz wysyłać SparkLike.");
       }
       if (!senderProfile.exists || !targetProfile.exists) {
-        throw new HttpsError("not-found", "Ten profil nie jest juz dostepny.");
+        throw new HttpsError("not-found", "Ten profil nie jest już dostępny.");
       }
       if (senderBlock.exists || targetBlock.exists) {
-        throw new HttpsError("permission-denied", "Nie mozesz wyslac SparkLike do tego profilu.");
+        throw new HttpsError("permission-denied", "Nie możesz wysłać SparkLike do tego profilu.");
       }
 
       const accountData = account.data() ?? {};
       const used = accountData.superlikePeriod === currentPeriod && typeof accountData.superlikesUsed === "number" ? accountData.superlikesUsed : 0;
       const alreadySuperliked = canonicalSwipe.exists && canonicalSwipe.data()?.direction === "superlike";
       if (!alreadySuperliked && used >= 10) {
-        throw new HttpsError("resource-exhausted", "Miesieczny limit 10 SparkLike zostal wykorzystany.");
+        throw new HttpsError("resource-exhausted", "Miesięczny limit 10 SparkLike został wykorzystany.");
       }
 
       const targetData = targetProfile.data() ?? {};
@@ -224,7 +288,7 @@ export const sendSparkLike = onCall(
       } : previousSwipe.eventContext ?? null;
       const matchData = existingMatch.data() ?? {};
       if (existingMatch.exists && ["blocked", "rejected"].includes(String(matchData.status))) {
-        throw new HttpsError("failed-precondition", "Ta relacja zostala wczesniej zamknieta.");
+        throw new HttpsError("failed-precondition", "Ta relacja została wcześniej zamknięta.");
       }
 
       transaction.set(canonicalSwipeRef, {
