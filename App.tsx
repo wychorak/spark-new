@@ -3075,6 +3075,13 @@ function AppContent() {
             locationStatus={locationStatus}
             locationBusy={locationBusy}
             onRequestLocation={() => { void updateCurrentLocation(true); }}
+            activeEvents={activeEvents}
+            onManageEvents={() => setEventManagerOpen(true)}
+            onOpenEventFeed={() => {
+              setDiscoverMode("events");
+              setTab("discover");
+            }}
+            onLeaveEvent={(eventId) => saveActiveEvents(activeEvents.filter((event) => event.id !== eventId))}
             email={email}
             selectedInterests={selectedInterests}
             setSelectedInterests={setSelectedInterests}
@@ -3483,7 +3490,7 @@ function LocationControl({ city, country, status, busy, onPress }: { city: strin
         {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <MaterialCommunityIcons name="crosshairs-gps" size={18} color={colors.primary} />}
         <Text style={styles.locationActionText}>{label}</Text>
       </Pressable>
-      <Text style={styles.locationPrivacyText}>Opcjonalne. Publicznie pokazujemy tylko przybli\u017con\u0105 odleg\u0142o\u015b\u0107 oraz miasto lub kraj.</Text>
+      <Text style={styles.locationPrivacyText}>Opcjonalne. Publicznie pokazujemy tylko przybliżoną odległość oraz miasto lub kraj.</Text>
     </View>
   );
 }
@@ -3654,7 +3661,7 @@ function OnboardingScreen({
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
-        <Text style={styles.fieldLabel}>Twoja p\u0142e\u0107</Text>
+        <Text style={styles.fieldLabel}>Twoja płeć</Text>
         <GenderIdentitySelect value={gender} onChange={setGender} />
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : derivedAge < 18 ? String(derivedAge) + " lat - Spark jest dostępny od 18 lat." : derivedAge > 99 ? "Sprawdź rok urodzenia." : String(derivedAge) + " lat"}</Text>
@@ -3695,8 +3702,8 @@ function OnboardingScreen({
         <Text style={styles.panelTitle}>Kogo chcesz poznać?</Text>
         <Text style={styles.panelText}>Wybierz jeden lub kilka klimatów. Feed połączy wszystkie wybrane kategorie.</Text>
         <IntentMultiSelect selected={intents} onChange={(nextIntents) => { setIntents(nextIntents); setDiscoverFilters((current) => ({ ...current, targetIntents: nextIntents })); }} />
-        <Text style={styles.fieldLabel}>Kogo chcesz widzie\u0107?</Text>
-        <Text style={styles.setupHelper}>Ustaw osobno dla ka\u017cdej wybranej kategorii.</Text>
+        <Text style={styles.fieldLabel}>Kogo chcesz widzieć?</Text>
+        <Text style={styles.setupHelper}>Ustaw osobno dla każdej wybranej kategorii.</Text>
         <GenderPreferencesEditor intents={intents} value={discoverFilters.targetGendersByIntent} onChange={(targetGendersByIntent) => setDiscoverFilters((current) => ({ ...current, targetGendersByIntent }))} />
         <Text style={styles.fieldLabel}>Preferowany wiek</Text>
         <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax, targetIntents: current.targetIntents.length ? current.targetIntents : intents }))} />
@@ -4335,8 +4342,8 @@ function DiscoveryPreferencesModal({
               </View>
               <IntentMultiSelect compact selected={draft.targetIntents} onChange={(targetIntents) => setDraft((current) => ({ ...current, targetIntents }))} />
               <View style={{ marginTop: 12, gap: 7 }}>
-                <Text style={styles.discoveryFilterSectionTitle}>P\u0142e\u0107 wed\u0142ug kategorii</Text>
-                <Text style={styles.discoveryFilterSectionHint}>Mo\u017cesz szuka\u0107 innych os\u00f3b na randki, a innych do znajomo\u015bci.</Text>
+                <Text style={styles.discoveryFilterSectionTitle}>Płeć według kategorii</Text>
+                <Text style={styles.discoveryFilterSectionHint}>Możesz szukać innych osób na randki, a innych do znajomości.</Text>
                 <GenderPreferencesEditor compact intents={draft.targetIntents} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
               </View>
             </View>
@@ -4853,14 +4860,14 @@ function ProfilePreviewSheet({
             {isMatchedRelationship ? (
               <Pressable accessibilityRole="button" accessibilityLabel="Otw\u00f3rz chat" onPress={onMessage} style={[local.actionPrimary, { flex: 1 }]}>
                 <MaterialCommunityIcons name="message-text" size={22} color="#fff" />
-                <Text style={[local.actionLabel, local.actionLabelPrimary]}>Otw\u00f3rz chat</Text>
+                <Text style={[local.actionLabel, local.actionLabelPrimary]}>Otwórz chat</Text>
                 <Text style={[local.actionMeta, local.actionMetaPrimary]}>Match aktywny</Text>
               </Pressable>
             ) : isRequestedRelationship ? (
               <View style={[local.actionSecondary, { flex: 1 }]}>
                 <MaterialCommunityIcons name="clock-check-outline" size={21} color={colors.primary} />
-                <Text style={local.actionLabel}>Pro\u015bba wys\u0142ana</Text>
-                <Text style={local.actionMeta}>Czeka na akceptacj\u0119</Text>
+                <Text style={local.actionLabel}>Prośba wysłana</Text>
+                <Text style={local.actionMeta}>Czeka na akceptację</Text>
               </View>
             ) : (
               <>
@@ -4879,7 +4886,7 @@ function ProfilePreviewSheet({
                 </Pressable>
                 {onMessage && <Pressable accessibilityRole="button" accessibilityLabel="Napisz pierwsz\u0105 wiadomo\u015b\u0107" onPress={onMessage} style={local.actionSecondary}>
                   <MaterialCommunityIcons name="message-plus" size={20} color={colors.primary} />
-                  <Text style={local.actionLabel} numberOfLines={2} maxFontSizeMultiplier={1.1}>Napisz pierwsz\u0105</Text>
+                  <Text style={local.actionLabel} numberOfLines={2} maxFontSizeMultiplier={1.1}>Napisz pierwszą</Text>
                   <View style={local.actionMetaRow}>
                     {messageLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
                     <Text style={local.actionMeta}>{messageLocked ? "Spark Pro" : "Przed matchem"}</Text>
@@ -5906,7 +5913,7 @@ function MessagesScreen({
       </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats" ? (unreadChatsCount > 0 ? formatUnreadLabel(unreadChatsCount) : chatConversations.length + " aktywne") : requestConversations.length + " oczekuj\u0105ce"}
+          {messageView === "chats" ? (unreadChatsCount > 0 ? formatUnreadLabel(unreadChatsCount) : chatConversations.length + " aktywne") : requestConversations.length + " oczekujące"}
         </Text>
       </View>
       <View style={styles.searchField}>
@@ -6120,7 +6127,7 @@ function ChatConversationModal({
             <View style={styles.fill}>
               <Text style={local.name} selectable>{activeConversation.name}</Text>
               <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
-              <Text style={local.profileHint}>Dotknij, aby zobaczy\u0107 profil</Text>
+              <Text style={local.profileHint}>Dotknij, aby zobaczyć profil</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
           </Pressable>
@@ -6165,7 +6172,7 @@ function ChatConversationModal({
               <Text style={local.emptyText} selectable>{canMessage ? "Zacznij od czego\u015b, co naprawd\u0119 Was \u0142\u0105czy." : "Wiadomo\u015bci odblokuj\u0105 si\u0119 po zaakceptowaniu pro\u015bby."}</Text>
               {canMessage && (
                 <>
-                  <Text style={local.starterLead}>Wybierz pierwsz\u0105 iskr\u0119</Text>
+                  <Text style={local.starterLead}>Wybierz pierwszą iskrę</Text>
                   <View style={local.starterList}>
                     {conversationStarters.map((starter) => (
                       <Pressable key={starter} accessibilityRole="button" onPress={() => { void Haptics.selectionAsync(); setDraft(starter); }} style={local.starterChip}>
@@ -6773,6 +6780,10 @@ function ProfileScreen({
   locationStatus,
   locationBusy,
   onRequestLocation,
+  activeEvents,
+  onManageEvents,
+  onOpenEventFeed,
+  onLeaveEvent,
   email,
   selectedInterests,
   setSelectedInterests,
@@ -6817,6 +6828,10 @@ function ProfileScreen({
   locationStatus: "idle" | "granted" | "denied";
   locationBusy: boolean;
   onRequestLocation: () => void;
+  activeEvents: SparkEvent[];
+  onManageEvents: () => void;
+  onOpenEventFeed: () => void;
+  onLeaveEvent: (eventId: string) => Promise<boolean>;
   email: string;
   selectedInterests: string[];
   setSelectedInterests: (value: string[]) => void;
@@ -6842,7 +6857,24 @@ function ProfileScreen({
   const [saveBusy, setSaveBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [shareCardOpen, setShareCardOpen] = useState(false);
+  const [profileSection, setProfileSection] = useState<"overview" | "edit">("overview");
+  const [leavingEventId, setLeavingEventId] = useState<string | null>(null);
   const maxPhotos = hasPro ? 15 : 3;
+  const profileLocal = StyleSheet.create({
+    eventHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+    eventHeaderCopy: { flex: 1, gap: 3 },
+    eventManage: { minHeight: 36, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.12)" },
+    eventManageText: { color: colors.primaryDeep, fontSize: 10, fontWeight: "900" },
+    eventList: { gap: 8, marginTop: 12 },
+    eventRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 62, padding: 10, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,45,141,0.16)" },
+    eventIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.16)" },
+    eventName: { color: colors.ink, fontSize: 12, fontWeight: "900" },
+    eventMeta: { marginTop: 3, color: colors.muted, fontSize: 9, fontWeight: "700" },
+    eventOpen: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    eventLeave: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    eventEmpty: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.07)" },
+    eventEmptyText: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 15, fontWeight: "700" }
+  });
   const visiblePhotoCount = Math.min(profilePhotos.length, maxPhotos);
   const hiddenPhotoCount = Math.max(0, profilePhotos.length - maxPhotos);
   const previewPhoto = profilePhotos[0] ?? brandLogoImage;
@@ -6925,7 +6957,26 @@ function ProfileScreen({
     setSaveBusy(false);
     if (saved) {
       Alert.alert("Profil zapisany", "Zmiany są już widoczne w Twoim profilu.");
+      setProfileSection("overview");
     }
+  }
+
+  function confirmLeaveEvent(event: SparkEvent) {
+    Alert.alert(
+      "Zrezygnować z wydarzenia?",
+      "Profil zniknie z feedu „" + event.name + "”. Możesz dołączyć ponownie, dopóki wydarzenie jest aktywne.",
+      [
+        { text: "Zostań", style: "cancel" },
+        {
+          text: "Zrezygnuj",
+          style: "destructive",
+          onPress: () => {
+            setLeavingEventId(event.id);
+            void onLeaveEvent(event.id).finally(() => setLeavingEventId(null));
+          }
+        }
+      ]
+    );
   }
   return (
     <View style={styles.profileScreen}>
@@ -6979,6 +7030,55 @@ function ProfileScreen({
         ))}
       </View>
 
+      <View style={styles.segmentedChoice}>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: profileSection === "overview" }} onPress={() => setProfileSection("overview")} style={[styles.segmentedChoiceItem, profileSection === "overview" && styles.segmentedChoiceItemActive]}>
+          <Text style={[styles.segmentedChoiceText, profileSection === "overview" && styles.segmentedChoiceTextActive]}>Przegląd</Text>
+        </Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: profileSection === "edit" }} onPress={() => setProfileSection("edit")} style={[styles.segmentedChoiceItem, profileSection === "edit" && styles.segmentedChoiceItemActive]}>
+          <Text style={[styles.segmentedChoiceText, profileSection === "edit" && styles.segmentedChoiceTextActive]}>Edytuj profil</Text>
+        </Pressable>
+      </View>
+
+      {profileSection === "overview" && (
+        <>
+          <View style={styles.profilePanel}>
+            <View style={profileLocal.eventHeader}>
+              <View style={profileLocal.eventHeaderCopy}>
+                <Text style={styles.eyebrow}>EVENT FRIENDS</Text>
+                <Text style={styles.panelTitle}>Moje wydarzenia</Text>
+                <Text style={styles.profileDescription}>{activeEvents.length > 0 ? "Przejdź do osób z tych samych wydarzeń albo zrezygnuj z udziału." : "Dołącz do wydarzenia i poznaj osoby, które też tam będą."}</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={onManageEvents} style={profileLocal.eventManage}>
+                <Text style={profileLocal.eventManageText}>{activeEvents.length > 0 ? "Zarządzaj" : "Wybierz"}</Text>
+              </Pressable>
+            </View>
+            {activeEvents.length > 0 ? (
+              <View style={profileLocal.eventList}>
+                {activeEvents.slice(0, 3).map((event) => (
+                  <View key={event.id} style={profileLocal.eventRow}>
+                    <View style={profileLocal.eventIcon}><MaterialCommunityIcons name={event.icon as any} size={20} color={colors.primaryDeep} /></View>
+                    <View style={styles.fill}>
+                      <Text style={profileLocal.eventName} numberOfLines={1}>{event.name}</Text>
+                      <Text style={profileLocal.eventMeta} numberOfLines={1}>{formatEventDateRange(event)} · {event.city}</Text>
+                    </View>
+                    <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz feed " + event.name} onPress={onOpenEventFeed} style={profileLocal.eventOpen}>
+                      <MaterialCommunityIcons name="account-search-outline" size={18} color="#fff" />
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={"Zrezygnuj z " + event.name} disabled={leavingEventId === event.id} onPress={() => confirmLeaveEvent(event)} style={profileLocal.eventLeave}>
+                      {leavingEventId === event.id ? <ActivityIndicator size="small" color={colors.primaryDeep} /> : <MaterialCommunityIcons name="close" size={18} color={colors.primaryDeep} />}
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={onManageEvents} style={profileLocal.eventEmpty}>
+                <MaterialCommunityIcons name="calendar-heart" size={24} color={colors.primaryDeep} />
+                <Text style={profileLocal.eventEmptyText}>Nie uczestniczysz jeszcze w żadnym aktywnym wydarzeniu.</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primaryDeep} />
+              </Pressable>
+            )}
+          </View>
+
       <ProfileViewerPanel
         hasPro={hasPro}
         viewers={profileViewers}
@@ -7011,7 +7111,32 @@ function ProfileScreen({
         </View>
       </LinearGradient>
 
-      <View style={styles.profilePanel}>
+      <View style={styles.settingsList}>
+        <SettingRow label="Spark Pro" value={hasPro ? "Aktywne" : "Zobacz"} onPress={openPremium} />
+        <SettingRow
+          label="Subskrypcja"
+          value="Zarządzaj"
+          onPress={async () => {
+            const result = await openCustomerCenter();
+            if (!result.ok && result.message) Alert.alert("Customer Center", result.message);
+          }}
+        />
+        <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
+      </View>
+      <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOutButton}>
+        <View style={styles.signOutIcon}><MaterialCommunityIcons name="logout" size={20} color="#ff668f" /></View>
+        <View style={styles.fill}>
+          <Text style={styles.signOutTitle}>Wyloguj się</Text>
+          <Text style={styles.signOutHint}>Zakończ sesję na tym urządzeniu</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={21} color={colors.muted} />
+      </Pressable>
+        </>
+      )}
+
+      {profileSection === "edit" && (
+        <>
+          <View style={styles.profilePanel}>
         <View style={styles.profileSectionHeader}>
           <View style={styles.fill}>
             <Text style={styles.eyebrow} selectable>Podstawy</Text>
@@ -7024,7 +7149,7 @@ function ProfileScreen({
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
-        <Text style={styles.fieldLabel}>Twoja p\u0142e\u0107</Text>
+        <Text style={styles.fieldLabel}>Twoja płeć</Text>
         <GenderIdentitySelect value={gender} onChange={setGender} compact />
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
@@ -7042,7 +7167,7 @@ function ProfileScreen({
           <MaterialCommunityIcons name="account-heart-outline" size={22} color={colors.primary} />
         </View>
         <IntentMultiSelect selected={intents} onChange={setIntents} />
-        <Text style={styles.fieldLabel}>Preferowane osoby w ka\u017cdej kategorii</Text>
+        <Text style={styles.fieldLabel}>Preferowane osoby w każdej kategorii</Text>
         <GenderPreferencesEditor intents={intents} value={discoverFilters.targetGendersByIntent} onChange={(targetGendersByIntent) => setDiscoverFilters((current) => ({ ...current, targetGendersByIntent }))} compact />
       </View>
 
@@ -7109,33 +7234,12 @@ function ProfileScreen({
         <CategorizedInterestPicker selected={selectedInterests} onToggle={(item) => setSelectedInterests(toggleListItem(selectedInterests, item))} maxSelected={15} />
       </View>
 
-      <View style={styles.settingsList}>
-        <SettingRow label="Spark Pro" value={hasPro ? "Aktywne" : "Zobacz"} onPress={openPremium} />
-        <SettingRow
-          label="Subskrypcja"
-          value="Zarządzaj"
-          onPress={async () => {
-            const result = await openCustomerCenter();
-            if (!result.ok && result.message) {
-              Alert.alert("Customer Center", result.message);
-            }
-          }}
-        />
-        <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
-      </View>
-      <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOutButton}>
-        <View style={styles.signOutIcon}><MaterialCommunityIcons name="logout" size={20} color="#ff668f" /></View>
-        <View style={styles.fill}>
-          <Text style={styles.signOutTitle}>{"Wyloguj si\u0119"}</Text>
-          <Text style={styles.signOutHint}>{"Zako\u0144cz sesj\u0119 na tym urz\u0105dzeniu"}</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={21} color={colors.muted} />
-      </Pressable>
-
       <Pressable accessibilityRole="button" disabled={saveBusy} onPress={() => void handleSaveProfile()} style={[styles.primaryButton, saveBusy && styles.primaryButtonDisabled]}>
         <MaterialCommunityIcons name="content-save" size={19} color="#fff" />
         <Text style={styles.primaryButtonText}>{saveBusy ? "Zapisywanie..." : "Zapisz zmiany"}</Text>
       </Pressable>
+        </>
+      )}
 
       {previewOpen && (
         <ProfilePreviewSheet

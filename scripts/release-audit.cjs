@@ -142,6 +142,7 @@ check(firestoreSource.includes('findProfilesByActiveEvents') && firestoreSource.
 check(rulesSource.includes('validEventList') && rulesSource.includes('isEventAdmin') && rulesSource.includes('match /sparkEvents/{eventId}'), 'Curated Event Friends catalog authorization is incomplete.');
 check(functionsSource.includes('cleanupExpiredSparkEvents') && functionsSource.includes('every 15 minutes') && functionsSource.includes('cleanupDeletedSparkEvent'), 'Expired Event Friends cleanup is missing.');
 check(appSource.includes('EventFriendsManagerModal') && appSource.includes('EventFriendsEmptyState') && appSource.includes('discoverMode === "events"'), 'Separate Event Friends discovery flow is missing.');
+check(!/>[^<>{]*\\u[0-9a-f]{4}[^<>{]*</i.test(appSource), 'Visible JSX text contains a literal Unicode escape.');
 check(appSource.includes('sparkEventAdminEmail') && appSource.includes('PANEL ORGANIZATORA') && !appSource.includes('buildSuggestedEvents'), 'Event creation must stay restricted to the Spark organizer account.');
 check(eventsSource.includes('eventIconOptions') && appSource.includes('Ikona wydarzenia') && rulesSource.includes("'microphone-variant'"), 'Curated thematic event icons are missing.');
 check(appSource.includes('WSPÓLNY PLAN') && appSource.includes('Uczestniczę') && appSource.includes('Razem na') && appSource.includes('calendar-heart'), 'Shared and temporary event participation context is missing from profile and chat UI.');

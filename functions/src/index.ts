@@ -256,7 +256,9 @@ export const sendSparkLike = onCall(
       if (!senderProfile.exists || !targetProfile.exists) {
         throw new HttpsError("not-found", "Ten profil nie jest już dostępny.");
       }
-      if (senderBlock.exists || targetBlock.exists) {
+      const targetData = targetProfile.data() ?? {};
+      const targetIsTestProfile = targetData.isTestProfile === true;
+      if (senderBlock.exists || (targetBlock.exists && !targetIsTestProfile)) {
         throw new HttpsError("permission-denied", "Nie możesz wysłać SparkLike do tego profilu.");
       }
 
@@ -267,14 +269,14 @@ export const sendSparkLike = onCall(
         throw new HttpsError("resource-exhausted", "Miesięczny limit 10 SparkLike został wykorzystany.");
       }
 
-      const targetData = targetProfile.data() ?? {};
+
       const resetAt = targetData.isTestProfile === true ? Timestamp.fromMillis(nowMs + 24 * 60 * 60 * 1000) : null;
       const previousSwipe = legacySwipes.docs.find((snapshot) => snapshot.data().eventContext)?.data() ?? {};
       const senderData = senderProfile.data() ?? {};
       const senderEvents = Array.isArray(senderData.activeEventIds) ? senderData.activeEventIds : [];
       const targetEvents = Array.isArray(targetData.activeEventIds) ? targetData.activeEventIds : [];
       const eventData = event?.exists ? event.data() ?? {} : {};
-      const hasSharedEvent = Boolean(eventId && event?.exists && senderEvents.includes(eventId) && (targetEvents.includes(eventId) || targetData.isTestProfile === true));
+      const hasSharedEvent = Boolean(eventId && event?.exists && senderEvents.includes(eventId) && (targetEvents.includes(eventId) || targetIsTestProfile));
       const eventContext = hasSharedEvent ? {
         id: eventId,
         category: eventData.category,
@@ -390,7 +392,9 @@ export const createPremiumChatRequest = onCall(
       if (!senderProfile.exists || !targetProfile.exists) {
         throw new HttpsError("not-found", "Ten profil nie jest już dostępny.");
       }
-      if (senderBlock.exists || targetBlock.exists) {
+      const targetProfileData = targetProfile.data() ?? {};
+      const targetIsTestProfile = targetProfileData.isTestProfile === true;
+      if (senderBlock.exists || (targetBlock.exists && !targetIsTestProfile)) {
         throw new HttpsError("permission-denied", "Nie możesz wysłać prośby do tego profilu.");
       }
       if (existingMatch.exists) {
@@ -407,11 +411,10 @@ export const createPremiumChatRequest = onCall(
       }
 
       const senderProfileData = senderProfile.data() ?? {};
-      const targetProfileData = targetProfile.data() ?? {};
       const senderEventIds = Array.isArray(senderProfileData.activeEventIds) ? senderProfileData.activeEventIds : [];
       const targetEventIds = Array.isArray(targetProfileData.activeEventIds) ? targetProfileData.activeEventIds : [];
       const eventData = event?.exists ? event.data() ?? {} : {};
-      const hasSharedEvent = Boolean(eventId && event?.exists && senderEventIds.includes(eventId) && targetEventIds.includes(eventId));
+      const hasSharedEvent = Boolean(eventId && event?.exists && senderEventIds.includes(eventId) && (targetEventIds.includes(eventId) || targetIsTestProfile));
       const eventContext = hasSharedEvent ? {
         id: eventId,
         category: eventData.category,
