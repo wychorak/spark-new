@@ -29,6 +29,7 @@ export type UserProfileDocument = {
   lastName: string;
   profileNameMode?: "realName" | "nickname";
   nickname?: string;
+  gender?: "woman" | "man" | "nonbinary" | "unspecified";
   email: string | null;
   displayName?: string | null;
   intent: string;
@@ -51,6 +52,7 @@ export type UserProfileDocument = {
   maxDistanceKm?: number;
   desiredInterests?: string[];
   desiredIntents?: string[];
+  desiredGendersByIntent?: Record<"dating" | "friends" | "community", Array<"woman" | "man" | "nonbinary">>;
   requireCommonInterests?: boolean;
   proOnly?: boolean;
   includeProfilesWithoutLocation?: boolean;
@@ -87,6 +89,30 @@ function normalizeSparkIntents(value: unknown, legacyIntent?: unknown) {
       .map((item) => item.trim())
       .filter((item) => sparkIntentLabels.includes(item as typeof sparkIntentLabels[number]))
   )).slice(0, 3) as string[];
+}
+
+const discoverableGenders = ["woman", "man", "nonbinary"] as const;
+
+type DiscoverableGender = typeof discoverableGenders[number];
+type GenderPreferencesByIntent = Record<"dating" | "friends" | "community", DiscoverableGender[]>;
+
+function normalizeProfileGender(value: unknown): "woman" | "man" | "nonbinary" | "unspecified" {
+  return value === "woman" || value === "man" || value === "nonbinary" || value === "unspecified" ? value : "unspecified";
+}
+
+function normalizeDesiredGenders(value: unknown): DiscoverableGender[] {
+  if (!Array.isArray(value)) return [...discoverableGenders];
+  const normalized = Array.from(new Set(value.filter((item): item is DiscoverableGender => discoverableGenders.includes(item as DiscoverableGender))));
+  return normalized.length > 0 ? normalized : [...discoverableGenders];
+}
+
+function normalizeGenderPreferences(value: unknown): GenderPreferencesByIntent {
+  const source = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+  return {
+    dating: normalizeDesiredGenders(source.dating),
+    friends: normalizeDesiredGenders(source.friends),
+    community: normalizeDesiredGenders(source.community)
+  };
 }
 
 function roundPublicCoordinate(value: number) {
@@ -239,6 +265,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     lastName: profile.lastName,
     profileNameMode: profile.profileNameMode ?? "realName",
     nickname: profile.nickname ?? "",
+    gender: normalizeProfileGender(profile.gender),
     intent: intents[0] ?? "Randki",
     intents,
     bio:
@@ -249,6 +276,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     age: profile.age ?? null,
     desiredAgeMin,
     desiredAgeMax,
+    desiredGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent),
     interests: profile.interests,
     activeEvents,
     activeEventIds: activeEvents.map((event) => event.id),
@@ -289,6 +317,7 @@ export type DiscoveryPreferencesDocument = {
   maxDistanceKm: number;
   desiredInterests: string[];
   desiredIntents: string[];
+  desiredGendersByIntent: GenderPreferencesByIntent;
   requireCommonInterests: boolean;
   proOnly: boolean;
   includeProfilesWithoutLocation: boolean;
@@ -869,26 +898,21 @@ export type RealtimeChatThread = {
   introMessage?: string;
   eventContext?: SparkEvent;
   unreadCount: number;
+  lastMessageText?: string;
+  lastMessageAtMs?: number | null;
   messages: Array<{ id: string; senderUid: string; text: string; createdAtMs: number | null }>;
 };
 
 export function observeUserChats(uid: string, onChange: (threads: RealtimeChatThread[]) => void, onError?: (error: Error) => void) {
   const currentDb = requireDb();
-  const threadDocuments = new Map<string, Omit<RealtimeChatThread, "messages">>();
-  const threadMessages = new Map<string, RealtimeChatThread["messages"]>();
-  const messageUnsubscribers = new Map<string, () => void>();
-  const emit = () => onChange(Array.from(threadDocuments.values()).map((thread) => ({ ...thread, messages: threadMessages.get(thread.id) ?? [] })));
-
-  const unsubscribeMatches = onSnapshot(
+  return onSnapshot(
     query(collection(currentDb, "matches"), where("memberUids", "array-contains", uid), limit(100)),
     (snapshot) => {
-      const activeIds = new Set<string>();
-      snapshot.docs.forEach((item) => {
+      const threads = snapshot.docs.reduce<RealtimeChatThread[]>((items, item) => {
         const data = item.data();
         const resetAtMs = typeof data.resetAt?.toMillis === "function" ? data.resetAt.toMillis() : null;
-        if ((resetAtMs !== null && resetAtMs <= Date.now()) || (data.status !== "matched" && data.status !== "requested")) return;
-        activeIds.add(item.id);
-        threadDocuments.set(item.id, {
+        if ((resetAtMs !== null && resetAtMs <= Date.now()) || (data.status !== "matched" && data.status !== "requested")) return items;
+        items.push({
           id: item.id,
           memberUids: Array.isArray(data.memberUids) ? data.memberUids : [],
           createdByUid: String(data.createdByUid ?? ""),
@@ -896,25 +920,38 @@ export function observeUserChats(uid: string, onChange: (threads: RealtimeChatTh
           status: data.status,
           introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined,
           eventContext: normalizeSparkEvent(data.eventContext) ?? undefined,
-          unreadCount: Math.max(0, Math.min(999, Number(data.unreadCountByUid?.[uid] ?? 0) || 0))
+          unreadCount: Math.max(0, Math.min(999, Number(data.unreadCountByUid?.[uid] ?? 0) || 0)),
+          lastMessageText: typeof data.lastMessageText === "string" ? data.lastMessageText : undefined,
+          lastMessageAtMs: typeof data.lastMessageAt?.toMillis === "function" ? data.lastMessageAt.toMillis() : null,
+          messages: []
         });
-        if (!messageUnsubscribers.has(item.id)) {
-          messageUnsubscribers.set(item.id, onSnapshot(
-            query(collection(currentDb, "messages", item.id, "items"), orderBy("createdAt", "desc"), limit(100)),
-            (messageSnapshot) => {
-              threadMessages.set(item.id, messageSnapshot.docs.map((messageItem) => { const message = messageItem.data(); return { id: messageItem.id, senderUid: String(message.senderUid ?? ""), text: String(message.text ?? ""), createdAtMs: typeof message.createdAt?.toMillis === "function" ? message.createdAt.toMillis() : null }; }).reverse());
-              emit();
-            },
-            (error) => onError?.(error)
-          ));
-        }
-      });
-      Array.from(threadDocuments.keys()).forEach((threadId) => { if (activeIds.has(threadId)) return; threadDocuments.delete(threadId); threadMessages.delete(threadId); messageUnsubscribers.get(threadId)?.(); messageUnsubscribers.delete(threadId); });
-      emit();
+        return items;
+      }, []);
+      threads.sort((left, right) => (right.lastMessageAtMs ?? right.createdAtMs ?? 0) - (left.lastMessageAtMs ?? left.createdAtMs ?? 0));
+      onChange(threads);
     },
     (error) => onError?.(error)
   );
-  return () => { unsubscribeMatches(); messageUnsubscribers.forEach((unsubscribe) => unsubscribe()); };
+}
+
+export function observeChatMessages(
+  threadId: string,
+  onChange: (messages: RealtimeChatThread["messages"]) => void,
+  onError?: (error: Error) => void
+) {
+  return onSnapshot(
+    query(collection(requireDb(), "messages", threadId, "items"), orderBy("createdAt", "desc"), limit(100)),
+    (snapshot) => onChange(snapshot.docs.map((item) => {
+      const data = item.data();
+      return {
+        id: item.id,
+        senderUid: String(data.senderUid ?? ""),
+        text: String(data.text ?? ""),
+        createdAtMs: typeof data.createdAt?.toMillis === "function" ? data.createdAt.toMillis() : null
+      };
+    }).reverse()),
+    (error) => onError?.(error)
+  );
 }
 
 export function observeBlockedProfileKeys(uid: string, onChange: (profileKeys: string[]) => void, onError?: (error: Error) => void) {

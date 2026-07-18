@@ -452,6 +452,7 @@ export const sendChatMessage = onCall(
         },
         lastMessageAt: messageTimestamp,
         lastMessageSenderUid: uid,
+        lastMessageText: text.slice(0, 240),
         updatedAt: messageTimestamp
       });
       transaction.set(usageRef, {

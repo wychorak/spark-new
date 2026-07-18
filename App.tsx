@@ -61,6 +61,7 @@ import {
   hasIncomingProfileLike,
   markChatThreadRead,
   observeBlockedProfileKeys,
+  observeChatMessages,
   observeRecentProfileViews,
   observeSparkEvents,
   observeUserChats,
@@ -200,6 +201,12 @@ const bundledTestProfileIntents: Record<string, SparkIntent[]> = {
   spark_test_alex: ["Randki", "LGBT+ / Społeczność"]
 };
 
+const bundledTestProfileGenders: Record<string, ProfileGender> = {
+  spark_test_kuba: "man",
+  spark_test_maja: "woman",
+  spark_test_alex: "nonbinary"
+};
+
 const demoAccount = {
   email: "tester@spark.app",
   password: "sparkdemo",
@@ -309,8 +316,69 @@ function getProfileIntents(profile: Pick<MatchProfile, "intents" | "intent">) {
   return normalizeSparkIntents(profile.intents, profile.intent);
 }
 
-type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; targetIntents: SparkIntent[]; maxDistanceKm: number; ageMin: number; ageMax: number };
-const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], targetIntents: [], maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
+type ProfileGender = "woman" | "man" | "nonbinary" | "unspecified";
+type DiscoverableGender = Exclude<ProfileGender, "unspecified">;
+type IntentPreferenceKey = "dating" | "friends" | "community";
+type GenderPreferencesByIntent = Record<IntentPreferenceKey, DiscoverableGender[]>;
+
+const discoverableGenders: DiscoverableGender[] = ["woman", "man", "nonbinary"];
+const genderOptions: ReadonlyArray<{ value: ProfileGender; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = [
+  { value: "woman", label: "Kobieta", icon: "gender-female" },
+  { value: "man", label: "Mężczyzna", icon: "gender-male" },
+  { value: "nonbinary", label: "Osoba niebinarna", icon: "gender-non-binary" },
+  { value: "unspecified", label: "Wolę nie podawać", icon: "account-question-outline" }
+];
+
+function getIntentPreferenceKey(intent: SparkIntent): IntentPreferenceKey {
+  if (intent === "Randki") return "dating";
+  if (intent === "Znajomi") return "friends";
+  return "community";
+}
+
+function createDefaultGenderPreferences(): GenderPreferencesByIntent {
+  return {
+    dating: [...discoverableGenders],
+    friends: [...discoverableGenders],
+    community: [...discoverableGenders]
+  };
+}
+
+function normalizeProfileGender(value: unknown): ProfileGender {
+  return value === "woman" || value === "man" || value === "nonbinary" || value === "unspecified" ? value : "unspecified";
+}
+
+function normalizeDesiredGenders(value: unknown): DiscoverableGender[] {
+  if (!Array.isArray(value)) return [...discoverableGenders];
+  const normalized = Array.from(new Set(value.filter((item): item is DiscoverableGender => discoverableGenders.includes(item as DiscoverableGender))));
+  return normalized.length > 0 ? normalized : [...discoverableGenders];
+}
+
+function normalizeGenderPreferences(value: unknown): GenderPreferencesByIntent {
+  const source = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+  return {
+    dating: normalizeDesiredGenders(source.dating),
+    friends: normalizeDesiredGenders(source.friends),
+    community: normalizeDesiredGenders(source.community)
+  };
+}
+
+function genderPreferenceMatches(profile: MatchProfile, viewerGender: ProfileGender, preferences: GenderPreferencesByIntent, targetIntents: SparkIntent[]) {
+  const candidateGender = profile.gender ?? "unspecified";
+  const relevantIntents = getProfileIntents(profile).filter((intent) => targetIntents.length === 0 || targetIntents.includes(intent));
+  if (relevantIntents.length === 0) return targetIntents.length === 0;
+  return relevantIntents.some((intent) => {
+    const key = getIntentPreferenceKey(intent);
+    const viewerAllowsCandidate = candidateGender === "unspecified"
+      ? preferences[key].length === discoverableGenders.length
+      : preferences[key].includes(candidateGender);
+    const candidatePreferences = profile.desiredGendersByIntent;
+    const candidateAllowsViewer = viewerGender === "unspecified" || !candidatePreferences || candidatePreferences[key].includes(viewerGender);
+    return viewerAllowsCandidate && candidateAllowsViewer;
+  });
+}
+
+type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; targetIntents: SparkIntent[]; targetGendersByIntent: GenderPreferencesByIntent; maxDistanceKm: number; ageMin: number; ageMax: number };
+const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], targetIntents: [], targetGendersByIntent: createDefaultGenderPreferences(), maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -328,6 +396,8 @@ type ChatThread = {
   requestDirection?: "incoming" | "outgoing";
   status: ChatStatus;
   introMessage?: string;
+  lastMessageText?: string;
+  lastMessageAtMs?: number | null;
   eventContext?: SparkEvent;
   unreadCount?: number;
   messages: Array<{ id: string; from: "me" | "them"; text: string; time: string }>;
@@ -367,6 +437,8 @@ type MatchProfile = {
   profileLastViewedAtMs?: number | null;
   intent?: string;
   intents?: SparkIntent[];
+  gender?: ProfileGender;
+  desiredGendersByIntent?: GenderPreferencesByIntent;
   updatedAtMs?: number;
 };
 
@@ -711,6 +783,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined,
     intent: intents[0],
     intents,
+    gender: normalizeProfileGender(item.gender ?? (id && item.isTestProfile === true ? bundledTestProfileGenders[id] : undefined)),
+    desiredGendersByIntent: normalizeGenderPreferences(item.desiredGendersByIntent),
     activeEvents,
     updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined
   };
@@ -875,6 +949,7 @@ function AppContent() {
   const [lastName, setLastName] = useState("");
   const [profileNameMode, setProfileNameMode] = useState<ProfileNameMode>("realName");
   const [nickname, setNickname] = useState("");
+  const [gender, setGender] = useState<ProfileGender>("unspecified");
   const [birthDate, setBirthDate] = useState("");
   const [profileBio, setProfileBio] = useState("");
   const [socialHandles, setSocialHandles] = useState<SocialHandles>(emptySocialHandles);
@@ -958,6 +1033,7 @@ function AppContent() {
     [chatThreads]
   );
   const messageAttentionCount = unreadMessageCount + incomingChatRequestCount;
+  const selectedChatThreadId = selectedChatKey ? chatThreads[selectedChatKey]?.threadId ?? null : null;
   const profileLookupInterests = useMemo(
     () => Array.from(new Set([...discoverFilters.targetInterests, ...selectedInterests])).slice(0, 10),
     [discoverFilters.targetInterests, selectedInterests]
@@ -987,6 +1063,7 @@ function AppContent() {
           return distance === null ? discoverFilters.includeProfilesWithoutLocation : distance <= discoverFilters.maxDistanceKm;
         })
         .filter((profile) => discoverFilters.targetIntents.length === 0 || getProfileIntents(profile).some((profileIntent) => discoverFilters.targetIntents.includes(profileIntent)))
+        .filter((profile) => genderPreferenceMatches(profile, gender, discoverFilters.targetGendersByIntent, discoverFilters.targetIntents.length > 0 ? discoverFilters.targetIntents : intents))
         .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
@@ -1016,7 +1093,7 @@ function AppContent() {
           const scoreDifference = (right.matchScore ?? 0) - (left.matchScore ?? 0);
           return tierDifference || scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
         }),
-    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, intents, selectedInterests, userAge, userCity, userLocation]
+    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, gender, intents, selectedInterests, userAge, userCity, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -1172,6 +1249,7 @@ function AppContent() {
             setLastName(repairLegacyText(profile.lastName ?? ""));
             setProfileNameMode(profile.profileNameMode ?? "realName");
             setNickname(repairLegacyText(profile.nickname ?? ""));
+            setGender(normalizeProfileGender(profile.gender));
             setBirthDate(privateSettings?.birthDate ?? "");
             const loadedIntents = normalizeSparkIntents(profile.intents, profile.intent);
             const nextIntents: SparkIntent[] = loadedIntents.length ? loadedIntents : ["Randki"];
@@ -1181,7 +1259,7 @@ function AppContent() {
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
-            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, targetGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent), requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
             const currentEvents = sanitizeActiveEvents(storedEvents);
@@ -1572,16 +1650,21 @@ function AppContent() {
           introMessage: thread.introMessage,
           eventContext: thread.eventContext,
           unreadCount: thread.unreadCount,
-          messages: thread.messages.map((message) => ({
-            id: message.id,
-            from: message.senderUid === appUser.uid ? "me" : "them",
-            text: message.text,
-            time: message.createdAtMs ? new Date(message.createdAtMs).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "teraz"
-          }))
+          lastMessageText: thread.lastMessageText,
+          lastMessageAtMs: thread.lastMessageAtMs,
+          messages: []
         };
       });
 
-      setChatThreads(nextThreads);
+      setChatThreads((current) => Object.fromEntries(Object.entries(nextThreads).map(([profileKey, thread]) => [
+        profileKey,
+        {
+          ...thread,
+          messages: current[profileKey]?.messages ?? [],
+          lastMessageText: thread.lastMessageText ?? current[profileKey]?.lastMessageText,
+          lastMessageAtMs: thread.lastMessageAtMs ?? current[profileKey]?.lastMessageAtMs
+        }
+      ])));
       setMatchedProfileKeys(matchedKeys);
       setChatRequestKeys(requestedKeys);
 
@@ -1598,6 +1681,28 @@ function AppContent() {
     const unsubscribeBlocks = observeBlockedProfileKeys(appUser.uid, setBlockedProfileKeys, (error) => setProfileFeedError(error.message));
     return () => { unsubscribeChats(); unsubscribeBlocks(); };
   }, [appUser, authDone, onboarded]);
+
+  useEffect(() => {
+    if (!appUser || tab !== "messages" || !selectedChatKey || !selectedChatThreadId) return undefined;
+    return observeChatMessages(
+      selectedChatThreadId,
+      (messages) => {
+        setChatThreads((current) => current[selectedChatKey] ? {
+          ...current,
+          [selectedChatKey]: {
+            ...current[selectedChatKey],
+            messages: messages.map((message) => ({
+              id: message.id,
+              from: message.senderUid === appUser.uid ? "me" : "them",
+              text: message.text,
+              time: message.createdAtMs ? new Date(message.createdAtMs).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "teraz"
+            }))
+          }
+        } : current);
+      },
+      (error) => setProfileFeedError(error.message)
+    );
+  }, [appUser, selectedChatKey, selectedChatThreadId, tab]);
 
   useEffect(() => {
     if (!appUser || tab !== "messages" || !selectedChatKey) return;
@@ -1950,6 +2055,7 @@ function AppContent() {
         lastName: lastName.trim(),
         profileNameMode,
         nickname: nickname.trim(),
+        gender,
         email: appUser.email ?? email,
         intent: intents[0] ?? "Randki",
         intents,
@@ -1966,6 +2072,7 @@ function AppContent() {
         maxDistanceKm: discoverFilters.maxDistanceKm,
         desiredInterests: discoverFilters.targetInterests,
         desiredIntents: discoverFilters.targetIntents.length ? discoverFilters.targetIntents : intents,
+        desiredGendersByIntent: discoverFilters.targetGendersByIntent,
         requireCommonInterests: discoverFilters.requireCommonInterests,
         proOnly: discoverFilters.proOnly,
         includeProfilesWithoutLocation: discoverFilters.includeProfilesWithoutLocation,
@@ -2003,6 +2110,7 @@ function AppContent() {
         maxDistanceKm: nextFilters.maxDistanceKm,
         desiredInterests: nextFilters.targetInterests,
         desiredIntents: nextFilters.targetIntents,
+        desiredGendersByIntent: nextFilters.targetGendersByIntent,
         requireCommonInterests: nextFilters.requireCommonInterests,
         proOnly: nextFilters.proOnly,
         includeProfilesWithoutLocation: nextFilters.includeProfilesWithoutLocation
@@ -2408,7 +2516,24 @@ function AppContent() {
       return;
     }
 
+    const optimisticId = "local_" + Date.now();
+    const optimisticMessage = {
+      id: optimisticId,
+      from: "me" as const,
+      text: message,
+      time: new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })
+    };
     sendingMessageKeysRef.current.add(profileKey);
+    setChatThreads((threads) => threads[profileKey] ? {
+      ...threads,
+      [profileKey]: {
+        ...threads[profileKey],
+        lastMessageText: message.slice(0, 240),
+        lastMessageAtMs: Date.now(),
+        messages: [...threads[profileKey].messages, optimisticMessage]
+      }
+    } : threads);
+    setMessageDraft("");
     try {
       await sendChatMessage({
         threadId: thread.threadId ?? getConversationId(appUser.uid, profileKey),
@@ -2416,8 +2541,12 @@ function AppContent() {
         text: message
       });
       recentMessageTimesRef.current.push(Date.now());
-      setMessageDraft("");
     } catch (error) {
+      setChatThreads((threads) => threads[profileKey] ? {
+        ...threads,
+        [profileKey]: { ...threads[profileKey], messages: threads[profileKey].messages.filter((item) => item.id !== optimisticId) }
+      } : threads);
+      setMessageDraft((current) => current || message);
       Alert.alert("Chat", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
     } finally {
       sendingMessageKeysRef.current.delete(profileKey);
@@ -2737,6 +2866,8 @@ function AppContent() {
           setLastName={setLastName}
           nickname={nickname}
           setNickname={setNickname}
+          gender={gender}
+          setGender={setGender}
           birthDate={birthDate}
           profileBio={profileBio}
           setProfileBio={setProfileBio}
@@ -2872,6 +3003,7 @@ function AppContent() {
             onSuperlikePendingProfile={superlikePendingProfile}
             onCancelRequest={cancelOutgoingRequest}
             onOpenMessages={() => setTab("messages")}
+            onOpenConversation={(profileKey) => { setSelectedChatKey(profileKey); setTab("messages"); }}
           />
         )}
         {tab === "messages" && (
@@ -2904,6 +3036,8 @@ function AppContent() {
             setProfileNameMode={setProfileNameMode}
             nickname={nickname}
             setNickname={setNickname}
+            gender={gender}
+            setGender={setGender}
             birthDate={birthDate}
             intents={intents}
             setIntents={setIntents}
@@ -2916,6 +3050,7 @@ function AppContent() {
               if (age !== null) setUserAge(age);
             }}
             discoverFilters={discoverFilters}
+            setDiscoverFilters={setDiscoverFilters}
             userCity={userCity}
             userCountry={userCountry}
             locationStatus={locationStatus}
@@ -3384,16 +3519,77 @@ function IntentMultiSelect({ selected, onChange, compact = false }: { selected: 
   );
 }
 
+function GenderIdentitySelect({ value, onChange, compact = false }: { value: ProfileGender; onChange: (value: ProfileGender) => void; compact?: boolean }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {genderOptions.map((option) => {
+        const active = value === option.value;
+        return (
+          <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ checked: active }} onPress={() => onChange(option.value)} style={({ pressed }) => [{ width: "48%", minHeight: compact ? 46 : 54, flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 11, borderRadius: 16, borderWidth: 1, borderColor: active ? "rgba(255,45,141,0.52)" : "rgba(255,255,255,0.09)", backgroundColor: active ? "rgba(255,45,141,0.13)" : "rgba(255,255,255,0.04)" }, pressed && styles.controlPressed]}>
+            <View style={{ width: 31, height: 31, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: active ? colors.primary : colors.primarySoft }}>
+              <MaterialCommunityIcons name={option.icon} size={18} color={active ? "#fff" : colors.primaryDeep} />
+            </View>
+            <Text numberOfLines={2} style={{ flex: 1, color: active ? colors.ink : colors.muted, fontSize: compact ? 11 : 12, lineHeight: 15, fontWeight: "900" }}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function GenderPreferencesEditor({ intents, value, onChange, compact = false }: { intents: SparkIntent[]; value: GenderPreferencesByIntent; onChange: (value: GenderPreferencesByIntent) => void; compact?: boolean }) {
+  const visibleIntents = intents.length > 0 ? intents : sparkIntentLabels;
+  function toggle(intent: SparkIntent, genderValue: DiscoverableGender) {
+    const key = getIntentPreferenceKey(intent);
+    const current = value[key];
+    const next = current.includes(genderValue) ? current.filter((item) => item !== genderValue) : [...current, genderValue];
+    if (next.length === 0) {
+      Alert.alert("Preferencje", "Wybierz co najmniej jedn\u0105 p\u0142e\u0107 dla tej kategorii.");
+      return;
+    }
+    onChange({ ...value, [key]: next });
+  }
+  return (
+    <View style={{ gap: compact ? 9 : 12 }}>
+      {visibleIntents.map((intent) => {
+        const key = getIntentPreferenceKey(intent);
+        const option = sparkIntentOptions.find((item) => item.label === intent);
+        return (
+          <View key={intent} style={{ gap: 8, padding: compact ? 10 : 12, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.035)", borderWidth: 1, borderColor: "rgba(255,255,255,0.075)" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <MaterialCommunityIcons name={option?.icon ?? "account-heart-outline"} size={17} color={colors.primary} />
+              <Text style={{ color: colors.ink, fontSize: 12, fontWeight: "900" }}>{option?.displayLabel ?? intent}</Text>
+              <Text style={{ marginLeft: "auto", color: colors.muted, fontSize: 9, fontWeight: "800" }}>{value[key].length === 3 ? "Wszyscy" : value[key].length + " wybrane"}</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {genderOptions.filter((item) => item.value !== "unspecified").map((genderOption) => {
+                const genderValue = genderOption.value as DiscoverableGender;
+                const active = value[key].includes(genderValue);
+                return (
+                  <Pressable key={genderValue} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggle(intent, genderValue)} style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: 43, alignItems: "center", justifyContent: "center", gap: 3, borderRadius: 13, borderWidth: 1, borderColor: active ? "rgba(255,45,141,0.42)" : "rgba(255,255,255,0.08)", backgroundColor: active ? colors.primarySoft : "rgba(255,255,255,0.025)" }, pressed && styles.controlPressed]}>
+                    <MaterialCommunityIcons name={genderOption.icon} size={17} color={active ? colors.primary : colors.muted} />
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={{ color: active ? colors.ink : colors.muted, fontSize: 9, fontWeight: "900" }}>{genderOption.label.replace("Osoba ", "")}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function OnboardingScreen({
   intents, setIntents, profileNameMode, setProfileNameMode, firstName, setFirstName, lastName, setLastName,
-  nickname, setNickname, birthDate, onBirthDateChange, profileBio, setProfileBio, profilePhotos, setProfilePhotos,
+  nickname, setNickname, gender, setGender, birthDate, onBirthDateChange, profileBio, setProfileBio, profilePhotos, setProfilePhotos,
   discoverFilters, setDiscoverFilters, userCity, userCountry, locationStatus, locationBusy, onRequestLocation, selectedInterests, setSelectedInterests,
   canContinue, onContinue
 }: {
   intents: SparkIntent[]; setIntents: (value: SparkIntent[]) => void;
   profileNameMode: ProfileNameMode; setProfileNameMode: (value: ProfileNameMode) => void;
   firstName: string; setFirstName: (value: string) => void; lastName: string; setLastName: (value: string) => void;
-  nickname: string; setNickname: (value: string) => void; birthDate: string; onBirthDateChange: (value: string) => void;
+  nickname: string; setNickname: (value: string) => void; gender: ProfileGender; setGender: (value: ProfileGender) => void; birthDate: string; onBirthDateChange: (value: string) => void;
   profileBio: string; setProfileBio: (value: string) => void;
   profilePhotos: ProfilePhoto[]; setProfilePhotos: (value: ProfilePhoto[]) => void;
   discoverFilters: DiscoverFilters; setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
@@ -3437,6 +3633,8 @@ function OnboardingScreen({
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko (opcjonalnie)" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
+        <Text style={styles.fieldLabel}>Twoja p\u0142e\u0107</Text>
+        <GenderIdentitySelect value={gender} onChange={setGender} />
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{derivedAge === null ? "Podaj prawidłową datę urodzenia." : derivedAge < 18 ? String(derivedAge) + " lat - Spark jest dostępny od 18 lat." : derivedAge > 99 ? "Sprawdź rok urodzenia." : String(derivedAge) + " lat"}</Text>
         <ProfileBioInput value={profileBio} onChangeText={setProfileBio} />
@@ -3475,7 +3673,10 @@ function OnboardingScreen({
       <View style={styles.setupSection}>
         <Text style={styles.panelTitle}>Kogo chcesz poznać?</Text>
         <Text style={styles.panelText}>Wybierz jeden lub kilka klimatów. Feed połączy wszystkie wybrane kategorie.</Text>
-        <IntentMultiSelect selected={intents} onChange={setIntents} />
+        <IntentMultiSelect selected={intents} onChange={(nextIntents) => { setIntents(nextIntents); setDiscoverFilters((current) => ({ ...current, targetIntents: nextIntents })); }} />
+        <Text style={styles.fieldLabel}>Kogo chcesz widzie\u0107?</Text>
+        <Text style={styles.setupHelper}>Ustaw osobno dla ka\u017cdej wybranej kategorii.</Text>
+        <GenderPreferencesEditor intents={intents} value={discoverFilters.targetGendersByIntent} onChange={(targetGendersByIntent) => setDiscoverFilters((current) => ({ ...current, targetGendersByIntent }))} />
         <Text style={styles.fieldLabel}>Preferowany wiek</Text>
         <AgeRangeControl min={discoverFilters.ageMin} max={discoverFilters.ageMax} onChange={(ageMin, ageMax) => setDiscoverFilters((current) => ({ ...current, ageMin, ageMax, targetIntents: current.targetIntents.length ? current.targetIntents : intents }))} />
         <View style={styles.settingRow}><View style={styles.fill}><Text style={styles.settingLabel}>Wymagaj wspólnego zainteresowania</Text><Text style={styles.settingHint}>Opcjonalne. Ukryje profile bez wspólnych tagów.</Text></View><Switch value={discoverFilters.requireCommonInterests} onValueChange={(value) => setDiscoverFilters((current) => ({ ...current, requireCommonInterests: value }))} trackColor={{ true: colors.green }} /></View>
@@ -3846,6 +4047,7 @@ function DiscoverScreen({
           messageLocked={!hasPro && !hasMatchedProfile}
           superlikeLocked={!hasPro}
           superlikesRemaining={superlikesRemaining}
+          relationshipStatus={hasMatchedProfile ? "matched" : hasRequestedProfile ? "requested" : "none"}
         />
       )}
 
@@ -3935,7 +4137,10 @@ function countActiveDiscoverFilters(filters: DiscoverFilters) {
     filters.targetIntents.length > 0,
     filters.requireCommonInterests,
     !filters.includeProfilesWithoutLocation,
-    filters.proOnly
+    filters.proOnly,
+    (Object.keys(defaults.targetGendersByIntent) as IntentPreferenceKey[]).some((key) =>
+      [...filters.targetGendersByIntent[key]].sort().join(",") !== [...defaults.targetGendersByIntent[key]].sort().join(",")
+    )
   ].filter(Boolean).length;
 }
 
@@ -4064,14 +4269,14 @@ function DiscoveryPreferencesModal({
   onApply: (nextFilters: DiscoverFilters) => Promise<boolean>;
 }) {
   const insets = useSafeAreaInsets();
-  const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents] }));
+  const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents], targetGendersByIntent: normalizeGenderPreferences(filters.targetGendersByIntent) }));
   const [saving, setSaving] = useState(false);
   const activeFilters = countActiveDiscoverFilters(draft);
   const distanceOptions = [25, 50, 100, 250, 500];
 
   useEffect(() => {
     if (visible) {
-      setDraft({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents] });
+      setDraft({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents], targetGendersByIntent: normalizeGenderPreferences(filters.targetGendersByIntent) });
       setSaving(false);
     }
   }, [filters, visible]);
@@ -4108,6 +4313,11 @@ function DiscoveryPreferencesModal({
                 <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukam teraz</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetIntents.length ? "Pokaż profile z dowolnej wybranej kategorii." : "Dowolne kategorie - bez zawężania celu."}</Text></View>
               </View>
               <IntentMultiSelect compact selected={draft.targetIntents} onChange={(targetIntents) => setDraft((current) => ({ ...current, targetIntents }))} />
+              <View style={{ marginTop: 12, gap: 7 }}>
+                <Text style={styles.discoveryFilterSectionTitle}>P\u0142e\u0107 wed\u0142ug kategorii</Text>
+                <Text style={styles.discoveryFilterSectionHint}>Mo\u017cesz szuka\u0107 innych os\u00f3b na randki, a innych do znajomo\u015bci.</Text>
+                <GenderPreferencesEditor compact intents={draft.targetIntents} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
+              </View>
             </View>
 
             <View style={styles.discoveryFilterSection}>
@@ -4234,6 +4444,8 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
           {displayName}, {profile.age}
         </Text>
         {!sharedEvent && <View style={styles.cardContextRow}>
+          <MaterialCommunityIcons name={genderOptions.find((option) => option.value === profile.gender)?.icon ?? "account-question-outline"} size={13} color="#ff8cbc" />
+          {profile.gender && profile.gender !== "unspecified" ? <Text style={styles.cardContextText} numberOfLines={1}>{genderOptions.find((option) => option.value === profile.gender)?.label}</Text> : null}
           <MaterialCommunityIcons name="map-marker-outline" size={13} color="#ff8cbc" />
           <Text style={styles.cardContextText} numberOfLines={1}>{[profile.city, profile.country].filter(Boolean).join(", ")}</Text>
           {profile.intent ? <View style={styles.cardContextDot} /> : null}
@@ -4266,6 +4478,7 @@ function ProfilePreviewSheet({
   messageLocked = false,
   superlikeLocked = false,
   superlikesRemaining = 0,
+  relationshipStatus = "none",
   isOwnProfile = false,
   readOnly = false
 }: {
@@ -4279,6 +4492,7 @@ function ProfilePreviewSheet({
   messageLocked?: boolean;
   superlikeLocked?: boolean;
   superlikesRemaining?: number;
+  relationshipStatus?: "none" | "liked" | "requested" | "matched";
   isOwnProfile?: boolean;
   readOnly?: boolean;
 }) {
@@ -4308,6 +4522,9 @@ function ProfilePreviewSheet({
   const compactScreen = width < 380;
   const sharedEvent = profile.sharedEvents?.[0];
   const recordedProfileKeyRef = useRef<string | null>(null);
+  const isMatchedRelationship = relationshipStatus === "matched";
+  const isRequestedRelationship = relationshipStatus === "requested";
+  const isLikedRelationship = relationshipStatus === "liked";
 
   useEffect(() => {
     const profileKey = getProfileKey(profile);
@@ -4449,6 +4666,9 @@ function ProfilePreviewSheet({
               {displayName}, {profile.age}
             </Text>
             <View style={local.subtitle}>
+              <MaterialCommunityIcons name={genderOptions.find((option) => option.value === profile.gender)?.icon ?? "account-question-outline"} size={16} color={colors.primary} />
+              <Text style={local.subtitleText}>{genderOptions.find((option) => option.value === profile.gender)?.label ?? "Nie podano"}</Text>
+              <Text style={local.subtitleText}>{"\u2022"}</Text>
               <MaterialCommunityIcons name="map-marker" size={16} color={colors.primary} />
               <Text style={local.subtitleText} maxFontSizeMultiplier={1.2}>{locationLabel || "Lokalizacja ukryta"}</Text>
               {secondaryDistance && <Text style={local.subtitleText}>• {secondaryDistance}</Text>}
@@ -4591,27 +4811,43 @@ function ProfilePreviewSheet({
 
         {!isOwnProfile && !readOnly && (
           <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Wyślij SPARKLIKE" onPress={onSuperlike} style={local.actionSecondary}>
-              <MaterialCommunityIcons name="fire" size={20} color={colors.primary} />
-              <Text style={local.actionLabel} numberOfLines={1} maxFontSizeMultiplier={1.1}>SPARKLIKE</Text>
-              <View style={local.actionMetaRow}>
-                {superlikeLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
-                <Text style={local.actionMeta}>Pro • {superlikesRemaining}/10</Text>
+            {isMatchedRelationship ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Otw\u00f3rz chat" onPress={onMessage} style={[local.actionPrimary, { flex: 1 }]}>
+                <MaterialCommunityIcons name="message-text" size={22} color="#fff" />
+                <Text style={[local.actionLabel, local.actionLabelPrimary]}>Otw\u00f3rz chat</Text>
+                <Text style={[local.actionMeta, local.actionMetaPrimary]}>Match aktywny</Text>
+              </Pressable>
+            ) : isRequestedRelationship ? (
+              <View style={[local.actionSecondary, { flex: 1 }]}>
+                <MaterialCommunityIcons name="clock-check-outline" size={21} color={colors.primary} />
+                <Text style={local.actionLabel}>Pro\u015bba wys\u0142ana</Text>
+                <Text style={local.actionMeta}>Czeka na akceptacj\u0119</Text>
               </View>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Polub profil" onPress={onLike} style={local.actionPrimary}>
-              <MaterialCommunityIcons name="heart-plus" size={21} color="#fff" />
-              <Text style={[local.actionLabel, local.actionLabelPrimary]} numberOfLines={1} maxFontSizeMultiplier={1.1}>Polub profil</Text>
-              <Text style={[local.actionMeta, local.actionMetaPrimary]}>Match po wzajemności</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Napisz teraz" onPress={onMessage} style={local.actionSecondary}>
-              <MaterialCommunityIcons name="message-text" size={20} color={colors.primary} />
-              <Text style={local.actionLabel} numberOfLines={1} maxFontSizeMultiplier={1.1}>Napisz teraz</Text>
-              <View style={local.actionMetaRow}>
-                {messageLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
-                <Text style={local.actionMeta}>{messageLocked ? "Spark Pro" : "Od razu"}</Text>
-              </View>
-            </Pressable>
+            ) : (
+              <>
+                <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij SPARKLIKE" onPress={onSuperlike} style={local.actionSecondary}>
+                  <MaterialCommunityIcons name="fire" size={20} color={colors.primary} />
+                  <Text style={local.actionLabel} numberOfLines={1} maxFontSizeMultiplier={1.1}>SPARKLIKE</Text>
+                  <View style={local.actionMetaRow}>
+                    {superlikeLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
+                    <Text style={local.actionMeta}>Pro {"\u2022"} {superlikesRemaining}/10</Text>
+                  </View>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={isLikedRelationship ? "Profil polubiony" : "Polub profil"} disabled={isLikedRelationship} onPress={onLike} style={[local.actionPrimary, isLikedRelationship && { opacity: 0.6 }]}>
+                  <MaterialCommunityIcons name={isLikedRelationship ? "heart" : "heart-plus"} size={21} color="#fff" />
+                  <Text style={[local.actionLabel, local.actionLabelPrimary]} numberOfLines={1} maxFontSizeMultiplier={1.1}>{isLikedRelationship ? "Polubiono" : "Polub profil"}</Text>
+                  <Text style={[local.actionMeta, local.actionMetaPrimary]}>{isLikedRelationship ? "Czeka na wzajemno\u015b\u0107" : "Match po wzajemno\u015bci"}</Text>
+                </Pressable>
+                {onMessage && <Pressable accessibilityRole="button" accessibilityLabel="Napisz pierwsz\u0105 wiadomo\u015b\u0107" onPress={onMessage} style={local.actionSecondary}>
+                  <MaterialCommunityIcons name="message-plus" size={20} color={colors.primary} />
+                  <Text style={local.actionLabel} numberOfLines={2} maxFontSizeMultiplier={1.1}>Napisz pierwsz\u0105</Text>
+                  <View style={local.actionMetaRow}>
+                    {messageLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
+                    <Text style={local.actionMeta}>{messageLocked ? "Spark Pro" : "Przed matchem"}</Text>
+                  </View>
+                </Pressable>}
+              </>
+            )}
           </View>
         )}
       </LinearGradient>
@@ -5224,7 +5460,8 @@ function MatchesScreen({
   onCancelPendingLike,
   onSuperlikePendingProfile,
   onCancelRequest,
-  onOpenMessages
+  onOpenMessages,
+  onOpenConversation
 }: {
   profiles: MatchProfile[];
   matchedProfileKeys: string[];
@@ -5239,6 +5476,7 @@ function MatchesScreen({
   onSuperlikePendingProfile: (profileKey: string) => Promise<void>;
   onCancelRequest: (profileKey: string) => Promise<void>;
   onOpenMessages: () => void;
+  onOpenConversation: (profileKey: string) => void;
 }) {
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
   const [matchFilter, setMatchFilter] = useState<"all" | "active" | "likes" | "requests">("all");
@@ -5352,7 +5590,7 @@ function MatchesScreen({
                   accessibilityLabel={"Napisz do " + profile.name}
                   onPress={(event) => {
                     event.stopPropagation();
-                    onOpenMessages();
+                    onOpenConversation(getProfileKey(profile));
                   }}
                   style={styles.matchActiveBadge}
                 >
@@ -5489,7 +5727,10 @@ function MatchesScreen({
           viewerInterests={viewerInterests}
           onClose={() => setPreviewProfile(null)}
           canViewSocials={matchedProfileKeys.includes(getProfileKey(previewProfile))}
-          readOnly
+          relationshipStatus={matchedProfileKeys.includes(getProfileKey(previewProfile)) ? "matched" : chatRequestKeys.includes(getProfileKey(previewProfile)) ? "requested" : likedProfileKeys.includes(getProfileKey(previewProfile)) ? "liked" : "none"}
+          onMessage={matchedProfileKeys.includes(getProfileKey(previewProfile)) ? () => { const key = getProfileKey(previewProfile); setPreviewProfile(null); onOpenConversation(key); } : undefined}
+          onLike={() => { const key = getProfileKey(previewProfile); if (incomingLikeKinds[key]) void onLikeIncomingProfile(key); }}
+          onSuperlike={() => { void onSuperlikePendingProfile(getProfileKey(previewProfile)); }}
         />
       )}
     </View>
@@ -5519,7 +5760,7 @@ function MessagesScreen({
   setSelectedChatKey: (value: string | null) => void;
   messageDraft: string;
   setMessageDraft: (value: string) => void;
-  onSendMessage: (profileKey: string, text: string) => void;
+  onSendMessage: (profileKey: string, text: string) => Promise<void>;
   onAcceptRequest: (profileKey: string) => void;
   onRejectRequest: (profileKey: string) => void;
   onBlockProfile: (profileKey: string) => void;
@@ -5540,6 +5781,8 @@ function MessagesScreen({
       const isMatched = matchedProfileKeys.includes(key) || thread?.status === "matched";
       const isBlocked = thread?.status === "blocked";
       const latestMessage = thread?.messages[thread.messages.length - 1];
+      const latestMessageText = latestMessage?.text ?? thread?.lastMessageText;
+      const latestMessageTime = latestMessage?.time ?? (thread?.lastMessageAtMs ? new Date(thread.lastMessageAtMs).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : undefined);
       const unreadCount = Math.max(0, thread?.unreadCount ?? 0);
 
       return {
@@ -5548,8 +5791,8 @@ function MessagesScreen({
         name: profile.surname ? profile.name + " " + profile.surname[0] + "." : profile.name,
         message: isBlocked
           ? "Profil zablokowany."
-          : latestMessage?.text ?? (isMatched ? "Match aktywny - możecie pisać." : thread?.introMessage ?? "Prośba o chat czeka na akceptację."),
-        time: latestMessage?.time ?? (isMatched ? "aktywny" : "oczekuje"),
+          : latestMessageText ?? (isMatched ? "Match aktywny - mo\u017cecie pisa\u0107." : thread?.introMessage ?? "Pro\u015bba o chat czeka na akceptacj\u0119."),
+        time: latestMessageTime ?? (isMatched ? "aktywny" : "oczekuje"),
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
       };
@@ -5655,7 +5898,8 @@ function MessagesScreen({
           viewerInterests={viewerInterests}
           onClose={() => setProfilePreview(null)}
           canViewSocials={matchedProfileKeys.includes(getProfileKey(profilePreview))}
-          readOnly
+          relationshipStatus={matchedProfileKeys.includes(getProfileKey(profilePreview)) ? "matched" : chatRequestKeys.includes(getProfileKey(profilePreview)) ? "requested" : "none"}
+          onMessage={() => setProfilePreview(null)}
         />
       )}
     </View>
@@ -5681,7 +5925,7 @@ function ChatConversationModal({
   draft: string;
   setDraft: (value: string) => void;
   onClose: () => void;
-  onSend: (profileKey: string, text: string) => void;
+  onSend: (profileKey: string, text: string) => Promise<void>;
   onAccept: (profileKey: string) => void;
   onReject: (profileKey: string) => void;
   onBlock: (profileKey: string) => void;
@@ -5691,6 +5935,8 @@ function ChatConversationModal({
 }) {
   const insets = useSafeAreaInsets();
   const messages = thread?.messages ?? [];
+  const [sending, setSending] = useState(false);
+  const messageListRef = useRef<FlatList<ChatThread["messages"][number]>>(null);
   const canMessage = conversation?.status === "matched";
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
@@ -5700,6 +5946,7 @@ function ChatConversationModal({
     identityButton: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 3 },
     name: { color: colors.ink, fontSize: 15, fontWeight: "900" },
     status: { marginTop: 2, color: colors.green, fontSize: 10, fontWeight: "800" },
+    profileHint: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "700" },
     headerActions: { flexDirection: "row", gap: 7 },
     headerAction: { width: 38, height: 38, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
     eventBanner: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 12, marginTop: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.22)" },
@@ -5759,11 +6006,22 @@ function ChatConversationModal({
     ]);
   }
 
-  function send() {
-    if (!draft.trim() || !canMessage) {
-      return;
+  async function send() {
+    if (!draft.trim() || !canMessage || sending) return;
+    setSending(true);
+    try {
+      await onSend(activeConversation.key, draft);
+    } finally {
+      setSending(false);
     }
-    onSend(activeConversation.key, draft);
+  }
+
+  function openSafetyMenu() {
+    Alert.alert("Rozmowa", "Wybierz dzia\u0142anie dotycz\u0105ce tego profilu.", [
+      { text: "Zg\u0142o\u015b", onPress: confirmReport },
+      { text: "Zablokuj", style: "destructive", onPress: confirmBlock },
+      { text: "Anuluj", style: "cancel" }
+    ]);
   }
 
   return (
@@ -5779,14 +6037,13 @@ function ChatConversationModal({
             <View style={styles.fill}>
               <Text style={local.name} selectable>{activeConversation.name}</Text>
               <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
+              <Text style={local.profileHint}>Dotknij, aby zobaczy\u0107 profil</Text>
             </View>
+            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
           </Pressable>
           <View style={local.headerActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Zgłoś" onPress={confirmReport} style={local.headerAction}>
-              <MaterialCommunityIcons name="alert-outline" size={19} color={colors.primaryDeep} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Zablokuj" onPress={confirmBlock} style={local.headerAction}>
-              <MaterialCommunityIcons name="block-helper" size={18} color="#ff6b7a" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Opcje rozmowy" onPress={openSafetyMenu} style={local.headerAction}>
+              <MaterialCommunityIcons name="dots-horizontal" size={20} color={colors.primaryDeep} />
             </Pressable>
           </View>
         </View>
@@ -5798,26 +6055,27 @@ function ChatConversationModal({
           </View>
         )}
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.messages} keyboardShouldPersistTaps="handled">
-          {messages.length === 0 ? (
+        <FlatList
+          ref={messageListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item: message }) => (
+            <View style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
+              <Text style={local.bubbleText} selectable>{message.text}</Text>
+              <Text style={local.bubbleTime}>{message.time}</Text>
+            </View>
+          )}
+          ListEmptyComponent={
             <View style={local.empty}>
               <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
-              <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmowę" : "Prośba oczekuje"}</Text>
-              <Text style={local.emptyText} selectable>{canMessage ? "Zacznij od czegoś, co naprawdę Was łączy." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
+              <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmow\u0119" : "Pro\u015bba oczekuje"}</Text>
+              <Text style={local.emptyText} selectable>{canMessage ? "Zacznij od czego\u015b, co naprawd\u0119 Was \u0142\u0105czy." : "Wiadomo\u015bci odblokuj\u0105 si\u0119 po zaakceptowaniu pro\u015bby."}</Text>
               {canMessage && (
                 <>
-                  <Text style={local.starterLead}>Wybierz pierwszą iskrę</Text>
+                  <Text style={local.starterLead}>Wybierz pierwsz\u0105 iskr\u0119</Text>
                   <View style={local.starterList}>
                     {conversationStarters.map((starter) => (
-                      <Pressable
-                        key={starter}
-                        accessibilityRole="button"
-                        onPress={() => {
-                          void Haptics.selectionAsync();
-                          setDraft(starter);
-                        }}
-                        style={local.starterChip}
-                      >
+                      <Pressable key={starter} accessibilityRole="button" onPress={() => { void Haptics.selectionAsync(); setDraft(starter); }} style={local.starterChip}>
                         <MaterialCommunityIcons name="creation" size={16} color={colors.primary} />
                         <Text style={local.starterChipText} numberOfLines={3}>{starter}</Text>
                         <MaterialCommunityIcons name="arrow-bottom-right" size={16} color={colors.primaryDeep} />
@@ -5827,13 +6085,16 @@ function ChatConversationModal({
                 </>
               )}
             </View>
-          ) : messages.map((message) => (
-            <View key={message.id} style={[local.bubble, message.from === "me" ? local.bubbleMe : local.bubbleThem]}>
-              <Text style={local.bubbleText} selectable>{message.text}</Text>
-              <Text style={local.bubbleTime}>{message.time}</Text>
-            </View>
-          ))}
-        </ScrollView>
+          }
+          contentContainerStyle={local.messages}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={18}
+          maxToRenderPerBatch={18}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === "android"}
+          onContentSizeChange={() => messages.length > 0 && messageListRef.current?.scrollToEnd({ animated: false })}
+        />
 
         {!canMessage ? (
           <View style={[local.pending, { marginBottom: Math.max(insets.bottom, 12) }]}>
@@ -5858,8 +6119,8 @@ function ChatConversationModal({
               placeholderTextColor={colors.muted}
               style={local.input}
             />
-            <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij" disabled={!draft.trim()} onPress={send} style={[local.send, !draft.trim() && local.sendDisabled]}>
-              <MaterialCommunityIcons name="send" size={20} color="#fff" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij" disabled={!draft.trim() || sending} onPress={() => { void send(); }} style={[local.send, (!draft.trim() || sending) && local.sendDisabled]}>
+              {sending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialCommunityIcons name="send" size={20} color="#fff" />}
             </Pressable>
           </View>
         )}
@@ -6402,6 +6663,8 @@ function ProfileScreen({
   setProfileNameMode,
   nickname,
   setNickname,
+  gender,
+  setGender,
   birthDate,
   intents,
   setIntents,
@@ -6409,6 +6672,7 @@ function ProfileScreen({
   setProfileBio,
   onBirthDateChange,
   discoverFilters,
+  setDiscoverFilters,
   userCity,
   userCountry,
   locationStatus,
@@ -6443,6 +6707,8 @@ function ProfileScreen({
   setProfileNameMode: (value: ProfileNameMode) => void;
   nickname: string;
   setNickname: (value: string) => void;
+  gender: ProfileGender;
+  setGender: (value: ProfileGender) => void;
   birthDate: string;
   intents: SparkIntent[];
   setIntents: (value: SparkIntent[]) => void;
@@ -6450,6 +6716,7 @@ function ProfileScreen({
   setProfileBio: (value: string) => void;
   onBirthDateChange: (value: string) => void;
   discoverFilters: DiscoverFilters;
+  setDiscoverFilters: React.Dispatch<React.SetStateAction<DiscoverFilters>>;
   userCity: string;
   userCountry: string;
   locationStatus: "idle" | "granted" | "denied";
@@ -6505,6 +6772,8 @@ function ProfileScreen({
     interests: selectedInterests,
     intent: intents[0],
     intents,
+    gender,
+    desiredGendersByIntent: discoverFilters.targetGendersByIntent,
     featuredInterests: selectedInterests.slice(0, 3),
     socials: socialHandlesToProfileSocials(socialHandles),
     premium: hasPro,
@@ -6583,6 +6852,10 @@ function ProfileScreen({
             <Text style={styles.profileDescription} numberOfLines={1} selectable>{email}</Text>
             <View style={styles.profileMetaRow}>
               <View style={styles.profileMetaPill}>
+                <MaterialCommunityIcons name={genderOptions.find((option) => option.value === gender)?.icon ?? "account-question-outline"} size={14} color={colors.primary} />
+                <Text style={styles.profileMetaText} selectable>{genderOptions.find((option) => option.value === gender)?.label ?? "Nie podano"}</Text>
+              </View>
+              <View style={styles.profileMetaPill}>
                 <MaterialCommunityIcons name="calendar" size={14} color={colors.primary} />
                 <Text style={styles.profileMetaText} selectable>{userAge} lat</Text>
               </View>
@@ -6656,6 +6929,8 @@ function ProfileScreen({
           <Pressable onPress={() => setProfileNameMode("nickname")} style={[styles.segmentedChoiceItem, profileNameMode === "nickname" && styles.segmentedChoiceItemActive]}><Text style={[styles.segmentedChoiceText, profileNameMode === "nickname" && styles.segmentedChoiceTextActive]}>Nick</Text></Pressable>
         </View>
         {profileNameMode === "realName" ? <View style={styles.nameRow}><TextField label="Imię" value={firstName} onChangeText={setFirstName} /><TextField label="Nazwisko" value={lastName} onChangeText={setLastName} /></View> : <TextField label="Nick" value={nickname} onChangeText={setNickname} />}
+        <Text style={styles.fieldLabel}>Twoja p\u0142e\u0107</Text>
+        <GenderIdentitySelect value={gender} onChange={setGender} compact />
         <TextField label="Data urodzenia (RRRR-MM-DD)" value={birthDate} onChangeText={onBirthDateChange} keyboardType="numeric" />
         <Text style={styles.setupHelper}>{calculateAge(birthDate) === null ? "Podaj prawidłową datę." : (calculateAge(birthDate) ?? 0) > 99 ? "Sprawdź rok urodzenia." : String(calculateAge(birthDate)) + " lat"}</Text>
         <ProfileBioInput value={profileBio} onChangeText={setProfileBio} />
@@ -6672,6 +6947,8 @@ function ProfileScreen({
           <MaterialCommunityIcons name="account-heart-outline" size={22} color={colors.primary} />
         </View>
         <IntentMultiSelect selected={intents} onChange={setIntents} />
+        <Text style={styles.fieldLabel}>Preferowane osoby w ka\u017cdej kategorii</Text>
+        <GenderPreferencesEditor intents={intents} value={discoverFilters.targetGendersByIntent} onChange={(targetGendersByIntent) => setDiscoverFilters((current) => ({ ...current, targetGendersByIntent }))} compact />
       </View>
 
       <View style={styles.profilePanel}>

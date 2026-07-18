@@ -45,6 +45,33 @@ service cloud.firestore {
         && (!('desiredIntents' in data) || validIntentList(data.desiredIntents));
     }
 
+    function validGender(gender) {
+      return gender in ['woman', 'man', 'nonbinary', 'unspecified'];
+    }
+
+    function validDesiredGenderList(genders) {
+      return genders is list
+        && genders.size() >= 1 && genders.size() <= 3
+        && genders[0] in ['woman', 'man', 'nonbinary']
+        && (genders.size() < 2 || genders[1] in ['woman', 'man', 'nonbinary'])
+        && (genders.size() < 3 || genders[2] in ['woman', 'man', 'nonbinary'])
+        && (genders.size() < 2 || genders[0] != genders[1])
+        && (genders.size() < 3 || (genders[0] != genders[2] && genders[1] != genders[2]));
+    }
+
+    function validGenderPreferences(preferences) {
+      return preferences is map
+        && preferences.keys().hasOnly(['dating', 'friends', 'community'])
+        && validDesiredGenderList(preferences.dating)
+        && validDesiredGenderList(preferences.friends)
+        && validDesiredGenderList(preferences.community);
+    }
+
+    function validGenderFields(data) {
+      return (!('gender' in data) || validGender(data.gender))
+        && (!('desiredGendersByIntent' in data) || validGenderPreferences(data.desiredGendersByIntent));
+    }
+
     function hasRevenueCatPro() {
       return isSparkOwner() || (
         signedIn()
@@ -115,7 +142,7 @@ service cloud.firestore {
     }
 
     function validMatch(data) {
-      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid', 'unreadCountByUid', 'readAtByUid', 'lastMessageAt', 'lastMessageSenderUid'])
+      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid', 'unreadCountByUid', 'readAtByUid', 'lastMessageAt', 'lastMessageSenderUid', 'lastMessageText'])
         && data.memberUids is list && data.memberUids.size() == 2
         && data.memberUids[0] != data.memberUids[1]
         && data.createdByUid is string && data.createdByUid in data.memberUids
@@ -127,6 +154,7 @@ service cloud.firestore {
         && (data.get('readAtByUid', null) == null || data.readAtByUid is map)
         && (data.get('lastMessageAt', null) == null || data.lastMessageAt is timestamp)
         && (data.get('lastMessageSenderUid', null) == null || (data.lastMessageSenderUid is string && data.lastMessageSenderUid in data.memberUids))
+        && (data.get('lastMessageText', null) == null || (data.lastMessageText is string && data.lastMessageText.size() <= 240 && allowedUserText(data.lastMessageText)))
         && (data.get('resetAt', null) == null || data.resetAt is timestamp)
         && (data.get('eventContext', null) == null || validEvent(data.eventContext))
         && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500 && allowedUserText(data.introMessage)));
@@ -223,7 +251,7 @@ service cloud.firestore {
     }
     function validPublicProfile(data, uid) {
       return data.keys().hasOnly([
-          'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'intent', 'intents', 'bio',
+          'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'gender', 'intent', 'intents', 'desiredGendersByIntent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'activeEvents', 'activeEventIds', 'photoUrls', 'mainPhotoUrl',
           'city', 'country', 'location', 'socials', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
         ])
@@ -232,6 +260,7 @@ service cloud.firestore {
         && data.firstName is string && data.firstName.size() <= 80
         && data.lastName is string && data.lastName.size() <= 80
         && data.nickname is string && data.nickname.size() <= 80
+        && validGenderFields(data)
         && data.intent is string && data.intent.size() <= 120
         && (!('intents' in data) || validIntentList(data.intents))
         && data.bio is string && data.bio.size() >= 20 && data.bio.size() <= 300
@@ -290,13 +319,15 @@ service cloud.firestore {
         && request.resource.data.get('moderationStatus', 'active') == 'active'
         && request.resource.data.get('superlikePeriod', 0) == 0
         && request.resource.data.get('superlikesUsed', 0) == 0
-        && validIntentFields(request.resource.data);
+        && validIntentFields(request.resource.data)
+        && validGenderFields(request.resource.data);
       allow update: if isOwner(uid)
         && request.resource.data.uid == uid
         && resource.data.uid == uid
         && protectedProfileFieldsUnchanged()
         && validPremiumUsageUpdate()
-        && validIntentFields(request.resource.data);
+        && validIntentFields(request.resource.data)
+        && validGenderFields(request.resource.data);
       allow delete: if isOwner(uid);
       allow read: if isOwner(uid);
 
@@ -428,6 +459,7 @@ service cloud.firestore {
         && request.resource.data.get('readAtByUid', null) == null
         && request.resource.data.get('lastMessageAt', null) == null
         && request.resource.data.get('lastMessageSenderUid', null) == null
+        && request.resource.data.get('lastMessageText', null) == null
         && validMatchCreation(request.resource.data, matchId);
       allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow update: if signedIn()
@@ -444,6 +476,7 @@ service cloud.firestore {
         && request.resource.data.get('readAtByUid', null) == resource.data.get('readAtByUid', null)
         && request.resource.data.get('lastMessageAt', null) == resource.data.get('lastMessageAt', null)
         && request.resource.data.get('lastMessageSenderUid', null) == resource.data.get('lastMessageSenderUid', null)
+        && request.resource.data.get('lastMessageText', null) == resource.data.get('lastMessageText', null)
         && request.resource.data.updatedAt == request.time
         && (
           (
