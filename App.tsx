@@ -59,6 +59,7 @@ import {
   getUserProfile,
   getUserPrivateSettings,
   hasIncomingProfileLike,
+  markChatThreadRead,
   observeBlockedProfileKeys,
   observeRecentProfileViews,
   observeSparkEvents,
@@ -99,7 +100,7 @@ import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in"
 import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
 import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
-import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, registerSparkPushNotifications } from "./src/notifications";
+import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, registerSparkPushNotifications, setSparkAppBadgeCount } from "./src/notifications";
 import { registerPositiveMatchForReview } from "./src/store-review";
 
 
@@ -130,6 +131,18 @@ const configuredTestProfileViewerEmails = (process.env.EXPO_PUBLIC_TEST_PROFILE_
   .map((value: string) => value.trim().toLowerCase())
   .filter(Boolean);
 const sparkEventAdminEmail = "wychor234@gmail.com";
+
+function formatBadgeCount(count: number) {
+  return count > 99 ? "99+" : String(Math.max(0, count));
+}
+
+function formatUnreadLabel(count: number) {
+  if (count === 1) return "1 nieprzeczytana wiadomo\u015b\u0107";
+  const lastTwo = count % 100;
+  const last = count % 10;
+  const noun = last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? "nieprzeczytane wiadomo\u015bci" : "nieprzeczytanych wiadomo\u015bci";
+  return String(count) + " " + noun;
+}
 
 function openSupportEmail(subject = "Spark - pomoc") {
   const mailto = "mailto:" + supportEmail + "?subject=" + encodeURIComponent(subject);
@@ -314,6 +327,7 @@ type ChatThread = {
   status: ChatStatus;
   introMessage?: string;
   eventContext?: SparkEvent;
+  unreadCount?: number;
   messages: Array<{ id: string; from: "me" | "them"; text: string; time: string }>;
 };
 
@@ -903,9 +917,11 @@ function AppContent() {
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
   const sendingMessageKeysRef = useRef(new Set<string>());
+  const markingReadThreadIdsRef = useRef(new Set<string>());
   const recentMessageTimesRef = useRef<number[]>([]);
   const deferredSwipeAdRef = useRef(false);
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
+  const [pendingNotificationThreadId, setPendingNotificationThreadId] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -930,6 +946,15 @@ function AppContent() {
 
 
   const isCompact = width < 380;
+  const unreadMessageCount = useMemo(
+    () => Object.values(chatThreads).reduce((total, thread) => total + (thread.status === "matched" ? Math.max(0, thread.unreadCount ?? 0) : 0), 0),
+    [chatThreads]
+  );
+  const incomingChatRequestCount = useMemo(
+    () => Object.values(chatThreads).filter((thread) => thread.status === "requested" && thread.requestDirection === "incoming").length,
+    [chatThreads]
+  );
+  const messageAttentionCount = unreadMessageCount + incomingChatRequestCount;
   const profileLookupInterests = useMemo(
     () => Array.from(new Set([...discoverFilters.targetInterests, ...selectedInterests])).slice(0, 10),
     [discoverFilters.targetInterests, selectedInterests]
@@ -1070,13 +1095,28 @@ function AppContent() {
   }, [matchCelebrationProfile, tab, trackSwipeAd]);
 
   useEffect(() => {
-    const openRoute = (route: "matches" | "messages") => setTab(route);
-    const unsubscribe = observeSparkNotificationResponses(openRoute);
-    void getInitialSparkNotificationRoute().then((route) => {
-      if (route) openRoute(route);
+    const openTarget = (target: { route: "matches" | "messages"; threadId?: string }) => {
+      setTab(target.route);
+      if (target.route === "messages" && target.threadId) setPendingNotificationThreadId(target.threadId);
+    };
+    const unsubscribe = observeSparkNotificationResponses(openTarget);
+    void getInitialSparkNotificationRoute().then((target) => {
+      if (target) openTarget(target);
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!pendingNotificationThreadId) return;
+    const target = Object.entries(chatThreads).find(([, thread]) => thread.threadId === pendingNotificationThreadId);
+    if (!target) return;
+    setSelectedChatKey(target[0]);
+    setPendingNotificationThreadId(null);
+  }, [chatThreads, pendingNotificationThreadId]);
+
+  useEffect(() => {
+    void setSparkAppBadgeCount(messageAttentionCount).catch(() => undefined);
+  }, [messageAttentionCount]);
 
   useEffect(() => {
     let mounted = true;
@@ -1522,6 +1562,7 @@ function AppContent() {
           status: thread.status,
           introMessage: thread.introMessage,
           eventContext: thread.eventContext,
+          unreadCount: thread.unreadCount,
           messages: thread.messages.map((message) => ({
             id: message.id,
             from: message.senderUid === appUser.uid ? "me" : "them",
@@ -1548,6 +1589,24 @@ function AppContent() {
     const unsubscribeBlocks = observeBlockedProfileKeys(appUser.uid, setBlockedProfileKeys, (error) => setProfileFeedError(error.message));
     return () => { unsubscribeChats(); unsubscribeBlocks(); };
   }, [appUser, authDone, onboarded]);
+
+  useEffect(() => {
+    if (!appUser || tab !== "messages" || !selectedChatKey) return;
+    const thread = chatThreads[selectedChatKey];
+    const unreadCount = Math.max(0, thread?.unreadCount ?? 0);
+    if (!thread?.threadId || unreadCount === 0 || markingReadThreadIdsRef.current.has(thread.threadId)) return;
+
+    const threadId = thread.threadId;
+    markingReadThreadIdsRef.current.add(threadId);
+    setChatThreads((current) => ({ ...current, [selectedChatKey]: { ...current[selectedChatKey], unreadCount: 0 } }));
+    void markChatThreadRead({ threadId, uid: appUser.uid })
+      .catch(() => {
+        setChatThreads((current) => current[selectedChatKey]
+          ? { ...current, [selectedChatKey]: { ...current[selectedChatKey], unreadCount: Math.max(current[selectedChatKey].unreadCount ?? 0, unreadCount) } }
+          : current);
+      })
+      .finally(() => markingReadThreadIdsRef.current.delete(threadId));
+  }, [appUser, chatThreads, selectedChatKey, tab]);
 
   useEffect(() => {
     if (!appUser || !onboarded || revenueCat.isLoading || !revenueCat.configured) return undefined;
@@ -2731,6 +2790,7 @@ function AppContent() {
             onSwipe={handleSwipe}
             onPremiumChatRequest={sendPremiumChatRequest}
             onOpenMessages={() => setTab("messages")}
+            messageNotificationCount={messageAttentionCount}
             onOpenMatches={() => setTab("matches")}
             onOpenProfile={() => setTab("profile")}
             onOpenPremium={openPremium}
@@ -2776,6 +2836,7 @@ function AppContent() {
             onRefresh={refreshDiscovery}
             onOpenMatches={() => setTab("matches")}
             onOpenMessages={() => setTab("messages")}
+            messageNotificationCount={messageAttentionCount}
             onOpenProfile={() => setTab("profile")}
             onOpenPremium={openPremium}
             onOpenSafety={() => setTab("safety")}
@@ -2966,7 +3027,10 @@ function AppContent() {
             }}
             style={[styles.navButton, tab === key && styles.navButtonActive]}
           >
-            <MaterialCommunityIcons name={icon as any} size={22} color={tab === key ? colors.primary : colors.muted} />
+            <View style={styles.navIconWrap}>
+              <MaterialCommunityIcons name={icon as any} size={22} color={tab === key ? colors.primary : colors.muted} />
+              {key === "messages" && messageAttentionCount > 0 && <View style={styles.navUnreadBadge}><Text style={styles.navUnreadBadgeText}>{formatBadgeCount(messageAttentionCount)}</Text></View>}
+            </View>
             <Text style={[styles.navText, tab === key && styles.navTextActive]}>{label}</Text>
           </Pressable>
         ))}
@@ -3432,6 +3496,7 @@ function DiscoverScreen({
   onSwipe,
   onPremiumChatRequest,
   onOpenMessages,
+  messageNotificationCount,
   onOpenMatches,
   onOpenProfile,
   onOpenPremium,
@@ -3460,6 +3525,7 @@ function DiscoverScreen({
   onSwipe: (action: SwipeAction) => Promise<SwipeOutcome>;
   onPremiumChatRequest: () => void;
   onOpenMessages: () => void;
+  messageNotificationCount: number;
   onOpenMatches: () => void;
   onOpenProfile: () => void;
   onOpenPremium: (source?: PremiumEntrySource) => void;
@@ -3785,6 +3851,7 @@ function DiscoverScreen({
         onRefresh={onRefresh}
         onOpenMatches={onOpenMatches}
         onOpenMessages={onOpenMessages}
+        messageNotificationCount={messageNotificationCount}
         onOpenProfile={onOpenProfile}
         onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
@@ -3874,6 +3941,7 @@ function DiscoveryMenuModal({
   onRefresh,
   onOpenMatches,
   onOpenMessages,
+  messageNotificationCount,
   onOpenProfile,
   onOpenPremium,
   onOpenSafety,
@@ -3887,6 +3955,7 @@ function DiscoveryMenuModal({
   onRefresh: () => void;
   onOpenMatches: () => void;
   onOpenMessages: () => void;
+  messageNotificationCount: number;
   onOpenProfile: () => void;
   onOpenPremium: (source?: PremiumEntrySource) => void;
   onOpenSafety: () => void;
@@ -3895,10 +3964,10 @@ function DiscoveryMenuModal({
 }) {
   const insets = useSafeAreaInsets();
   const activeFilters = countActiveDiscoverFilters(filters);
-  const menuItems = [
+  const menuItems: Array<{ icon: string; label: string; hint: string; active?: boolean; badge?: number; action: () => void }> = [
     { icon: "cards-heart", label: "Odkrywaj", hint: "Wróć do kart", active: true, action: onClose },
     { icon: "heart-multiple", label: "Matche", hint: "Polubienia i nowe iskry", action: onOpenMatches },
-    { icon: "message-text", label: "Wiadomości", hint: "Aktywne i oczekujące", action: onOpenMessages },
+    { icon: "message-text", label: "Wiadomości", hint: messageNotificationCount > 0 ? formatUnreadLabel(messageNotificationCount) : "Aktywne i oczekuj\u0105ce", badge: messageNotificationCount, action: onOpenMessages },
     { icon: "account-circle", label: "Twój profil", hint: "Zdjęcia, dane i zainteresowania", action: onOpenProfile },
     { icon: "account-multiple-plus", label: "Zaproś znajomych", hint: "Wyślij link do Spark", action: onInvite },
     { icon: "crown", label: "Spark Pro", hint: "Pakiety i funkcje premium", action: onOpenPremium }
@@ -3943,6 +4012,7 @@ function DiscoveryMenuModal({
                   <Text style={[styles.discoveryMenuLabel, item.active && styles.discoveryMenuLabelActive]}>{item.label}</Text>
                   <Text style={styles.discoveryMenuHint}>{item.hint}</Text>
                 </View>
+                {Boolean(item.badge) && <View style={styles.discoveryMenuBadge}><Text style={styles.discoveryMenuBadgeText}>{formatBadgeCount(item.badge ?? 0)}</Text></View>}
                 {item.active ? <View style={styles.discoveryMenuActiveDot} /> : <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />}
               </Pressable>
             ))}
@@ -4645,6 +4715,7 @@ function EventFriendsManagerModal({
   onDelete: (event: SparkEvent) => Promise<boolean>;
 }) {
   const insets = useSafeAreaInsets();
+  const eventFormScrollRef = useRef<ScrollView>(null);
   const [draftEvents, setDraftEvents] = useState<SparkEvent[]>(events);
   const [category, setCategory] = useState<EventCategoryId>("music");
   const [selectedIcon, setSelectedIcon] = useState<EventIconId>(getEventCategoryDefaultIcon("music"));
@@ -4739,6 +4810,10 @@ function EventFriendsManagerModal({
     setDeletingId(null);
   }, [availableEvents, defaults.end, defaults.start, events, userCity, visible]);
 
+  function revealEventDateInput() {
+    setTimeout(() => eventFormScrollRef.current?.scrollToEnd({ animated: true }), 250);
+  }
+
   function addEvent(event: SparkEvent) {
     if (draftEvents.some((item) => item.id === event.id)) {
       setDraftEvents((current) => current.filter((item) => item.id !== event.id));
@@ -4805,14 +4880,14 @@ function EventFriendsManagerModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <View style={local.root}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style="light" />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
           <Pressable accessibilityRole="button" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
           <View style={styles.fill}><Text style={local.eyebrow}>Event Friends</Text><Text style={local.title}>Twoje wydarzenia</Text></View>
           <View style={local.counter}><Text style={local.counterText}>{draftEvents.length}/{maxSelectedEvents}</Text></View>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={local.scroll}>
+        <ScrollView ref={eventFormScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={local.scroll}>
           <View style={local.hero}>
             <Text style={local.heroEyebrow}>POZNAJCIE SIĘ PRZED WYJŚCIEM</Text>
             <Text style={local.heroTitle}>Znajdź znajomych na evencie, na którym też będziesz!</Text>
@@ -4881,15 +4956,15 @@ function EventFriendsManagerModal({
               <Text style={local.fieldLabel}>Miasto</Text>
               <TextInput value={city} onChangeText={setCity} maxLength={80} placeholder="np. Gdynia" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Start · RRRR-MM-DD GG:MM</Text>
-              <TextInput value={startsAtInput} onChangeText={setStartsAtInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 18:00" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput value={startsAtInput} onChangeText={setStartsAtInput} onFocus={revealEventDateInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 18:00" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Koniec · RRRR-MM-DD GG:MM</Text>
-              <TextInput value={endsAtInput} onChangeText={setEndsAtInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 21:00" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput value={endsAtInput} onChangeText={setEndsAtInput} onFocus={revealEventDateInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 21:00" placeholderTextColor={colors.muted} style={local.input} />
               <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>Opublikuj wydarzenie</Text></Pressable>
             </View>
           )}
         </ScrollView>
         <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>Zapisz wybór</Text></Pressable></View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -4922,6 +4997,7 @@ function DiscoverEmptyState({
   onRefresh,
   onOpenMatches,
   onOpenMessages,
+  messageNotificationCount,
   onOpenProfile,
   onOpenPremium,
   onOpenSafety,
@@ -4940,6 +5016,7 @@ function DiscoverEmptyState({
   onRefresh: () => void;
   onOpenMatches: () => void;
   onOpenMessages: () => void;
+  messageNotificationCount: number;
   onOpenProfile: () => void;
   onOpenPremium: (source?: PremiumEntrySource) => void;
   onOpenSafety: () => void;
@@ -4999,6 +5076,7 @@ function DiscoverEmptyState({
         onRefresh={onRefresh}
         onOpenMatches={onOpenMatches}
         onOpenMessages={onOpenMessages}
+        messageNotificationCount={messageNotificationCount}
         onOpenProfile={onOpenProfile}
         onOpenPremium={onOpenPremium}
         onOpenSafety={onOpenSafety}
@@ -5159,6 +5237,7 @@ function MatchesScreen({
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
   const [matchFilter, setMatchFilter] = useState<"all" | "active" | "likes" | "requests">("all");
   const [matchView, setMatchView] = useState<"list" | "grid">("list");
+  const [collapsedMatchSections, setCollapsedMatchSections] = useState<Record<"active" | "incoming" | "likes" | "requests", boolean>>({ active: false, incoming: false, likes: false, requests: false });
   const sortNewest = (items: MatchProfile[]) => [...items].sort((left, right) =>
     (chatThreads[getProfileKey(right)]?.createdAtMs ?? right.updatedAtMs ?? 0) - (chatThreads[getProfileKey(left)]?.createdAtMs ?? left.updatedAtMs ?? 0) || left.name.localeCompare(right.name, "pl")
   );
@@ -5179,6 +5258,26 @@ function MatchesScreen({
   }));
   const isEmpty = matchedProfiles.length === 0 && incomingLikes.length === 0 && pendingLikes.length === 0 && pendingRequests.length === 0;
   const selectedFilterCount = matchFilter === "active" ? matchedProfiles.length : matchFilter === "likes" ? incomingLikes.length + pendingLikes.length : matchFilter === "requests" ? pendingRequests.length : matchedProfiles.length + incomingLikes.length + pendingLikes.length + pendingRequests.length;
+
+  function toggleMatchSection(section: "active" | "incoming" | "likes" | "requests") {
+    setCollapsedMatchSections((current) => ({ ...current, [section]: !current[section] }));
+  }
+
+  function renderMatchSectionHeader(section: "active" | "incoming" | "likes" | "requests", title: string, count: number, subtitle?: string) {
+    const collapsed = collapsedMatchSections[section];
+    return (
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} accessibilityLabel={`${collapsed ? "Rozwiń" : "Zwiń"} sekcję ${title}`} onPress={() => toggleMatchSection(section)} style={styles.matchSectionHeader}>
+        <View style={styles.fill}>
+          <Text style={styles.matchSectionTitle} selectable>{title}</Text>
+          {subtitle && <Text style={styles.pendingMatchText} selectable>{subtitle}</Text>}
+        </View>
+        <View style={styles.matchSectionHeaderAction}>
+          <Text style={styles.matchSectionCount}>{count}</Text>
+          <MaterialCommunityIcons name={collapsed ? "chevron-down" : "chevron-up"} size={20} color={colors.muted} />
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <View style={styles.gapLg}>
@@ -5232,10 +5331,8 @@ function MatchesScreen({
 
       {(matchFilter === "all" || matchFilter === "active") && matchedProfiles.length > 0 && (
         <View style={styles.matchSection}>
-          <View style={styles.matchSectionHeader}>
-            <Text style={styles.matchSectionTitle} selectable>Aktywne matche</Text>
-            <Text style={styles.matchSectionCount}>{matchedProfiles.length}</Text>
-          </View>
+          {renderMatchSectionHeader("active", "Aktywne matche", matchedProfiles.length)}
+          {!collapsedMatchSections.active && (
           <View style={[styles.matchGrid, matchView === "list" && styles.matchList]}>
             {matchedProfiles.map((profile) => (
               <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={[styles.matchCard, matchView === "list" && styles.matchCardList]}>
@@ -5258,18 +5355,14 @@ function MatchesScreen({
               </Pressable>
             ))}
           </View>
+          )}
         </View>
       )}
 
       {(matchFilter === "all" || matchFilter === "likes") && incomingLikes.length > 0 && (
         <View style={styles.matchSection}>
-          <View style={styles.matchSectionHeader}>
-            <View>
-              <Text style={styles.matchSectionTitle} selectable>Polubili Cię</Text>
-              <Text style={styles.pendingMatchText} selectable>Spark Pro pokazuje osoby gotowe na match.</Text>
-            </View>
-            <Text style={styles.matchSectionCount}>{incomingLikes.length}</Text>
-          </View>
+          {renderMatchSectionHeader("incoming", "Polubili Cię", incomingLikes.length, "Spark Pro pokazuje osoby gotowe na match.")}
+          {!collapsedMatchSections.incoming && (
           <View style={styles.pendingMatchList}>
             {incomingLikes.map((profile) => {
               const profileKey = getProfileKey(profile);
@@ -5296,15 +5389,14 @@ function MatchesScreen({
               );
             })}
           </View>
+          )}
         </View>
       )}
 
       {(matchFilter === "all" || matchFilter === "likes") && pendingLikes.length > 0 && (
         <View style={styles.matchSection}>
-          <View style={styles.matchSectionHeader}>
-            <Text style={styles.matchSectionTitle} selectable>Polubione profile</Text>
-            <Text style={styles.matchSectionCount}>{pendingLikes.length}</Text>
-          </View>
+          {renderMatchSectionHeader("likes", "Polubione profile", pendingLikes.length)}
+          {!collapsedMatchSections.likes && (
           <View style={styles.pendingMatchList}>
             {pendingLikes.map((profile) => (
               <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
@@ -5341,15 +5433,14 @@ function MatchesScreen({
               </Pressable>
             ))}
           </View>
+          )}
         </View>
       )}
 
       {(matchFilter === "all" || matchFilter === "requests") && pendingRequests.length > 0 && (
         <View style={styles.matchSection}>
-          <View style={styles.matchSectionHeader}>
-            <Text style={styles.matchSectionTitle} selectable>Prośby o chat</Text>
-            <Text style={styles.matchSectionCount}>{pendingRequests.length}</Text>
-          </View>
+          {renderMatchSectionHeader("requests", "Prośby o chat", pendingRequests.length)}
+          {!collapsedMatchSections.requests && (
           <View style={styles.pendingMatchList}>
             {pendingRequests.map((profile) => {
               const profileKey = getProfileKey(profile);
@@ -5383,6 +5474,7 @@ function MatchesScreen({
               );
             })}
           </View>
+          )}
         </View>
       )}
       {previewProfile && (
@@ -5430,6 +5522,7 @@ function MessagesScreen({
 }) {
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
+  const [profilePreview, setProfilePreview] = useState<MatchProfile | null>(null);
   const conversations = profiles
     .filter((profile) => {
       const key = getProfileKey(profile);
@@ -5441,7 +5534,7 @@ function MessagesScreen({
       const isMatched = matchedProfileKeys.includes(key) || thread?.status === "matched";
       const isBlocked = thread?.status === "blocked";
       const latestMessage = thread?.messages[thread.messages.length - 1];
-      const unreadCount = 0;
+      const unreadCount = Math.max(0, thread?.unreadCount ?? 0);
 
       return {
         key,
@@ -5483,7 +5576,7 @@ function MessagesScreen({
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
           <Text style={[styles.chatToggleText, messageView === "chats" && styles.chatToggleTextActive]} selectable>Chaty</Text>
-          <Text style={[styles.chatToggleCount, messageView === "chats" && styles.chatToggleCountActive]} selectable>{chatConversations.length}</Text>
+          <Text style={[styles.chatToggleCount, messageView === "chats" && styles.chatToggleCountActive]} selectable>{unreadChatsCount > 0 ? formatBadgeCount(unreadChatsCount) : chatConversations.length}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
@@ -5493,7 +5586,7 @@ function MessagesScreen({
       </View>
       <View style={styles.chatMiniInfo}>
         <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats" ? chatConversations.length + " aktywne" : requestConversations.length + " oczekuj\u0105ce"}
+          {messageView === "chats" ? (unreadChatsCount > 0 ? formatUnreadLabel(unreadChatsCount) : chatConversations.length + " aktywne") : requestConversations.length + " oczekuj\u0105ce"}
         </Text>
       </View>
       <View style={styles.searchField}>
@@ -5524,8 +5617,8 @@ function MessagesScreen({
             <Pressable key={conversation.key} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
               <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
               <View style={styles.fill}>
-                <Text style={styles.chatName} selectable>{conversation.name}</Text>
-                <Text style={styles.chatMessage} numberOfLines={2} selectable>{conversation.message}</Text>
+                <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} selectable>{conversation.name}</Text>
+                <Text style={[styles.chatMessage, conversation.unreadCount > 0 && styles.chatMessageUnread]} numberOfLines={2} selectable>{conversation.message}</Text>
               </View>
               <View style={styles.chatMetaColumn}>
                 <Text style={styles.chatTime} selectable>{conversation.time}</Text>
@@ -5547,8 +5640,18 @@ function MessagesScreen({
         onReject={onRejectRequest}
         onBlock={onBlockProfile}
         onReport={onReportProfile}
+        onOpenProfile={() => setProfilePreview(selectedConversation?.profile ?? null)}
         viewerInterests={viewerInterests}
       />
+      {profilePreview && (
+        <ProfilePreviewSheet
+          profile={profilePreview}
+          viewerInterests={viewerInterests}
+          onClose={() => setProfilePreview(null)}
+          canViewSocials={matchedProfileKeys.includes(getProfileKey(profilePreview))}
+          readOnly
+        />
+      )}
     </View>
   );
 }
@@ -5564,6 +5667,7 @@ function ChatConversationModal({
   onReject,
   onBlock,
   onReport,
+  onOpenProfile,
   viewerInterests
 }: {
   conversation: { key: string; profile: MatchProfile; name: string; status: ChatStatus } | null;
@@ -5576,6 +5680,7 @@ function ChatConversationModal({
   onReject: (profileKey: string) => void;
   onBlock: (profileKey: string) => void;
   onReport: (profileKey: string, reason?: string) => void;
+  onOpenProfile: () => void;
   viewerInterests: string[];
 }) {
   const insets = useSafeAreaInsets();
@@ -5586,6 +5691,7 @@ function ChatConversationModal({
     header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
     back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
     avatar: { width: 42, height: 42, borderRadius: 14, borderCurve: "continuous" },
+    identityButton: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 3 },
     name: { color: colors.ink, fontSize: 15, fontWeight: "900" },
     status: { marginTop: 2, color: colors.green, fontSize: 10, fontWeight: "800" },
     headerActions: { flexDirection: "row", gap: 7 },
@@ -5662,11 +5768,13 @@ function ChatConversationModal({
           <Pressable accessibilityRole="button" accessibilityLabel="Wroc" onPress={onClose} style={local.back}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
           </Pressable>
-          <Image source={activeConversation.profile.image} style={local.avatar} contentFit="cover" />
-          <View style={styles.fill}>
-            <Text style={local.name} selectable>{activeConversation.name}</Text>
-            <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
-          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Otwórz profil ${activeConversation.name}`} onPress={onOpenProfile} style={local.identityButton}>
+            <Image source={activeConversation.profile.image} style={local.avatar} contentFit="cover" />
+            <View style={styles.fill}>
+              <Text style={local.name} selectable>{activeConversation.name}</Text>
+              <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
+            </View>
+          </Pressable>
           <View style={local.headerActions}>
             <Pressable accessibilityRole="button" accessibilityLabel="Zgłoś" onPress={confirmReport} style={local.headerAction}>
               <MaterialCommunityIcons name="alert-outline" size={19} color={colors.primaryDeep} />
@@ -8483,6 +8591,20 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontWeight: "700"
   },
+  discoveryMenuBadge: {
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  discoveryMenuBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900"
+  },
   discoveryMenuActiveDot: {
     width: 7,
     height: 7,
@@ -9452,6 +9574,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 3
   },
+  matchSectionHeaderAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
   matchSectionTitle: {
     color: colors.ink,
     fontSize: 15,
@@ -9790,11 +9917,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900"
   },
+  chatNameUnread: {
+    color: "#fff"
+  },
   chatMessage: {
     maxWidth: 210,
     marginTop: 3,
     color: colors.muted,
     fontSize: 13
+  },
+  chatMessageUnread: {
+    color: "#e9e3e8",
+    fontWeight: "800"
   },
   chatMetaColumn: {
     alignItems: "flex-end",
@@ -11236,6 +11370,31 @@ const styles = StyleSheet.create({
   },
   navButtonActive: {
     backgroundColor: "rgba(255,45,141,0.22)"
+  },
+  navIconWrap: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  navUnreadBadge: {
+    position: "absolute",
+    top: -7,
+    right: -13,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: "#151218"
+  },
+  navUnreadBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: "900"
   },
   navIcon: {
     color: colors.muted,

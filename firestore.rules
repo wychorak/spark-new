@@ -115,7 +115,7 @@ service cloud.firestore {
     }
 
     function validMatch(data) {
-      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid'])
+      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid', 'unreadCountByUid', 'readAtByUid', 'lastMessageAt', 'lastMessageSenderUid'])
         && data.memberUids is list && data.memberUids.size() == 2
         && data.memberUids[0] != data.memberUids[1]
         && data.createdByUid is string && data.createdByUid in data.memberUids
@@ -123,6 +123,10 @@ service cloud.firestore {
         && data.status in ['matched', 'requested', 'rejected', 'blocked']
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
+        && (data.get('unreadCountByUid', null) == null || data.unreadCountByUid is map)
+        && (data.get('readAtByUid', null) == null || data.readAtByUid is map)
+        && (data.get('lastMessageAt', null) == null || data.lastMessageAt is timestamp)
+        && (data.get('lastMessageSenderUid', null) == null || (data.lastMessageSenderUid is string && data.lastMessageSenderUid in data.memberUids))
         && (data.get('resetAt', null) == null || data.resetAt is timestamp)
         && (data.get('eventContext', null) == null || validEvent(data.eventContext))
         && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500 && allowedUserText(data.introMessage)));
@@ -420,6 +424,10 @@ service cloud.firestore {
         && validMatch(request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
+        && request.resource.data.get('unreadCountByUid', null) == null
+        && request.resource.data.get('readAtByUid', null) == null
+        && request.resource.data.get('lastMessageAt', null) == null
+        && request.resource.data.get('lastMessageSenderUid', null) == null
         && validMatchCreation(request.resource.data, matchId);
       allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow update: if signedIn()
@@ -432,6 +440,10 @@ service cloud.firestore {
         && request.resource.data.get('eventContext', null) == resource.data.get('eventContext', null)
         && request.resource.data.get('resetAt', null) == resource.data.get('resetAt', null)
         && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.get('unreadCountByUid', null) == resource.data.get('unreadCountByUid', null)
+        && request.resource.data.get('readAtByUid', null) == resource.data.get('readAtByUid', null)
+        && request.resource.data.get('lastMessageAt', null) == resource.data.get('lastMessageAt', null)
+        && request.resource.data.get('lastMessageSenderUid', null) == resource.data.get('lastMessageSenderUid', null)
         && request.resource.data.updatedAt == request.time
         && (
           (

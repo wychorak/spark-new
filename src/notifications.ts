@@ -33,22 +33,38 @@ export async function registerSparkPushNotifications(uid: string) {
   await registerDevicePushToken(uid, token, Platform.OS);
   return true;
 }
-export type SparkNotificationRoute = "matches" | "messages";
+export type SparkNotificationTarget = {
+  route: "matches" | "messages";
+  threadId?: string;
+};
 
-function getRoute(response: Notifications.NotificationResponse): SparkNotificationRoute | null {
-  const route = response.notification.request.content.data?.route;
-  return route === "matches" || route === "messages" ? route : null;
+function getTarget(response: Notifications.NotificationResponse): SparkNotificationTarget | null {
+  const data = response.notification.request.content.data;
+  const route = data?.route;
+  if (route !== "matches" && route !== "messages") return null;
+  return {
+    route,
+    threadId: typeof data?.threadId === "string" ? data.threadId : undefined
+  };
 }
 
-export function observeSparkNotificationResponses(onRoute: (route: SparkNotificationRoute) => void) {
+export function observeSparkNotificationResponses(onTarget: (target: SparkNotificationTarget) => void) {
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-    const route = getRoute(response);
-    if (route) onRoute(route);
+    const target = getTarget(response);
+    if (target) onTarget(target);
   });
   return () => subscription.remove();
 }
 
 export async function getInitialSparkNotificationRoute() {
   const response = await Notifications.getLastNotificationResponseAsync();
-  return response ? getRoute(response) : null;
+  if (!response) return null;
+  const target = getTarget(response);
+  await Notifications.clearLastNotificationResponseAsync();
+  return target;
+}
+
+export async function setSparkAppBadgeCount(count: number) {
+  if (Platform.OS === "web") return;
+  await Notifications.setBadgeCountAsync(Math.max(0, Math.min(999, Math.floor(count))));
 }

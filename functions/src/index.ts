@@ -40,6 +40,7 @@ async function sendPush(uid: string, payload: NotificationPayload) {
     const messages = tokens.slice(offset, offset + 100).map((to) => ({
       to,
       sound: "default",
+      badge: 1,
       title: payload.title,
       body: payload.body,
       data: payload.data,
@@ -245,10 +246,33 @@ export const sendChatMessage = onCall(
         throw new HttpsError("resource-exhausted", "Limit 20 wiadomości na minutę został wykorzystany.");
       }
 
+      const recipientUid = matchData.memberUids.find((memberUid: unknown) => typeof memberUid === "string" && memberUid !== uid);
+      if (typeof recipientUid !== "string") {
+        throw new HttpsError("failed-precondition", "Rozmowa nie ma prawidłowego odbiorcy.");
+      }
+      const currentUnread = matchData.unreadCountByUid && typeof matchData.unreadCountByUid === "object"
+        ? Number((matchData.unreadCountByUid as Record<string, unknown>)[recipientUid] ?? 0)
+        : 0;
+      const messageTimestamp = Timestamp.fromMillis(nowMs);
+
       transaction.create(messageRef, {
         senderUid: uid,
         text,
-        createdAt: FieldValue.serverTimestamp()
+        createdAt: messageTimestamp
+      });
+      transaction.update(matchRef, {
+        unreadCountByUid: {
+          ...(matchData.unreadCountByUid && typeof matchData.unreadCountByUid === "object" ? matchData.unreadCountByUid : {}),
+          [uid]: 0,
+          [recipientUid]: Math.min(999, Math.max(0, Number.isFinite(currentUnread) ? currentUnread : 0) + 1)
+        },
+        readAtByUid: {
+          ...(matchData.readAtByUid && typeof matchData.readAtByUid === "object" ? matchData.readAtByUid : {}),
+          [uid]: messageTimestamp
+        },
+        lastMessageAt: messageTimestamp,
+        lastMessageSenderUid: uid,
+        updatedAt: messageTimestamp
       });
       transaction.set(usageRef, {
         minuteKey,
@@ -261,6 +285,41 @@ export const sendChatMessage = onCall(
     });
   }
 );
+
+export const markChatThreadRead = onCall(
+  { region, timeoutSeconds: 15 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie, aby otworzyć rozmowę.");
+    const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
+    const threadId = stringValue(data.threadId);
+    if (!threadId || threadId.length > 260 || threadId.includes("/")) {
+      throw new HttpsError("invalid-argument", "Nieprawidłowy identyfikator rozmowy.");
+    }
+
+    const matchRef = db.collection("matches").doc(threadId);
+    await db.runTransaction(async (transaction) => {
+      const match = await transaction.get(matchRef);
+      const matchData = match.data();
+      if (!match.exists || !Array.isArray(matchData?.memberUids) || !matchData.memberUids.includes(uid)) {
+        throw new HttpsError("permission-denied", "Nie masz dostępu do tej rozmowy.");
+      }
+      transaction.update(matchRef, {
+        unreadCountByUid: {
+          ...(matchData?.unreadCountByUid && typeof matchData.unreadCountByUid === "object" ? matchData.unreadCountByUid : {}),
+          [uid]: 0
+        },
+        readAtByUid: {
+          ...(matchData?.readAtByUid && typeof matchData.readAtByUid === "object" ? matchData.readAtByUid : {}),
+          [uid]: FieldValue.serverTimestamp()
+        },
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    });
+    return { ok: true as const };
+  }
+);
+
 
 export const notifyNewMatch = onDocumentCreated(
   { document: "matches/{matchId}", region },

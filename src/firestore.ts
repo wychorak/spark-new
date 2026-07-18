@@ -848,6 +848,18 @@ export async function sendChatMessage(params: {
 }
 
 
+export async function markChatThreadRead(params: { threadId: string; uid: string }) {
+  requireCurrentUserUid(params.uid);
+  const callable = httpsCallable<{ threadId: string }, { ok: true }>(requireCloudFunctions(), "markChatThreadRead");
+
+  try {
+    await callable({ threadId: params.threadId });
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się oznaczyć rozmowy jako przeczytanej."));
+  }
+}
+
+
 export type RealtimeChatThread = {
   id: string;
   memberUids: string[];
@@ -856,6 +868,7 @@ export type RealtimeChatThread = {
   status: "matched" | "requested";
   introMessage?: string;
   eventContext?: SparkEvent;
+  unreadCount: number;
   messages: Array<{ id: string; senderUid: string; text: string; createdAtMs: number | null }>;
 };
 
@@ -882,7 +895,8 @@ export function observeUserChats(uid: string, onChange: (threads: RealtimeChatTh
           createdAtMs: typeof data.createdAt?.toMillis === "function" ? data.createdAt.toMillis() : null,
           status: data.status,
           introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined,
-          eventContext: normalizeSparkEvent(data.eventContext) ?? undefined
+          eventContext: normalizeSparkEvent(data.eventContext) ?? undefined,
+          unreadCount: Math.max(0, Math.min(999, Number(data.unreadCountByUid?.[uid] ?? 0) || 0))
         });
         if (!messageUnsubscribers.has(item.id)) {
           messageUnsubscribers.set(item.id, onSnapshot(
