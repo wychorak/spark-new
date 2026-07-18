@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
   getDocs,
   increment,
@@ -80,6 +81,25 @@ export type UserProfileDocument = {
 };
 
 const sparkIntentLabels = ["Randki", "Znajomi", "LGBT+ / Społeczność"] as const;
+
+const profileViewWriteCooldownMs = 10 * 60 * 1000;
+const recentProfileViewWrites = new Map<string, number>();
+const outgoingSwipeCacheTtlMs = 60 * 1000;
+
+type OutgoingProfileSwipe = {
+  id: string;
+  fromUid: string;
+  toProfileKey: string;
+  status: "liked" | "passed";
+  direction: "pass" | "like" | "superlike";
+  resetAtMs: number | null;
+};
+
+const outgoingSwipeCache = new Map<string, { expiresAt: number; items: OutgoingProfileSwipe[] }>();
+
+function invalidateOutgoingSwipeCache(uid: string) {
+  outgoingSwipeCache.delete(uid);
+}
 
 function normalizeSparkIntents(value: unknown, legacyIntent?: unknown) {
   const source = Array.isArray(value) ? value : legacyIntent ? [legacyIntent] : [];
@@ -193,6 +213,11 @@ export type ProfileViewDocument = {
 export async function recordCurrentUserProfileView(targetUid: string) {
   const viewerUid = auth?.currentUser?.uid;
   if (!viewerUid || !targetUid || viewerUid === targetUid) return;
+
+  const writeKey = viewerUid + ":" + targetUid;
+  const now = Date.now();
+  if (now - (recentProfileViewWrites.get(writeKey) ?? 0) < profileViewWriteCooldownMs) return;
+  recentProfileViewWrites.set(writeKey, now);
 
   await setDoc(
     doc(requireDb(), "users", targetUid, "profileViews", viewerUid),
@@ -477,6 +502,18 @@ export async function getPublicProfile(uid: string) {
   return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as UserProfileDocument & { id: string }) : null;
 }
 
+export async function getPublicProfiles(uids: string[]) {
+  const normalizedUids = Array.from(new Set(uids.filter((uid) => typeof uid === "string" && uid.length > 0 && !uid.includes("/"))));
+  if (normalizedUids.length === 0) return [];
+
+  const publicProfiles = collection(requireDb(), "publicProfiles");
+  const batches = Array.from({ length: Math.ceil(normalizedUids.length / 30) }, (_, index) => normalizedUids.slice(index * 30, index * 30 + 30));
+  const snapshots = await Promise.all(batches.map((batch) => getDocs(query(publicProfiles, where(documentId(), "in", batch)))));
+  const profilesById = new Map<string, UserProfileDocument & { id: string }>();
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => profilesById.set(item.id, { id: item.id, ...(item.data() as UserProfileDocument) })));
+  return normalizedUids.map((uid) => profilesById.get(uid) ?? null);
+}
+
 export async function requestAccountDeletionAndDeleteProfile(params: {
   uid: string;
   reason?: string;
@@ -537,26 +574,23 @@ export type DiscoveryCursor = QueryDocumentSnapshot<DocumentData>;
 export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null, intents: string[] = [], city = "") {
   const currentDb = requireDb();
   const publicProfiles = collection(currentDb, "publicProfiles");
-  const pageSize = 30;
+  const pageSize = 24;
   const pageQuery = cursor
     ? query(publicProfiles, orderBy("updatedAt", "desc"), startAfter(cursor), limit(pageSize))
     : query(publicProfiles, orderBy("updatedAt", "desc"), limit(pageSize));
   const normalizedIntents = Array.from(new Set(intents.filter((value) => sparkIntentLabels.includes(value as typeof sparkIntentLabels[number])))).slice(0, 3);
-  const normalizedCity = city.trim().slice(0, 120);
-  const [pageSnapshot, interestSnapshot, intentSnapshot, citySnapshot] = await Promise.all([
+  void city;
+  const [pageSnapshot, interestSnapshot, intentSnapshot] = await Promise.all([
     getDocs(pageQuery),
     !cursor && interests.length > 0
       ? getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(20)))
       : Promise.resolve(null),
     !cursor && normalizedIntents.length > 0
       ? getDocs(query(publicProfiles, where("intents", "array-contains-any", normalizedIntents), limit(30)))
-      : Promise.resolve(null),
-    !cursor && normalizedCity.length > 0
-      ? getDocs(query(publicProfiles, where("city", "==", normalizedCity), limit(30)))
       : Promise.resolve(null)
   ]);
   const profiles = new Map<string, { id: string; [key: string]: unknown }>();
-  [interestSnapshot, intentSnapshot, citySnapshot, pageSnapshot].forEach((snapshot) => {
+  [interestSnapshot, intentSnapshot, pageSnapshot].forEach((snapshot) => {
     snapshot?.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
   });
   return {
@@ -680,10 +714,12 @@ export async function recordProfileSwipe(params: {
       return 10 - used - 1;
     });
 
+    invalidateOutgoingSwipeCache(params.fromUid);
     return { id: swipeRef.id, superlikesRemaining };
   }
 
   await setDoc(swipeRef, swipeData, { merge: true });
+  invalidateOutgoingSwipeCache(params.fromUid);
   return { id: swipeRef.id };
 }
 export async function hasIncomingProfileLike(params: {
@@ -703,26 +739,24 @@ export async function hasIncomingProfileLike(params: {
 }
 
 export async function findOutgoingProfileSwipes(fromUid: string) {
+  const now = Date.now();
+  const cached = outgoingSwipeCache.get(fromUid);
+  if (cached && cached.expiresAt > now) return cached.items;
+
   const currentDb = requireDb();
   const snapshot = await getDocs(
     query(collection(currentDb, "swipes"), where("fromUid", "==", fromUid), limit(250))
   );
 
-  const now = Date.now();
-  return snapshot.docs
+  const items = snapshot.docs
     .map((item) => {
       const data = item.data();
       const resetAtMs = typeof data.resetAt?.toMillis === "function" ? data.resetAt.toMillis() : null;
-      return { id: item.id, ...data, resetAtMs } as {
-        id: string;
-        fromUid: string;
-        toProfileKey: string;
-        status: "liked" | "passed";
-        direction: "pass" | "like" | "superlike";
-        resetAtMs: number | null;
-      };
+      return { id: item.id, ...data, resetAtMs } as OutgoingProfileSwipe;
     })
     .filter((item) => item.resetAtMs === null || item.resetAtMs > now);
+  outgoingSwipeCache.set(fromUid, { expiresAt: now + outgoingSwipeCacheTtlMs, items });
+  return items;
 }
 
 export async function findMatchThreadsForUser(uid: string) {
@@ -973,10 +1007,11 @@ export async function cancelChatRequest(threadId: string) {
 }
 
 export async function resetPassedProfiles() {
-  requireCurrentUserUid();
+  const uid = requireCurrentUserUid();
   const callable = httpsCallable<Record<string, never>, { removed: number }>(requireCloudFunctions(), "resetPassedProfiles");
   try {
     const response = await callable({});
+    invalidateOutgoingSwipeCache(uid);
     return response.data;
   } catch (error) {
     throw new Error(getCallableErrorMessage(error, "Nie udalo sie przywrocic pominietych profili. Sprobuj ponownie."));
@@ -984,10 +1019,11 @@ export async function resetPassedProfiles() {
 }
 
 export async function cancelProfileLike(targetUid: string) {
-  requireCurrentUserUid();
+  const uid = requireCurrentUserUid();
   const callable = httpsCallable<{ targetUid: string }, { removed: number }>(requireCloudFunctions(), "cancelProfileLike");
   try {
     const response = await callable({ targetUid });
+    invalidateOutgoingSwipeCache(uid);
     return response.data;
   } catch (error) {
     throw new Error(getCallableErrorMessage(error, "Nie udalo sie usunac polubienia. Sprobuj ponownie."));
@@ -995,13 +1031,14 @@ export async function cancelProfileLike(targetUid: string) {
 }
 
 export async function sendSparkLike(params: { targetUid: string; matchScore?: number; eventId?: string }) {
-  requireCurrentUserUid();
+  const uid = requireCurrentUserUid();
   const callable = httpsCallable<
     { targetUid: string; matchScore?: number; eventId?: string },
     { status: "matched"; threadId: string; superlikesRemaining: number }
   >(requireCloudFunctions(), "sendSparkLike");
   try {
     const response = await callable(params);
+    invalidateOutgoingSwipeCache(uid);
     return response.data;
   } catch (error) {
     throw new Error(getCallableErrorMessage(error, "Nie udalo sie wyslac SparkLike. Sprobuj ponownie."));

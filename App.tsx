@@ -56,6 +56,7 @@ import {
   findTestProfiles,
   getMonthlySuperlikeUsage,
   getPublicProfile,
+  getPublicProfiles,
   getUserProfile,
   getUserPrivateSettings,
   hasIncomingProfileLike,
@@ -1000,7 +1001,7 @@ function AppContent() {
   const discoveryRefreshBusyRef = useRef(false);
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
   const [pendingNotificationThreadId, setPendingNotificationThreadId] = useState<string | null>(null);
-  const [messageDraft, setMessageDraft] = useState("");
+  const [pendingMessageDraft, setPendingMessageDraft] = useState<{ profileKey: string; text: string } | null>(null);
   const [superlikesRemaining, setSuperlikesRemaining] = useState(10);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [userCity, setUserCity] = useState("");
@@ -1424,7 +1425,7 @@ function AppContent() {
       findProfilesByInterest(profileLookupInterests, null, discoverFilters.targetIntents, userCity),
       canViewTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
-      findMatchThreadsForUser(appUser.uid)
+      canViewTestProfiles ? findMatchThreadsForUser(appUser.uid) : Promise.resolve([])
     ])
       .then(([profilesResult, testProfilesResult, swipesResult, matchesResult]) => {
         if (!mounted) {
@@ -1596,7 +1597,7 @@ function AppContent() {
   }, [appUser, authDone, canViewTestProfiles, discoverProfiles.length, onboarded, profileCursor, profileQueryKey, profilesHaveMore, profilesLoading, profilesLoadingMore]);
 
   useEffect(() => {
-    if (!appUser || !authDone || !onboarded || !revenueCat.isPro) {
+    if (!appUser || !authDone || !onboarded || !revenueCat.isPro || tab !== "matches") {
       setIncomingLikeKinds({});
       return undefined;
     }
@@ -1605,7 +1606,7 @@ function AppContent() {
     void findIncomingProfileLikes(appUser.uid)
       .then(async (likes) => {
         const uniqueLikes = Array.from(new Map(likes.map((like) => [like.fromUid, like])).values());
-        const documents = await Promise.all(uniqueLikes.map((like) => getPublicProfile(like.fromUid)));
+        const documents = await getPublicProfiles(uniqueLikes.map((like) => like.fromUid));
         if (!mounted) return;
 
         setIncomingLikeKinds(Object.fromEntries(uniqueLikes.map((like) => [like.fromUid, like.direction])));
@@ -1625,7 +1626,7 @@ function AppContent() {
     return () => {
       mounted = false;
     };
-  }, [appUser, authDone, onboarded, profileReloadKey, revenueCat.isPro]);
+  }, [appUser, authDone, onboarded, profileReloadKey, revenueCat.isPro, tab]);
 
   useEffect(() => {
     if (!appUser || !authDone || !onboarded) return undefined;
@@ -1669,7 +1670,7 @@ function AppContent() {
       setChatRequestKeys(requestedKeys);
 
       const conversationProfileKeys = Array.from(new Set([...matchedKeys, ...requestedKeys]));
-      void Promise.all(conversationProfileKeys.map((profileKey) => getPublicProfile(profileKey))).then((documents) => {
+      void getPublicProfiles(conversationProfileKeys).then((documents) => {
         const profiles = documents.map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null).filter((profile): profile is MatchProfile => Boolean(profile));
         setRemoteProfiles((current) => {
           const profileMap = new Map(current.map((profile) => [getProfileKey(profile), profile]));
@@ -1775,7 +1776,7 @@ function AppContent() {
   }, [appUser, revenueCat.isPro]);
 
   useEffect(() => {
-    if (!appUser || !revenueCat.isPro) {
+    if (!appUser || !revenueCat.isPro || tab !== "profile") {
       setProfileViewers([]);
       setProfileViewerCount(0);
       setProfileViewersLoading(false);
@@ -1788,7 +1789,7 @@ function AppContent() {
       appUser.uid,
       (views) => {
         setProfileViewerCount(views.length);
-        void Promise.all(views.map((view) => getPublicProfile(view.viewerUid)))
+        void getPublicProfiles(views.map((view) => view.viewerUid))
           .then((documents) => {
             if (!active) return;
             const profiles = documents.reduce<MatchProfile[]>((items, document, index) => {
@@ -1822,7 +1823,7 @@ function AppContent() {
       active = false;
       unsubscribe();
     };
-  }, [appUser, profileReloadKey, revenueCat.isPro]);
+  }, [appUser, profileReloadKey, revenueCat.isPro, tab]);
 
   useEffect(() => {
     if (!nextTestResetAt) return undefined;
@@ -2473,18 +2474,18 @@ function AppContent() {
     }
   }
 
-  async function sendMessageToProfile(profileKey: string, text: string) {
+  async function sendMessageToProfile(profileKey: string, text: string): Promise<boolean> {
     const message = text.trim();
 
     if (!message) {
-      return;
+      return false;
     }
     if (message.length > 2000) {
       Alert.alert("Chat", "Wiadomość może mieć maksymalnie 2000 znaków.");
-      return;
+      return false;
     }
     if (sendingMessageKeysRef.current.has(profileKey)) {
-      return;
+      return false;
     }
 
     const now = Date.now();
@@ -2492,28 +2493,28 @@ function AppContent() {
     const lastMessageAt = recentMessageTimesRef.current.at(-1) ?? 0;
     if (now - lastMessageAt < 700) {
       Alert.alert("Zwolnij", "Odczekaj chwilę przed wysłaniem kolejnej wiadomości.");
-      return;
+      return false;
     }
     if (recentMessageTimesRef.current.length >= 20) {
       Alert.alert("Limit wiadomości", "Dla bezpieczeństwa możesz wysłać maksymalnie 20 wiadomości na minutę.");
-      return;
+      return false;
     }
 
     const moderationViolation = findModerationViolation(message);
     if (moderationViolation) {
       Alert.alert("Wiadomo\u015b\u0107 zablokowana", moderationViolation);
-      return;
+      return false;
     }
 
     const thread = chatThreads[profileKey];
     if (!thread || thread.status !== "matched") {
       Alert.alert("Chat", "Wiadomo\u015bci s\u0105 dost\u0119pne po matchu albo po zaakceptowaniu pro\u015bby.");
-      return;
+      return false;
     }
 
     if (!appUser) {
       Alert.alert("Chat", "Zaloguj si\u0119 ponownie, aby wys\u0142a\u0107 wiadomo\u015b\u0107.");
-      return;
+      return false;
     }
 
     const optimisticId = "local_" + Date.now();
@@ -2533,7 +2534,6 @@ function AppContent() {
         messages: [...threads[profileKey].messages, optimisticMessage]
       }
     } : threads);
-    setMessageDraft("");
     try {
       await sendChatMessage({
         threadId: thread.threadId ?? getConversationId(appUser.uid, profileKey),
@@ -2541,13 +2541,14 @@ function AppContent() {
         text: message
       });
       recentMessageTimesRef.current.push(Date.now());
+      return true;
     } catch (error) {
       setChatThreads((threads) => threads[profileKey] ? {
         ...threads,
         [profileKey]: { ...threads[profileKey], messages: threads[profileKey].messages.filter((item) => item.id !== optimisticId) }
       } : threads);
-      setMessageDraft((current) => current || message);
       Alert.alert("Chat", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 wys\u0142a\u0107 wiadomo\u015bci. Spr\u00f3buj ponownie.");
+      return false;
     } finally {
       sendingMessageKeysRef.current.delete(profileKey);
     }
@@ -2710,7 +2711,7 @@ function AppContent() {
       await signOutUser();
       setTab("discover");
       setSelectedChatKey(null);
-      setMessageDraft("");
+      setPendingMessageDraft(null);
       setAuthError(null);
     } catch (error) {
       Alert.alert("Wylogowanie", error instanceof Error ? error.message : "Nie udało się wylogować.");
@@ -3014,8 +3015,8 @@ function AppContent() {
             chatThreads={chatThreads}
             selectedChatKey={selectedChatKey}
             setSelectedChatKey={setSelectedChatKey}
-            messageDraft={messageDraft}
-            setMessageDraft={setMessageDraft}
+            pendingMessageDraft={pendingMessageDraft}
+            onPendingMessageDraftConsumed={() => setPendingMessageDraft(null)}
             onSendMessage={sendMessageToProfile}
             onAcceptRequest={acceptRequest}
             onRejectRequest={rejectRequest}
@@ -3141,7 +3142,9 @@ function AppContent() {
               void registerPositiveMatchForReview(appUser.uid);
             }
           }
-          setMessageDraft(starter ?? "");
+          if (matchCelebrationProfile) {
+            setPendingMessageDraft({ profileKey: getProfileKey(matchCelebrationProfile), text: starter ?? "" });
+          }
           setMatchCelebrationProfile(null);
           setMatchCelebrationKind("mutual");
           setTab("messages");
@@ -5743,8 +5746,8 @@ function MessagesScreen({
   chatThreads,
   selectedChatKey,
   setSelectedChatKey,
-  messageDraft,
-  setMessageDraft,
+  pendingMessageDraft,
+  onPendingMessageDraftConsumed,
   onSendMessage,
   onAcceptRequest,
   onRejectRequest,
@@ -5758,9 +5761,9 @@ function MessagesScreen({
   chatThreads: Record<string, ChatThread>;
   selectedChatKey: string | null;
   setSelectedChatKey: (value: string | null) => void;
-  messageDraft: string;
-  setMessageDraft: (value: string) => void;
-  onSendMessage: (profileKey: string, text: string) => Promise<void>;
+  pendingMessageDraft: { profileKey: string; text: string } | null;
+  onPendingMessageDraftConsumed: () => void;
+  onSendMessage: (profileKey: string, text: string) => Promise<boolean>;
   onAcceptRequest: (profileKey: string) => void;
   onRejectRequest: (profileKey: string) => void;
   onBlockProfile: (profileKey: string) => void;
@@ -5770,7 +5773,16 @@ function MessagesScreen({
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const [profilePreview, setProfilePreview] = useState<MatchProfile | null>(null);
-  const conversations = profiles
+  const [messageDraft, setMessageDraft] = useState(
+    pendingMessageDraft?.profileKey === selectedChatKey ? pendingMessageDraft.text : ""
+  );
+
+  useEffect(() => {
+    setMessageDraft(pendingMessageDraft?.profileKey === selectedChatKey ? pendingMessageDraft.text : "");
+    if (pendingMessageDraft?.profileKey === selectedChatKey) onPendingMessageDraftConsumed();
+  }, [selectedChatKey]);
+
+  const conversations = useMemo(() => profiles
     .filter((profile) => {
       const key = getProfileKey(profile);
       return matchedProfileKeys.includes(key) || chatRequestKeys.includes(key) || Boolean(chatThreads[key]);
@@ -5796,7 +5808,7 @@ function MessagesScreen({
         unreadCount,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
       };
-    });
+    }), [chatRequestKeys, chatThreads, matchedProfileKeys, profiles]);
   const requestConversations = conversations.filter((conversation) => conversation.status === "requested");
   const chatConversations = conversations.filter((conversation) => conversation.status !== "requested");
   const unreadChatsCount = chatConversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
@@ -5822,12 +5834,12 @@ function MessagesScreen({
     <View style={styles.gapLg}>
       <TopBar eyebrow="Wiadomości" title="Rozmowy" left="message-text-outline" right="account-group-outline" />
       <View style={styles.chatToggleRow}>
-        <Pressable accessibilityRole="button" onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Pokaż aktywne chaty" accessibilityState={{ selected: messageView === "chats" }} onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
           <Text style={[styles.chatToggleText, messageView === "chats" && styles.chatToggleTextActive]} selectable>Chaty</Text>
           <Text style={[styles.chatToggleCount, messageView === "chats" && styles.chatToggleCountActive]} selectable>{unreadChatsCount > 0 ? formatBadgeCount(unreadChatsCount) : chatConversations.length}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Pokaż oczekujące prośby" accessibilityState={{ selected: messageView === "requests" }} onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
           <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
           <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prośby</Text>
           <Text style={[styles.chatToggleCount, messageView === "requests" && styles.chatToggleCountActive]} selectable>{requestConversations.length}</Text>
@@ -5863,7 +5875,7 @@ function MessagesScreen({
       ) : (
         <View style={styles.chatList}>
           {visibleConversations.map((conversation) => (
-            <Pressable key={conversation.key} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
+            <Pressable key={conversation.key} accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (conversation.unreadCount > 0 ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
               <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
               <View style={styles.fill}>
                 <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} selectable>{conversation.name}</Text>
@@ -5883,7 +5895,7 @@ function MessagesScreen({
         thread={selectedConversation ? chatThreads[selectedConversation.key] : undefined}
         draft={messageDraft}
         setDraft={setMessageDraft}
-        onClose={() => setSelectedChatKey(null)}
+        onClose={() => { setMessageDraft(""); setSelectedChatKey(null); }}
         onSend={onSendMessage}
         onAccept={onAcceptRequest}
         onReject={onRejectRequest}
@@ -5925,7 +5937,7 @@ function ChatConversationModal({
   draft: string;
   setDraft: (value: string) => void;
   onClose: () => void;
-  onSend: (profileKey: string, text: string) => Promise<void>;
+  onSend: (profileKey: string, text: string) => Promise<boolean>;
   onAccept: (profileKey: string) => void;
   onReject: (profileKey: string) => void;
   onBlock: (profileKey: string) => void;
@@ -5938,7 +5950,7 @@ function ChatConversationModal({
   const [sending, setSending] = useState(false);
   const messageListRef = useRef<FlatList<ChatThread["messages"][number]>>(null);
   const canMessage = conversation?.status === "matched";
-  const local = StyleSheet.create({
+  const local = useMemo(() => StyleSheet.create({
     root: { flex: 1, backgroundColor: "#050507" },
     header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
     back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
@@ -5978,7 +5990,7 @@ function ChatConversationModal({
     input: { flex: 1, minHeight: 46, maxHeight: 110, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, color: colors.ink, backgroundColor: "rgba(255,255,255,0.07)", fontSize: 14 },
     send: { width: 46, height: 46, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
     sendDisabled: { opacity: 0.4 }
-  });
+  }), [messages.length === 0]);
 
   if (!conversation) {
     return null;
@@ -6008,9 +6020,12 @@ function ChatConversationModal({
 
   async function send() {
     if (!draft.trim() || !canMessage || sending) return;
+    const outgoingMessage = draft;
+    setDraft("");
     setSending(true);
     try {
-      await onSend(activeConversation.key, draft);
+      const sent = await onSend(activeConversation.key, outgoingMessage);
+      if (!sent) setDraft(outgoingMessage);
     } finally {
       setSending(false);
     }
@@ -6117,6 +6132,8 @@ function ChatConversationModal({
               maxLength={2000}
               placeholder="Napisz wiadomość..."
               placeholderTextColor={colors.muted}
+              accessibilityLabel="Treść wiadomości"
+              editable={!sending}
               style={local.input}
             />
             <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij" disabled={!draft.trim() || sending} onPress={() => { void send(); }} style={[local.send, (!draft.trim() || sending) && local.sendDisabled]}>

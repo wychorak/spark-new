@@ -32,10 +32,16 @@ const firebaseConfig = {
 const missingConfig = Object.entries(firebaseConfig)
   .filter(([key, value]) => key !== "iosBundleId" && key !== "androidPackageName" && !value)
   .map(([key]) => key);
+const firebaseProjectMatches = firebaseConfig.projectId === firebaseDefaults.projectId
+  && firebaseConfig.authDomain === firebaseDefaults.authDomain
+  && firebaseConfig.storageBucket === firebaseDefaults.storageBucket;
 
-export const isFirebaseConfigured = missingConfig.length === 0;
+export const isFirebaseConfigured = missingConfig.length === 0 && firebaseProjectMatches;
 export const firebaseConfigStatus = {
-  missingConfig
+  missingConfig: firebaseProjectMatches
+    ? missingConfig
+    : [...missingConfig, "projekt Firebase musi wskazywać spark-70b03"],
+  projectMismatch: !firebaseProjectMatches
 };
 export const firebaseAuthRestConfig = {
   apiKey: firebaseConfig.apiKey,
