@@ -253,8 +253,8 @@ export const resolveModerationReport = onCall(
       moderationAction: action
     });
     if (action === "suspend" && targetUid) {
-      batch.set(db.collection("users").doc(targetUid), { moderationStatus: "suspended", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      batch.set(db.collection("publicProfiles").doc(targetUid), { moderationStatus: "suspended", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      batch.set(db.collection("users").doc(targetUid), { moderationStatus: "suspended", verificationStatus: "none", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      batch.set(db.collection("publicProfiles").doc(targetUid), { moderationStatus: "suspended", isVerified: false, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     }
     await batch.commit();
     if (action === "warn" && targetUid) {
@@ -268,6 +268,31 @@ export const resolveModerationReport = onCall(
     return { ok: true as const };
   }
 );
+export const syncProfileVerification = onCall(
+  { region, timeoutSeconds: 20 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie.");
+    const authUser = await getAuth().getUser(uid);
+    const verified = authUser.providerData.some((provider) => provider.providerId === "google.com" || provider.providerId === "apple.com");
+    const userRef = db.collection("users").doc(uid);
+    const publicRef = db.collection("publicProfiles").doc(uid);
+    await db.runTransaction(async (transaction) => {
+      const [user, publicProfile] = await Promise.all([transaction.get(userRef), transaction.get(publicRef)]);
+      if (!user.exists) throw new HttpsError("failed-precondition", "Najpierw utwórz profil Spark.");
+      transaction.set(userRef, {
+        verificationStatus: verified ? "verified" : "none",
+        verificationReviewedAt: FieldValue.serverTimestamp(),
+        verificationReviewedByUid: verified ? "provider:" + authUser.providerData.map((provider) => provider.providerId).filter((providerId) => providerId === "google.com" || providerId === "apple.com").join("+") : "system:no-trusted-provider"
+      }, { merge: true });
+      if (publicProfile.exists) {
+        transaction.set(publicRef, { isVerified: verified, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      }
+    });
+    return { status: verified ? "verified" as const : "none" as const };
+  }
+);
+
 export const updateActiveEvents = onCall(
   { region, timeoutSeconds: 20 },
   async (request) => {

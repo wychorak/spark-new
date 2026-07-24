@@ -64,6 +64,7 @@ import {
   observeBlockedProfileKeys,
   observeChatMessages,
   observeModerationStatus,
+  observeVerificationStatus,
   observeRecentProfileViews,
   observeSparkEvents,
   observeUserChats,
@@ -77,13 +78,15 @@ import {
   resetPassedProfiles,
   sendChatMessage,
   sendSparkLike,
+  syncProfileVerification,
   syncPublicUserProfile,
   unblockUser,
   updateUserActiveEvents,
   updateUserDiscoveryPreferences,
   upsertUserProfile,
   upsertUserPrivateSettings,
-  type DiscoveryCursor
+  type DiscoveryCursor,
+  type ProfileVerificationStatus
 } from "./src/firestore";
 import {
   eventCategories,
@@ -436,6 +439,7 @@ type MatchProfile = {
   featuredInterests?: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
+  verified?: boolean;
   likedYou?: boolean;
   isTestProfile?: boolean;
   desiredAgeMin?: number;
@@ -443,6 +447,7 @@ type MatchProfile = {
   heightCm?: number;
   weightKg?: number;
   matchScore?: number;
+  compatibilityScore?: number;
   interestMatchPercent?: number;
   matchReasons?: string[];
   recommendationTier?: number;
@@ -789,6 +794,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     featuredInterests: interests.slice(0, 3),
     socials,
     premium: item.isPro === true,
+    verified: item.isVerified === true,
     likedYou: item.likedYou === true,
     isTestProfile: item.isTestProfile === true,
     desiredAgeMin: typeof item.desiredAgeMin === "number" ? item.desiredAgeMin : 18,
@@ -899,17 +905,46 @@ function scoreProfileMatch(params: {
   const rotationSeed = `${params.viewerUid}:${getProfileKey(params.profile)}:${dayKey}`;
   const rotationScore = Array.from(rotationSeed).reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 7) % 5;
   const score = Math.max(15, Math.min(98, interestScore + intentScore + distanceScore + ageScore + preferenceScore + completenessScore + freshnessScore + visibilityBoostScore + rotationScore));
+  const compatibilityInterestScore = params.selectedInterests.length > 0 ? Math.round(interestMatchPercent * 0.4) : 12;
+  const compatibilityIntentScore = sharedIntentCount > 0 ? 20 : viewerIntents.length > 0 && profileIntents.length > 0 ? 4 : 8;
+  const compatibilityDistanceScore = distanceKm === null ? 8 : distanceKm <= 15 ? 15 : distanceKm <= 35 ? 12 : distanceKm <= 100 ? 8 : 3;
+  const compatibilityAgeScore = ageGap <= 3 ? 10 : ageGap <= 7 ? 8 : ageGap <= 12 ? 5 : 2;
+  const compatibilityPreferenceScore = inTheirRange ? 15 : 3;
+  const compatibilityScore = Math.max(15, Math.min(98, compatibilityInterestScore + compatibilityIntentScore + compatibilityDistanceScore + compatibilityAgeScore + compatibilityPreferenceScore));
   const reasons = [
     sharedIntentCount > 0 ? "wspólny cel: " + sharedIntents.join(" + ") : profileIntents[0] ? "cel profilu: " + profileIntents[0] : "otwarty profil",
     interestMatchPercent + "% zgodności zainteresowań",
     distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie"
   ];
-  return { score, reasons, sharedInterests, interestMatchPercent, recommendationTier };
+  return { score, compatibilityScore, reasons, sharedInterests, interestMatchPercent, recommendationTier };
 }
 
-function showInterestMatchInfo() {
-  Alert.alert("Zgodność zainteresowań", "Ten procent jest liczony wyłącznie na podstawie wspólnych zainteresowań. Wiek, odległość i cele poznania są używane osobno do doboru feedu.");
+type CompatibilityTier = "soulmate" | "strong" | "vibe" | "potential" | "discovery";
+
+function getCompatibilityPresentation(rawScore: number) {
+  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+  if (score >= 90) return { score, tier: "soulmate" as CompatibilityTier, label: "SOULMATE", detail: "Wyjątkowa zgodność", icon: "heart-multiple" as const, color: "#ffd166", background: "rgba(255,45,141,0.3)", border: "rgba(255,209,102,0.72)" };
+  if (score >= 80) return { score, tier: "strong" as CompatibilityTier, label: "MOCNA ISKRA", detail: "Bardzo wysoka zgodność", icon: "fire" as const, color: "#ff9f43", background: "rgba(255,99,72,0.2)", border: "rgba(255,159,67,0.55)" };
+  if (score >= 65) return { score, tier: "vibe" as CompatibilityTier, label: "DOBRY VIBE", detail: "Wiele punktów wspólnych", icon: "creation" as const, color: "#ff65ad", background: "rgba(255,45,141,0.16)", border: "rgba(255,101,173,0.42)" };
+  if (score >= 45) return { score, tier: "potential" as CompatibilityTier, label: "JEST POTENCJAŁ", detail: "Warto się poznać", icon: "account-heart" as const, color: "#9f8cff", background: "rgba(125,103,255,0.15)", border: "rgba(159,140,255,0.38)" };
+  return { score, tier: "discovery" as CompatibilityTier, label: "NOWE ODKRYCIE", detail: "Daj szansę rozmowie", icon: "compass-outline" as const, color: "#65c7ff", background: "rgba(50,173,230,0.13)", border: "rgba(101,199,255,0.35)" };
 }
+
+function showCompatibilityInfo(score: number, interestMatchPercent: number) {
+  const tier = getCompatibilityPresentation(score);
+  Alert.alert(
+    tier.label + " · " + tier.score + "%",
+    tier.detail + ". Wynik uwzględnia wspólne zainteresowania (" + interestMatchPercent + "%), cel poznania, wzajemne preferencje wieku, odległość i kompletność profilu. To podpowiedź Spark, nie gwarancja relacji."
+  );
+}
+
+function showVerifiedProfileInfo() {
+  Alert.alert(
+    "Profil zweryfikowany",
+    "Odznaka oznacza, że konto logowania zostało potwierdzone przez Google lub Apple. Nie oznacza weryfikacji dokumentu, wieku ani zgodności zdjęcia z osobą."
+  );
+}
+
 
 function isDailyTestProfileKey(profileKey: string) {
   return profileKey.startsWith("spark_test_") || profileKey.includes("_spark_test_");
@@ -990,6 +1025,7 @@ function AppContent() {
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
   const [premiumEntrySource, setPremiumEntrySource] = useState<PremiumEntrySource>("navigation");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
+  const [profileVerificationStatus, setProfileVerificationStatus] = useState<ProfileVerificationStatus>("none");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [releaseConfig, setReleaseConfig] = useState<SparkReleaseConfig>(defaultSparkReleaseConfig);
@@ -1098,6 +1134,15 @@ function AppContent() {
   }, [appUser?.uid]);
 
   useEffect(() => {
+    if (!appUser?.uid) return;
+    return observeVerificationStatus(
+      appUser.uid,
+      setProfileVerificationStatus,
+      (error) => recordSparkError(error, "profile_verification_observer")
+    );
+  }, [appUser?.uid]);
+
+  useEffect(() => {
     const screenName = !authDone ? "auth" : !onboarded ? "onboarding" : discoverMode === "events" && tab === "discover" ? "event_feed" : tab;
     trackSparkScreen(screenName);
   }, [authDone, discoverMode, onboarded, tab]);
@@ -1142,6 +1187,7 @@ function AppContent() {
             ...profile,
             distance: getApproxDistanceLabel(userLocation, profile),
             matchScore: result.score,
+            compatibilityScore: result.compatibilityScore,
             interestMatchPercent: result.interestMatchPercent,
             recommendationTier: result.recommendationTier,
             matchReasons: result.reasons
@@ -1291,6 +1337,7 @@ function AppContent() {
         if (!user) {
           if (mounted) {
             setAppUser(null);
+            setProfileVerificationStatus("none");
             setSocialHandles(emptySocialHandles);
             setActiveEvents([]);
             setEventProfiles([]);
@@ -1308,6 +1355,8 @@ function AppContent() {
             throw new Error("Twoje konto zosta\u0142o zawieszone. Skontaktuj si\u0119 z zespo\u0142em Spark, je\u015bli uwa\u017casz, \u017ce to pomy\u0142ka.");
           }
           if (profile) {
+            const verification = await syncProfileVerification().catch(() => ({ status: profile.verificationStatus === "verified" ? "verified" as const : "none" as const }));
+            if (mounted) setProfileVerificationStatus(verification.status);
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
             const currentEvents = sanitizeActiveEvents(storedEvents);
             const eventsNeedRefresh = storedEvents.length !== currentEvents.length
@@ -2165,6 +2214,8 @@ function AppContent() {
         onboardingComplete: true,
         socials: socialHandlesToRecord(socialHandles)
       });
+      const verification = await syncProfileVerification().catch(() => ({ status: profileVerificationStatus }));
+      setProfileVerificationStatus(verification.status);
       await upsertUserPrivateSettings(appUser.uid, { birthDate });
 
       const removedPhotoUrls = previousPhotoUrls.filter((url) => !persistedPhotos.includes(url));
@@ -3208,6 +3259,7 @@ function AppContent() {
             onSave={saveProfileToFirestore}
             onSignOut={confirmSignOut}
             onInvite={() => { void shareSparkInvite(); }}
+            verificationStatus={profileVerificationStatus}
           />
         )}
         <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
@@ -4533,6 +4585,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
   const featuredInterests = getFeaturedInterests(profile);
   const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
+  const compatibility = getCompatibilityPresentation(profile.compatibilityScore ?? interestMatchPercent);
   const sharedEvent = profile.sharedEvents?.[0];
   const activeEvent = sharedEvent ?? profile.activeEvents?.find(isEventActive);
 
@@ -4573,7 +4626,8 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
               <Text style={styles.cardProText} maxFontSizeMultiplier={1.15}>SPARK PRO</Text>
             </View>
           )}
-          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel="Informacja o zgodności zainteresowań" accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={showInterestMatchInfo} style={styles.matchInlinePill}><Text style={styles.matchInlinePillText} maxFontSizeMultiplier={1.15}>{interestMatchPercent}% zgodności</Text></Pressable>}
+          {profile.verified && <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} style={styles.cardVerifiedBadge}><MaterialCommunityIcons name="check-decagram" size={13} color="#63d7ff" /><Text style={styles.cardVerifiedText}>ZWERYFIKOWANY</Text></Pressable>}
+          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent)} style={[styles.matchInlinePill, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}><MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} /><Text style={[styles.matchInlinePillText, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}% · {compatibility.label}</Text></Pressable>}
         </View>
         <Text
           style={styles.cardTitle}
@@ -4651,6 +4705,7 @@ function ProfilePreviewSheet({
   const calculatedInterestMatch = viewerInterests.length > 0 ? Math.round((sharedInterests.length / overlapBase) * 100) : 0;
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? calculatedInterestMatch));
   const hasInterestMatch = viewerInterests.length > 0 || typeof profile.interestMatchPercent === "number";
+  const compatibility = getCompatibilityPresentation(profile.compatibilityScore ?? interestMatchPercent);
   const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
   const locationLabel = [profile.city, profile.country].filter(Boolean).join(", ");
   const normalizedDistance = profile.distance.trim().toLocaleLowerCase("pl");
@@ -4694,6 +4749,8 @@ function ProfilePreviewSheet({
     statusBadge: { minHeight: 29, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(66,217,130,0.12)", borderWidth: 1, borderColor: "rgba(66,217,130,0.3)" },
     statusBadgePro: { backgroundColor: "rgba(255,189,89,0.13)", borderColor: "rgba(255,189,89,0.34)" },
     statusBadgeMatch: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.25)" },
+    statusBadgeVerified: { backgroundColor: "rgba(72,187,255,0.13)", borderColor: "rgba(99,215,255,0.38)" },
+    statusTextVerified: { color: "#63d7ff" },
     statusText: { color: colors.green, fontSize: 9, fontWeight: "900", textTransform: "uppercase" },
     statusTextPro: { color: colors.gold },
     statusTextMatch: { color: colors.primary },
@@ -4788,7 +4845,7 @@ function ProfilePreviewSheet({
           </View>
 
           <View style={local.identity}>
-            {(profile.premium || (!isOwnProfile && hasInterestMatch && !sharedEvent)) && (
+            {(profile.premium || profile.verified || (!isOwnProfile && hasInterestMatch && !sharedEvent)) && (
               <View style={local.statusRow}>
                 {profile.premium && (
                   <View style={[local.statusBadge, local.statusBadgePro]}>
@@ -4796,10 +4853,16 @@ function ProfilePreviewSheet({
                     <Text style={[local.statusText, local.statusTextPro]}>Spark Pro</Text>
                   </View>
                 )}
+                {profile.verified && (
+                  <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} style={[local.statusBadge, local.statusBadgeVerified]}>
+                    <MaterialCommunityIcons name="check-decagram" size={13} color="#63d7ff" />
+                    <Text style={[local.statusText, local.statusTextVerified]}>Zweryfikowany</Text>
+                  </Pressable>
+                )}
                 {!isOwnProfile && hasInterestMatch && !sharedEvent && (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Informacja o zgodności zainteresowań" accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={showInterestMatchInfo} style={[local.statusBadge, local.statusBadgeMatch]}>
-                    <MaterialCommunityIcons name="tag-heart" size={12} color={colors.primary} />
-                    <Text style={[local.statusText, local.statusTextMatch]}>{interestMatchPercent}% zainteresowań</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent)} style={[local.statusBadge, local.statusBadgeMatch, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}>
+                    <MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} />
+                    <Text style={[local.statusText, { color: compatibility.color }]}>{compatibility.score}% · {compatibility.label}</Text>
                   </Pressable>
                 )}
               </View>
@@ -4883,15 +4946,15 @@ function ProfilePreviewSheet({
                 </>
               ) : (
                 <>
+                  <Pressable accessibilityRole="button" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent)} style={[local.metric, { borderColor: compatibility.border, backgroundColor: compatibility.background }]}>
+                    <MaterialCommunityIcons name={compatibility.icon} size={17} color={compatibility.color} />
+                    <Text style={[local.metricValue, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}%</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>zgodność</Text>
+                  </Pressable>
                   <View style={local.metric}>
                     <MaterialCommunityIcons name="account-heart" size={17} color={colors.primary} />
                     <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{sharedInterests.length}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne</Text>
-                  </View>
-                  <View style={local.metric}>
-                    <MaterialCommunityIcons name="compass-outline" size={17} color={colors.primary} />
-                    <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{profile.intent || "Nowe znajomości"}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>cel profilu</Text>
+                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne zainteresowania</Text>
                   </View>
                   <View style={local.metric}>
                     <MaterialCommunityIcons name="map-marker-distance" size={17} color={colors.primary} />
@@ -6920,7 +6983,8 @@ function ProfileScreen({
   openSafety,
   onSave,
   onSignOut,
-  onInvite
+  onInvite,
+  verificationStatus
 }: {
   firstName: string;
   setFirstName: (value: string) => void;
@@ -6970,6 +7034,7 @@ function ProfileScreen({
   onSave: () => Promise<boolean>;
   onSignOut: () => void;
   onInvite: () => void;
+  verificationStatus: ProfileVerificationStatus;
 }) {
   const [saveBusy, setSaveBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -7021,6 +7086,7 @@ function ProfileScreen({
     featuredInterests: selectedInterests.slice(0, 3),
     socials: socialHandlesToProfileSocials(socialHandles),
     premium: hasPro,
+    verified: verificationStatus === "verified",
     desiredAgeMin: discoverFilters.ageMin,
     desiredAgeMax: discoverFilters.ageMax
   };
@@ -7111,6 +7177,7 @@ function ProfileScreen({
             <View style={styles.profileNameLine}>
               <Text style={styles.profileDisplayName} numberOfLines={1} selectable>{profileName}</Text>
               {hasPro && <MaterialCommunityIcons name="crown" size={19} color={colors.gold} />}
+              {verificationStatus === "verified" && <Pressable accessibilityRole="button" accessibilityLabel="Konto zweryfikowane" onPress={showVerifiedProfileInfo}><MaterialCommunityIcons name="check-decagram" size={20} color="#63d7ff" /></Pressable>}
             </View>
             <Text style={styles.profileDescription} numberOfLines={1} selectable>{email}</Text>
             <View style={styles.profileMetaRow}>
@@ -7195,6 +7262,19 @@ function ProfileScreen({
               </Pressable>
             )}
           </View>
+
+          <Pressable accessibilityRole="button" onPress={showVerifiedProfileInfo} style={[styles.profilePanel, { borderColor: verificationStatus === "verified" ? "rgba(99,215,255,0.38)" : "rgba(255,255,255,0.1)", backgroundColor: verificationStatus === "verified" ? "rgba(72,187,255,0.09)" : "rgba(255,255,255,0.035)" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: verificationStatus === "verified" ? "rgba(72,187,255,0.16)" : "rgba(255,255,255,0.06)" }}>
+                <MaterialCommunityIcons name={verificationStatus === "verified" ? "check-decagram" : "shield-account-outline"} size={23} color={verificationStatus === "verified" ? "#63d7ff" : colors.muted} />
+              </View>
+              <View style={styles.fill}>
+                <Text style={styles.panelTitle}>{verificationStatus === "verified" ? "Konto zweryfikowane" : "Zweryfikuj konto"}</Text>
+                <Text style={styles.profileDescription}>{verificationStatus === "verified" ? "Logowanie Google lub Apple zostało potwierdzone. Odznaka jest widoczna na Twoim profilu." : "Odznakę otrzymasz po zalogowaniu kontem Google lub Apple. Nie oznacza ona weryfikacji dokumentu."}</Text>
+              </View>
+              <MaterialCommunityIcons name="information-outline" size={20} color={verificationStatus === "verified" ? "#63d7ff" : colors.muted} />
+            </View>
+          </Pressable>
 
       <ProfileViewerPanel
         hasPro={hasPro}
@@ -10061,6 +10141,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900"
   },
+  cardVerifiedBadge: {
+    minHeight: 29,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(72,187,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(99,215,255,0.38)"
+  },
+  cardVerifiedText: { color: "#63d7ff", fontSize: 9, fontWeight: "900" },
   cardTitle: {
     color: "#fff",
     fontSize: 25,
@@ -10106,6 +10198,10 @@ const styles = StyleSheet.create({
   },
   matchInlinePill: {
     alignSelf: "flex-start",
+    minHeight: 29,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,

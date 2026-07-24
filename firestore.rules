@@ -263,13 +263,17 @@ service cloud.firestore {
         && request.resource.data.get('canSendChatRequests', false) == resource.data.get('canSendChatRequests', false)
         && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
         && request.resource.data.get('likedYou', false) == resource.data.get('likedYou', false)
-        && request.resource.data.get('moderationStatus', 'active') == resource.data.get('moderationStatus', 'active');
+        && request.resource.data.get('moderationStatus', 'active') == resource.data.get('moderationStatus', 'active')
+        && request.resource.data.get('verificationStatus', 'none') == resource.data.get('verificationStatus', 'none')
+        && request.resource.data.get('verificationRequestedAt', null) == resource.data.get('verificationRequestedAt', null)
+        && request.resource.data.get('verificationReviewedAt', null) == resource.data.get('verificationReviewedAt', null)
+        && request.resource.data.get('verificationReviewedByUid', '') == resource.data.get('verificationReviewedByUid', '');
     }
     function validPublicProfile(data, uid) {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'gender', 'intent', 'intents', 'desiredGendersByIntent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'activeEvents', 'activeEventIds', 'photoUrls', 'mainPhotoUrl',
-          'city', 'country', 'location', 'socials', 'isPro', 'isTestProfile', 'moderationStatus', 'createdAt', 'updatedAt'
+          'city', 'country', 'location', 'socials', 'isPro', 'isVerified', 'isTestProfile', 'moderationStatus', 'createdAt', 'updatedAt'
         ])
         && data.uid == uid
         && data.profileNameMode in ['realName', 'nickname']
@@ -304,6 +308,7 @@ service cloud.firestore {
         && (!('TikTok' in data.socials) || (data.socials.TikTok is string && data.socials.TikTok.size() > 0 && data.socials.TikTok.size() <= 40))
         && (!('Facebook' in data.socials) || (data.socials.Facebook is string && data.socials.Facebook.size() > 0 && data.socials.Facebook.size() <= 40))
         && data.isPro is bool
+        && data.isVerified is bool
         && data.isTestProfile is bool
         && data.moderationStatus in ['active', 'suspended']
         && data.createdAt is timestamp
@@ -323,6 +328,7 @@ service cloud.firestore {
 
     function protectedPublicFieldsUnchanged() {
       return request.resource.data.isPro == hasRevenueCatPro()
+        && request.resource.data.get('isVerified', false) == resource.data.get('isVerified', false)
         && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
         && request.resource.data.get('moderationStatus', 'active') == resource.data.get('moderationStatus', 'active')
         && request.resource.data.createdAt == resource.data.createdAt;
@@ -335,6 +341,7 @@ service cloud.firestore {
         && request.resource.data.get('isTestProfile', false) == false
         && request.resource.data.get('likedYou', false) == false
         && request.resource.data.get('moderationStatus', 'active') == 'active'
+        && request.resource.data.get('verificationStatus', 'none') == 'none'
         && request.resource.data.get('superlikePeriod', 0) == 0
         && request.resource.data.get('superlikesUsed', 0) == 0
         && validIntentFields(request.resource.data)
@@ -419,7 +426,8 @@ service cloud.firestore {
         && validPublicProfile(request.resource.data, uid)
         && request.resource.data.isPro == hasRevenueCatPro()
         && request.resource.data.get('isTestProfile', false) == false
-        && request.resource.data.get('moderationStatus', 'active') == 'active';
+        && request.resource.data.get('moderationStatus', 'active') == 'active'
+        && request.resource.data.get('isVerified', false) == false;
       allow update: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
         && protectedPublicFieldsUnchanged();

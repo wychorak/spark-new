@@ -25,6 +25,8 @@ import { isSparkOwnerAccount } from "./access";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
 import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 
+export type ProfileVerificationStatus = "none" | "pending" | "verified";
+
 export type UserProfileDocument = {
   uid: string;
   firstName: string;
@@ -72,6 +74,10 @@ export type UserProfileDocument = {
   canSendChatRequests?: boolean;
   privateProfile?: boolean;
   moderationStatus?: "active" | "suspended";
+  verificationStatus?: ProfileVerificationStatus;
+  verificationRequestedAt?: unknown;
+  verificationReviewedAt?: unknown;
+  isVerified?: boolean;
   isTestProfile?: boolean;
   likedYou?: boolean;
   superlikePeriod?: number;
@@ -314,6 +320,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     socials: sanitizePublicSocials(profile.socials),
     isPro: claimIsPro,
     isTestProfile: existingData.isTestProfile === true,
+    isVerified: existingData.isVerified === true,
     moderationStatus: existingData.moderationStatus === "suspended" ? "suspended" : "active",
     createdAt: existingPublic.exists() ? existingData.createdAt : serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -524,6 +531,22 @@ export async function getUserProfile(uid: string) {
   return snapshot.exists() ? (snapshot.data() as UserProfileDocument) : null;
 }
 
+export function observeVerificationStatus(
+  uid: string,
+  onChange: (status: ProfileVerificationStatus) => void,
+  onError?: (error: Error) => void
+) {
+  requireCurrentUserUid(uid);
+  return onSnapshot(
+    doc(requireDb(), "users", uid),
+    (snapshot) => {
+      const value = snapshot.data()?.verificationStatus;
+      onChange(value === "verified" ? "verified" : value === "pending" ? "pending" : "none");
+    },
+    (error) => onError?.(error)
+  );
+}
+
 export function observeModerationStatus(
   uid: string,
   onChange: (status: "active" | "suspended") => void,
@@ -675,6 +698,15 @@ export async function resolveModerationReport(reportId: string, action: "dismiss
     throw new Error(getCallableErrorMessage(error, "Nie udało się zaktualizować zgłoszenia."));
   }
 }
+export async function syncProfileVerification() {
+  const callable = httpsCallable<Record<string, never>, { status: ProfileVerificationStatus }>(requireCloudFunctions(), "syncProfileVerification");
+  try {
+    return (await callable({})).data;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się odświeżyć statusu weryfikacji."));
+  }
+}
+
 export async function createReport(params: {
   reporterUid: string;
   targetUid: string;
