@@ -63,6 +63,7 @@ import {
   markChatThreadRead,
   observeBlockedProfileKeys,
   observeChatMessages,
+  observeModerationStatus,
   observeRecentProfileViews,
   observeSparkEvents,
   observeUserChats,
@@ -107,6 +108,16 @@ import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCat
 import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage";
 import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, registerSparkPushNotifications, setSparkAppBadgeCount } from "./src/notifications";
 import { registerPositiveMatchForReview } from "./src/store-review";
+import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
+import {
+  defaultSparkReleaseConfig,
+  identifyTelemetryUser,
+  initializeSparkTelemetry,
+  recordSparkError,
+  trackSparkEvent,
+  trackSparkScreen,
+  type SparkReleaseConfig
+} from "./src/telemetry";
 
 
 const colors = {
@@ -728,6 +739,7 @@ function getFeaturedInterests(profile: MatchProfile) {
 }
 
 function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
+  if (item.moderationStatus === "suspended") return null;
   const id = typeof item.id === "string" ? item.id : null;
   const nameMode = item.profileNameMode === "nickname" ? "nickname" : "realName";
   const nickname = typeof item.nickname === "string" ? repairLegacyText(item.nickname.trim()) : "";
@@ -980,11 +992,13 @@ function AppContent() {
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [releaseConfig, setReleaseConfig] = useState<SparkReleaseConfig>(defaultSparkReleaseConfig);
+  const [feedExpansionLevel, setFeedExpansionLevel] = useState<0 | 1 | 2>(0);
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
   const ownerProAccess = isSparkOwnerAccount(appUser?.email, appUser?.emailVerified);
   const revenueCat = useRevenueCat(appUser?.uid ?? null, ownerProAccess);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
-  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady && tab === "discover");
+  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady && tab === "discover", releaseConfig.swipesPerInterstitial);
   const showCurrentBanner = !revenueCat.isPro && adsReady && tab === "matches";
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
@@ -1053,6 +1067,41 @@ function AppContent() {
   }
   const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
   const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
+
+  useEffect(() => {
+    let mounted = true;
+    void initializeSparkTelemetry()
+      .then((config) => {
+        if (mounted) setReleaseConfig(config);
+      })
+      .catch((error) => recordSparkError(error, "telemetry_initialize"));
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    void identifyTelemetryUser(appUser?.uid ?? null, revenueCat.isPro).catch((error) => {
+      recordSparkError(error, "telemetry_identify");
+    });
+  }, [appUser?.uid, revenueCat.isPro]);
+
+  useEffect(() => {
+    if (!appUser?.uid) return;
+    return observeModerationStatus(
+      appUser.uid,
+      (status) => {
+        if (status !== "suspended") return;
+        setAuthError("Twoje konto zosta\u0142o zawieszone. Skontaktuj si\u0119 z zespo\u0142em Spark, je\u015bli uwa\u017casz, \u017ce to pomy\u0142ka.");
+        void signOutUser().catch((error) => recordSparkError(error, "suspended_account_sign_out"));
+      },
+      (error) => recordSparkError(error, "moderation_status_observer")
+    );
+  }, [appUser?.uid]);
+
+  useEffect(() => {
+    const screenName = !authDone ? "auth" : !onboarded ? "onboarding" : discoverMode === "events" && tab === "discover" ? "event_feed" : tab;
+    trackSparkScreen(screenName);
+  }, [authDone, discoverMode, onboarded, tab]);
+
   const sortedProfiles = useMemo(
     () =>
       availableProfiles
@@ -1062,12 +1111,20 @@ function AppContent() {
 
         .filter((profile) => {
           const distance = getDistanceKm(userLocation, profile);
-          return distance === null ? discoverFilters.includeProfilesWithoutLocation : distance <= discoverFilters.maxDistanceKm;
+          return distance === null
+            ? discoverFilters.includeProfilesWithoutLocation || feedExpansionLevel > 0
+            : distance <= (
+                feedExpansionLevel >= 2
+                  ? Number.POSITIVE_INFINITY
+                  : feedExpansionLevel === 1
+                    ? Math.max(250, discoverFilters.maxDistanceKm)
+                    : discoverFilters.maxDistanceKm
+              );
         })
         .filter((profile) => discoverFilters.targetIntents.length === 0 || getProfileIntents(profile).some((profileIntent) => discoverFilters.targetIntents.includes(profileIntent)))
         .filter((profile) => genderPreferenceMatches(profile, gender, discoverFilters.targetGendersByIntent, discoverFilters.targetIntents.length > 0 ? discoverFilters.targetIntents : intents))
-        .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
-        .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
+        .filter((profile) => feedExpansionLevel > 0 || discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
+        .filter((profile) => feedExpansionLevel > 0 || !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
@@ -1095,7 +1152,7 @@ function AppContent() {
           const scoreDifference = (right.matchScore ?? 0) - (left.matchScore ?? 0);
           return tierDifference || scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
         }),
-    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, gender, intents, selectedInterests, userAge, userCity, userLocation]
+    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, feedExpansionLevel, gender, intents, selectedInterests, userAge, userCity, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -1147,6 +1204,26 @@ function AppContent() {
     [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, likedProfileKeys, matchedProfileKeys, passedProfileKeys, userAge]
   );
   const currentDiscoverProfiles = discoverMode === "events" ? eventDiscoverProfiles : discoverProfiles;
+
+  useEffect(() => {
+    if (
+      !releaseConfig.emptyFeedAutoExpand ||
+      discoverMode !== "people" ||
+      profilesLoading ||
+      profilesLoadingMore ||
+      profileFeedError ||
+      availableProfiles.length === 0 ||
+      discoverProfiles.length > 0 ||
+      feedExpansionLevel >= 2
+    ) return;
+
+    const timeout = setTimeout(() => {
+      setFeedExpansionLevel((current) => current < 2 ? (current + 1) as 0 | 1 | 2 : current);
+      trackSparkEvent("feed_auto_expanded", { level: feedExpansionLevel + 1 });
+    }, 650);
+    return () => clearTimeout(timeout);
+  }, [availableProfiles.length, discoverMode, discoverProfiles.length, feedExpansionLevel, profileFeedError, profilesLoading, profilesLoadingMore, releaseConfig.emptyFeedAutoExpand]);
+
   const activeProfile = currentDiscoverProfiles[0] ?? null;
   const nextProfile = currentDiscoverProfiles[1] ?? null;
   const activeProfileKey = activeProfile ? getProfileKey(activeProfile) : null;
@@ -1227,6 +1304,9 @@ function AppContent() {
 
         try {
           const [profile, privateSettings] = await Promise.all([getUserProfile(user.uid), getUserPrivateSettings(user.uid)]);
+          if (profile?.moderationStatus === "suspended") {
+            throw new Error("Twoje konto zosta\u0142o zawieszone. Skontaktuj si\u0119 z zespo\u0142em Spark, je\u015bli uwa\u017casz, \u017ce to pomy\u0142ka.");
+          }
           if (profile) {
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
             const currentEvents = sanitizeActiveEvents(storedEvents);
@@ -2118,6 +2198,14 @@ function AppContent() {
         includeProfilesWithoutLocation: nextFilters.includeProfilesWithoutLocation
       });
       setDiscoverFilters(nextFilters);
+      setFeedExpansionLevel(0);
+      trackSparkEvent("discovery_preferences_saved", {
+        age_min: nextFilters.ageMin,
+        age_max: nextFilters.ageMax,
+        max_distance_km: nextFilters.maxDistanceKm,
+        intents_count: nextFilters.targetIntents.length,
+        interests_count: nextFilters.targetInterests.length
+      });
       setProfileReloadKey((value) => value + 1);
       return true;
     } catch {
@@ -2188,6 +2276,8 @@ function AppContent() {
     try {
       if (appUser) await resetPassedProfiles();
       setPassedProfileKeys([]);
+      setFeedExpansionLevel(0);
+      trackSparkEvent("discovery_refreshed");
       setProfileReloadKey((value) => value + 1);
     } catch (error) {
       Alert.alert("Pomini\u0119te profile", error instanceof Error ? error.message : "Nie uda\u0142o si\u0119 przywr\u00f3ci\u0107 profili. Spr\u00f3buj ponownie.");
@@ -2254,6 +2344,7 @@ function AppContent() {
 
     if (action === "pass") {
       setPassedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
+      trackSparkEvent("profile_swipe", { action: "pass", mode: discoverMode });
       trackSwipeAd();
       return "passed";
     }
@@ -2295,6 +2386,7 @@ function AppContent() {
       deferredSwipeAdRef.current = true;
       setMatchCelebrationKind("sparkLike");
       setMatchCelebrationProfile(targetProfile);
+      trackSparkEvent("profile_swipe", { action: "superlike", mode: discoverMode, matched: true });
       return "matched";
     }
 
@@ -2314,6 +2406,7 @@ function AppContent() {
 
     if (!isMutualMatch) {
       setLikedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
+      trackSparkEvent("profile_swipe", { action: "like", mode: discoverMode, matched: false });
       trackSwipeAd();
       return "liked";
     }
@@ -2353,6 +2446,7 @@ function AppContent() {
     deferredSwipeAdRef.current = true;
     setMatchCelebrationKind("mutual");
     setMatchCelebrationProfile(targetProfile);
+    trackSparkEvent("profile_swipe", { action: "like", mode: discoverMode, matched: true });
     return "matched";
   }
   async function likeIncomingProfile(profileKey: string) {
@@ -2542,6 +2636,7 @@ function AppContent() {
         text: message
       });
       recentMessageTimesRef.current.push(Date.now());
+      trackSparkEvent("chat_message_sent", { thread_status: thread.status });
       return true;
     } catch (error) {
       setChatThreads((threads) => threads[profileKey] ? {
@@ -2864,6 +2959,18 @@ function AppContent() {
     );
   }
 
+  if (releaseConfig.maintenanceMode && !ownerProAccess) {
+    return (
+      <ScreenFrame contentPadding={contentPadding}>
+        <View style={styles.appErrorRoot}>
+          <MaterialCommunityIcons name="tools" size={42} color={colors.primary} />
+          <Text style={styles.appErrorTitle}>{"Kr\u00f3tka przerwa techniczna"}</Text>
+          <Text style={styles.appErrorBody}>{"Ulepszamy Spark. Wr\u00f3\u0107 za chwil\u0119, Twoje konto i dane s\u0105 bezpieczne."}</Text>
+        </View>
+      </ScreenFrame>
+    );
+  }
+
   if (!onboarded) {
     return (
       <ScreenFrame contentPadding={contentPadding}>
@@ -2932,6 +3039,7 @@ function AppContent() {
         {tab === "discover" && activeProfile && (
           <DiscoverScreen
             mode={discoverMode}
+            feedExpansionLevel={feedExpansionLevel}
             activeEvents={activeEvents}
             profile={activeProfile}
             nextProfile={nextProfile}
@@ -2979,6 +3087,7 @@ function AppContent() {
           <DiscoverEmptyState
             screenMinHeight={discoverMinHeight}
             activeEventCount={activeEvents.length}
+            feedExpansionLevel={feedExpansionLevel}
             likedCount={likedProfileKeys.length}
             loading={profilesLoading}
             error={profileFeedError}
@@ -3038,7 +3147,7 @@ function AppContent() {
           />
         )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} entrySource={premiumEntrySource} />}
-        {tab === "safety" && <SafetyCenter onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} blockedProfileKeys={blockedProfileKeys} onUnblock={unblockProfile} onReport={reportProfile} />}
+        {tab === "safety" && <SafetyCenter userUid={appUser?.uid ?? ""} canManageModeration={ownerProAccess} onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} blockedProfileKeys={blockedProfileKeys} onUnblock={unblockProfile} onReport={reportProfile} />}
         {tab === "profile" && (
           <ProfileScreen
             firstName={firstName}
@@ -3718,6 +3827,7 @@ function OnboardingScreen({
 }
 function DiscoverScreen({
   mode,
+  feedExpansionLevel,
   activeEvents,
   profile,
   nextProfile,
@@ -3747,6 +3857,7 @@ function DiscoverScreen({
   onChromeHiddenChange
 }: {
   mode: DiscoverMode;
+  feedExpansionLevel: number;
   activeEvents: SparkEvent[];
   profile: MatchProfile;
   nextProfile: MatchProfile | null;
@@ -3976,6 +4087,13 @@ function DiscoverScreen({
         onLeftPress={mode === "events" ? onBackToPeople : () => setMenuOpen(true)}
         onRightPress={mode === "events" ? onManageEvents : () => setPreferencesOpen(true)}
       />
+      {mode === "people" && feedExpansionLevel > 0 && (
+        <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.feedExpansionNotice}>
+          <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={colors.primaryDeep} />
+          <Text style={styles.feedExpansionNoticeText}>{"Poszerzony feed: dalsze profile i lu\u017aniejsze zainteresowania"}</Text>
+          <MaterialCommunityIcons name="tune-variant" size={16} color={colors.muted} />
+        </Pressable>
+      )}
       {mode === "events" ? (
         <Pressable accessibilityRole="button" onPress={onManageEvents} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive, styles.eventFriendsLaunchParty]}>
           <View style={[styles.eventFriendsLaunchIcon, styles.eventFriendsLaunchPartyIcon]}><MaterialCommunityIcons name={(primarySharedEvent?.icon ?? "calendar-heart") as any} size={20} color="#fff" /></View>
@@ -5277,6 +5395,7 @@ function EventFriendsEmptyState({
 function DiscoverEmptyState({
   screenMinHeight,
   activeEventCount,
+  feedExpansionLevel,
   likedCount,
   loading,
   error,
@@ -5296,6 +5415,7 @@ function DiscoverEmptyState({
 }: {
   screenMinHeight: number;
   activeEventCount: number;
+  feedExpansionLevel: number;
   likedCount: number;
   loading: boolean;
   error: string | null;
@@ -5333,7 +5453,7 @@ function DiscoverEmptyState({
         </View>
         <Text style={styles.discoverEmptyTitle} selectable>{loading ? "Szukamy profili" : error ? "Nie udało się pobrać profili" : "To wszystko na teraz"}</Text>
         <Text style={styles.discoverEmptyText} selectable>
-          {loading ? "Dopasowujemy osoby do Twoich zainteresowań i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
+          {loading ? "Dopasowujemy osoby do Twoich zainteresowań i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : feedExpansionLevel > 0 ? "Poszerzyliśmy kryteria, ale obecnie nie ma kolejnych profili. Możesz przywrócić pominięte karty lub wrócić później." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
         </Text>
         {!loading && likedCount > 0 && (
           <View style={styles.discoverEmptyStat}>
@@ -6326,10 +6446,13 @@ function PremiumScreen({
         return;
       }
 
+      trackSparkEvent("pro_purchase_started", { plan: selectedPlan.id });
       const result = await revenueCat.purchasePlan(selectedPlan.id);
       if (result.ok) {
+        trackSparkEvent("pro_purchase_completed", { plan: selectedPlan.id });
         Alert.alert("Spark Pro", "Dostęp premium jest aktywny.");
       } else if (!result.cancelled) {
+        trackSparkEvent("pro_purchase_failed", { plan: selectedPlan.id });
         Alert.alert("Zakup nieudany", result.message);
       }
     } finally {
@@ -7755,12 +7878,16 @@ function BlockedProfilesModal({
 }
 
 function SafetyCenter({
+  userUid,
+  canManageModeration,
   onBack,
   onDeleteAccount,
   blockedProfileKeys,
   onUnblock,
   onReport
 }: {
+  userUid: string;
+  canManageModeration: boolean;
   onBack: () => void;
   onDeleteAccount: () => void;
   blockedProfileKeys: string[];
@@ -7768,6 +7895,8 @@ function SafetyCenter({
   onReport: (profileKey: string, reason?: string) => Promise<boolean>;
 }) {
   const [blockedListOpen, setBlockedListOpen] = useState(false);
+  const [notificationPreferencesOpen, setNotificationPreferencesOpen] = useState(false);
+  const [moderationQueueOpen, setModerationQueueOpen] = useState(false);
 
   const manageAdPrivacy = async () => {
     try {
@@ -7781,6 +7910,18 @@ function SafetyCenter({
   };
 
   const actions = [
+    {
+      title: "Powiadomienia",
+      body: "Wybierz rodzaje alert\u00f3w, d\u017awi\u0119k i godziny ciszy.",
+      cta: "Ustaw",
+      onPress: () => setNotificationPreferencesOpen(true)
+    },
+    ...(canManageModeration ? [{
+      title: "Panel moderacji",
+      body: "Przejrzyj zg\u0142oszenia i reaguj na naruszenia przed publikacj\u0105.",
+      cta: "Otw\u00f3rz",
+      onPress: () => setModerationQueueOpen(true)
+    }] : []),
     {
       title: "Zablokowane osoby",
       body: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) + " zablokowane. Otwórz listę, aby zarządzać." : "Lista zablokowanych profili jest pusta.",
@@ -7863,6 +8004,8 @@ function SafetyCenter({
       </View>
 
       <BlockedProfilesModal visible={blockedListOpen} blockedProfileKeys={blockedProfileKeys} onClose={() => setBlockedListOpen(false)} onUnblock={onUnblock} onReport={onReport} />
+      <NotificationPreferencesModal visible={notificationPreferencesOpen} uid={userUid} onClose={() => setNotificationPreferencesOpen(false)} />
+      {canManageModeration && <ModerationQueueModal visible={moderationQueueOpen} onClose={() => setModerationQueueOpen(false)} />}
     </View>
   );
 }
@@ -7989,6 +8132,7 @@ class SparkErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    recordSparkError(error, "react_render", { component_stack: info.componentStack?.slice(0, 100) });
     if (__DEV__) {
       console.error("Spark render error", error, info.componentStack);
     }
@@ -8883,6 +9027,24 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 10,
     fontWeight: "900"
+  },
+  feedExpansionNotice: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,45,141,0.09)",
+    borderWidth: 1,
+    borderColor: "rgba(255,45,141,0.2)"
+  },
+  feedExpansionNoticeText: {
+    flex: 1,
+    color: "#e8cedb",
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800"
   },
   eventFriendsLaunch: {
     minHeight: 48,

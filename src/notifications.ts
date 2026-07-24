@@ -2,15 +2,40 @@ import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { registerDevicePushToken } from "./firestore";
+import { loadNotificationPreferences, registerDevicePushToken } from "./firestore";
+import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
+
+let activeNotificationPreferences = defaultNotificationPreferences;
+
+function isQuietHours(preferences: NotificationPreferences) {
+  if (!preferences.quietHoursEnabled) return false;
+  const now = new Date();
+  const current = now.getHours() * 60 + now.getMinutes();
+  const [startHour, startMinute] = preferences.quietStart.split(":").map(Number);
+  const [endHour, endMinute] = preferences.quietEnd.split(":").map(Number);
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+  return start <= end ? current >= start && current < end : current >= start || current < end;
+}
+
+export function setActiveNotificationPreferences(preferences: NotificationPreferences) {
+  activeNotificationPreferences = normalizeNotificationPreferences(preferences);
+}
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true
-  })
+  handleNotification: async (notification) => {
+    const category = String(notification.request.content.data?.category ?? "messages") as keyof NotificationPreferences;
+    const categoryEnabled = typeof activeNotificationPreferences[category] === "boolean"
+      ? Boolean(activeNotificationPreferences[category])
+      : true;
+    const quiet = isQuietHours(activeNotificationPreferences);
+    return {
+      shouldShowBanner: categoryEnabled && !quiet,
+      shouldShowList: categoryEnabled,
+      shouldPlaySound: categoryEnabled && !quiet && activeNotificationPreferences.sound,
+      shouldSetBadge: categoryEnabled
+    };
+  }
 });
 
 export async function registerSparkPushNotifications(uid: string) {
@@ -30,7 +55,9 @@ export async function registerSparkPushNotifications(uid: string) {
   }
 
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-  await registerDevicePushToken(uid, token, Platform.OS);
+  const preferences = await loadNotificationPreferences(uid);
+  setActiveNotificationPreferences(preferences);
+  await registerDevicePushToken(uid, token, Platform.OS, preferences);
   return true;
 }
 export type SparkNotificationTarget = {

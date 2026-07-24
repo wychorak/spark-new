@@ -23,6 +23,7 @@ import { httpsCallable } from "firebase/functions";
 import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
 import { isSparkOwnerAccount } from "./access";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
+import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 
 export type UserProfileDocument = {
   uid: string;
@@ -313,6 +314,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     socials: sanitizePublicSocials(profile.socials),
     isPro: claimIsPro,
     isTestProfile: existingData.isTestProfile === true,
+    moderationStatus: existingData.moderationStatus === "suspended" ? "suspended" : "active",
     createdAt: existingPublic.exists() ? existingData.createdAt : serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -348,10 +350,35 @@ export type DiscoveryPreferencesDocument = {
   includeProfilesWithoutLocation: boolean;
 };
 
-export async function registerDevicePushToken(uid: string, token: string, platform: "ios" | "android") {
+export async function loadNotificationPreferences(uid: string) {
+  requireCurrentUserUid(uid);
+  const snapshot = await getDoc(doc(requireDb(), "users", uid, "settings", "notifications"));
+  return normalizeNotificationPreferences(snapshot.exists() ? snapshot.data() : defaultNotificationPreferences);
+}
+
+export async function saveNotificationPreferences(uid: string, preferences: NotificationPreferences) {
+  requireCurrentUserUid(uid);
+  const currentDb = requireDb();
+  const normalized = normalizeNotificationPreferences(preferences);
+  await setDoc(
+    doc(currentDb, "users", uid, "settings", "notifications"),
+    { ...normalized, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+
+  const devices = await getDocs(collection(currentDb, "users", uid, "devices"));
+  await Promise.all(devices.docs.map((device) => updateDoc(device.ref, {
+    notificationPreferences: normalized,
+    updatedAt: serverTimestamp()
+  })));
+  return normalized;
+}
+
+export async function registerDevicePushToken(uid: string, token: string, platform: "ios" | "android", preferences?: NotificationPreferences) {
   requireCurrentUserUid(uid);
   const currentDb = requireDb();
   const tokenId = token.replace(/[^a-zA-Z0-9_-]/g, "_").slice(-180);
+  const normalized = normalizeNotificationPreferences(preferences ?? await loadNotificationPreferences(uid));
 
   await setDoc(
     doc(currentDb, "users", uid, "devices", tokenId),
@@ -359,6 +386,7 @@ export async function registerDevicePushToken(uid: string, token: string, platfo
       token,
       platform,
       enabled: true,
+      notificationPreferences: normalized,
       updatedAt: serverTimestamp()
     },
     { merge: true }
@@ -496,6 +524,19 @@ export async function getUserProfile(uid: string) {
   return snapshot.exists() ? (snapshot.data() as UserProfileDocument) : null;
 }
 
+export function observeModerationStatus(
+  uid: string,
+  onChange: (status: "active" | "suspended") => void,
+  onError?: (error: Error) => void
+) {
+  requireCurrentUserUid(uid);
+  return onSnapshot(
+    doc(requireDb(), "users", uid),
+    (snapshot) => onChange(snapshot.data()?.moderationStatus === "suspended" ? "suspended" : "active"),
+    (error) => onError?.(error)
+  );
+}
+
 export async function getPublicProfile(uid: string) {
   const currentDb = requireDb();
   const snapshot = await getDoc(doc(currentDb, "publicProfiles", uid));
@@ -607,6 +648,33 @@ export async function getMonthlySuperlikeUsage(uid: string) {
   return data.superlikePeriod === currentPeriod && typeof data.superlikesUsed === "number" ? data.superlikesUsed : 0;
 }
 
+export type ModerationReport = {
+  id: string;
+  reporterUid: string;
+  targetUid: string;
+  reason: string;
+  context: string;
+  status: "open" | "dismissed" | "warned" | "suspended";
+  createdAtMs: number;
+};
+
+export async function listModerationReports() {
+  const callable = httpsCallable<Record<string, never>, { reports: ModerationReport[] }>(requireCloudFunctions(), "listModerationReports");
+  try {
+    return (await callable({})).data.reports;
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się pobrać kolejki moderacji."));
+  }
+}
+
+export async function resolveModerationReport(reportId: string, action: "dismiss" | "warn" | "suspend") {
+  const callable = httpsCallable<{ reportId: string; action: "dismiss" | "warn" | "suspend" }, { ok: true }>(requireCloudFunctions(), "resolveModerationReport");
+  try {
+    await callable({ reportId, action });
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się zaktualizować zgłoszenia."));
+  }
+}
 export async function createReport(params: {
   reporterUid: string;
   targetUid: string;

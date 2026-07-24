@@ -11,14 +11,18 @@ initializeApp();
 const db = getFirestore();
 const region = "europe-west1";
 
+type NotificationCategory = "messages" | "matches" | "requests" | "events";
+
 type NotificationPayload = {
   title: string;
   body: string;
+  category: NotificationCategory;
   data: Record<string, string>;
 };
 
 type PushRegistration = {
   token: string;
+  sound: boolean;
   ref: FirebaseFirestore.DocumentReference;
 };
 
@@ -35,12 +39,61 @@ async function claimEvent(eventId: string) {
   });
 }
 
-async function getPushTokens(uid: string) {
+function notificationPreference(data: FirebaseFirestore.DocumentData, category: NotificationCategory) {
+  const preferences = data.notificationPreferences && typeof data.notificationPreferences === "object"
+    ? data.notificationPreferences as Record<string, unknown>
+    : {};
+  if (preferences[category] === false) return { allowed: false, sound: false };
+
+  const quietEnabled = preferences.quietHoursEnabled === true;
+  const quietStart = typeof preferences.quietStart === "string" ? preferences.quietStart : "22:00";
+  const quietEnd = typeof preferences.quietEnd === "string" ? preferences.quietEnd : "08:00";
+  const timeZone = typeof preferences.timeZone === "string" ? preferences.timeZone : "Europe/Warsaw";
+  let localMinutes = new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    }).formatToParts(new Date());
+    const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+    const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+    localMinutes = hour * 60 + minute;
+  } catch {
+    // Invalid client timezone falls back to UTC.
+  }
+  const parseTime = (value: string, fallback: number) => {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
+  };
+  const start = parseTime(quietStart, 22 * 60);
+  const end = parseTime(quietEnd, 8 * 60);
+  const quiet = quietEnabled && (start <= end
+    ? localMinutes >= start && localMinutes < end
+    : localMinutes >= start || localMinutes < end);
+
+  return {
+    allowed: !quiet,
+    sound: preferences.sound !== false
+  };
+}
+
+function pushRegistration(document: FirebaseFirestore.QueryDocumentSnapshot, category: NotificationCategory) {
+  const data = document.data();
+  const token = data.enabled === true ? stringValue(data.token) : "";
+  const preference = notificationPreference(data, category);
+  return token && preference.allowed
+    ? { token, sound: preference.sound, ref: document.ref } satisfies PushRegistration
+    : null;
+}
+
+async function getPushTokens(uid: string, category: NotificationCategory) {
   const snapshot = await db.collection("users").doc(uid).collection("devices").where("enabled", "==", true).get();
   const registrations = new Map<string, PushRegistration>();
   snapshot.docs.forEach((document) => {
-    const token = String(document.data().token ?? "");
-    if (token && !registrations.has(token)) registrations.set(token, { token, ref: document.ref });
+    const registration = pushRegistration(document, category);
+    if (registration && !registrations.has(registration.token)) registrations.set(registration.token, registration);
   });
   return Array.from(registrations.values());
 }
@@ -48,13 +101,13 @@ async function getPushTokens(uid: string) {
 async function sendPushToTokens(registrations: PushRegistration[], payload: NotificationPayload) {
   for (let offset = 0; offset < registrations.length; offset += 100) {
     const chunk = registrations.slice(offset, offset + 100);
-    const messages = chunk.map(({ token: to }) => ({
+    const messages = chunk.map(({ token: to, sound }) => ({
       to,
-      sound: "default",
+      sound: sound ? "default" : undefined,
       badge: 1,
       title: payload.title,
       body: payload.body,
-      data: payload.data,
+      data: { ...payload.data, category: payload.category },
       priority: "high"
     }));
     const response = await fetch("https://exp.host/--/api/v2/push/send", {
@@ -73,7 +126,7 @@ async function sendPushToTokens(registrations: PushRegistration[], payload: Noti
 }
 
 async function sendPush(uid: string, payload: NotificationPayload) {
-  await sendPushToTokens(await getPushTokens(uid), payload);
+  await sendPushToTokens(await getPushTokens(uid, payload.category), payload);
 }
 
 async function getProfileName(uid: string) {
@@ -112,6 +165,15 @@ async function hasVerifiedPro(uid: string, token: Record<string, unknown>) {
   return isOwner || currentClaims.includes(premiumEntitlementId) || requestClaims.includes(premiumEntitlementId);
 }
 
+async function requireSparkOwner(request: { auth?: { uid: string } }) {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie.");
+  const authUser = await getAuth().getUser(uid);
+  if (!authUser.emailVerified || authUser.email?.toLowerCase() !== sparkOwnerEmail) {
+    throw new HttpsError("permission-denied", "Brak dostępu do moderacji.");
+  }
+  return uid;
+}
 function conversationId(leftUid: string, rightUid: string) {
   return [leftUid, rightUid].sort().join("_");
 }
@@ -145,6 +207,67 @@ function eventSelectionFromSnapshot(snapshot: FirebaseFirestore.DocumentSnapshot
   return event;
 }
 
+export const listModerationReports = onCall(
+  { region, timeoutSeconds: 20 },
+  async (request) => {
+    await requireSparkOwner(request);
+    const snapshot = await db.collection("reports").orderBy("createdAt", "desc").limit(100).get();
+    return {
+      reports: snapshot.docs.map((document) => {
+        const data = document.data();
+        return {
+          id: document.id,
+          reporterUid: stringValue(data.reporterUid),
+          targetUid: stringValue(data.targetUid),
+          reason: stringValue(data.reason),
+          context: stringValue(data.context),
+          status: stringValue(data.status) || "open",
+          createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0
+        };
+      })
+    };
+  }
+);
+
+export const resolveModerationReport = onCall(
+  { region, timeoutSeconds: 20 },
+  async (request) => {
+    const reviewerUid = await requireSparkOwner(request);
+    const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
+    const reportId = stringValue(data.reportId);
+    const action = stringValue(data.action);
+    if (!reportId || reportId.includes("/") || !["dismiss", "warn", "suspend"].includes(action)) {
+      throw new HttpsError("invalid-argument", "Nieprawidłowa akcja moderacji.");
+    }
+
+    const reportRef = db.collection("reports").doc(reportId);
+    const report = await reportRef.get();
+    if (!report.exists) throw new HttpsError("not-found", "Zgłoszenie nie istnieje.");
+    const targetUid = stringValue(report.data()?.targetUid);
+    const status = action === "dismiss" ? "dismissed" : action === "warn" ? "warned" : "suspended";
+    const batch = db.batch();
+    batch.update(reportRef, {
+      status,
+      reviewedAt: FieldValue.serverTimestamp(),
+      reviewedByUid: reviewerUid,
+      moderationAction: action
+    });
+    if (action === "suspend" && targetUid) {
+      batch.set(db.collection("users").doc(targetUid), { moderationStatus: "suspended", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      batch.set(db.collection("publicProfiles").doc(targetUid), { moderationStatus: "suspended", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
+    await batch.commit();
+    if (action === "warn" && targetUid) {
+      await sendPush(targetUid, {
+        category: "requests",
+        title: "Wiadomo\u015b\u0107 od zespo\u0142u Spark",
+        body: "Otrzymali\u015bmy zg\u0142oszenie dotycz\u0105ce Twojego konta. Sprawd\u017a zasady spo\u0142eczno\u015bci.",
+        data: { route: "matches" }
+      }).catch((error) => console.error("Moderation warning push failed", error));
+    }
+    return { ok: true as const };
+  }
+);
 export const updateActiveEvents = onCall(
   { region, timeoutSeconds: 20 },
   async (request) => {
@@ -703,6 +826,7 @@ export const notifyNewMatch = onDocumentCreated(
     const senderName = await getProfileName(String(match.createdByUid ?? ""));
     const requested = match.status === "requested";
     await sendPush(recipientUid, {
+      category: requested ? "requests" : "matches",
       title: requested ? "Nowa prośba o rozmowę" : "Nowy match w Spark",
       body: requested ? senderName + " chce rozpocząć rozmowę." : "Ty i " + senderName + " polubiliście się nawzajem.",
       data: { route: requested ? "messages" : "matches", threadId: event.params.matchId }
@@ -721,6 +845,7 @@ export const notifyAcceptedRequest = onDocumentUpdated(
     if (!recipientUid || !acceptedByUid || recipientUid === acceptedByUid) return;
     const name = await getProfileName(acceptedByUid);
     await sendPush(recipientUid, {
+      category: "requests",
       title: "Prośba zaakceptowana",
       body: name + " zaakceptował(a) Twoją prośbę. Możecie już pisać.",
       data: { route: "messages", threadId: event.params.matchId }
@@ -746,6 +871,7 @@ export const notifyNewMessage = onDocumentCreated(
     const senderName = await getProfileName(senderUid);
     const text = typeof message.text === "string" ? message.text.trim().slice(0, 120) : "Nowa wiadomość";
     await sendPush(recipientUid, {
+      category: "messages",
       title: senderName,
       body: text,
       data: { route: "messages", threadId: event.params.threadId, senderUid }
@@ -800,14 +926,14 @@ export const notifyNewSparkEvent = onDocumentCreated(
 
         const registrations: PushRegistration[] = [];
         devices.docs.forEach((document) => {
-          const data = document.data();
-          const token = data.enabled === true ? stringValue(data.token) : "";
-          if (token && !seenTokens.has(token)) {
-            seenTokens.add(token);
-            registrations.push({ token, ref: document.ref });
+          const registration = pushRegistration(document, "events");
+          if (registration && !seenTokens.has(registration.token)) {
+            seenTokens.add(registration.token);
+            registrations.push(registration);
           }
         });
         await sendPushToTokens(registrations, {
+          category: "events",
           title: "Nowe wydarzenie w aplikacji Spark!",
           body: "Teraz mo\u017cecie razem i\u015b\u0107 na popularne eventy. Kliknij, aby zobaczy\u0107: " + eventName + ".",
           data: { route: "eventFriends", eventId: event.params.eventId }

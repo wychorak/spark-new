@@ -238,6 +238,22 @@ service cloud.firestore {
         && data.createdAt == request.time;
     }
 
+    function validNotificationPreferences(data) {
+      return data is map
+        && data.keys().hasOnly([
+          'messages', 'matches', 'requests', 'events', 'sound', 'quietHoursEnabled',
+          'quietStart', 'quietEnd', 'timeZone'
+        ])
+        && data.messages is bool
+        && data.matches is bool
+        && data.requests is bool
+        && data.events is bool
+        && data.sound is bool
+        && data.quietHoursEnabled is bool
+        && data.quietStart is string && data.quietStart.size() == 5
+        && data.quietEnd is string && data.quietEnd.size() == 5
+        && data.timeZone is string && data.timeZone.size() > 0 && data.timeZone.size() <= 80;
+    }
     function protectedProfileFieldsUnchanged() {
       return request.resource.data.get('isPro', false) == resource.data.get('isPro', false)
         && request.resource.data.get('premiumPlan', 'free') == resource.data.get('premiumPlan', 'free')
@@ -253,7 +269,7 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'gender', 'intent', 'intents', 'desiredGendersByIntent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'activeEvents', 'activeEventIds', 'photoUrls', 'mainPhotoUrl',
-          'city', 'country', 'location', 'socials', 'isPro', 'isTestProfile', 'createdAt', 'updatedAt'
+          'city', 'country', 'location', 'socials', 'isPro', 'isTestProfile', 'moderationStatus', 'createdAt', 'updatedAt'
         ])
         && data.uid == uid
         && data.profileNameMode in ['realName', 'nickname']
@@ -289,6 +305,7 @@ service cloud.firestore {
         && (!('Facebook' in data.socials) || (data.socials.Facebook is string && data.socials.Facebook.size() > 0 && data.socials.Facebook.size() <= 40))
         && data.isPro is bool
         && data.isTestProfile is bool
+        && data.moderationStatus in ['active', 'suspended']
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
         && (
@@ -307,6 +324,7 @@ service cloud.firestore {
     function protectedPublicFieldsUnchanged() {
       return request.resource.data.isPro == hasRevenueCatPro()
         && request.resource.data.get('isTestProfile', false) == resource.data.get('isTestProfile', false)
+        && request.resource.data.get('moderationStatus', 'active') == resource.data.get('moderationStatus', 'active')
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
@@ -366,23 +384,42 @@ service cloud.firestore {
       match /devices/{deviceId} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)
-          && request.resource.data.keys().hasOnly(['token', 'platform', 'enabled', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['token', 'platform', 'enabled', 'notificationPreferences', 'updatedAt'])
           && request.resource.data.token is string
           && request.resource.data.token.size() >= 20
           && request.resource.data.token.size() <= 250
           && request.resource.data.platform in ['ios', 'android']
           && request.resource.data.enabled is bool
+          && validNotificationPreferences(request.resource.data.notificationPreferences)
           && request.resource.data.updatedAt == request.time;
       }
+      match /settings/notifications {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly([
+            'messages', 'matches', 'requests', 'events', 'sound', 'quietHoursEnabled',
+            'quietStart', 'quietEnd', 'timeZone', 'updatedAt'
+          ])
+          && request.resource.data.messages is bool
+          && request.resource.data.matches is bool
+          && request.resource.data.requests is bool
+          && request.resource.data.events is bool
+          && request.resource.data.sound is bool
+          && request.resource.data.quietHoursEnabled is bool
+          && request.resource.data.quietStart is string && request.resource.data.quietStart.size() == 5
+          && request.resource.data.quietEnd is string && request.resource.data.quietEnd.size() == 5
+          && request.resource.data.timeZone is string && request.resource.data.timeZone.size() > 0 && request.resource.data.timeZone.size() <= 80
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
     }
-
-
     match /publicProfiles/{uid} {
       allow read: if signedIn();
       allow create: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
         && request.resource.data.isPro == hasRevenueCatPro()
-        && request.resource.data.get('isTestProfile', false) == false;
+        && request.resource.data.get('isTestProfile', false) == false
+        && request.resource.data.get('moderationStatus', 'active') == 'active';
       allow update: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
         && protectedPublicFieldsUnchanged();

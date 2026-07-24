@@ -182,7 +182,7 @@ export const SWIPES_PER_INTERSTITIAL = 10;
 const MIN_INTERSTITIAL_INTERVAL_MS = 2 * 60 * 1000;
 const MAX_INTERSTITIALS_PER_SESSION = 4;
 
-export function useSwipeInterstitialAds(enabled: boolean) {
+export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPES_PER_INTERSTITIAL) {
   const swipeCount = useRef(0);
   const pendingShow = useRef(false);
   const enabledRef = useRef(enabled);
@@ -290,7 +290,7 @@ export function useSwipeInterstitialAds(enabled: boolean) {
 
     swipeCount.current += 1;
 
-    if (swipeCount.current < SWIPES_PER_INTERSTITIAL) {
+    if (swipeCount.current < Math.max(5, Math.min(30, swipeThreshold))) {
       return;
     }
 
@@ -309,7 +309,7 @@ export function useSwipeInterstitialAds(enabled: boolean) {
     }
 
     interstitial.current.load();
-  }, [enabled, isLoaded]);
+  }, [enabled, isLoaded, swipeThreshold]);
 }
 
 export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled: boolean; placement: string; tone?: "light" | "dark" }) {

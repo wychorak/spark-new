@@ -183,6 +183,8 @@
       }
     },
     "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics",
       "expo-web-browser",
       [
         "expo-build-properties",
