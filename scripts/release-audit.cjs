@@ -199,6 +199,7 @@ check(packageJson.dependencies?.['expo-sharing'] && packageJson.dependencies?.['
 check(appConfigSource.includes('expo-sharing'), 'Expo sharing plugin is not enabled in dynamic config.');
 
 check(appSource.includes('compatibilityScore') && appSource.includes('SOULMATE') && appSource.includes('MOCNA ISKRA') && appSource.includes('DOBRY VIBE'), 'Compatibility tiers or the release-ready Soulmate treatment are missing.');
+check(appSource.includes('getSharedInterestInsights') && appSource.includes('WSPÓLNY VIBE') && appSource.includes('Łączą Was'), 'Personalized shared-interest category insights are missing from profile cards.');
 check(appSource.includes('compatibilityInterestScore') && appSource.includes('visibilityBoostScore') && appSource.includes('profile.compatibilityScore ?? interestMatchPercent'), 'Visible compatibility must stay separate from paid feed visibility and rotation ranking.');
 check(functionsSource.includes('syncProfileVerification = onCall') && functionsSource.includes('provider.providerId === "google.com" || provider.providerId === "apple.com"') && firestoreSource.includes('"syncProfileVerification"'), 'Verified profile status must come from a trusted Google or Apple Firebase provider.');
 check(rulesSource.includes("'isVerified'") && rulesSource.includes("request.resource.data.get('isVerified', false) == resource.data.get('isVerified', false)") && firestoreSource.includes('isVerified: existingData.isVerified === true'), 'Clients must not be able to forge the verified-profile badge.');

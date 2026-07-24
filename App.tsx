@@ -478,6 +478,49 @@ const interestCategories = [
 
 const interestOptions = Array.from(new Set(interestCategories.flatMap((category) => category.items)));
 
+type SharedInterestInsight = {
+  title: string;
+  icon: string;
+  interests: string[];
+};
+
+const affinityInterestCategories = [
+  { title: "Filmy i seriale", icon: "movie-open-outline", items: ["Filmy", "Seriale", "Kino studyjne", "Anime", "Teatr"] },
+  { title: "Muzyka", icon: "music-note-heart", items: ["Muzyka", "Koncerty", "Karaoke", ...interestCategories[5].items, ...interestCategories[6].items] },
+  { title: "Sport i ruch", icon: "run-fast", items: ["Sport", "Joga", ...interestCategories[2].items] },
+  { title: "Podróże i natura", icon: "image-filter-hdr", items: ["Natura", "Podróże", "Fotografia", "Góry", "Nocne spacery", "Wspólne wyjazdy", "Erasmus"] },
+  { title: "Tech i gry", icon: "controller", items: ["Tech", "Gaming", "Planszówki", "Planszówkowe wieczory", ...interestCategories[4].items] },
+  { title: "Kultura i sztuka", icon: "palette-outline", items: ["Sztuka", "Książki", ...interestCategories[3].items] },
+  { title: "Jedzenie i kawa", icon: "silverware-fork-knife", items: ["Kawa", "Kuchnia", "Gotowanie", "Kawiarnie", "Zdrowe jedzenie"] },
+  { title: "Lifestyle", icon: "creation-outline", items: [...interestCategories[1].items] },
+  { title: "Społeczność", icon: "account-group-outline", items: ["LGBT+", ...interestCategories[7].items] }
+] as const;
+
+function getSharedInterestInsights(profileInterests: string[], viewerInterests: string[]): SharedInterestInsight[] {
+  const viewerSet = new Set(viewerInterests);
+  const shared = Array.from(new Set(profileInterests.filter((interest) => viewerSet.has(interest))));
+  const grouped = new Map<string, SharedInterestInsight>();
+
+  shared.forEach((interest) => {
+    const category = affinityInterestCategories.find((item) => (item.items as readonly string[]).includes(interest));
+    const title = category?.title ?? "Inne pasje";
+    const current = grouped.get(title) ?? { title, icon: category?.icon ?? "tag-heart-outline", interests: [] };
+    current.interests.push(interest);
+    grouped.set(title, current);
+  });
+
+  return Array.from(grouped.values()).sort((left, right) =>
+    right.interests.length - left.interests.length || left.title.localeCompare(right.title, "pl")
+  );
+}
+
+function formatSharedInterestInsight(insight: SharedInterestInsight) {
+  const count = insight.interests.length;
+  if (count === 1) return `Łączy Was: ${insight.interests[0]}`;
+  const noun = count >= 2 && count <= 4 ? "zainteresowania" : "zainteresowań";
+  return `Łączą Was ${count} ${noun} · ${insight.title}`;
+}
+
 const interestThemes: Record<string, { soft: string; active: string; border: string; text: string }> = {
   Filmy: { soft: "rgba(255,45,141,0.12)", active: "#ff2d8d", border: "rgba(255,45,141,0.28)", text: "#ff9ac8" },
   Natura: { soft: "rgba(52,199,89,0.13)", active: "#34c759", border: "rgba(52,199,89,0.28)", text: "#176b34" },
@@ -930,11 +973,12 @@ function getCompatibilityPresentation(rawScore: number) {
   return { score, tier: "discovery" as CompatibilityTier, label: "NOWE ODKRYCIE", detail: "Daj szansę rozmowie", icon: "compass-outline" as const, color: "#65c7ff", background: "rgba(50,173,230,0.13)", border: "rgba(101,199,255,0.35)" };
 }
 
-function showCompatibilityInfo(score: number, interestMatchPercent: number) {
+function showCompatibilityInfo(score: number, interestMatchPercent: number, insight?: SharedInterestInsight) {
   const tier = getCompatibilityPresentation(score);
+  const sharedContext = insight ? "\n\n" + formatSharedInterestInsight(insight) + "." : "";
   Alert.alert(
     tier.label + " · " + tier.score + "%",
-    tier.detail + ". Wynik uwzględnia wspólne zainteresowania (" + interestMatchPercent + "%), cel poznania, wzajemne preferencje wieku, odległość i kompletność profilu. To podpowiedź Spark, nie gwarancja relacji."
+    tier.detail + ". Wynik uwzględnia wspólne zainteresowania (" + interestMatchPercent + "%), cel poznania, wzajemne preferencje wieku, odległość i kompletność profilu." + sharedContext + "\n\nTo podpowiedź Spark, nie gwarancja relacji."
   );
 }
 
@@ -4172,7 +4216,7 @@ function DiscoverScreen({
         <View style={[styles.feedCardDeck, { width: feedCardWidth, height: feedCardHeight }]}>
           {nextProfile && (
             <View pointerEvents="none" style={styles.nextProfileCard}>
-              <ProfileCard profile={nextProfile} compact />
+              <ProfileCard profile={nextProfile} viewerInterests={selectedInterests} compact />
             </View>
           )}
           <Animated.View
@@ -4199,7 +4243,7 @@ function DiscoverScreen({
               onPress={() => setPreviewOpen(true)}
               style={styles.feedProfilePressable}
             >
-              <ProfileCard profile={profile} onReport={() => setReportOpen(true)} />
+              <ProfileCard profile={profile} viewerInterests={selectedInterests} onReport={() => setReportOpen(true)} />
             </Pressable>
             <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
               <Text style={styles.swipeCueText}>POMIŃ</Text>
@@ -4581,8 +4625,10 @@ function DiscoveryPreferencesModal({
   );
 }
 
-function ProfileCard({ profile, onReport, compact = false }: { profile: MatchProfile; onReport?: () => void; compact?: boolean }) {
+function ProfileCard({ profile, viewerInterests = [], onReport, compact = false }: { profile: MatchProfile; viewerInterests?: string[]; onReport?: () => void; compact?: boolean }) {
   const featuredInterests = getFeaturedInterests(profile);
+  const sharedInterestInsights = getSharedInterestInsights(profile.interests, viewerInterests);
+  const primarySharedInterestInsight = sharedInterestInsights[0];
   const displayName = [profile.name, profile.surname].filter(Boolean).join(" ");
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
   const compatibility = getCompatibilityPresentation(profile.compatibilityScore ?? interestMatchPercent);
@@ -4627,7 +4673,7 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
             </View>
           )}
           {profile.verified && <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} style={styles.cardVerifiedBadge}><MaterialCommunityIcons name="check-decagram" size={13} color="#63d7ff" /><Text style={styles.cardVerifiedText}>ZWERYFIKOWANY</Text></Pressable>}
-          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent)} style={[styles.matchInlinePill, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}><MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} /><Text style={[styles.matchInlinePillText, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}% · {compatibility.label}</Text></Pressable>}
+          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[styles.matchInlinePill, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}><MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} /><Text style={[styles.matchInlinePillText, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}% · {compatibility.label}</Text></Pressable>}
         </View>
         <Text
           style={styles.cardTitle}
@@ -4657,6 +4703,12 @@ function ProfileCard({ profile, onReport, compact = false }: { profile: MatchPro
             );
           })}
         </View>}
+        {!sharedEvent && primarySharedInterestInsight && (
+          <View style={styles.cardAffinityInsight}>
+            <MaterialCommunityIcons name={primarySharedInterestInsight.icon as any} size={14} color="#ff9ac8" />
+            <Text style={styles.cardAffinityInsightText} numberOfLines={1} maxFontSizeMultiplier={1.15}>{formatSharedInterestInsight(primarySharedInterestInsight)}</Text>
+          </View>
+        )}
         <Text style={styles.cardBio} numberOfLines={1} maxFontSizeMultiplier={1.15}>{profile.bio}</Text>
       </View>
     </View>
@@ -4701,6 +4753,8 @@ function ProfilePreviewSheet({
   const featuredInterests = getFeaturedInterests(profile);
   const visibleInterests = profile.interests.slice(0, 8);
   const sharedInterests = profile.interests.filter((interest) => viewerInterests.includes(interest));
+  const sharedInterestInsights = getSharedInterestInsights(profile.interests, viewerInterests);
+  const primarySharedInterestInsight = sharedInterestInsights[0];
   const overlapBase = Math.max(1, Math.min(viewerInterests.length, profile.interests.length));
   const calculatedInterestMatch = viewerInterests.length > 0 ? Math.round((sharedInterests.length / overlapBase) * 100) : 0;
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? calculatedInterestMatch));
@@ -4771,6 +4825,15 @@ function ProfilePreviewSheet({
     featuredRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
     featuredChip: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
     featuredChipText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+    affinityPanel: { gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(91,45,142,0.13)", borderWidth: 1, borderColor: "rgba(211,164,255,0.28)" },
+    affinityMain: { flexDirection: "row", alignItems: "center", gap: 11 },
+    affinityIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.14)", borderWidth: 1, borderColor: "rgba(255,154,200,0.22)" },
+    affinityEyebrow: { color: "#d9b8ff", fontSize: 9, letterSpacing: 0.7, fontWeight: "900" },
+    affinityTitle: { marginTop: 2, color: colors.ink, fontSize: 13, lineHeight: 17, fontWeight: "900" },
+    affinityMeta: { marginTop: 3, color: "#d9c2d4", fontSize: 10, lineHeight: 14, fontWeight: "700" },
+    affinityChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+    affinityChip: { minHeight: 28, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(217,184,255,0.2)" },
+    affinityChipText: { color: "#eadcff", fontSize: 9, fontWeight: "900" },
     metrics: { flexDirection: "row", gap: 7 },
     metric: { flex: 1, minWidth: 0, minHeight: 76, gap: 4, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.075)" },
     metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900", fontVariant: ["tabular-nums"] },
@@ -4860,7 +4923,7 @@ function ProfilePreviewSheet({
                   </Pressable>
                 )}
                 {!isOwnProfile && hasInterestMatch && !sharedEvent && (
-                  <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent)} style={[local.statusBadge, local.statusBadgeMatch, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[local.statusBadge, local.statusBadgeMatch, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}>
                     <MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} />
                     <Text style={[local.statusText, { color: compatibility.color }]}>{compatibility.score}% · {compatibility.label}</Text>
                   </Pressable>
@@ -4924,6 +4987,33 @@ function ProfilePreviewSheet({
             </View>
           </View>
 
+          {!isOwnProfile && !sharedEvent && primarySharedInterestInsight && (
+            <View style={local.affinityPanel}>
+              <View style={local.affinityMain}>
+                <View style={local.affinityIcon}>
+                  <MaterialCommunityIcons name={primarySharedInterestInsight.icon as any} size={21} color="#ff9ac8" />
+                </View>
+                <View style={styles.fill}>
+                  <Text style={local.affinityEyebrow}>WSPÓLNY VIBE</Text>
+                  <Text style={local.affinityTitle}>{formatSharedInterestInsight(primarySharedInterestInsight)}</Text>
+                  <Text style={local.affinityMeta} numberOfLines={2}>
+                    {primarySharedInterestInsight.interests.length > 1 ? primarySharedInterestInsight.interests.join(" · ") : "Dobry temat na pierwszą wiadomość."}
+                  </Text>
+                </View>
+              </View>
+              {sharedInterestInsights.length > 1 && (
+                <View style={local.affinityChips}>
+                  {sharedInterestInsights.slice(1, 3).map((insight) => (
+                    <View key={insight.title} style={local.affinityChip}>
+                      <MaterialCommunityIcons name={insight.icon as any} size={12} color="#d9b8ff" />
+                      <Text style={local.affinityChipText}>{insight.title} · {insight.interests.length}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           {!isOwnProfile && (
             <View style={local.metrics}>
               {sharedEvent ? (
@@ -4946,7 +5036,7 @@ function ProfilePreviewSheet({
                 </>
               ) : (
                 <>
-                  <Pressable accessibilityRole="button" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent)} style={[local.metric, { borderColor: compatibility.border, backgroundColor: compatibility.background }]}>
+                  <Pressable accessibilityRole="button" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[local.metric, { borderColor: compatibility.border, backgroundColor: compatibility.background }]}>
                     <MaterialCommunityIcons name={compatibility.icon} size={17} color={compatibility.color} />
                     <Text style={[local.metricValue, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}%</Text>
                     <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>zgodność</Text>
@@ -10052,6 +10142,26 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: colors.ink,
     fontSize: 10,
+    fontWeight: "900"
+  },
+  cardAffinityInsight: {
+    minHeight: 27,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 5,
+    paddingHorizontal: 9,
+    borderRadius: 10,
+    backgroundColor: "rgba(91,45,142,0.24)",
+    borderWidth: 1,
+    borderColor: "rgba(255,154,200,0.3)"
+  },
+  cardAffinityInsightText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#ffe3ef",
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: "900"
   },
   cardReportButton: {
