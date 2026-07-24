@@ -36,7 +36,7 @@ import {
 } from "react-native";
 import { captureRef } from "react-native-view-shot";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { currentUserUsesAppleSignIn, deleteCurrentUserAccount, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { currentUserUsesAppleSignIn, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import { isSparkOwnerAccount } from "./src/access";
 import { findModerationViolation } from "./src/content-moderation";
@@ -2770,13 +2770,7 @@ function AppContent() {
       await requestAccountDeletionAndDeleteProfile({
         uid: appUser.uid
       });
-      let photoCleanupPending = false;
-      try {
-        await deleteProfilePhotos(appUser.uid, profilePhotos);
-      } catch {
-        photoCleanupPending = true;
-      }
-      await deleteCurrentUserAccount();
+      await signOutUser().catch(() => undefined);
 
       setAppUser(null);
       setAuthDone(false);
@@ -2790,7 +2784,7 @@ function AppContent() {
       setChatThreads({});
       setSelectedChatKey(null);
       setTab("discover");
-      Alert.alert("Konto usuni\u0119te", photoCleanupPending ? "Konto zosta\u0142o usuni\u0119te. \u017b\u0105danie usuni\u0119cia pozosta\u0142ych plik\u00f3w zosta\u0142o zapisane." : "Konto i powi\u0105zane dane zosta\u0142y usuni\u0119te.");
+      Alert.alert("Konto usunięte", "Konto, profil, zdjęcia i dane powiązane zostały trwale usunięte.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nie udało się usunąć konta.";
       setAuthError(message);
@@ -7984,15 +7978,87 @@ function SettingRow({ label, value, onPress }: { label: string; value: string; o
   );
 }
 
+class SparkErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    if (__DEV__) {
+      console.error("Spark render error", error, info.componentStack);
+    }
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <View style={styles.appErrorRoot}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={42} color="#ff2d8d" />
+        <Text style={styles.appErrorTitle}>Coś poszło nie tak</Text>
+        <Text style={styles.appErrorBody}>
+          Uruchom Spark ponownie. Twoje konto i zapisane dane są bezpieczne.
+        </Text>
+        <Pressable style={styles.appErrorButton} onPress={() => this.setState({ hasError: false })}>
+          <Text style={styles.appErrorButtonText}>Spróbuj ponownie</Text>
+        </Pressable>
+      </View>
+    );
+  }
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <SparkErrorBoundary>
+        <AppContent />
+      </SparkErrorBoundary>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  appErrorRoot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    backgroundColor: "#050306"
+  },
+  appErrorTitle: {
+    marginTop: 18,
+    color: "#ffffff",
+    fontSize: 26,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  appErrorBody: {
+    maxWidth: 360,
+    marginTop: 10,
+    color: "#bdb6bf",
+    fontSize: 16,
+    lineHeight: 23,
+    textAlign: "center"
+  },
+  appErrorButton: {
+    minWidth: 220,
+    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#ff2d8d"
+  },
+  appErrorButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800"
+  },
   authRestore: {
     flex: 1,
     minHeight: 320,

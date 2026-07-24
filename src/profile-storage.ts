@@ -3,6 +3,7 @@ import { storage } from "./firebase";
 
 type ProfilePhoto = number | string;
 const MAX_PROFILE_PHOTO_BYTES = 8 * 1024 * 1024;
+const ALLOWED_PROFILE_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/heic", "image/heif", "image/webp"]);
 
 function readLocalPhoto(uri: string): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -31,13 +32,16 @@ function getPhotoMetadata(blob: Blob) {
   if (blob.size > MAX_PROFILE_PHOTO_BYTES) {
     throw new Error("Zdjęcie jest za duże. Wybierz plik poniżej 8 MB.");
   }
+  if (!ALLOWED_PROFILE_PHOTO_TYPES.has(fileType)) {
+    throw new Error("Nieobsługiwany format zdjęcia. Wybierz JPEG, PNG, HEIC lub WebP.");
+  }
 
   return { contentType: fileType, extension };
 }
 
 export async function uploadProfilePhotos(uid: string, photos: ProfilePhoto[]) {
   if (!storage) {
-    throw new Error("Firebase Storage is not configured.");
+    throw new Error("Przesyłanie zdjęć jest chwilowo niedostępne. Spróbuj ponownie później.");
   }
 
   const currentStorage = storage;

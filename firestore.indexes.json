@@ -1,19 +1,40 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "publicProfiles",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "interests",
-          "arrayConfig": "CONTAINS"
-        },
-        {
-          "fieldPath": "privateProfile",
-          "order": "ASCENDING"
-        }
-      ]
-    }
-  ],
-  "fieldOverrides": []
+    "indexes":  [
+                    {
+                        "collectionGroup":  "publicProfiles",
+                        "queryScope":  "COLLECTION",
+                        "fields":  [
+                                       {
+                                           "fieldPath":  "interests",
+                                           "arrayConfig":  "CONTAINS"
+                                       },
+                                       {
+                                           "fieldPath":  "privateProfile",
+                                           "order":  "ASCENDING"
+                                       }
+                                   ]
+                    }
+                ],
+    "fieldOverrides":  [
+                           {
+                               "collectionGroup":  "blocks",
+                               "fieldPath":  "blockedUid",
+                               "indexes":  [
+                                               {
+                                                   "order":  "ASCENDING",
+                                                   "queryScope":  "COLLECTION_GROUP"
+                                               }
+                                           ]
+                           },
+                           {
+                               "collectionGroup":  "profileViews",
+                               "fieldPath":  "viewerUid",
+                               "indexes":  [
+                                               {
+                                                   "order":  "ASCENDING",
+                                                   "queryScope":  "COLLECTION_GROUP"
+                                               }
+                                           ]
+                           }
+                       ]
 }

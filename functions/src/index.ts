@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldPath, FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -14,6 +15,11 @@ type NotificationPayload = {
   title: string;
   body: string;
   data: Record<string, string>;
+};
+
+type PushRegistration = {
+  token: string;
+  ref: FirebaseFirestore.DocumentReference;
 };
 
 async function claimEvent(eventId: string) {
@@ -31,12 +37,18 @@ async function claimEvent(eventId: string) {
 
 async function getPushTokens(uid: string) {
   const snapshot = await db.collection("users").doc(uid).collection("devices").where("enabled", "==", true).get();
-  return Array.from(new Set(snapshot.docs.map((document) => String(document.data().token ?? "")).filter(Boolean)));
+  const registrations = new Map<string, PushRegistration>();
+  snapshot.docs.forEach((document) => {
+    const token = String(document.data().token ?? "");
+    if (token && !registrations.has(token)) registrations.set(token, { token, ref: document.ref });
+  });
+  return Array.from(registrations.values());
 }
 
-async function sendPushToTokens(tokens: string[], payload: NotificationPayload) {
-  for (let offset = 0; offset < tokens.length; offset += 100) {
-    const messages = tokens.slice(offset, offset + 100).map((to) => ({
+async function sendPushToTokens(registrations: PushRegistration[], payload: NotificationPayload) {
+  for (let offset = 0; offset < registrations.length; offset += 100) {
+    const chunk = registrations.slice(offset, offset + 100);
+    const messages = chunk.map(({ token: to }) => ({
       to,
       sound: "default",
       badge: 1,
@@ -53,6 +65,10 @@ async function sendPushToTokens(tokens: string[], payload: NotificationPayload) 
     if (!response.ok) {
       throw new Error("Expo push request failed with status " + response.status);
     }
+    const body = await response.json() as { data?: Array<{ status?: string; details?: { error?: string } }> };
+    const tickets = Array.isArray(body.data) ? body.data : [];
+    const invalidRegistrations = chunk.filter((_, index) => tickets[index]?.details?.error === "DeviceNotRegistered");
+    await Promise.all(invalidRegistrations.map(({ ref }) => ref.delete().catch(() => undefined)));
   }
 }
 
@@ -568,6 +584,112 @@ export const markChatThreadRead = onCall(
   }
 );
 
+async function deleteQueryDocuments(query: FirebaseFirestore.Query) {
+  while (true) {
+    const snapshot = await query.limit(400).get();
+    if (snapshot.empty) return;
+    const batch = db.batch();
+    snapshot.docs.forEach((document) => batch.delete(document.ref));
+    await batch.commit();
+    if (snapshot.size < 400) return;
+  }
+}
+
+async function deleteDocumentReferences(references: FirebaseFirestore.DocumentReference[]) {
+  for (let offset = 0; offset < references.length; offset += 400) {
+    const batch = db.batch();
+    references.slice(offset, offset + 400).forEach((reference) => batch.delete(reference));
+    await batch.commit();
+  }
+}
+
+export const deleteMatchThread = onCall(
+  { region },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie.");
+
+    const threadId = stringValue(request.data?.threadId);
+    const mode = stringValue(request.data?.mode);
+    if (!threadId || threadId.length > 256 || threadId.includes("/") || !["cancel", "expired"].includes(mode)) {
+      throw new HttpsError("invalid-argument", "Nieprawidłowa relacja.");
+    }
+
+    const matchRef = db.collection("matches").doc(threadId);
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(matchRef);
+      if (!snapshot.exists) return;
+      const data = snapshot.data() ?? {};
+      const members = Array.isArray(data.memberUids) ? data.memberUids.map(String) : [];
+      if (!members.includes(uid)) throw new HttpsError("permission-denied", "Nie możesz usunąć tej relacji.");
+
+      const resetAt = data.resetAt instanceof Timestamp ? data.resetAt.toMillis() : null;
+      const canCancel = mode === "cancel" && data.status === "requested" && data.createdByUid === uid;
+      const canClearExpired = mode === "expired" && resetAt !== null && resetAt <= Date.now();
+      if (!canCancel && !canClearExpired) {
+        throw new HttpsError("failed-precondition", "Tej relacji nie można teraz usunąć.");
+      }
+
+      transaction.update(matchRef, { status: "deleting", updatedAt: FieldValue.serverTimestamp() });
+    });
+
+    const snapshot = await matchRef.get();
+    if (!snapshot.exists) return { deleted: false as const };
+    const data = snapshot.data() ?? {};
+    if (data.status !== "deleting" || !Array.isArray(data.memberUids) || !data.memberUids.map(String).includes(uid)) {
+      throw new HttpsError("aborted", "Stan relacji zmienił się. Spróbuj ponownie.");
+    }
+
+    await db.recursiveDelete(db.collection("messages").doc(threadId));
+    await matchRef.delete();
+    return { deleted: true as const };
+  }
+);
+
+export const deleteSparkAccount = onCall(  { region, timeoutSeconds: 540, memory: "512MiB" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie, aby usunąć konto.");
+
+    const deletionRef = db.collection("accountDeletions").doc(uid);
+    await deletionRef.set({
+      uid,
+      reason: "in-app-delete-account",
+      status: "processing",
+      requestedAt: FieldValue.serverTimestamp()
+    });
+
+    const matches = await db.collection("matches").where("memberUids", "array-contains", uid).get();
+
+    for (const match of matches.docs) {
+      await db.recursiveDelete(db.collection("messages").doc(match.id));
+    }
+
+    await Promise.all([
+      deleteQueryDocuments(db.collection("swipes").where("fromUid", "==", uid)),
+      deleteQueryDocuments(db.collection("swipes").where("toProfileKey", "==", uid)),
+      deleteQueryDocuments(db.collectionGroup("blocks").where("blockedUid", "==", uid)),
+      deleteQueryDocuments(db.collectionGroup("profileViews").where("viewerUid", "==", uid))
+    ]);
+    await deleteDocumentReferences(matches.docs.map((document) => document.ref));
+
+    await Promise.all([
+      db.recursiveDelete(db.collection("users").doc(uid)),
+      db.recursiveDelete(db.collection("privateProfiles").doc(uid)),
+      db.recursiveDelete(db.collection("publicProfiles").doc(uid)),
+      db.recursiveDelete(db.collection("revenuecat_customers").doc(uid)),
+      deleteQueryDocuments(db.collection("revenuecat_events").where("app_user_id", "==", uid)),
+      getStorage().bucket().deleteFiles({ prefix: "users/" + uid + "/" }).catch((error: unknown) => {
+        const code = typeof error === "object" && error !== null && "code" in error ? Number(error.code) : 0;
+        if (code !== 404) throw error;
+      })
+    ]);
+
+    await getAuth().deleteUser(uid);
+    await deletionRef.delete().catch(() => undefined);
+    return { deleted: true as const };
+  }
+);
 
 export const notifyNewMatch = onDocumentCreated(
   { document: "matches/{matchId}", region },
@@ -676,16 +798,16 @@ export const notifyNewSparkEvent = onDocumentCreated(
         const devices = await devicesQuery.get();
         if (devices.empty) break;
 
-        const tokens: string[] = [];
+        const registrations: PushRegistration[] = [];
         devices.docs.forEach((document) => {
           const data = document.data();
           const token = data.enabled === true ? stringValue(data.token) : "";
           if (token && !seenTokens.has(token)) {
             seenTokens.add(token);
-            tokens.push(token);
+            registrations.push({ token, ref: document.ref });
           }
         });
-        await sendPushToTokens(tokens, {
+        await sendPushToTokens(registrations, {
           title: "Nowe wydarzenie w aplikacji Spark!",
           body: "Teraz mo\u017cecie razem i\u015b\u0107 na popularne eventy. Kliknij, aby zobaczy\u0107: " + eventName + ".",
           data: { route: "eventFriends", eventId: event.params.eventId }

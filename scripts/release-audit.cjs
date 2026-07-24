@@ -36,6 +36,8 @@ const adsSource = read('src/ads.tsx');
 const storeReviewSource = read('src/store-review.ts');
 const rulesSource = read('firestore.rules');
 const storageRulesSource = read('storage.rules');
+const indexesSource = read('firestore.indexes.json');
+const profileStorageSource = read('src/profile-storage.ts');
 const notificationsSource = read('src/notifications.ts');
 const functionsSource = read('functions/src/index.ts');
 const publicProfileSync = firestoreSource.slice(
@@ -66,6 +68,7 @@ const privacyTypes = app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes?.map
 check(['NSPrivacyCollectedDataTypeDeviceID', 'NSPrivacyCollectedDataTypeAdvertisingData', 'NSPrivacyCollectedDataTypeCrashData', 'NSPrivacyCollectedDataTypePerformanceData'].every((type) => privacyTypes.includes(type)), 'Google Mobile Ads privacy disclosures are incomplete.');
 check(Array.isArray(app.scheme) && app.scheme.includes('sparkconnect') && app.scheme.includes('rc-c14d769c6c'), 'Required app URL schemes are missing.');
 check(firebaseJson.firestore?.rules === 'firestore.rules', 'Firestore rules are not wired in firebase.json.');
+check(indexesSource.includes('COLLECTION_GROUP') && indexesSource.includes('blockedUid') && indexesSource.includes('viewerUid'), 'Account-deletion collection-group indexes are missing.');
 check(firebaseJson.storage?.rules === 'storage.rules', 'Storage rules are not wired in firebase.json.');
 check(Boolean(firebaseJson.auth?.providers?.googleSignIn), 'Google auth provider must remain enabled in release configuration.');
 check(firebaseSource.includes('projectId: "spark-70b03"'), 'Firebase runtime defaults point to the wrong project.');
@@ -80,15 +83,15 @@ check(rulesSource.includes('hasRevenueCatPro()') && rulesSource.includes('validP
 check(rulesSource.includes('activeEntitlements') && !rulesSource.includes('revenueCatEntitlements'), 'RevenueCat Firebase claim name must be activeEntitlements.');
 check(rulesSource.includes('allowedUserText') && appSource.includes('findModerationViolation'), 'UGC text filtering is missing.');
 check(appSource.includes('onReportProfile(description)') && appSource.includes('targetProfile: targetProfile ?'), 'In-app reporting must preserve the user reason and profile context.');
-check(appSource.indexOf('requestAccountDeletionAndDeleteProfile') < appSource.indexOf('deleteProfilePhotos(appUser.uid, profilePhotos)'), 'Account deletion request must not be blocked by photo cleanup.');
+check(functionsSource.includes('getStorage().bucket().deleteFiles') && functionsSource.indexOf('getStorage().bucket().deleteFiles') < functionsSource.indexOf('getAuth().deleteUser(uid)'), 'Account deletion must remove profile photos before deleting Firebase Auth.');
 check(functionsSource.includes('createPremiumChatRequest = onCall') && functionsSource.includes('maxPremiumRequestsPerDay = 10') && functionsSource.includes('hasVerifiedPro') && firestoreSource.includes('"createPremiumChatRequest"'), 'Premium chat requests must use the verified server-side callable and daily limit.');
 check(rulesSource.includes('data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)'), 'Free and Pro public photo limits must be enforced by Firestore.');
-check(storageRulesSource.includes('request.resource.size < 8 * 1024 * 1024') && storageRulesSource.includes("contentType.matches('image/.*')"), 'Profile photo storage validation is missing.');
+check(storageRulesSource.includes('request.resource.size < 8 * 1024 * 1024') && storageRulesSource.includes("request.resource.contentType in ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp']"), 'Profile photo storage validation is missing.');
 check(firestoreSource.includes('getApproximatePublicLocation(profile.location)'), 'Public profile location must be rounded before publishing.');
 check(firestoreSource.includes('.slice(0, claimIsPro ? 15 : 3)') && firestoreSource.includes('publicMainPhotoUrl'), 'Expired Pro profiles must publish at most three photos.');
 check(!/\bemail\s*:/.test(publicProfileSync), 'Public profile sync must not expose email.');
 check(!/\bbirthDate\s*:/.test(publicProfileSync), 'Public profile sync must not expose birth date.');
-check(appSource.includes('deleteCurrentUserAccount') && appSource.includes('requestAccountDeletionAndDeleteProfile'), 'In-app account deletion is missing.');
+check(appSource.includes('requestAccountDeletionAndDeleteProfile') && firestoreSource.includes('"deleteSparkAccount"') && functionsSource.includes('deleteSparkAccount = onCall') && functionsSource.includes('recursiveDelete') && functionsSource.includes('getAuth().deleteUser(uid)'), 'Server-authoritative in-app account deletion is incomplete.');
 check(authSource.includes('reauthenticateAndRevokeApple') && authSource.includes('accounts:revokeToken') && authSource.includes('tokenType: "CODE"'), 'Apple token revocation before account deletion is missing.');
 check(appSource.includes('AppleAuthentication.signInAsync') && appSource.includes('signInWithAppleIdToken') && appSource.includes('GoogleSignin.configure') && appSource.includes('signInWithGoogleIdToken'), 'Apple and Google login configuration is incomplete.');
 check(appSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/') && authSource.includes('/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/'), 'Email validation regex must reject whitespace and require a domain suffix.');
@@ -121,6 +124,12 @@ check(firestoreSource.includes('orderBy("updatedAt", "desc")') && firestoreSourc
 check(appSource.includes('userIntents: intents') && appSource.includes('sharedIntentCount') && appSource.includes('recommendationTier') && appSource.includes('targetIntents') && appSource.includes('rotationScore') && appSource.includes('sameCity') && firestoreSource.includes('const pageSize = 24'), 'Tiered multi-intent discovery ranking, local fallback, or bounded pagination is missing.');
 check(appSource.includes('includeProfilesWithoutLocation') && appSource.includes('Uwzględniaj profile bez lokalizacji'), 'Unknown-location discovery behavior must be explicit.');
 check(functionsSource.includes('sendChatMessage = onCall') && functionsSource.includes('maxMessagesPerMinute = 20') && functionsSource.includes('minMessageIntervalMs = 700') && firestoreSource.includes('"sendChatMessage"') && rulesSource.includes('allow create: if false;'), 'Chat must use trusted server timestamps and server-side burst limits.');
+check(rulesSource.includes('match /messages/{threadId}/items/{messageId}') && rulesSource.includes('allow delete: if false;'), 'Chat evidence must not be deletable directly by clients.');
+check(functionsSource.includes('deleteMatchThread = onCall') && firestoreSource.includes('"deleteMatchThread"') && /match \/matches\/\{matchId\}[\s\S]*?allow delete: if false;/.test(rulesSource), 'Match cancellation and expired cleanup must be server-authoritative.');
+check(storageRulesSource.includes("request.resource.contentType in ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp']") && profileStorageSource.includes('ALLOWED_PROFILE_PHOTO_TYPES'), 'Profile uploads must reject executable or unsupported image formats.');
+check(functionsSource.includes('DeviceNotRegistered') && functionsSource.includes('invalidRegistrations'), 'Expired Expo push tokens must be removed automatically.');
+check(appSource.includes('class SparkErrorBoundary') && appSource.includes('<SparkErrorBoundary>') && appSource.includes('Coś poszło nie tak'), 'A production render error boundary is missing.');
+check(!functionsSource.includes('authoredReports') && !functionsSource.includes('targetReports'), 'Account deletion must preserve protected moderation reports.');
 check(publicProfileSync.includes('desiredAgeMin') && publicProfileSync.includes('desiredAgeMax'), 'Reciprocal age preferences must be published for matching.');
 check(rulesSource.includes("hasLike(request.auth.uid, otherMember(resource.data))"), 'Mutual likes must be allowed to promote an existing chat request to a match.');
 check(appSource.includes('isOwnProfile') && appSource.includes('WYRÓŻNIONE ZAINTERESOWANIA'), 'Profile-card preview and highlighted interests are missing.');

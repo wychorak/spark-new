@@ -161,7 +161,7 @@ function sanitizePublicSocials(socials: UserProfileDocument["socials"]) {
 
 function requireDb() {
   if (!isFirebaseConfigured || !db) {
-    throw new Error("Firestore is not configured. Fill EXPO_PUBLIC_FIREBASE_* values in .env.");
+    throw new Error("Usługa danych Spark jest chwilowo niedostępna. Spróbuj ponownie później.");
   }
 
   return db;
@@ -519,47 +519,17 @@ export async function requestAccountDeletionAndDeleteProfile(params: {
   reason?: string;
 }) {
   requireCurrentUserUid(params.uid);
-  const currentDb = requireDb();
-  const deletionRef = doc(currentDb, "accountDeletions", params.uid);
-  const profileRef = doc(currentDb, "users", params.uid);
-  const privateProfileRef = doc(currentDb, "privateProfiles", params.uid);
-  const publicProfileRef = doc(currentDb, "publicProfiles", params.uid);
-
-  await setDoc(
-    deletionRef,
-    {
-      uid: params.uid,
-      reason: params.reason ?? "in-app-delete-account",
-      status: "requested",
-      requestedAt: serverTimestamp()
-    }
-  );
-  const [blocksSnapshot, outgoingSwipes, incomingSwipes, matchesSnapshot] = await Promise.all([
-    getDocs(collection(currentDb, "users", params.uid, "blocks")),
-    getDocs(query(collection(currentDb, "swipes"), where("fromUid", "==", params.uid))),
-    getDocs(query(collection(currentDb, "swipes"), where("toProfileKey", "==", params.uid))),
-    getDocs(query(collection(currentDb, "matches"), where("memberUids", "array-contains", params.uid)))
-  ]);
-
-  const messageSnapshots = await Promise.all(
-    matchesSnapshot.docs.map((matchDocument) => getDocs(collection(currentDb, "messages", matchDocument.id, "items")))
-  );
-  const swipeDocuments = Array.from(
-    new Map([...outgoingSwipes.docs, ...incomingSwipes.docs].map((item) => [item.id, item])).values()
-  );
-
-  await Promise.all(
-    messageSnapshots.flatMap((snapshot) => snapshot.docs.map((item) => deleteDoc(item.ref)))
-  );
-  await Promise.all([
-    ...matchesSnapshot.docs.map((item) => deleteDoc(item.ref)),
-    ...blocksSnapshot.docs.map((item) => deleteDoc(item.ref)),
-    ...swipeDocuments.map((item) => deleteDoc(item.ref))
-  ]);
-
-
-  await Promise.all([deleteDoc(publicProfileRef), deleteDoc(profileRef), deleteDoc(privateProfileRef)]);
+  const callable = httpsCallable<
+    { reason?: string },
+    { deleted: true }
+  >(requireCloudFunctions(), "deleteSparkAccount");
+  try {
+    await callable({ reason: params.reason });
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się usunąć konta i danych. Spróbuj ponownie."));
+  }
 }
+
 export async function findTestProfiles() {
   const currentDb = requireDb();
   const snapshot = await getDocs(
@@ -796,7 +766,8 @@ function requireCloudFunctions() {
 function getCallableErrorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
     const message = error.message.replace(/^FirebaseError:\s*/i, "").trim();
-    if (message) return message;
+    const technicalError = /missing or insufficient permissions|internal|network|unavailable|deadline-exceeded/i.test(message);
+    if (message && !technicalError) return message;
   }
   return fallback;
 }
@@ -846,9 +817,11 @@ export async function createMatchThread(params: {
     const staleData = staleSnapshot.data();
     const resetAtMs = typeof staleData.resetAt?.toMillis === "function" ? staleData.resetAt.toMillis() : null;
     if (resetAtMs !== null && resetAtMs <= Date.now() && ["matched", "requested"].includes(String(staleData.status))) {
-      const staleMessages = await getDocs(collection(currentDb, "messages", params.matchId, "items"));
-      await Promise.all(staleMessages.docs.map((message) => deleteDoc(message.ref)));
-      await deleteDoc(matchRef);
+      const callable = httpsCallable<
+        { threadId: string; mode: "expired" },
+        { deleted: boolean }
+      >(requireCloudFunctions(), "deleteMatchThread");
+      await callable({ threadId: params.matchId, mode: "expired" });
     }
   }
 
@@ -1003,7 +976,16 @@ export async function rejectChatRequest(threadId: string, uid: string) {
   await updateDoc(doc(requireDb(), "matches", threadId), { status: "rejected", rejectedByUid: uid, updatedAt: serverTimestamp() });
 }
 export async function cancelChatRequest(threadId: string) {
-  await deleteDoc(doc(requireDb(), "matches", threadId));
+  requireCurrentUserUid();
+  const callable = httpsCallable<
+    { threadId: string; mode: "cancel" },
+    { deleted: boolean }
+  >(requireCloudFunctions(), "deleteMatchThread");
+  try {
+    await callable({ threadId, mode: "cancel" });
+  } catch (error) {
+    throw new Error(getCallableErrorMessage(error, "Nie udało się anulować prośby. Spróbuj ponownie."));
+  }
 }
 
 export async function resetPassedProfiles() {
@@ -1014,7 +996,7 @@ export async function resetPassedProfiles() {
     invalidateOutgoingSwipeCache(uid);
     return response.data;
   } catch (error) {
-    throw new Error(getCallableErrorMessage(error, "Nie udalo sie przywrocic pominietych profili. Sprobuj ponownie."));
+    throw new Error(getCallableErrorMessage(error, "Nie udało się przywrócić pominiętych profili. Spróbuj ponownie."));
   }
 }
 
@@ -1026,7 +1008,7 @@ export async function cancelProfileLike(targetUid: string) {
     invalidateOutgoingSwipeCache(uid);
     return response.data;
   } catch (error) {
-    throw new Error(getCallableErrorMessage(error, "Nie udalo sie usunac polubienia. Sprobuj ponownie."));
+    throw new Error(getCallableErrorMessage(error, "Nie udało się usunąć polubienia. Spróbuj ponownie."));
   }
 }
 
@@ -1041,7 +1023,7 @@ export async function sendSparkLike(params: { targetUid: string; matchScore?: nu
     invalidateOutgoingSwipeCache(uid);
     return response.data;
   } catch (error) {
-    throw new Error(getCallableErrorMessage(error, "Nie udalo sie wyslac SparkLike. Sprobuj ponownie."));
+    throw new Error(getCallableErrorMessage(error, "Nie udało się wysłać SparkLike. Spróbuj ponownie."));
   }
 }
 

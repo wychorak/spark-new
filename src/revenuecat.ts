@@ -62,7 +62,7 @@ function getErrorMessage(error: unknown) {
     return String((error as { message?: unknown }).message);
   }
 
-  return "RevenueCat request failed.";
+  return "Nie udało się połączyć z płatnościami. Spróbuj ponownie.";
 }
 
 export function hasSparknewPro(customerInfo: CustomerInfo | null) {
@@ -194,7 +194,7 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
     if (!isRevenueCatApiKeyUsable(apiKey)) {
       setConfigured(false);
       setIsLoading(false);
-      setError("RevenueCat iOS public SDK key is missing or uses a test_ simulated-store key.");
+      setError("Płatności Spark Pro są chwilowo niedostępne.");
       return undefined;
     }
 
@@ -260,7 +260,7 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
       if (!selectedPackage) {
         return {
           ok: false,
-          message: `RevenueCat offering does not include a ${planId} package yet.`
+          message: `Wybrany pakiet Spark Pro jest chwilowo niedostępny.`
         };
       }
 
@@ -280,7 +280,7 @@ export function useRevenueCat(appUserId: string | null, ownerAccess = false): Re
         return { ok: true, customerInfo: result.customerInfo };
       } catch (purchaseError) {
         if (isUserCancelled(purchaseError)) {
-          return { ok: false, cancelled: true, message: "Purchase cancelled." };
+          return { ok: false, cancelled: true, message: "Zakup został anulowany." };
         }
 
         return { ok: false, message: getErrorMessage(purchaseError) };

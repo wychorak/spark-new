@@ -24,7 +24,7 @@ export type AppAuthUser = {
 
 function requireAuth() {
   if (!isFirebaseConfigured || !auth) {
-    throw new Error("Firebase is not configured. Fill EXPO_PUBLIC_FIREBASE_* values in .env.");
+    throw new Error("Logowanie jest chwilowo niedostępne. Spróbuj ponownie później.");
   }
 
   return auth;
@@ -205,23 +205,5 @@ export async function ensureRecentLoginForAccountDeletion() {
   const fourMinutes = 4 * 60 * 1000;
   if (!Number.isFinite(authenticatedAt) || Date.now() - authenticatedAt > fourMinutes) {
     throw new Error("Ze względów bezpieczeństwa wyloguj się, zaloguj ponownie i wtedy usuń konto.");
-  }
-}
-export async function deleteCurrentUserAccount() {
-  const currentAuth = requireAuth();
-  const currentUser = currentAuth.currentUser;
-
-  if (!currentUser) {
-    throw new Error("No authenticated user to delete.");
-  }
-
-  try {
-    await deleteUser(currentUser);
-  } catch (error: any) {
-    if (error?.code === "auth/requires-recent-login") {
-      throw new Error("Zaloguj się ponownie i spróbuj usunąć konto jeszcze raz.");
-    }
-
-    throw error;
   }
 }
