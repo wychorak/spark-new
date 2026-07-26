@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import Purchases from "react-native-purchases";
+import { trackSparkEvent } from "./telemetry";
 import mobileAds, {
   AdEventType,
   AdsConsent,
@@ -153,6 +154,7 @@ export function useGoogleMobileAds(enabled: boolean) {
 const productionAdUnitIds = {
   ios: "ca-app-pub-8263324816746737/9299047738",
   android: "ca-app-pub-8263324816746737/1021936619",
+  iosChat: "ca-app-pub-8263324816746737/4185554914",
   iosInterstitial: "ca-app-pub-8263324816746737/4491619788",
   androidInterstitial: "ca-app-pub-8263324816746737/8708854948"
 };
@@ -160,7 +162,7 @@ const productionAdUnitIds = {
 const adUnitIds = {
   ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.ios),
   android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.android),
-  iosChat: process.env.EXPO_PUBLIC_ADMOB_IOS_CHAT_BANNER_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.ios),
+  iosChat: process.env.EXPO_PUBLIC_ADMOB_IOS_CHAT_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.iosChat),
   androidChat: process.env.EXPO_PUBLIC_ADMOB_ANDROID_CHAT_BANNER_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || (__DEV__ ? TestIds.BANNER : productionAdUnitIds.android),
   iosInterstitial: process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID || (__DEV__ ? TestIds.INTERSTITIAL : productionAdUnitIds.iosInterstitial),
   androidInterstitial: process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID || (__DEV__ ? TestIds.INTERSTITIAL : productionAdUnitIds.androidInterstitial)
@@ -179,13 +181,19 @@ function getInterstitialUnitId() {
 }
 
 export const SWIPES_PER_INTERSTITIAL = 10;
-const MIN_INTERSTITIAL_INTERVAL_MS = 2 * 60 * 1000;
-const MAX_INTERSTITIALS_PER_SESSION = 4;
+const INTERSTITIAL_RETRY_DELAYS_MS = [10_000, 30_000];
 
-export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPES_PER_INTERSTITIAL) {
+export function useSwipeInterstitialAds(
+  enabled: boolean,
+  swipeThreshold = SWIPES_PER_INTERSTITIAL,
+  minIntervalSeconds = 120,
+  maxPerSession = 4
+) {
   const swipeCount = useRef(0);
-  const pendingShow = useRef(false);
   const enabledRef = useRef(enabled);
+  const isLoading = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCount = useRef(0);
   const lastShownAt = useRef(0);
   const sessionImpressionCount = useRef(0);
   const impressionId = useRef("");
@@ -207,11 +215,9 @@ export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPE
     }
 
     const loadedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.LOADED, () => {
+      isLoading.current = false;
+      retryCount.current = 0;
       setIsLoaded(true);
-      if (pendingShow.current && enabledRef.current) {
-        pendingShow.current = false;
-        void interstitial.current?.show();
-      }
       Purchases.adTracker.trackAdLoaded({
         mediatorName: "AdMob",
         adFormat: "interstitial",
@@ -222,8 +228,10 @@ export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPE
     });
 
     const openedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.OPENED, () => {
+      swipeCount.current = 0;
       lastShownAt.current = Date.now();
       sessionImpressionCount.current += 1;
+      trackSparkEvent("ad_impression", { format: "interstitial", placement: "swipe-feed" });
       Purchases.adTracker.trackAdDisplayed({
         mediatorName: "AdMob",
         adFormat: "interstitial",
@@ -254,14 +262,16 @@ export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPE
 
     const closedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.CLOSED, () => {
       setIsLoaded(false);
-      pendingShow.current = false;
       swipeCount.current = 0;
       impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
+      isLoading.current = true;
       interstitial.current?.load();
     });
 
-    const errorUnsubscribe = interstitial.current.addAdEventListener(AdEventType.ERROR, (error) => {
+    const errorUnsubscribe = interstitial.current.addAdEventListener(AdEventType.ERROR, () => {
       setIsLoaded(false);
+      isLoading.current = false;
+      trackSparkEvent("ad_load_failed", { format: "interstitial", placement: "swipe-feed" });
       Purchases.adTracker.trackAdFailedToLoad({
         mediatorName: "AdMob",
         adFormat: "interstitial",
@@ -269,12 +279,25 @@ export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPE
         placement: "swipe-feed"
       }).catch(() => undefined);
       impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
+
+      if (!retryTimer.current && retryCount.current < INTERSTITIAL_RETRY_DELAYS_MS.length) {
+        const delay = INTERSTITIAL_RETRY_DELAYS_MS[retryCount.current];
+        retryCount.current += 1;
+        retryTimer.current = setTimeout(() => {
+          retryTimer.current = null;
+          if (!enabledRef.current || !interstitial.current || isLoading.current) return;
+          isLoading.current = true;
+          interstitial.current.load();
+        }, delay);
+      }
     });
 
-
+    isLoading.current = true;
     interstitial.current.load();
 
     return () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = null;
       loadedUnsubscribe();
       openedUnsubscribe();
       paidUnsubscribe();
@@ -295,41 +318,69 @@ export function useSwipeInterstitialAds(enabled: boolean, swipeThreshold = SWIPE
     }
 
     if (
-      sessionImpressionCount.current >= MAX_INTERSTITIALS_PER_SESSION ||
-      Date.now() - lastShownAt.current < MIN_INTERSTITIAL_INTERVAL_MS
+      sessionImpressionCount.current >= Math.max(1, Math.min(6, maxPerSession)) ||
+      Date.now() - lastShownAt.current < Math.max(90, Math.min(600, minIntervalSeconds)) * 1000
     ) {
       return;
     }
 
-    pendingShow.current = true;
     if (isLoaded) {
-      pendingShow.current = false;
-      void interstitial.current.show();
+      setIsLoaded(false);
+      void interstitial.current.show().catch(() => {
+        isLoading.current = false;
+        trackSparkEvent("ad_show_failed", { format: "interstitial", placement: "swipe-feed" });
+      });
       return;
     }
 
-    interstitial.current.load();
-  }, [enabled, isLoaded, swipeThreshold]);
+    if (!isLoading.current) {
+      isLoading.current = true;
+      interstitial.current.load();
+    }
+  }, [enabled, isLoaded, maxPerSession, minIntervalSeconds, swipeThreshold]);
 }
 
 export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled: boolean; placement: string; tone?: "light" | "dark" }) {
   const impressionId = useRef("");
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCount = useRef(0);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "failed">("loading");
+  const [retryKey, setRetryKey] = useState(0);
   if (!impressionId.current) impressionId.current = createAdImpressionId(placement, "banner");
+
+  const adUnitId = getBannerUnitId(placement);
+
+  useEffect(() => () => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+  }, []);
 
   if (!enabled || Platform.OS === "web") {
     return null;
   }
 
-  const adUnitId = getBannerUnitId(placement);
+  const scheduleRetry = () => {
+    if (retryTimer.current || retryCount.current >= 2) return;
+    const delay = retryCount.current === 0 ? 10_000 : 30_000;
+    retryCount.current += 1;
+    retryTimer.current = setTimeout(() => {
+      retryTimer.current = null;
+      setLoadState("loading");
+      setRetryKey((value) => value + 1);
+    }, delay);
+  };
 
   return (
-    <View style={[styles.wrapper, tone === "dark" && styles.wrapperDark]}>
-      <Text style={[styles.label, tone === "dark" && styles.labelDark]}>Reklama</Text>
+    <View pointerEvents={loadState === "loaded" ? "auto" : "none"} style={[styles.wrapper, tone === "dark" && styles.wrapperDark, loadState !== "loaded" && styles.wrapperPending]}>
+      {loadState === "loaded" && <Text style={[styles.label, tone === "dark" && styles.labelDark]}>Reklama</Text>}
       <BannerAd
+        key={adUnitId + "-" + retryKey}
         unitId={adUnitId}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
         onAdFailedToLoad={(error) => {
+          setLoadState("failed");
+          trackSparkEvent("ad_load_failed", { format: "banner", placement });
+          scheduleRetry();
           if (__DEV__) {
             console.warn("AdMob banner failed", error);
           }
@@ -341,6 +392,10 @@ export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled:
           }).catch(() => undefined);
         }}
         onAdLoaded={() => {
+          if (retryTimer.current) clearTimeout(retryTimer.current);
+          retryTimer.current = null;
+          retryCount.current = 0;
+          setLoadState("loaded");
           impressionId.current = createAdImpressionId(placement, "banner");
           Purchases.adTracker.trackAdLoaded({
             mediatorName: "AdMob",
@@ -351,6 +406,7 @@ export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled:
           }).catch(() => undefined);
         }}
         onAdImpression={() => {
+          trackSparkEvent("ad_impression", { format: "banner", placement });
           Purchases.adTracker.trackAdDisplayed({
             mediatorName: "AdMob",
             adFormat: "banner",
@@ -391,6 +447,13 @@ const styles = StyleSheet.create({
   wrapperDark: {
     backgroundColor: "rgba(20,20,26,0.9)",
     borderColor: "rgba(255,45,141,0.16)"
+  },
+  wrapperPending: {
+    minHeight: 1,
+    height: 1,
+    opacity: 0,
+    borderWidth: 0,
+    backgroundColor: "transparent"
   },
   label: {
     color: "#86868b",

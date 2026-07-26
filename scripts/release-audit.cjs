@@ -33,6 +33,7 @@ const googleSource = read('src/google-sign-in.ts');
 const googlePlistSource = read('GoogleService-Info.plist');
 const revenueCatSource = read('src/revenuecat.ts');
 const adsSource = read('src/ads.tsx');
+const appAdsSource = read('legal-site/app-ads.txt').trim();
 const storeReviewSource = read('src/store-review.ts');
 const rulesSource = read('firestore.rules');
 const storageRulesSource = read('storage.rules');
@@ -79,6 +80,7 @@ check(googleSource.includes('defaultGoogleClientIds') && googleSource.includes('
 check(googlePlistSource.includes('com.googleusercontent.apps.271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0') && googleSource.includes('271339297035-320oq6h9pcmdn5kk75k5fg8igo9ht0h0.apps.googleusercontent.com'), 'Google iOS redirect scheme and client ID are inconsistent.');
 check(revenueCatSource.includes('__DEV__ ? "test_') && revenueCatSource.includes('!apiKey.startsWith("test_")'), 'RevenueCat simulated key guard is missing.');
 check(adsSource.includes('showPrivacyOptionsForm') && adsSource.includes('requestNonPersonalizedAdsOnly: true'), 'Ad consent/privacy protections are incomplete.');
+check(appAdsSource === 'google.com, pub-8263324816746737, DIRECT, f08c47fec0942fa0', 'AdMob app-ads.txt is missing or has the wrong publisher ID.');
 check(rulesSource.includes('hasRevenueCatPro()') && rulesSource.includes('validPremiumUsageUpdate()'), 'Premium Firestore protections are missing.');
 check(rulesSource.includes('activeEntitlements') && !rulesSource.includes('revenueCatEntitlements'), 'RevenueCat Firebase claim name must be activeEntitlements.');
 check(rulesSource.includes('allowedUserText') && appSource.includes('findModerationViolation'), 'UGC text filtering is missing.');
@@ -100,6 +102,7 @@ check(appSource.includes('interestCategoryGrid') && appSource.includes('interest
 check(!appSource.includes('profil spoza Twojej bańki') && appSource.includes('interestMatchPercent'), 'Profile cards must show interest compatibility instead of exclusionary copy.');
 check(appSource.includes('relationshipStatus') && appSource.includes('onSuperlike') && appSource.includes('visibleInterests = profile.interests.slice(0, 8)'), 'Full profile must expose release-ready actions and the compact interest grid.');
 check(adsSource.includes('export const SWIPES_PER_INTERSTITIAL = 10') && appSource.includes('adsReady && tab === "discover"'), 'Swipe interstitial must run only on discovery after exactly ten decisions.');
+check(adsSource.includes('maxPerSession') && adsSource.includes('minIntervalSeconds') && adsSource.includes('loadState !== "loaded"') && adsSource.includes('ad_show_failed'), 'Ad frequency caps, hidden failed banners, or resilient preload handling are incomplete.');
 check(adsSource.includes('AdEventType.PAID') && adsSource.includes('trackAdRevenue') && adsSource.includes('toRevenueMicros'), 'Interstitial and banner impression revenue must be reported in RevenueCat micros.');
 const chatModalSource = appSource.slice(appSource.indexOf('function ChatConversationModal'), appSource.indexOf('function PremiumScreen'));
 check(appSource.includes('placement="messages-list"') && appSource.includes('visibleConversations.length >= 2') && adsSource.includes('EXPO_PUBLIC_ADMOB_IOS_CHAT_BANNER_ID') && !chatModalSource.includes('SparkAdBanner'), 'Chat-list monetization must be limited to a reserved Free-user slot outside the active conversation.');

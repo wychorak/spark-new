@@ -1,11 +1,15 @@
 export type SparkReleaseConfig = {
   swipesPerInterstitial: number;
+  interstitialMinIntervalSeconds: number;
+  maxInterstitialsPerSession: number;
   emptyFeedAutoExpand: boolean;
   maintenanceMode: boolean;
 };
 
 export const defaultSparkReleaseConfig: SparkReleaseConfig = {
   swipesPerInterstitial: 10,
+  interstitialMinIntervalSeconds: 120,
+  maxInterstitialsPerSession: 4,
   emptyFeedAutoExpand: true,
   maintenanceMode: false
 };

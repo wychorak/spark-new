@@ -1078,7 +1078,12 @@ function AppContent() {
   const ownerProAccess = isSparkOwnerAccount(appUser?.email, appUser?.emailVerified);
   const revenueCat = useRevenueCat(appUser?.uid ?? null, ownerProAccess);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
-  const trackSwipeAd = useSwipeInterstitialAds(!revenueCat.isPro && adsReady && tab === "discover", releaseConfig.swipesPerInterstitial);
+  const trackSwipeAd = useSwipeInterstitialAds(
+    !revenueCat.isPro && adsReady && tab === "discover",
+    releaseConfig.swipesPerInterstitial,
+    releaseConfig.interstitialMinIntervalSeconds,
+    releaseConfig.maxInterstitialsPerSession
+  );
   const showCurrentBanner = !revenueCat.isPro && adsReady && tab === "matches";
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
