@@ -15,14 +15,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('moderationStatus', 'active') != 'suspended';
     }
 
-    function isSparkOwner() {
-      return signedIn()
-        && request.auth.token.get('email_verified', false) == true
-        && request.auth.token.get('email', '') == 'wychor234@gmail.com';
+    function isSparkAdmin() {
+      return signedIn() && request.auth.token.get('sparkAdmin', false) == true;
     }
 
     function isEventAdmin() {
-      return isSparkOwner();
+      return isSparkAdmin();
     }
 
     function allowedUserText(text) {
@@ -73,11 +71,9 @@ service cloud.firestore {
     }
 
     function hasRevenueCatPro() {
-      return isSparkOwner() || (
-        signedIn()
-          && request.auth.token.get('activeEntitlements', []) is list
-          && 'Sparknew Pro' in request.auth.token.get('activeEntitlements', [])
-      );
+      return signedIn()
+        && request.auth.token.get('activeEntitlements', []) is list
+        && 'Sparknew Pro' in request.auth.token.get('activeEntitlements', []);
     }
 
     function validPremiumUsageUpdate() {

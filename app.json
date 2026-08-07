@@ -17,8 +17,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Spark używa lokalizacji, aby pokazywać przybliżoną odległość do profili w pobliżu.",
-        "NSPhotoLibraryUsageDescription": "Spark umożliwia wybranie zdjęć, które chcesz dodać do swojego profilu.",
-        "NSMotionUsageDescription": "Spark używa danych ruchu urządzenia do obsługi gestów i płynnych animacji kart profili."
+        "NSPhotoLibraryUsageDescription": "Spark umożliwia wybranie zdjęć, które chcesz dodać do swojego profilu."
       },
       "googleServicesFile": "./GoogleService-Info.plist",
       "privacyManifests": {
@@ -184,7 +183,6 @@
     },
     "plugins": [
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics",
       "expo-web-browser",
       [
         "expo-build-properties",

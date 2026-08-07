@@ -1,29 +1,38 @@
-# Polityka prywatności Spark
+# Polityka prywatności Spark — wersja przedprodukcyjna
 
-Ostatnia aktualizacja: 13 lipca 2026
+Ostatnia aktualizacja: 7 sierpnia 2026 r.
 
-Spark pomaga poznawać osoby w okolicy na podstawie profilu, lokalizacji przybliżonej i wspólnych zainteresowań. Kontakt w sprawach prywatności: sparkapp@gmail.com.
+> Dokument opisuje zamierzone przepływy danych wersji kandydującej. Przed publikacją wymaga uzupełnienia pełnej tożsamości administratora, podstaw prawnych, okresów retencji i przeglądu prawnego.
 
 ## Jakie dane przetwarzamy
 
-Przetwarzamy dane konta, takie jak adres e-mail, imię, nazwisko lub pseudonim, datę urodzenia i wyliczony wiek, zdjęcia, opis profilu, zainteresowania, preferencje wyszukiwania, przybliżoną lokalizację, polubienia, matche, wiadomości, zgłoszenia i blokady. Dane zakupów premium obsługuje RevenueCat oraz sklep Apple lub Google. Reklamy mogą być obsługiwane przez Google Mobile Ads. Google Mobile Ads może przetwarzać adres IP, identyfikator urządzenia, dane o wyświetlonych reklamach i interakcjach oraz dane diagnostyczne i wydajnościowe w celu dostarczania reklam niepersonalizowanych, analityki, zapobiegania nadużyciom i poprawy działania usługi.
+- konto i logowanie: e-mail, identyfikator Firebase, dostawca logowania, sesja i dane techniczne logowania
+- profil: imię, nazwisko lub pseudonim, data urodzenia, wyliczony wiek, zdjęcia, opis, zainteresowania i preferencje
+- odkrywanie: miasto, kraj i lokalizacja zaokrąglona przed publikacją do około 1 km
+- aktywność: polubienia, pominięcia, matche, wiadomości, blokady, zgłoszenia i ustawienia powiadomień
+- zakupy i reklamy: identyfikator klienta RevenueCat, status uprawnienia oraz dane przetwarzane przez sklep i Google Mobile Ads
+- urządzenie: token powiadomień push, platforma i minimalne dane potrzebne do dostarczenia powiadomień
 
-## Po co używamy danych
+## Cele i podstawy prawne
 
-Używamy danych, aby utworzyć konto, pokazywać dopasowania, obliczać odległość, umożliwiać czat po matchu lub prośbie premium, obsługiwać Spark Pro, moderować zgłoszenia, zapobiegać nadużyciom i poprawiać stabilność aplikacji.
+Dane mają służyć do utworzenia konta, prezentowania profili, dopasowań, rozmów, obsługi Spark Pro, bezpieczeństwa, moderacji i wymaganych rozliczeń. Operator musi przed uruchomieniem wskazać i opublikować właściwą podstawę prawną dla każdego celu. Zgoda, gdy jest używana, musi być dobrowolna, odrębna i możliwa do wycofania.
 
-## Lokalizacja
+## Analityka i reklamy
 
-Lokalizacja służy do wyświetlania przybliżonej odległości i dopasowania profili. Możesz odmówić dostępu w ustawieniach systemu, ale część funkcji odkrywania może działać gorzej.
+W bieżącym kliencie Analytics i Crashlytics są wyłączone i nie identyfikują użytkownika. Remote Config pobiera ustawienia wydania bez przypisywania UID. Google Mobile Ads uruchamia się po procedurze UMP i żąda reklam niepersonalizowanych; dostawca może nadal przetwarzać adres IP, identyfikatory urządzenia, dane reklamowe, diagnostyczne i wydajnościowe zgodnie ze swoimi zasadami.
 
-## Usunięcie konta
+## Dostawcy i transfery
 
-Konto mo\u017cesz usun\u0105\u0107 w aplikacji w sekcji profilu i bezpiecze\u0144stwa. Po potwierdzeniu usuwamy konto logowania, profil, zdj\u0119cia, polubienia, matche i wiadomo\u015bci. Minimalny zapis techniczny wniosku, zg\u0142oszenia, identyfikatory blokad i zapisy rozliczeniowe mog\u0105 by\u0107 zachowane wy\u0142\u0105cznie przez okres niezb\u0119dny do przeciwdzia\u0142ania nadu\u017cyciom, realizacji obowi\u0105zk\u00f3w prawnych oraz obs\u0142ugi zakup\u00f3w.
+Planowani dostawcy obejmują Firebase/Google Cloud, Expo, Apple, Google, RevenueCat, Google Mobile Ads, Codemagic i hosting stron prawnych. Przed produkcją należy opublikować listę procesorów, podpisać wymagane umowy, wskazać regiony danych i zabezpieczenia transferów międzynarodowych.
 
-## Udostępnianie danych
+## Usunięcie konta i retencja
 
-Korzystamy z dostawców infrastruktury i usług: Firebase, RevenueCat, Apple, Google oraz narzędzi reklamowych lub analitycznych używanych w aplikacji. Nie sprzedajemy treści prywatnych wiadomości.
+Usunięcie konta uruchamia funkcję serwerową, która usuwa konto Firebase Auth, profil, zdjęcia, wiadomości, matche, swipy, blokady, wyświetlenia profilu, tokeny urządzeń i kopie danych RevenueCat przechowywane w Firestore. Chronione zgłoszenia bezpieczeństwa oraz wymagane zapisy rozliczeniowe mogą być zachowane przez ograniczony okres. Dokładne okresy, wygasanie kopii zapasowych i procedura weryfikacji usunięcia są blokadami przed produkcją.
+
+## Prawa użytkownika
+
+Użytkownik może usunąć konto w aplikacji. Produkcja musi również zapewnić zweryfikowaną obsługę dostępu, korekty, ograniczenia, sprzeciwu, przenoszenia danych i skargi do organu nadzorczego w wymaganych terminach.
 
 ## Kontakt
 
-Pytania, żądania dostępu, poprawienia lub usunięcia danych wyślij na sparkapp@gmail.com.
+Kontakt prototypu: sparkapp@gmail.com. Przed publikacją należy zastąpić go pełnymi danymi administratora oraz adresem do spraw prywatności.

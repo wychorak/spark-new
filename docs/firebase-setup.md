@@ -68,16 +68,13 @@ npx firebase-tools deploy --only firestore:rules,firestore:indexes --project spa
 - `matches/{matchId}`: match metadata.
 - `messages/{threadId}/items/{messageId}`: messages scoped to match members.
 
-## Test Account
+## Test accounts
 
-The login screen includes a test account button:
+No test credentials are committed. Development-only demo login requires `EXPO_PUBLIC_SHOW_DEMO_LOGIN=true` plus locally supplied `EXPO_PUBLIC_DEMO_EMAIL` and `EXPO_PUBLIC_DEMO_PASSWORD`. Use a dedicated Firebase test project or a disposable account, never a production moderator account.
 
-```powershell
-Email: tester@spark.app
-Password: sparkdemo
-```
+## Admin access
 
-Pressing it signs in with Firebase Auth or creates the account if it does not exist yet. The app also seeds a local demo match and a pending premium chat request so the Matches and Messages tabs can be tested immediately.
+Moderation and event publishing require the Firebase custom claim `sparkAdmin: true`. Assign it from a trusted Admin SDK environment, never from the mobile client, then revoke existing sessions so the operator receives a refreshed ID token. Email addresses do not grant admin or premium access.
 
 ## Current Code Integration
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Polityka prywatności | Spark</title>
-  <meta name="description" content="Polityka prywatności aplikacji Spark" />
+  <meta name="description" content="Przedprodukcyjna polityka prywatności aplikacji Spark" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -16,22 +16,21 @@
       <a class="nav-link" href="/community-guidelines/">Guidelines</a>
     </nav>
     <section class="card">
-      <h1>Polityka prywatności Spark</h1>
-      <p class="meta">Ostatnia aktualizacja: 13 lipca 2026</p>
-      <p>Spark pomaga poznawać osoby w okolicy na podstawie profilu, przybliżonej lokalizacji i wspólnych zainteresowań. Kontakt w sprawach prywatności: <a href="mailto:sparkapp@gmail.com">sparkapp@gmail.com</a>.</p>
+      <h1>Polityka prywatności Spark — wersja przedprodukcyjna</h1>
+      <p class="meta">Ostatnia aktualizacja: 7 sierpnia 2026 r.</p>
+      <p>Ten dokument opisuje wersję kandydującą aplikacji. Przed produkcją wymaga uzupełnienia pełnej tożsamości administratora, podstaw prawnych i okresów retencji.</p>
       <h2>Jakie dane przetwarzamy</h2>
-      <p>Przetwarzamy dane konta, takie jak adres e-mail, imię, nazwisko lub pseudonim, datę urodzenia i wyliczony wiek, zdjęcia, opis profilu, zainteresowania, preferencje wyszukiwania, przybliżoną lokalizację, polubienia, matche, wiadomości, zgłoszenia i blokady.</p>
-      <p>Dane zakupów premium obsługuje RevenueCat oraz sklep Apple lub Google. Reklamy mogą być obsługiwane przez Google Mobile Ads. Google Mobile Ads może przetwarzać adres IP, identyfikator urządzenia, dane o wyświetlonych reklamach i interakcjach oraz dane diagnostyczne i wydajnościowe w celu dostarczania reklam niepersonalizowanych, analityki, zapobiegania nadużyciom i poprawy działania usługi.</p>
-      <h2>Po co używamy danych</h2>
-      <p>Używamy danych, aby utworzyć konto, pokazywać dopasowania, obliczać przybliżoną odległość, umożliwiać czat, obsługiwać Spark Pro, moderować zgłoszenia, zapobiegać nadużyciom i poprawiać stabilność aplikacji.</p>
+      <p>Zakres może obejmować e-mail i dane logowania, profil i zdjęcia, datę urodzenia, zainteresowania, preferencje, przybliżoną lokalizację, polubienia, matche, wiadomości, blokady, zgłoszenia, token powiadomień oraz status zakupów Spark Pro.</p>
       <h2>Lokalizacja</h2>
-      <p>Lokalizacja służy do wyświetlania przybliżonej odległości i dopasowania profili. Możesz odmówić dostępu w ustawieniach systemu, ale część funkcji odkrywania może działać gorzej.</p>
+      <p>Dokładna pozycja służy lokalnie do obliczeń, a do profilu odkrywania trafiają współrzędne zaokrąglone do około 1 km. Dostęp można wyłączyć w ustawieniach systemu.</p>
+      <h2>Analityka i reklamy</h2>
+      <p>Analytics i Crashlytics są obecnie wyłączone. Remote Config pobiera ustawienia bez przypisywania UID. Google Mobile Ads uruchamia się po procedurze UMP i żąda reklam niepersonalizowanych, ale może przetwarzać adres IP, identyfikatory urządzenia oraz dane reklamowe, diagnostyczne i wydajnościowe.</p>
       <h2>Usunięcie konta</h2>
-      <p>Konto mo\u017cesz usun\u0105\u0107 w aplikacji w sekcji profilu i bezpiecze\u0144stwa. Po potwierdzeniu usuwamy konto logowania, profil, zdj\u0119cia, polubienia, matche i wiadomo\u015bci. Minimalny zapis techniczny wniosku, zg\u0142oszenia, identyfikatory blokad i zapisy rozliczeniowe mog\u0105 by\u0107 zachowane wy\u0142\u0105cznie przez okres niezb\u0119dny do przeciwdzia\u0142ania nadu\u017cyciom, realizacji obowi\u0105zk\u00f3w prawnych oraz obs\u0142ugi zakup\u00f3w.</p>
-      <h2>Udostępnianie danych</h2>
-      <p>Korzystamy z dostawców infrastruktury i usług: Firebase, RevenueCat, Apple, Google oraz narzędzi reklamowych lub analitycznych używanych w aplikacji. Nie sprzedajemy treści prywatnych wiadomości.</p>
-      <h2>Kontakt</h2>
-      <p>Pytania, żądania dostępu, poprawienia lub usunięcia danych wyślij na <a href="mailto:sparkapp@gmail.com">sparkapp@gmail.com</a>.</p>
+      <p>Funkcja serwerowa usuwa konto logowania, profil, zdjęcia, wiadomości, matche, swipy, blokady, wyświetlenia profilu, tokeny urządzeń i kopie danych RevenueCat w Firestore. Chronione zgłoszenia bezpieczeństwa i wymagane zapisy rozliczeniowe mogą podlegać ograniczonej retencji.</p>
+      <h2>Dostawcy</h2>
+      <p>Planowani dostawcy obejmują Firebase/Google Cloud, Expo, Apple, Google, RevenueCat, Google Mobile Ads, Codemagic i hosting stron prawnych. Produkcja wymaga opublikowania procesorów, regionów i zabezpieczeń transferów.</p>
+      <h2>Kontakt i prawa</h2>
+      <p>W sprawie dostępu, korekty, usunięcia, ograniczenia, sprzeciwu lub przeniesienia danych napisz na <a href="mailto:sparkapp@gmail.com">sparkapp@gmail.com</a>. Przed publikacją adres zostanie uzupełniony o pełne dane administratora.</p>
     </section>
     <footer>Spark · Kontakt: <a href="mailto:sparkapp@gmail.com">sparkapp@gmail.com</a></footer>
   </main>

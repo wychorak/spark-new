@@ -18,6 +18,8 @@ Ostatni audyt kodu: 14 lipca 2026.
 - Procedura moderacji: `docs/moderation-runbook.md` i chroniony `moderationStatus`.
 - Natywna konfiguracja iOS bez Dev Launchera, lokalnej sieci, lokalizacji Always i wyjątków ATS.
 - Manifest prywatności iOS z danymi profilu, przybliżoną lokalizacją, zdjęciami, wiadomościami i aktywnością w aplikacji; śledzenie wyłączone.
+- Analytics i Crashlytics wyłączone do czasu wdrożenia osobnej zgody i ustawienia rezygnacji.
+- Moderacja i publikowanie wydarzeń oparte na niestandardowym claimie `sparkAdmin`, bez uprawnień przyznawanych adresem e-mail.
 
 ## Wymagane przed wysłaniem do App Review
 
@@ -28,6 +30,8 @@ Ostatni audyt kodu: 14 lipca 2026.
 5. W App Store Connect uzupełnij App Privacy zgodnie z `ios.privacyManifests` w `app.json`. Uwzględnij również dane Google Mobile Ads: identyfikator urządzenia, dane reklamowe, interakcje, diagnostykę i wydajność; w obecnej konfiguracji nie deklarujemy śledzenia. Ustaw też kategorię wiekową 18+, dane kontaktowe review, konto demonstracyjne i notatki dla recenzenta.
 6. Dodaj finalne zrzuty App Store wykonane z tego samego builda, który przejdzie TestFlight.
 7. Wyznacz osobę sprawdzającą kolekcję `reports` zgodnie z runbookiem moderacji.
+8. Nadaj operatorowi claim `sparkAdmin: true` z zaufanego środowiska Admin SDK, wymuś odświeżenie sesji i przetestuj odebranie claimu.
+9. Włącz App Check dla Firestore, Storage i Functions po potwierdzeniu działania na urządzeniu fizycznym.
 
 ## Kontrole techniczne
 
