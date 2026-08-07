@@ -21,7 +21,6 @@ import {
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
-import { isSparkOwnerAccount } from "./access";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
 import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 
@@ -202,8 +201,6 @@ async function keepPublishedSparkEvents(eventsInput: unknown) {
 async function getVerifiedProClaim(uid: string) {
   const currentUser = auth?.currentUser;
   if (!currentUser || currentUser.uid !== uid) return false;
-
-  if (isSparkOwnerAccount(currentUser.email, currentUser.emailVerified)) return true;
 
   const token = await currentUser.getIdTokenResult();
   const entitlements = token.claims.activeEntitlements;

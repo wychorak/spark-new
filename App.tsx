@@ -36,9 +36,8 @@ import {
 } from "react-native";
 import { captureRef } from "react-native-view-shot";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { currentUserUsesAppleSignIn, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { currentUserUsesAppleSignIn, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, getSparkAdminAccess, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
-import { isSparkOwnerAccount } from "./src/access";
 import { findModerationViolation } from "./src/content-moderation";
 import {
   acceptChatRequest,
@@ -144,12 +143,16 @@ const legalLinks = {
   terms: process.env.EXPO_PUBLIC_TERMS_URL || "https://spark-new-legal.vercel.app/terms",
   community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://spark-new-legal.vercel.app/community-guidelines"
 };
-const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
-const configuredTestProfileViewerEmails = (process.env.EXPO_PUBLIC_TEST_PROFILE_VIEWER_EMAILS || "wychor234@gmail.com")
+const demoEmail = process.env.EXPO_PUBLIC_DEMO_EMAIL?.trim() ?? "";
+const demoPassword = process.env.EXPO_PUBLIC_DEMO_PASSWORD ?? "";
+const showDemoLogin = __DEV__
+  && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true"
+  && demoEmail.length > 0
+  && demoPassword.length >= 8;
+const configuredTestProfileViewerEmails = (process.env.EXPO_PUBLIC_TEST_PROFILE_VIEWER_EMAILS || "")
   .split(",")
   .map((value: string) => value.trim().toLowerCase())
   .filter(Boolean);
-const sparkEventAdminEmail = "wychor234@gmail.com";
 
 function formatBadgeCount(count: number) {
   return count > 99 ? "99+" : String(Math.max(0, count));
@@ -224,8 +227,8 @@ const bundledTestProfileGenders: Record<string, ProfileGender> = {
 };
 
 const demoAccount = {
-  email: "tester@spark.app",
-  password: "sparkdemo",
+  email: demoEmail,
+  password: demoPassword,
   firstName: "Tester",
   lastName: "Spark"
 };
@@ -1075,8 +1078,8 @@ function AppContent() {
   const [releaseConfig, setReleaseConfig] = useState<SparkReleaseConfig>(defaultSparkReleaseConfig);
   const [feedExpansionLevel, setFeedExpansionLevel] = useState<0 | 1 | 2>(0);
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false);
-  const ownerProAccess = isSparkOwnerAccount(appUser?.email, appUser?.emailVerified);
-  const revenueCat = useRevenueCat(appUser?.uid ?? null, ownerProAccess);
+  const [sparkAdminAccess, setSparkAdminAccess] = useState(false);
+  const revenueCat = useRevenueCat(appUser?.uid ?? null);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
   const trackSwipeAd = useSwipeInterstitialAds(
     !revenueCat.isPro && adsReady && tab === "discover",
@@ -1150,8 +1153,26 @@ function AppContent() {
     setPremiumEntrySource(source);
     setTab("premium");
   }
-  const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
-  const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
+  const canViewTestProfiles = __DEV__ && configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
+  const canManageSparkEvents = sparkAdminAccess;
+
+  useEffect(() => {
+    let mounted = true;
+    if (!appUser?.uid) {
+      setSparkAdminAccess(false);
+      return undefined;
+    }
+    void getSparkAdminAccess(true)
+      .then((allowed) => {
+        if (mounted) setSparkAdminAccess(allowed);
+      })
+      .catch(() => {
+        if (mounted) setSparkAdminAccess(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [appUser?.uid]);
 
   useEffect(() => {
     let mounted = true;
@@ -1912,7 +1933,7 @@ function AppContent() {
       try {
         const claims = await getRevenueCatEntitlements(true);
         if (cancelled) return;
-        const claimIsPro = ownerProAccess || claims.includes(revenueCatEntitlementId);
+        const claimIsPro = claims.includes(revenueCatEntitlementId);
 
         if (claimIsPro || !revenueCat.isPro) {
           await syncPublicUserProfile(appUser.uid, claimIsPro);
@@ -1935,7 +1956,7 @@ function AppContent() {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [appUser, onboarded, ownerProAccess, revenueCat.configured, revenueCat.isLoading, revenueCat.isPro]);
+  }, [appUser, onboarded, revenueCat.configured, revenueCat.isLoading, revenueCat.isPro]);
 
   useEffect(() => {
     if (!appUser || !revenueCat.isPro) {
@@ -3059,7 +3080,7 @@ function AppContent() {
     );
   }
 
-  if (releaseConfig.maintenanceMode && !ownerProAccess) {
+  if (releaseConfig.maintenanceMode && !sparkAdminAccess) {
     return (
       <ScreenFrame contentPadding={contentPadding}>
         <View style={styles.appErrorRoot}>
@@ -3247,7 +3268,7 @@ function AppContent() {
           />
         )}
         {tab === "premium" && <PremiumScreen premiumPlan={premiumPlan} setPremiumPlan={setPremiumPlan} revenueCat={revenueCat} entrySource={premiumEntrySource} />}
-        {tab === "safety" && <SafetyCenter userUid={appUser?.uid ?? ""} canManageModeration={ownerProAccess} onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} blockedProfileKeys={blockedProfileKeys} onUnblock={unblockProfile} onReport={reportProfile} />}
+        {tab === "safety" && <SafetyCenter userUid={appUser?.uid ?? ""} canManageModeration={sparkAdminAccess} onBack={() => setTab("profile")} onDeleteAccount={confirmDeleteAccount} blockedProfileKeys={blockedProfileKeys} onUnblock={unblockProfile} onReport={reportProfile} />}
         {tab === "profile" && (
           <ProfileScreen
             firstName={firstName}
@@ -3676,7 +3697,7 @@ function AuthScreen({
           onPress={onDemoAccount}
           style={[styles.secondaryButtonWide, (!firebaseReady || authBusy) && styles.socialLoginButtonDisabled]}
         >
-          <Text style={styles.secondaryButtonText}>Konto testowe: tester@spark.app</Text>
+          <Text style={styles.secondaryButtonText}>Otwórz konto testowe</Text>
         </Pressable>
       )}
     </View>

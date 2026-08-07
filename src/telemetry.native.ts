@@ -1,5 +1,3 @@
-import { getAnalytics, logEvent, setUserId as setAnalyticsUserId, setUserProperties } from "@react-native-firebase/analytics";
-import { getCrashlytics, log as logCrash, recordError, setAttributes, setUserId as setCrashUserId } from "@react-native-firebase/crashlytics";
 import remoteConfig from "@react-native-firebase/remote-config";
 
 export type SparkReleaseConfig = {
@@ -19,15 +17,6 @@ export const defaultSparkReleaseConfig: SparkReleaseConfig = {
 };
 
 type EventValue = string | number | boolean | null | undefined;
-
-function sanitizeParams(params: Record<string, EventValue>) {
-  return Object.fromEntries(
-    Object.entries(params)
-      .filter(([, value]) => value !== undefined && value !== null)
-      .slice(0, 20)
-      .map(([key, value]) => [key.slice(0, 40), typeof value === "string" ? value.slice(0, 100) : value])
-  );
-}
 
 export async function initializeSparkTelemetry() {
   const config = remoteConfig();
@@ -54,37 +43,21 @@ export async function initializeSparkTelemetry() {
   } satisfies SparkReleaseConfig;
 }
 
-export async function identifyTelemetryUser(uid: string | null, isPro: boolean) {
-  const analytics = getAnalytics();
-  const crashlytics = getCrashlytics();
-  await Promise.all([
-    setAnalyticsUserId(analytics, uid),
-    setUserProperties(analytics, { plan: isPro ? "pro" : "free" }),
-    setCrashUserId(crashlytics, uid ?? ""),
-    setAttributes(crashlytics, { plan: isPro ? "pro" : "free" })
-  ]);
+export async function identifyTelemetryUser(_uid: string | null, _isPro: boolean) {
+  // Analytics and crash collection are disabled until an explicit in-app
+  // consent and opt-out flow is implemented.
 }
 
-export function trackSparkEvent(name: string, params: Record<string, EventValue> = {}) {
-  const safeName = name.toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 40);
-  void logEvent(getAnalytics(), safeName as never, sanitizeParams(params)).catch((error) => {
-    if (__DEV__) console.warn("Spark analytics event failed", error);
-  });
-  logCrash(getCrashlytics(), safeName);
+export function trackSparkEvent(_name: string, _params: Record<string, EventValue> = {}) {
+  // Intentionally disabled; do not add personal data to console logs.
 }
 
 export function trackSparkScreen(screenName: string) {
   trackSparkEvent("screen_view", { screen_name: screenName, screen_class: screenName });
 }
 
-export function recordSparkError(error: unknown, context: string, attributes: Record<string, EventValue> = {}) {
-  const normalized = error instanceof Error ? error : new Error(typeof error === "string" ? error : "Unknown Spark error");
-  const crashlytics = getCrashlytics();
-  logCrash(crashlytics, context.slice(0, 100));
-  const safeAttributes = Object.fromEntries(
-    Object.entries(sanitizeParams(attributes)).map(([key, value]) => [key, String(value)])
-  );
-  if (Object.keys(safeAttributes).length > 0) void setAttributes(crashlytics, safeAttributes);
-  recordError(crashlytics, normalized, context.slice(0, 100));
-  void logEvent(getAnalytics(), "exception", { description: context.slice(0, 100), fatal: false }).catch(() => undefined);
+export function recordSparkError(error: unknown, context: string, _attributes: Record<string, EventValue> = {}) {
+  if (__DEV__) {
+    console.warn(`[Spark:${context.slice(0, 100)}]`, error instanceof Error ? error.message : "Unknown error");
+  }
 }

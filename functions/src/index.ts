@@ -140,7 +140,6 @@ async function getProfileName(uid: string) {
 }
 
 const premiumEntitlementId = "Sparknew Pro";
-const sparkOwnerEmail = "wychor234@gmail.com";
 const maxPremiumRequestsPerDay = 10;
 const maxMessagesPerMinute = 20;
 const minMessageIntervalMs = 700;
@@ -159,17 +158,16 @@ function containsBlockedText(text: string) {
 
 async function hasVerifiedPro(uid: string, token: Record<string, unknown>) {
   const authUser = await getAuth().getUser(uid);
-  const isOwner = authUser.emailVerified && authUser.email?.toLowerCase() === sparkOwnerEmail;
   const currentClaims = claimEntitlements(authUser.customClaims?.activeEntitlements);
   const requestClaims = claimEntitlements(token.activeEntitlements);
-  return isOwner || currentClaims.includes(premiumEntitlementId) || requestClaims.includes(premiumEntitlementId);
+  return currentClaims.includes(premiumEntitlementId) || requestClaims.includes(premiumEntitlementId);
 }
 
-async function requireSparkOwner(request: { auth?: { uid: string } }) {
+async function requireSparkAdmin(request: { auth?: { uid: string } }) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie.");
   const authUser = await getAuth().getUser(uid);
-  if (!authUser.emailVerified || authUser.email?.toLowerCase() !== sparkOwnerEmail) {
+  if (authUser.customClaims?.sparkAdmin !== true) {
     throw new HttpsError("permission-denied", "Brak dostępu do moderacji.");
   }
   return uid;
@@ -210,7 +208,7 @@ function eventSelectionFromSnapshot(snapshot: FirebaseFirestore.DocumentSnapshot
 export const listModerationReports = onCall(
   { region, timeoutSeconds: 20 },
   async (request) => {
-    await requireSparkOwner(request);
+    await requireSparkAdmin(request);
     const snapshot = await db.collection("reports").orderBy("createdAt", "desc").limit(100).get();
     return {
       reports: snapshot.docs.map((document) => {
@@ -232,7 +230,7 @@ export const listModerationReports = onCall(
 export const resolveModerationReport = onCall(
   { region, timeoutSeconds: 20 },
   async (request) => {
-    const reviewerUid = await requireSparkOwner(request);
+    const reviewerUid = await requireSparkAdmin(request);
     const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
     const reportId = stringValue(data.reportId);
     const action = stringValue(data.action);

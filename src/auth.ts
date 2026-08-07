@@ -194,6 +194,13 @@ export async function getRevenueCatEntitlements(forceRefresh = false) {
     : [];
 }
 
+export async function getSparkAdminAccess(forceRefresh = false) {
+  const currentUser = requireAuth().currentUser;
+  if (!currentUser) return false;
+  const token = await currentUser.getIdTokenResult(forceRefresh);
+  return token.claims.sparkAdmin === true;
+}
+
 export async function ensureRecentLoginForAccountDeletion() {
   const currentUser = requireAuth().currentUser;
   if (!currentUser) {

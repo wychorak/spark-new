@@ -60,8 +60,7 @@ check(app.plugins?.includes('@react-native-google-signin/google-signin'), 'Googl
 check(codemagicSource.includes('APP_STORE_CONNECT_MAX_BUILD_PROCESSING_WAIT: \"60\"'), 'Codemagic must allow enough time for App Store Connect processing.');
 check(app.ios?.infoPlist?.NSPhotoLibraryUsageDescription?.length > 20, 'iOS photo-library usage description is missing.');
 check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS location usage description is missing.');
-check(app.ios?.infoPlist?.NSMotionUsageDescription?.length > 20, 'iOS motion usage description is missing.');
-check(!appConfigSource.includes('delete plist.NSMotionUsageDescription'), 'iOS config must preserve the motion usage description.');
+check(!app.ios?.infoPlist?.NSMotionUsageDescription, 'iOS must not request motion access for UI animations.');
 check(app.ios.infoPlist.NSLocationWhenInUseUsageDescription.includes('u\u017cywa') && app.ios.infoPlist.NSPhotoLibraryUsageDescription.includes('zdj\u0119'), 'iOS permission descriptions contain broken Polish text.');
 check(app.ios?.privacyManifests?.NSPrivacyTracking === false, 'iOS privacy manifest must declare tracking disabled.');
 check(Array.isArray(app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes), 'iOS collected-data privacy manifest is missing.');
@@ -120,7 +119,8 @@ check(appSource.includes('getProfileKey(profile) !== appUser?.uid'), 'Discovery 
 check(appSource.includes('LocationControl') && appSource.includes('Location.getForegroundPermissionsAsync()') && appSource.includes('updateCurrentLocation(true)'), 'Location permission must be contextual and user initiated.');
 check(appSource.includes('openAdsPrivacyOptions'), 'In-app ad privacy settings entry is missing.');
 check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && appSource.includes('zakupem jednorazowym bez automatycznego odnawiania'), 'App Store subscription billing disclosure is missing.');
-check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN'), 'Demo login must be development-only.');
+check(appSource.includes('__DEV__') && appSource.includes('EXPO_PUBLIC_SHOW_DEMO_LOGIN') && appSource.includes('EXPO_PUBLIC_DEMO_EMAIL') && appSource.includes('EXPO_PUBLIC_DEMO_PASSWORD'), 'Demo login must be development-only and externally configured.');
+check(!appSource.includes('tester@spark.app') && !appSource.includes('sparkdemo'), 'Demo credentials must not be committed.');
 check(appSource.includes('configuredTestProfileViewerEmails') && appSource.includes('(canViewTestProfiles || item.isTestProfile !== true)'), 'Test profiles must be restricted to configured tester accounts.');
 check(firestoreSource.includes('await runTransaction(currentDb, async (transaction) =>') && firestoreSource.includes('if (existing.status === "matched") return;'), 'Match creation must remain transactional and idempotent.');
 check(firestoreSource.includes('orderBy("updatedAt", "desc")') && firestoreSource.includes('startAfter(cursor)') && appSource.includes('profilesHaveMore'), 'Discovery pagination and freshness ordering are missing.');
@@ -155,12 +155,13 @@ check(rulesSource.includes('validEventList') && rulesSource.includes('isEventAdm
 check(functionsSource.includes('cleanupExpiredSparkEvents') && functionsSource.includes('every 15 minutes') && functionsSource.includes('cleanupDeletedSparkEvent'), 'Expired Event Friends cleanup is missing.');
 check(appSource.includes('EventFriendsManagerModal') && appSource.includes('EventFriendsEmptyState') && appSource.includes('discoverMode === "events"'), 'Separate Event Friends discovery flow is missing.');
 check(!/>[^<>{]*\\u[0-9a-f]{4}[^<>{]*</i.test(appSource), 'Visible JSX text contains a literal Unicode escape.');
-check(appSource.includes('sparkEventAdminEmail') && appSource.includes('PANEL ORGANIZATORA') && !appSource.includes('buildSuggestedEvents'), 'Event creation must stay restricted to the Spark organizer account.');
+check(appSource.includes('sparkAdminAccess') && rulesSource.includes('function isSparkAdmin()') && functionsSource.includes('requireSparkAdmin') && appSource.includes('PANEL ORGANIZATORA') && !appSource.includes('buildSuggestedEvents'), 'Event creation must require the Spark admin custom claim.');
 check(eventsSource.includes('eventIconOptions') && appSource.includes('Ikona wydarzenia') && rulesSource.includes("'microphone-variant'"), 'Curated thematic event icons are missing.');
 check(appSource.includes('WSPÓLNY PLAN') && appSource.includes('Uczestniczę') && appSource.includes('Razem na') && appSource.includes('calendar-heart'), 'Shared and temporary event participation context is missing from profile and chat UI.');
 
 check(revenueCatSource.includes('!hasSparknewPro(result.customerInfo)') && revenueCatSource.includes('completed && hasSparknewPro(refreshedInfo)'), 'RevenueCat purchases must verify the active Spark Pro entitlement before unlocking access.');
-check(appSource.includes('ownerProAccess') && rulesSource.includes('function isSparkOwner()') && firestoreSource.includes('isSparkOwnerAccount'), 'Verified Spark owner Pro access must stay consistent across UI and Firestore.');
+check(!appSource.includes('ownerProAccess') && !rulesSource.includes('function isSparkOwner()') && !functionsSource.includes('sparkOwnerEmail'), 'Premium and moderation access must not be granted by email address.');
+check(!packageJson.dependencies?.['@react-native-firebase/analytics'] && !packageJson.dependencies?.['@react-native-firebase/crashlytics'], 'Analytics and Crashlytics must stay disabled until an explicit consent flow exists.');
 check(firestoreSource.includes('recordCurrentUserProfileView') && firestoreSource.includes('observeRecentProfileViews') && rulesSource.includes('match /profileViews/{viewerUid}'), 'Private Spark Pro profile-view tracking is incomplete.');
 check(rulesSource.includes("duration.value(10, 'm')") && rulesSource.includes('allow read, delete: if isOwner(uid) && hasRevenueCatPro()'), 'Profile views must be rate-limited and private to their Pro owner.');
 check(appSource.includes('ProfileViewerPanel') && appSource.includes('Kto oglądał Twój profil'), 'Spark Pro profile viewers UI is missing.');

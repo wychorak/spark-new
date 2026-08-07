@@ -7,8 +7,15 @@ build/
 .env.*
 !.env.example
 google-service-account.json
+*service-account*.json
+*firebase-adminsdk*.json
 *.p8
 *.p12
+*.pem
+*.key
+*.cer
+*.keystore
+*.jks
 *.mobileprovision
 .DS_Store
 Thumbs.db
@@ -19,3 +26,9 @@ src/graphify-out/
 .codex/
 functions/lib/
 .graphify-code/
+.idea/
+.vscode/
+*.local
+.terraform/
+*.tfstate
+*.tfstate.*
