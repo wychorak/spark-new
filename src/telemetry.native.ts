@@ -11,9 +11,9 @@ export type SparkReleaseConfig = {
 };
 
 export const defaultSparkReleaseConfig: SparkReleaseConfig = {
-  swipesPerInterstitial: 10,
-  interstitialMinIntervalSeconds: 120,
-  maxInterstitialsPerSession: 4,
+  swipesPerInterstitial: 35,
+  interstitialMinIntervalSeconds: 600,
+  maxInterstitialsPerSession: 2,
   emptyFeedAutoExpand: true,
   maintenanceMode: false
 };
@@ -46,8 +46,8 @@ export async function initializeSparkTelemetry() {
   }
 
   return {
-    swipesPerInterstitial: Math.max(10, Math.min(30, Math.round(config.getValue("swipes_per_interstitial").asNumber() || defaultSparkReleaseConfig.swipesPerInterstitial))),
-    interstitialMinIntervalSeconds: Math.max(90, Math.min(600, Math.round(config.getValue("interstitial_min_interval_seconds").asNumber() || defaultSparkReleaseConfig.interstitialMinIntervalSeconds))),
+    swipesPerInterstitial: Math.max(10, Math.min(60, Math.round(config.getValue("swipes_per_interstitial").asNumber() || defaultSparkReleaseConfig.swipesPerInterstitial))),
+    interstitialMinIntervalSeconds: Math.max(90, Math.min(1800, Math.round(config.getValue("interstitial_min_interval_seconds").asNumber() || defaultSparkReleaseConfig.interstitialMinIntervalSeconds))),
     maxInterstitialsPerSession: Math.max(1, Math.min(6, Math.round(config.getValue("max_interstitials_per_session").asNumber() || defaultSparkReleaseConfig.maxInterstitialsPerSession))),
     emptyFeedAutoExpand: config.getValue("empty_feed_auto_expand").asBoolean(),
     maintenanceMode: config.getValue("maintenance_mode").asBoolean()

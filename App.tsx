@@ -1125,7 +1125,31 @@ function AppContent() {
     releaseConfig.interstitialMinIntervalSeconds,
     releaseConfig.maxInterstitialsPerSession
   );
-  const showCurrentBanner = !revenueCat.isPro && adsReady && tab === "matches";
+  // Calm screens get a banner; Discover gets a sponsored card in the deck.
+  const showCurrentBanner = !revenueCat.isPro && adsReady && (tab === "matches" || tab === "profile");
+  const sponsoredSwipes = useRef(0);
+  const [sponsoredCard, setSponsoredCard] = useState<"idle" | "loading" | "visible">("idle");
+  function noteFeedSwipe() {
+    // A full-screen ad already interrupted this swipe: no card on top of it.
+    if (trackSwipeAd()) { sponsoredSwipes.current = 0; return; }
+    if (revenueCat.isPro || !adsReady || sponsoredCard !== "idle") return;
+    sponsoredSwipes.current += 1;
+    if (sponsoredSwipes.current >= SPONSORED_CARD_EVERY) {
+      sponsoredSwipes.current = 0;
+      setSponsoredCard("loading");
+    }
+  }
+
+  useEffect(() => {
+    if (sponsoredCard !== "loading") return;
+    // Never show an empty card: give the ad a few seconds, else skip it.
+    const timer = setTimeout(() => setSponsoredCard((current) => (current === "loading" ? "idle" : current)), 8000);
+    return () => clearTimeout(timer);
+  }, [sponsoredCard]);
+
+  useEffect(() => {
+    if (revenueCat.isPro) setSponsoredCard("idle");
+  }, [revenueCat.isPro]);
   const [likedProfileKeys, setLikedProfileKeys] = useState<string[]>([]);
   const [passedProfileKeys, setPassedProfileKeys] = useState<string[]>([]);
   const [matchedProfileKeys, setMatchedProfileKeys] = useState<string[]>([]);
@@ -1441,7 +1465,7 @@ function AppContent() {
   useEffect(() => {
     if (tab !== "discover" || matchCelebrationProfile || !deferredSwipeAdRef.current) return;
     deferredSwipeAdRef.current = false;
-    trackSwipeAd();
+    noteFeedSwipe();
   }, [matchCelebrationProfile, tab, trackSwipeAd]);
 
   useEffect(() => {
@@ -2571,7 +2595,7 @@ function AppContent() {
     if (action === "pass") {
       setPassedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
       trackSparkEvent("profile_swipe", { action: "pass", mode: discoverMode });
-      trackSwipeAd();
+      noteFeedSwipe();
       return "passed";
     }
 
@@ -2634,7 +2658,7 @@ function AppContent() {
     if (!isMutualMatch) {
       setLikedProfileKeys((keys) => (keys.includes(targetKey) ? keys : [...keys, targetKey]));
       trackSparkEvent("profile_swipe", { action: "like", mode: discoverMode, matched: false });
-      trackSwipeAd();
+      noteFeedSwipe();
       return "liked";
     }
 
@@ -3303,6 +3327,14 @@ function AppContent() {
             onBackToPeople={() => setDiscoverMode("people")}
             onManageEvents={() => setEventManagerOpen(true)}
             onChromeHiddenChange={setBottomNavHidden}
+            sponsored={sponsoredCard === "idle" ? null : (
+              <SponsoredDeckCard
+                visible={sponsoredCard === "visible"}
+                onLoaded={() => setSponsoredCard("visible")}
+                onDone={() => setSponsoredCard("idle")}
+                onUpgrade={() => { setSponsoredCard("idle"); openPremium("navigation"); }}
+              />
+            )}
           />
         )}
         {tab === "discover" && !activeProfile && discoverMode === "events" && (
@@ -3451,7 +3483,7 @@ function AppContent() {
             verificationStatus={profileVerificationStatus}
           />
         )}
-        <SparkAdBanner enabled={showCurrentBanner} placement={tab} />
+        <SparkAdBanner enabled={showCurrentBanner} placement={tab} tone={colors.name === "dark" ? "dark" : "light"} />
       </ScrollView>
       <EventFriendsManagerModal
         visible={eventManagerOpen}
@@ -4154,8 +4186,10 @@ function DiscoverScreen({
   onOpenEventFriends,
   onBackToPeople,
   onManageEvents,
-  onChromeHiddenChange
+  onChromeHiddenChange,
+  sponsored
 }: {
+  sponsored?: React.ReactNode;
   modeSwitch: React.ReactNode;
   deckMode: DeckMode;
   mode: DiscoverMode;
@@ -4440,6 +4474,7 @@ function DiscoverScreen({
             ] satisfies ActionItem[]}
           />
         </View>
+        {sponsored}
         {swipeFeedback && (
           <View pointerEvents="none" style={styles.swipeFeedback}>
             <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
@@ -5865,6 +5900,38 @@ function EventFriendsManagerModal({
   );
 }
 
+const SPONSORED_CARD_EVERY = 8;
+
+/** Ad shown as one card in the deck. Hidden until the ad has loaded; the
+ *  person can move on after a moment, or turn ads off with Pro. */
+function SponsoredDeckCard({ visible, onLoaded, onDone, onUpgrade }: { visible: boolean; onLoaded: () => void; onDone: () => void; onUpgrade: () => void }) {
+  const { colors, styles } = useAppTheme();
+  const [canSkip, setCanSkip] = useState(false);
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => setCanSkip(true), 1500);
+    return () => clearTimeout(timer);
+  }, [visible]);
+  return (
+    <View pointerEvents={visible ? "auto" : "none"} style={[styles.deckLayer, styles.sponsoredLayer, !visible && styles.sponsoredHidden]}>
+      <GlassSurface style={styles.sponsoredCard}>
+        <View style={styles.sponsoredHeader}>
+          <Text style={styles.sponsoredEyebrow}>Reklama</Text>
+          <Pressable accessibilityRole="button" onPress={onUpgrade} hitSlop={8}><Text style={styles.sponsoredUpgrade}>Bez reklam z Pro</Text></Pressable>
+        </View>
+        <View style={styles.sponsoredSlot}>
+          <SparkAdBanner enabled placement="discover-card" size="card" onLoaded={onLoaded} onFailed={onDone} />
+        </View>
+        <Text style={styles.sponsoredText}>Dzięki reklamom Spark może być darmowy.</Text>
+        <Pressable accessibilityRole="button" disabled={!canSkip} onPress={onDone} style={({ pressed }) => [styles.sponsoredNext, !canSkip && styles.primaryButtonDisabled, pressed && styles.controlPressed]}>
+          <Text style={styles.sponsoredNextText}>Dalej</Text>
+          <MaterialCommunityIcons name="arrow-right" size={18} color={colors.onPrimary} />
+        </Pressable>
+      </GlassSurface>
+    </View>
+  );
+}
+
 function EventFriendsEmptyState({
   modeSwitch, screenMinHeight, activeEvents, loading, error, expiredCount, onBack, onManage
 }: {
@@ -6592,7 +6659,7 @@ function MessagesScreen({
                 </View>
               </Pressable>
               {showChatListAd && messageView === "chats" && !normalizedQuery && visibleConversations.length >= 2 && index === Math.min(2, visibleConversations.length - 1) && (
-                <SparkAdBanner enabled placement="messages-list" tone="dark" />
+                <SparkAdBanner enabled placement="messages-list" tone={colors.name === "dark" ? "dark" : "light"} />
               )}
             </React.Fragment>
           ))}
@@ -9530,6 +9597,16 @@ function createStyles(colors: Palette) {
   },
   discoverScreen: { flex: 1, minHeight: 0, width: "100%", gap: 10, paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0, overflow: "hidden" },
   deckArea: { flex: 1, minHeight: 380, marginTop: 10, position: "relative" },
+  sponsoredLayer: { zIndex: 20, alignItems: "stretch", justifyContent: "center" },
+  sponsoredHidden: { opacity: 0 },
+  sponsoredCard: { flex: 1, overflow: "hidden", alignItems: "center", justifyContent: "center", gap: 14, padding: 18, borderRadius: 28, borderWidth: 1, borderColor: colors.glassBorder },
+  sponsoredHeader: { alignSelf: "stretch", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sponsoredEyebrow: { color: colors.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" },
+  sponsoredUpgrade: { color: colors.primary, fontSize: 12, fontWeight: "800" },
+  sponsoredSlot: { minHeight: 250, alignItems: "center", justifyContent: "center" },
+  sponsoredText: { color: colors.muted, fontSize: 12, fontWeight: "600", textAlign: "center" },
+  sponsoredNext: { alignSelf: "stretch", minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 25, backgroundColor: colors.primary },
+  sponsoredNextText: { color: colors.onPrimary, fontSize: 15, fontWeight: "800" },
   deckLayer: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   // The glass action bar floats inside the bottom of the card.
   deckActionDock: { position: "absolute", left: 12, right: 12, bottom: 12, zIndex: 20 },

@@ -180,14 +180,16 @@ function getInterstitialUnitId() {
   return Platform.OS === "ios" ? adUnitIds.iosInterstitial : adUnitIds.androidInterstitial;
 }
 
-export const SWIPES_PER_INTERSTITIAL = 10;
+export const SWIPES_PER_INTERSTITIAL = 35;
+// No full-screen ad in the first minutes of a session.
+const INTERSTITIAL_SESSION_GRACE_MS = 5 * 60 * 1000;
 const INTERSTITIAL_RETRY_DELAYS_MS = [10_000, 30_000];
 
 export function useSwipeInterstitialAds(
   enabled: boolean,
   swipeThreshold = SWIPES_PER_INTERSTITIAL,
-  minIntervalSeconds = 120,
-  maxPerSession = 4
+  minIntervalSeconds = 600,
+  maxPerSession = 2
 ) {
   const swipeCount = useRef(0);
   const enabledRef = useRef(enabled);
@@ -195,6 +197,7 @@ export function useSwipeInterstitialAds(
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCount = useRef(0);
   const lastShownAt = useRef(0);
+  const sessionStartedAt = useRef(Date.now());
   const sessionImpressionCount = useRef(0);
   const impressionId = useRef("");
   if (!impressionId.current) impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
@@ -306,22 +309,24 @@ export function useSwipeInterstitialAds(
     };
   }, [adUnitId, enabled]);
 
-  return useCallback(() => {
+  /** Returns true when a full-screen ad is being shown for this swipe. */
+  return useCallback((): boolean => {
     if (!enabled || Platform.OS === "web" || !interstitial.current) {
-      return;
+      return false;
     }
 
     swipeCount.current += 1;
 
-    if (swipeCount.current < Math.max(5, Math.min(30, swipeThreshold))) {
-      return;
+    if (swipeCount.current < Math.max(5, Math.min(60, swipeThreshold))) {
+      return false;
     }
 
     if (
       sessionImpressionCount.current >= Math.max(1, Math.min(6, maxPerSession)) ||
-      Date.now() - lastShownAt.current < Math.max(90, Math.min(600, minIntervalSeconds)) * 1000
+      Date.now() - sessionStartedAt.current < INTERSTITIAL_SESSION_GRACE_MS ||
+      Date.now() - lastShownAt.current < Math.max(90, Math.min(1800, minIntervalSeconds)) * 1000
     ) {
-      return;
+      return false;
     }
 
     if (isLoaded) {
@@ -330,17 +335,26 @@ export function useSwipeInterstitialAds(
         isLoading.current = false;
         trackSparkEvent("ad_show_failed", { format: "interstitial", placement: "swipe-feed" });
       });
-      return;
+      return true;
     }
 
     if (!isLoading.current) {
       isLoading.current = true;
       interstitial.current.load();
     }
+    return false;
   }, [enabled, isLoaded, maxPerSession, minIntervalSeconds, swipeThreshold]);
 }
 
-export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled: boolean; placement: string; tone?: "light" | "dark" }) {
+export function SparkAdBanner({ enabled, placement, tone = "light", size = "adaptive", onLoaded, onFailed }: {
+  enabled: boolean;
+  placement: string;
+  tone?: "light" | "dark";
+  /** "card" = 300x250 inside the sponsored deck card (no frame, no retry). */
+  size?: "adaptive" | "card";
+  onLoaded?: () => void;
+  onFailed?: () => void;
+}) {
   const impressionId = useRef("");
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCount = useRef(0);
@@ -370,17 +384,18 @@ export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled:
   };
 
   return (
-    <View pointerEvents={loadState === "loaded" ? "auto" : "none"} style={[styles.wrapper, tone === "dark" && styles.wrapperDark, loadState !== "loaded" && styles.wrapperPending]}>
-      {loadState === "loaded" && <Text style={[styles.label, tone === "dark" && styles.labelDark]}>Reklama</Text>}
+    <View pointerEvents={loadState === "loaded" ? "auto" : "none"} style={[size === "card" ? styles.cardWrapper : styles.wrapper, size !== "card" && tone === "dark" && styles.wrapperDark, loadState !== "loaded" && styles.wrapperPending]}>
+      {loadState === "loaded" && size !== "card" && <Text style={[styles.label, tone === "dark" && styles.labelDark]}>Reklama</Text>}
       <BannerAd
         key={adUnitId + "-" + retryKey}
         unitId={adUnitId}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        size={size === "card" ? BannerAdSize.MEDIUM_RECTANGLE : BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
         onAdFailedToLoad={(error) => {
           setLoadState("failed");
           trackSparkEvent("ad_load_failed", { format: "banner", placement });
-          scheduleRetry();
+          if (onFailed) onFailed();
+          else scheduleRetry();
           if (__DEV__) {
             console.warn("AdMob banner failed", error);
           }
@@ -396,6 +411,7 @@ export function SparkAdBanner({ enabled, placement, tone = "light" }: { enabled:
           retryTimer.current = null;
           retryCount.current = 0;
           setLoadState("loaded");
+          onLoaded?.();
           impressionId.current = createAdImpressionId(placement, "banner");
           Purchases.adTracker.trackAdLoaded({
             mediatorName: "AdMob",
@@ -442,6 +458,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.72)",
     borderWidth: 1,
     borderColor: "rgba(145,110,111,0.16)",
+    overflow: "hidden"
+  },
+  cardWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
     overflow: "hidden"
   },
   wrapperDark: {
