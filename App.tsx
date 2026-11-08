@@ -1,3 +1,5 @@
+import { EventDateField, EventCityField } from "./src/events/EventFields";
+import { searchKey, validateEventFields } from "./src/events/event-form-model";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -1101,6 +1103,9 @@ function AppContent() {
   const [sparkEventDetails, setSparkEventDetails] = useState<Record<string, EventDetails>>({});
   const [eventProposals, setEventProposals] = useState<EventProposal[]>([]);
   const [eventProposalsLoading, setEventProposalsLoading] = useState(false);
+  const [eventProposalsError, setEventProposalsError] = useState<string | null>(null);
+  const [eventCatalogReload, setEventCatalogReload] = useState(0);
+  const proposalLoadSequence = useRef(0);
   const [eventProfiles, setEventProfiles] = useState<MatchProfile[]>([]);
   const [eventManagerOpen, setEventManagerOpen] = useState(false);
   const [eventProfilesLoading, setEventProfilesLoading] = useState(false);
@@ -1110,6 +1115,8 @@ function AppContent() {
   const [premiumPlan, setPremiumPlan] = useState<SparkPlanId>("monthly");
   const [premiumEntrySource, setPremiumEntrySource] = useState<PremiumEntrySource>("navigation");
   const [appUser, setAppUser] = useState<AppAuthUser | null>(null);
+  const currentEventUser = useRef<string | null>(null);
+  currentEventUser.current = appUser?.uid ?? null;
   const [profileVerificationStatus, setProfileVerificationStatus] = useState<ProfileVerificationStatus>("none");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
@@ -1256,16 +1263,25 @@ function AppContent() {
   const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
 
   async function loadEventProposals() {
-    if (!appUser) return;
-    setEventProposalsLoading(true);
+    const uid = appUser?.uid;
+    if (!uid) return;
+    const sequence = ++proposalLoadSequence.current;
+    setEventProposalsLoading(true); setEventProposalsError(null);
     try {
-      setEventProposals(canManageSparkEvents ? await listPendingEventProposals() : await listMyEventProposals(appUser.uid));
+      const proposals = canManageSparkEvents ? await listPendingEventProposals() : await listMyEventProposals(uid);
+      if (sequence === proposalLoadSequence.current && currentEventUser.current === uid) setEventProposals(proposals);
     } catch {
-      setEventProposals([]);
+      if (sequence === proposalLoadSequence.current && currentEventUser.current === uid) setEventProposalsError("Nie udało się pobrać zgłoszeń. Spróbuj ponownie.");
     } finally {
-      setEventProposalsLoading(false);
+      if (sequence === proposalLoadSequence.current && currentEventUser.current === uid) setEventProposalsLoading(false);
     }
   }
+
+  useEffect(() => {
+    proposalLoadSequence.current += 1;
+    setEventProposals([]); setEventProposalsError(null); setEventProposalsLoading(false);
+    setSparkEventDetails({});
+  }, [appUser?.uid]);
 
   useEffect(() => {
     if (eventManagerOpen) void loadEventProposals();
@@ -1835,7 +1851,7 @@ function AppContent() {
       }
     );
     return unsubscribe;
-  }, [appUser, authDone, onboarded]);
+  }, [appUser, authDone, onboarded, eventCatalogReload]);
 
   useEffect(() => {
     if (!appUser || !authDone || !onboarded || activeEvents.length === 0) {
@@ -3486,6 +3502,7 @@ function AppContent() {
         <SparkAdBanner enabled={showCurrentBanner} placement={tab} tone={colors.name === "dark" ? "dark" : "light"} />
       </ScrollView>
       <EventFriendsManagerModal
+        key={appUser?.uid ?? "signed-out"}
         visible={eventManagerOpen}
         events={activeEvents}
         availableEvents={sparkEvents}
@@ -3503,10 +3520,14 @@ function AppContent() {
         eventDetails={sparkEventDetails}
         proposals={eventProposals}
         proposalsLoading={eventProposalsLoading}
+        proposalsError={eventProposalsError}
+        onReloadProposals={() => void loadEventProposals()}
+        onReloadCatalog={() => setEventCatalogReload((current) => current + 1)}
         onPropose={async (event, details) => {
           if (!appUser) return false;
           try {
             await submitEventProposal(appUser.uid, event, details);
+            if (currentEventUser.current !== appUser.uid) return false;
             void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert("Zgłoszenie wysłane", "Dzięki! Sprawdzimy wydarzenie i damy Ci znać powiadomieniem.");
             void loadEventProposals();
@@ -3529,6 +3550,7 @@ function AppContent() {
               if (!sparkEvents.some((item) => item.id === event.id)) await publishSparkEvent(appUser.uid, event, details);
             }
             await reviewEventProposal(proposal.id, status, editedEvent, editedDetails);
+            if (currentEventUser.current !== appUser.uid) return false;
             setEventProposals((current) => current.filter((item) => item.id !== proposal.id));
             void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return true;
@@ -3539,7 +3561,9 @@ function AppContent() {
         }}
         onWithdrawProposal={async (proposal) => {
           try {
+            const uid = appUser?.uid;
             await withdrawEventProposal(proposal.id);
+            if (!uid || currentEventUser.current !== uid) return false;
             setEventProposals((current) => current.filter((item) => item.id !== proposal.id));
             return true;
           } catch {
@@ -5382,6 +5406,9 @@ function EventFriendsManagerModal({
   eventDetails,
   proposals,
   proposalsLoading,
+  proposalsError,
+  onReloadProposals,
+  onReloadCatalog,
   onPropose,
   onReviewProposal,
   onWithdrawProposal
@@ -5389,6 +5416,9 @@ function EventFriendsManagerModal({
   eventDetails: Record<string, EventDetails>;
   proposals: EventProposal[];
   proposalsLoading: boolean;
+  proposalsError: string | null;
+  onReloadProposals: () => void;
+  onReloadCatalog: () => void;
   onPropose: (event: SparkEvent, details: EventDetails) => Promise<boolean>;
   onReviewProposal: (proposal: EventProposal, status: "approved" | "rejected", event?: SparkEvent, details?: EventDetails) => Promise<boolean>;
   onWithdrawProposal: (proposal: EventProposal) => Promise<boolean>;
@@ -5412,7 +5442,7 @@ function EventFriendsManagerModal({
   const [category, setCategory] = useState<EventCategoryId>("music");
   const [selectedIcon, setSelectedIcon] = useState<EventIconId>(getEventCategoryDefaultIcon("music"));
   const [name, setName] = useState("");
-  const [city, setCity] = useState(userCity || "Kraków");
+  const [city, setCity] = useState(userCity || "");
   const defaults = useMemo(() => getDefaultEventDateTimes(), [visible]);
   const [startsAtInput, setStartsAtInput] = useState(defaults.start);
   const [endsAtInput, setEndsAtInput] = useState(defaults.end);
@@ -5423,10 +5453,18 @@ function EventFriendsManagerModal({
   const [description, setDescription] = useState("");
   const [editingProposal, setEditingProposal] = useState<EventProposal | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [iconsOpen, setIconsOpen] = useState(false);
+  const [view, setView] = useState<"discover" | "mine" | "add">("discover");
+  const [query, setQuery] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const createInFlight = useRef(false);
+  const saveInFlight = useRef(false);
+  const wasVisible = useRef(false);
+  const visibleEvents = availableEvents.filter((event) => (view !== "mine" || draftEvents.some((item) => item.id === event.id)) && searchKey(`${event.name} ${event.city} ${eventDetails[event.id]?.venue ?? ""}`).includes(searchKey(query)));
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
-    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
+    close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.fillStrong },
     eyebrow: { color: colors.primary, fontSize: 10, fontWeight: "900", letterSpacing: 0.8, textTransform: "uppercase" },
     title: { marginTop: 2, color: colors.ink, fontSize: 21, fontWeight: "900" },
     counter: { minWidth: 38, height: 30, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
@@ -5445,13 +5483,13 @@ function EventFriendsManagerModal({
     activeIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
     activeTitle: { color: colors.ink, fontSize: 12, fontWeight: "900" },
     meta: { marginTop: 3, color: colors.muted, fontSize: 10, fontWeight: "700" },
-    remove: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    remove: { width: 44, height: 44, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
     suggestionList: { gap: 8 },
-    suggestion: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    suggestion: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 18, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.fillStronger },
     suggestionActive: { backgroundColor: "rgba(66,217,130,0.09)", borderColor: "rgba(66,217,130,0.25)" },
     datePill: { alignSelf: "flex-start", marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.11)" },
     datePillText: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900" },
-    participationPill: { minHeight: 31, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.25)" },
+    participationPill: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.25)" },
     participationPillActive: { backgroundColor: colors.green, borderColor: colors.green },
     participationText: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900" },
     participationTextActive: { color: "#062817" },
@@ -5465,31 +5503,31 @@ function EventFriendsManagerModal({
     adminBadgeText: { color: colors.gold, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
     fieldLabel: { marginBottom: -5, color: colors.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.5, textTransform: "uppercase" },
     categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    categoryCard: { width: "48%", flexGrow: 1, minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    categoryCard: { width: "48%", flexGrow: 1, minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: 16, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.fillStronger },
     categoryActive: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.34)" },
     categoryIcon: { width: 35, height: 35, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.13)" },
     categoryTitle: { color: colors.ink, fontSize: 11, fontWeight: "900" },
     categoryHint: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "700" },
     iconPicker: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    iconChoice: { width: "23%", flexGrow: 1, minWidth: 68, minHeight: 76, alignItems: "center", justifyContent: "center", gap: 7, padding: 8, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    iconChoice: { width: "23%", flexGrow: 1, minWidth: 68, minHeight: 76, alignItems: "center", justifyContent: "center", gap: 7, padding: 8, borderRadius: 16, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.fillStronger },
     iconChoiceActive: { backgroundColor: "rgba(255,45,141,0.15)", borderColor: colors.primary },
     iconChoiceGlyph: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.1)" },
     iconChoiceGlyphActive: { backgroundColor: colors.primary },
     iconChoiceLabel: { color: colors.muted, fontSize: 8, fontWeight: "900", textAlign: "center" },
     iconChoiceLabelActive: { color: colors.ink },
-    segment: { flexDirection: "row", padding: 4, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.055)" },
-    segmentButton: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+    segment: { flexDirection: "row", padding: 4, borderRadius: 15, backgroundColor: colors.surfaceStrong },
+    segmentButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
     segmentActive: { backgroundColor: colors.primary },
     segmentText: { color: colors.muted, fontSize: 11, fontWeight: "900" },
     segmentTextActive: { color: "#fff" },
-    input: { minHeight: 50, paddingHorizontal: 13, borderRadius: 15, color: colors.ink, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", fontSize: 13, fontWeight: "700" },
+    input: { minHeight: 50, paddingHorizontal: 13, borderRadius: 15, color: colors.ink, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.fillStronger, fontSize: 13, fontWeight: "700" },
     inputRow: { flexDirection: "row", gap: 8 },
     inputHalf: { flex: 1 },
     add: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary },
     addText: { color: "#fff", fontSize: 12, fontWeight: "900" },
-    adminDelete: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,77,109,0.11)" },
+    adminDelete: { width: 44, height: 44, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,77,109,0.11)" },
     footer: { flexDirection: "row", gap: 9, paddingHorizontal: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
-    footerButton: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.07)" },
+    footerButton: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: colors.fillStrong },
     saveButton: { flex: 1.5, flexDirection: "row", gap: 8, backgroundColor: colors.primary },
     footerText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
     saveText: { color: "#fff" },
@@ -5501,7 +5539,7 @@ function EventFriendsManagerModal({
     statusPill: { alignSelf: "flex-start", paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
     statusText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.4 },
     proposalActions: { flexDirection: "row", gap: 8 },
-    proposalButton: { flex: 1, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 13, backgroundColor: colors.fillStrong },
+    proposalButton: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 13, backgroundColor: colors.fillStrong },
     proposalButtonPrimary: { backgroundColor: colors.primary },
     proposalButtonText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
     proposalButtonTextPrimary: { color: colors.onPrimary }
@@ -5513,23 +5551,14 @@ function EventFriendsManagerModal({
   } as const;
 
   useEffect(() => {
-    if (!visible) return;
     const catalogIds = new Set(availableEvents.map((event) => event.id));
-    setDraftEvents(sanitizeActiveEvents(events).filter((event) => catalogIds.has(event.id)));
-    setCity(userCity || "Kraków");
-    setCategory("music");
-    setSelectedIcon(getEventCategoryDefaultIcon("music"));
-    setStartsAtInput(defaults.start);
-    setEndsAtInput(defaults.end);
-    setName("");
-    setSaving(false);
-    setCreating(false);
-    setDeletingId(null);
-    setVenue("");
-    setDescription("");
-    setEditingProposal(null);
-    setReviewingId(null);
-  }, [availableEvents, defaults.end, defaults.start, events, userCity, visible]);
+    if (visible && !wasVisible.current) {
+      setDraftEvents(sanitizeActiveEvents(events).filter((event) => catalogIds.has(event.id)));
+    } else if (visible && !catalogLoading && !catalogError) {
+      setDraftEvents((current) => current.filter((event) => catalogIds.has(event.id)));
+    }
+    wasVisible.current = visible;
+  }, [availableEvents, catalogLoading, catalogError, events, visible]);
 
   function revealEventDateInput() {
     setTimeout(() => eventFormScrollRef.current?.scrollToEnd({ animated: true }), 250);
@@ -5549,39 +5578,38 @@ function EventFriendsManagerModal({
   }
 
   async function addCustomEvent() {
-    if (creating) return;
-    const startsAt = parseEventDateTimeInput(startsAtInput);
-    const endsAt = parseEventDateTimeInput(endsAtInput);
-    const event = startsAt && endsAt
-      ? normalizeSparkEvent({ category, icon: selectedIcon, name, city, startsAt, endsAt, date: startsAt.slice(0, 10), kind: "specific" })
-      : null;
+    if (createInFlight.current) return;
+    const result = validateEventFields(name, city, startsAtInput, endsAtInput, Date.now(), !!editingProposal);
+    const event = result.errors.length === 0
+      ? normalizeSparkEvent({ category, icon: selectedIcon, name, city, startsAt: result.startsAt, endsAt: result.endsAt, kind: "specific" }) : null;
     if (!event) {
-      Alert.alert("Uzupełnij wydarzenie", "Podaj nazwę, miasto oraz start i koniec w formacie RRRR-MM-DD GG:MM.");
+      setFormError(result.errors.join("\n") || "Sprawdź dane wydarzenia.");
       return;
     }
-    if (!isEventActive(event)) {
-      Alert.alert("Data wydarzenia", "Koniec wydarzenia musi przypadać w przyszłości.");
-      return;
-    }
-    setCreating(true);
-    const details: EventDetails = { venue, description };
-    const created = editingProposal
-      ? await onReviewProposal(editingProposal, "approved", event, details)
-      : canManage ? await onCreate(event, details) : await onPropose(event, details);
-    setCreating(false);
-    if (created) {
-      setEditingProposal(null);
-      setVenue("");
-      setDescription("");
-      setName("");
-      const nextDefaults = getDefaultEventDateTimes();
-      setStartsAtInput(nextDefaults.start);
-      setEndsAtInput(nextDefaults.end);
-    }
+    createInFlight.current = true; setCreating(true); setFormError(null);
+    try {
+      const details: EventDetails = { venue, description };
+      const created = editingProposal
+        ? await onReviewProposal(editingProposal, "approved", event, details)
+        : canManage ? await onCreate(event, details) : await onPropose(event, details);
+      if (created) {
+        cancelEditingProposal();
+        setView("mine");
+      } else setFormError("Nie udało się zapisać. Szkic jest zachowany — spróbuj ponownie.");
+    } catch { setFormError("Nie udało się połączyć. Szkic jest zachowany — spróbuj ponownie."); }
+    finally { createInFlight.current = false; setCreating(false); }
+  }
+
+  function changeStart(value: string) {
+    const previous = parseEventDateTimeInput(startsAtInput), next = parseEventDateTimeInput(value), end = parseEventDateTimeInput(endsAtInput);
+    setStartsAtInput(value);
+    if (previous && next && end) setEndsAtInput(formatEventDateTimeInput(new Date(Date.parse(next) + Math.max(60000, Date.parse(end) - Date.parse(previous)))));
+    setFormError(null);
   }
 
   function editProposal(proposal: EventProposal) {
     setEditingProposal(proposal);
+    setView("add"); setFormError(null);
     setCategory(proposal.event.category);
     setSelectedIcon(proposal.event.icon);
     setName(proposal.event.name);
@@ -5596,6 +5624,7 @@ function EventFriendsManagerModal({
   function cancelEditingProposal() {
     const nextDefaults = getDefaultEventDateTimes();
     setEditingProposal(null);
+    setFormError(null);
     setName("");
     setVenue("");
     setDescription("");
@@ -5664,41 +5693,46 @@ function EventFriendsManagerModal({
   }
 
   async function save() {
-    if (saving) return;
-    setSaving(true);
-    const saved = await onSave(draftEvents);
-    setSaving(false);
-    if (saved) onClose();
+    if (saveInFlight.current) return;
+    saveInFlight.current = true; setSaving(true);
+    try { if (await onSave(draftEvents)) onClose(); }
+    catch { Alert.alert("Nie udało się zapisać udziału", "Twoje wybory są zachowane. Spróbuj ponownie."); }
+    finally { saveInFlight.current = false; setSaving(false); }
   }
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
-          <Pressable accessibilityRole="button" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij wydarzenia" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
           <View style={styles.fill}><Text style={local.eyebrow}>Event Friends</Text><Text style={local.title}>Twoje wydarzenia</Text></View>
           <View style={local.counter}><Text style={local.counterText}>{draftEvents.length}/{maxSelectedEvents}</Text></View>
         </View>
+        <View style={[local.segment, { marginHorizontal: 16, marginTop: 10 }]}>{([["discover", "Odkrywaj"], ["mine", "Moje"], ["add", "Dodaj"]] as const).map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: view === key }} onPress={() => { setView(key); setQuery(""); }} style={[local.segmentButton, view === key && local.segmentActive]}><Text style={[local.segmentText, view === key && local.segmentTextActive]}>{label}</Text></Pressable>)}</View>
         <ScrollView ref={eventFormScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={local.scroll}>
+          {view !== "add" && <>
           <View style={local.hero}>
             <Text style={local.heroEyebrow}>TYMCZASOWE BADGE I FILTRY</Text>
             <Text style={local.heroTitle}>Wybierz wydarzenia, na które idziesz</Text>
             <Text style={local.heroText}>Na profilu pojawi się tymczasowe oznaczenie, a specjalny feed pokaże osoby z tego samego wydarzenia i pasującego wieku. Wybór znika godzinę po zakończeniu.</Text>
           </View>
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
-          <Text style={local.sectionTitle}>Aktualne wydarzenia</Text>
+          <Text style={local.sectionTitle}>{view === "mine" ? "Twój udział" : "Aktualne wydarzenia"}</Text>
+          <TextInput accessibilityLabel="Szukaj wydarzenia lub miasta" value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
+          {!!query && <Pressable accessibilityRole="button" onPress={() => setQuery("")} style={local.proposalButton}><Text style={local.proposalButtonText}>Wyczyść wyszukiwanie</Text></Pressable>}
           {catalogLoading ? (
             <View style={local.emptyWrap}><ActivityIndicator color={colors.primary} size="large" /><Text style={local.emptyTitle}>Pobieramy wydarzenia</Text></View>
-          ) : availableEvents.length === 0 ? (
+          ) : catalogError ? (
+            <View accessibilityRole="alert" style={local.emptyWrap}><Text style={local.emptyTitle}>Nie udało się wczytać wydarzeń</Text><Text style={local.emptyText}>{catalogError}</Text><Pressable accessibilityRole="button" onPress={onReloadCatalog} style={[local.proposalButton, { paddingHorizontal: 16, marginTop: 12, flex: 0, minHeight: 44 }]}><Text style={local.proposalButtonText}>Spróbuj ponownie</Text></Pressable></View>
+          ) : visibleEvents.length === 0 ? (
             <View style={local.emptyWrap}>
               <EventEmptyAnimation />
-              <Text style={local.emptyTitle}>Brak aktualnych wydarzeń</Text>
-              <Text style={local.emptyText}>{canManage ? "Utwórz pierwszy konkretny event poniżej. Lista pozostaje pusta, dopóki go nie opublikujesz." : "Nowe wydarzenia pojawią się tutaj, gdy zostaną opublikowane przez Spark."}</Text>
+              <Text style={local.emptyTitle}>{query ? "Nie ma takich wydarzeń" : view === "mine" ? "Jeszcze bez planów?" : "Brak aktualnych wydarzeń"}</Text>
+              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
             </View>
           ) : (
             <View style={local.suggestionList}>
-              {availableEvents.map((event) => {
+              {visibleEvents.map((event) => {
                 const selected = draftEvents.some((item) => item.id === event.id);
                 const meta = eventCategories.find((item) => item.id === event.category);
                 return (
@@ -5717,14 +5751,15 @@ function EventFriendsManagerModal({
               })}
             </View>
           )}
-          {catalogError && <View style={local.expiry}><MaterialCommunityIcons name="wifi-alert" size={18} color={colors.gold} /><Text style={local.expiryText}>{catalogError}</Text></View>}
-          {(canManage ? proposals.length > 0 || proposalsLoading : proposals.length > 0) && (
+          </>}
+          {view === "mine" && proposalsError && <View accessibilityRole="alert" style={local.proposalRow}><Text style={{ color: colors.ink }}>{proposalsError}</Text><Pressable accessibilityRole="button" onPress={onReloadProposals} style={local.proposalButton}><Text style={local.proposalButtonText}>Ponów pobieranie zgłoszeń</Text></Pressable></View>}
+          {view === "mine" && (proposals.length > 0 || proposalsLoading) && (
             <>
               <Text style={local.sectionTitle}>{canManage ? `Zgłoszenia do akceptacji (${proposals.length})` : "Twoje zgłoszenia"}</Text>
               {proposalsLoading && proposals.length === 0 ? <ActivityIndicator color={colors.primary} /> : <View style={local.proposalList}>{proposals.map(renderProposal)}</View>}
             </>
           )}
-          {(
+          {view === "add" && (
             <View style={local.adminPanel}>
               {canManage && <View style={local.adminBadge}><MaterialCommunityIcons name="shield-crown-outline" size={15} color={colors.gold} /><Text style={local.adminBadgeText}>PANEL ORGANIZATORA</Text></View>}
               <Text style={local.sectionTitle}>{editingProposal ? "Edytujesz zgłoszenie" : canManage ? "Opublikuj wydarzenie" : "Zgłoś wydarzenie"}</Text>
@@ -5734,9 +5769,11 @@ function EventFriendsManagerModal({
                   ? "Tylko Twoje konto może publikować eventy. Wydarzenie oraz wybory użytkowników zostaną usunięte godzinę po jego zakończeniu."
                   : "Znasz koncert, mecz albo wystawę? Wyślij zgłoszenie. Po akceptacji pojawi się w Event Friends, a my damy Ci znać powiadomieniem."}</Text>
               {editingProposal && <Pressable accessibilityRole="button" onPress={cancelEditingProposal} style={local.proposalButton}><MaterialCommunityIcons name="close" size={16} color={colors.ink} /><Text style={local.proposalButtonText}>Przerwij edycję</Text></Pressable>}
-              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => { setCategory(item.id); setSelectedIcon(getEventCategoryDefaultIcon(item.id)); }} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
+              <View pointerEvents={creating ? "none" : "auto"} accessibilityState={{ busy: creating }} style={{ gap: 12 }}>
+              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={item.label} onPress={() => { setCategory(item.id); setSelectedIcon(getEventCategoryDefaultIcon(item.id)); }} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
               <Text style={local.fieldLabel}>Ikona wydarzenia</Text>
-              <View style={local.iconPicker}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Zmień ikonę wydarzenia" accessibilityState={{ expanded: iconsOpen }} onPress={() => setIconsOpen(!iconsOpen)} style={[local.input, { flexDirection: "row", alignItems: "center", gap: 12 }]}><MaterialCommunityIcons name={selectedIcon as any} size={23} color={colors.primary} /><Text style={{ flex: 1, color: colors.ink }}>{eventIconOptions.find((option) => option.id === selectedIcon)?.label}</Text><MaterialCommunityIcons name={iconsOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} /></Pressable>
+              {iconsOpen && <View style={local.iconPicker}>
                 {eventIconOptions.map((option) => {
                   const selected = selectedIcon === option.id;
                   return (
@@ -5745,7 +5782,7 @@ function EventFriendsManagerModal({
                       accessibilityRole="radio"
                       accessibilityState={{ selected }}
                       accessibilityLabel={`Ikona: ${option.label}`}
-                      onPress={() => { setSelectedIcon(option.id); void Haptics.selectionAsync(); }}
+                      onPress={() => { setSelectedIcon(option.id); setIconsOpen(false); void Haptics.selectionAsync(); }}
                       style={({ pressed }) => [local.iconChoice, selected && local.iconChoiceActive, pressed && styles.controlPressed]}
                     >
                       <View style={[local.iconChoiceGlyph, selected && local.iconChoiceGlyphActive]}>
@@ -5755,24 +5792,25 @@ function EventFriendsManagerModal({
                     </Pressable>
                   );
                 })}
-              </View>
+              </View>}
               <Text style={local.fieldLabel}>Nazwa wydarzenia</Text>
-              <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
-              <Text style={local.fieldLabel}>Miasto</Text>
-              <TextInput value={city} onChangeText={setCity} maxLength={80} placeholder="np. Gdynia" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput accessibilityLabel="Nazwa wydarzenia" value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
+              <EventCityField value={city} onChange={(value) => { setCity(value); setFormError(null); }} />
               <Text style={local.fieldLabel}>Miejsce (opcjonalnie)</Text>
-              <TextInput value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput accessibilityLabel="Miejsce wydarzenia" value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Opis (opcjonalnie)</Text>
-              <TextInput value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Kilka słów: kto gra, co się dzieje, dla kogo." placeholderTextColor={colors.muted} style={[local.input, local.textArea]} />
-              <Text style={local.fieldLabel}>Start · RRRR-MM-DD GG:MM</Text>
-              <TextInput value={startsAtInput} onChangeText={setStartsAtInput} onFocus={revealEventDateInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 18:00" placeholderTextColor={colors.muted} style={local.input} />
-              <Text style={local.fieldLabel}>Koniec · RRRR-MM-DD GG:MM</Text>
-              <TextInput value={endsAtInput} onChangeText={setEndsAtInput} onFocus={revealEventDateInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 21:00" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput accessibilityLabel="Opis wydarzenia" value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Kilka słów: kto gra, co się dzieje, dla kogo." placeholderTextColor={colors.muted} style={[local.input, local.textArea]} />
+              <Text style={local.intro}>Godziny są podane w strefie czasowej Twojego telefonu. Zmiana początku przesuwa też koniec wydarzenia.</Text>
+              <EventDateField label="Początek" value={startsAtInput} onChange={changeStart} allowPast={!!editingProposal} />
+              <EventDateField label="Koniec" value={endsAtInput} onChange={(value) => { setEndsAtInput(value); setFormError(null); }} allowPast={!!editingProposal} />
+              {formError && <Text accessibilityRole="alert" selectable style={{ color: colors.name === "light" ? "#b72543" : "#ff8fa4", fontSize: 14, lineHeight: 21 }}>{formError}</Text>}
+              <Text style={local.intro}>Szkic zostaje zachowany po zamknięciu okna i zmianie zakładki, do czasu wylogowania lub zamknięcia aplikacji.</Text>
               <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>{editingProposal ? "Zatwierdź po zmianach" : canManage ? "Opublikuj wydarzenie" : "Wyślij zgłoszenie"}</Text></Pressable>
+              </View>
             </View>
           )}
         </ScrollView>
-        <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>Zapisz udział</Text></Pressable></View>
+        {view !== "add" && <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable accessibilityRole="button" onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>{draftEvents.length ? `Zapisz udział (${draftEvents.length})` : "Zapisz udział"}</Text></Pressable></View>}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -7460,6 +7498,7 @@ function ProfileScreen({
 }) {
   const { colors, styles, theme } = useAppTheme();
   const [saveBusy, setSaveBusy] = useState(false);
+  const profileSaveInFlight = useRef(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [shareCardOpen, setShareCardOpen] = useState(false);
   const [profileSection, setProfileSection] = useState<"overview" | "edit">("overview");
@@ -7468,15 +7507,15 @@ function ProfileScreen({
   const profileLocal = StyleSheet.create({
     eventHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
     eventHeaderCopy: { flex: 1, gap: 3 },
-    eventManage: { minHeight: 36, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.12)" },
+    eventManage: { minHeight: 44, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.12)" },
     eventManageText: { color: colors.primaryDeep, fontSize: 10, fontWeight: "900" },
     eventList: { gap: 8, marginTop: 12 },
     eventRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 62, padding: 10, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,45,141,0.16)" },
     eventIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.16)" },
     eventName: { color: colors.ink, fontSize: 12, fontWeight: "900" },
     eventMeta: { marginTop: 3, color: colors.muted, fontSize: 9, fontWeight: "700" },
-    eventOpen: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-    eventLeave: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+    eventOpen: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    eventLeave: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
     eventEmpty: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.07)" },
     eventEmptyText: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 15, fontWeight: "700" }
   });
@@ -7513,6 +7552,8 @@ function ProfileScreen({
     desiredAgeMin: discoverFilters.ageMin,
     desiredAgeMax: discoverFilters.ageMax
   };
+  const profileChecks = [profileName.trim().length >= 2, profileBio.trim().length >= 10, visiblePhotoCount > 0, selectedInterests.length >= 3];
+  const profileCompletion = profileChecks.filter(Boolean).length;
   const profileStatusRows = [
     [String(visiblePhotoCount) + "/" + String(maxPhotos), "zdjęcia"],
     [String(selectedInterests.length) + "/15", "tagi"],
@@ -7558,13 +7599,15 @@ function ProfileScreen({
   }
 
   async function handleSaveProfile() {
-    setSaveBusy(true);
-    const saved = await onSave();
-    setSaveBusy(false);
-    if (saved) {
-      Alert.alert("Profil zapisany", "Zmiany są już widoczne w Twoim profilu.");
-      setProfileSection("overview");
-    }
+    if (profileSaveInFlight.current) return;
+    profileSaveInFlight.current = true; setSaveBusy(true);
+    try {
+      if (await onSave()) {
+        Alert.alert("Profil zapisany", "Zmiany są już widoczne w Twoim profilu.");
+        setProfileSection("overview");
+      }
+    } catch { Alert.alert("Nie udało się zapisać profilu", "Twoje zmiany są zachowane. Spróbuj ponownie."); }
+    finally { profileSaveInFlight.current = false; setSaveBusy(false); }
   }
 
   function confirmLeaveEvent(event: SparkEvent) {
@@ -7648,6 +7691,7 @@ function ProfileScreen({
 
       {profileSection === "overview" && (
         <>
+          {profileCompletion < profileChecks.length && <Pressable accessibilityRole="button" accessibilityLabel="Uzupełnij profil" onPress={() => setProfileSection("edit")} style={[styles.profilePanel, { gap: 10 }]}><Text style={styles.panelTitle}>Uzupełnij swoją kartę · {profileCompletion}/4</Text><Text style={styles.profileDescription}>Dodaj imię, krótki opis, zdjęcie i przynajmniej 3 zainteresowania.</Text><View style={{ height: 5, borderRadius: 5, backgroundColor: colors.fillStrong, overflow: "hidden" }}><View style={{ width: `${profileCompletion * 25}%`, height: 5, backgroundColor: colors.primary }} /></View></Pressable>}
           <View style={styles.profilePanel}>
             <View style={profileLocal.eventHeader}>
               <View style={profileLocal.eventHeaderCopy}>
@@ -8740,13 +8784,31 @@ function DevPreview({ themeName }: { themeName: string | null }) {
   );
 }
 
+function DevEventPreview({ themeName }: { themeName: string | null }) {
+  const theme = useThemeState();
+  const [open, setOpen] = useState(true);
+  const [events, setEvents] = useState<SparkEvent[]>([]);
+  const [selected, setSelected] = useState<SparkEvent[]>([]);
+  const [proposals, setProposals] = useState<EventProposal[]>([]);
+  const failNextSave = useRef(typeof window !== "undefined" && new URLSearchParams(window.location.search).has("failOnce"));
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  return <View style={{ flex: 1, backgroundColor: theme.palette.background, paddingTop: 40 }}>
+    <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: theme.palette.ink }}>Otwórz wydarzenia</Text></Pressable>
+    <EventFriendsManagerModal visible={open} events={selected} availableEvents={events} userCity="" expiredCount={0} canManage={false} catalogLoading={false} catalogError={null} eventDetails={{}} proposals={proposals} proposalsLoading={false} proposalsError={null} onReloadCatalog={() => undefined} onReloadProposals={() => undefined} onClose={() => setOpen(false)} onSave={async (next) => { setSelected(next); return true; }} onCreate={async (event) => { setEvents((current) => [...current, event]); return true; }} onDelete={async (event) => { setEvents((current) => current.filter((item) => item.id !== event.id)); return true; }} onPropose={async (event, details) => {
+      if (failNextSave.current) { failNextSave.current = false; return false; }
+      setProposals((current) => [...current, { id: event.id, event, details, status: "pending", createdByUid: "preview", createdAtMs: Date.now(), reviewedAtMs: null }]);
+      return true;
+    }} onWithdrawProposal={async (proposal) => { setProposals((current) => current.filter((item) => item.id !== proposal.id)); return true; }} onReviewProposal={async () => false} />
+  </View>;
+}
+
 export default function App() {
   const params = __DEV__ && Platform.OS === "web" && typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <SparkErrorBoundary>
-          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : <AppContent />}
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : <AppContent />}
         </SparkErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>

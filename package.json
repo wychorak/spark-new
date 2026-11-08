@@ -12,12 +12,14 @@
     "build:ios": "eas build -p ios --profile production",
     "build:android": "eas build -p android --profile production",
     "build:testflight": "eas build -p ios --profile production --auto-submit",
-    "release:check": "npm run typecheck && node scripts/release-audit.cjs"
+    "release:check": "npm run typecheck && node scripts/release-audit.cjs",
+    "test": "node --test tests/events.test.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.17",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@react-native-firebase/analytics": "^25.1.0",
     "@react-native-firebase/app": "^25.1.0",
     "@react-native-firebase/crashlytics": "^25.1.0",

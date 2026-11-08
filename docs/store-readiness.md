@@ -2,6 +2,18 @@
 
 Ostatni audyt kodu: 14 lipca 2026.
 
+## Aktualizacja UX — 8 listopada 2026
+
+- Poprawki z lokalnego `95be2a6` przeniesiono na nowszą linię `main` od `eab9f22`, zachowując jej logowanie natywne, telemetrię, backend, obecny wygląd Profilu oraz obsługę zgłoszeń wydarzeń.
+- Wydarzenia mają zakładki Odkrywaj / Moje / Dodaj, wyszukiwanie bez polskich znaków, kalendarz i wybór godzin początku oraz końca. Zmiana początku przesuwa koniec o tę samą różnicę, zachowując czas trwania.
+- Polska lista miejscowości działa offline i pozwala wpisać inną miejscowość. Miejsce i opis pozostają opcjonalne, zgodnie z aktualnym formatem katalogu.
+- Szkic formularza nie znika po odświeżeniu katalogu, zmianie zakładki ani zamknięciu modalu. Jest przechowywany w pamięci sesji; wylogowanie i zamknięcie aplikacji go usuwają. Blokada ponownego wysłania trwa do zakończenia żądania, również po zamknięciu okna.
+- Nowe zgłoszenia muszą zaczynać się w przyszłości, koniec musi następować po początku, a daty muszą mieścić się w 400 dniach. Edycja zgłoszenia przez administratora może zachować rozpoczęte wydarzenie, jeżeli jeszcze trwa. Godziny są prezentowane w strefie telefonu.
+- Profil zachowuje nowy wygląd z GitHuba. Dodano rzeczywisty stan uzupełnienia karty, większe cele dotykowe wydarzeń i odporny na błędy zapis.
+- Walidacja: `npm run typecheck`, `npm test` (5 testów logiki dat, miejscowości i zgodności katalogu), eksport iOS oraz interaktywny podgląd web 390×844 i 1280×900. Sprawdzono wybór Łodzi po wpisaniu `lodz`, kalendarz, zachowanie szkicu między zakładkami oraz błąd zapisu z udanym ponowieniem. Podgląd `?preview=events&theme=light` / `dark` jest dostępny wyłącznie w trybie developerskim web; `&failOnce` symuluje pierwszą nieudaną próbę zapisu, bez zapisu do Firebase.
+- `npm run release:check` nadal zgłasza 5 z 164 sprawdzeń. Identyczny wynik potwierdzono na niezmienionym `origin/main` (`eab9f22`): reguły dotyczą starego układu reklam/viewportu oraz usuniętych nagłówków zainteresowań i wydarzeń. Nie zmieniano ich przy przenoszeniu UX; wymagają osobnego przeglądu zgodności z aktualnym produktem.
+- Natywny wybór daty dodaje `@react-native-community/datetimepicker` 9.1.0. Potrzebny jest nowy build iOS i test na fizycznym iPhonie; sam eksport JS nie sprawdza natywnego kalendarza ani klawiatury.
+
 ## Zaimplementowane i sprawdzone
 
 - Firebase Auth: e-mail, Google, Apple, trwała sesja i reset hasła.
