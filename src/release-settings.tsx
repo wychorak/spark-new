@@ -5,19 +5,29 @@ import { loadNotificationPreferences, listModerationReports, resolveModerationRe
 import { defaultNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 import { setActiveNotificationPreferences } from "./notifications";
 import { recordSparkError, trackSparkEvent } from "./telemetry";
+import { palettes, useThemeState, type Palette } from "./theme";
 
-const palette = {
-  background: "#08060a",
-  surface: "#15131a",
-  surfaceSoft: "#201721",
-  text: "#fff8fc",
-  muted: "#aaa0aa",
-  primary: "#ff2d8d",
-  line: "rgba(255,45,141,0.24)",
-  danger: "#ff668f"
-};
+type LocalPalette = { background: string; surface: string; surfaceSoft: string; text: string; muted: string; primary: string; line: string; danger: string; hairline: string; footer: string; name: "light" | "dark" };
+function localPalette(theme: Palette): LocalPalette {
+  return {
+    name: theme.name,
+    background: theme.background,
+    surface: theme.surfaceStrong,
+    surfaceSoft: theme.cardTinted,
+    text: theme.ink,
+    muted: theme.muted,
+    primary: theme.primary,
+    line: theme.line,
+    danger: "#ff4d6d",
+    hairline: theme.fillStrong,
+    footer: theme.name === "light" ? "rgba(255,255,255,0.96)" : "rgba(8,6,10,0.96)"
+  };
+}
 
 function ModalHeader({ title, subtitle, onClose }: { title: string; subtitle: string; onClose: () => void }) {
+  const theme = useThemeState();
+  const styles = sheets[theme.name];
+  const palette = localPalette(theme.palette);
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
@@ -46,6 +56,9 @@ const quietPresets = [
 ];
 
 export function NotificationPreferencesModal({ visible, uid, onClose }: { visible: boolean; uid: string; onClose: () => void }) {
+  const theme = useThemeState();
+  const styles = sheets[theme.name];
+  const palette = localPalette(theme.palette);
   const [draft, setDraft] = useState(defaultNotificationPreferences);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -146,6 +159,9 @@ export function NotificationPreferencesModal({ visible, uid, onClose }: { visibl
 }
 
 export function ModerationQueueModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const theme = useThemeState();
+  const styles = sheets[theme.name];
+  const palette = localPalette(theme.palette);
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -221,7 +237,8 @@ export function ModerationQueueModal({ visible, onClose }: { visible: boolean; o
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: LocalPalette) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.background },
   header: { paddingTop: 28, paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: palette.line },
   headerCopy: { flex: 1, gap: 3 },
@@ -232,17 +249,17 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 16, paddingBottom: 120 },
   intro: { color: palette.muted, fontSize: 14, lineHeight: 21 },
   card: { borderRadius: 18, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, overflow: "hidden" },
-  row: { minHeight: 76, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)" },
+  row: { minHeight: 76, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   rowIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.12)" },
   rowCopy: { flex: 1, gap: 3 },
   rowTitle: { color: palette.text, fontSize: 15, fontWeight: "800" },
   rowHint: { color: palette.muted, fontSize: 12, lineHeight: 17 },
   presetRow: { padding: 12, flexDirection: "row", gap: 8 },
-  preset: { flex: 1, minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
+  preset: { flex: 1, minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: palette.hairline, alignItems: "center", justifyContent: "center" },
   presetSelected: { borderColor: palette.primary, backgroundColor: "rgba(255,45,141,0.16)" },
   presetText: { color: palette.muted, fontSize: 11, fontWeight: "800" },
   presetTextSelected: { color: palette.text },
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, backgroundColor: "rgba(8,6,10,0.96)", borderTopWidth: 1, borderTopColor: palette.line },
+  footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, backgroundColor: palette.footer, borderTopWidth: 1, borderTopColor: palette.line },
   primaryButton: { minHeight: 58, borderRadius: 18, backgroundColor: palette.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9 },
   primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "900" },
   disabled: { opacity: 0.5 },
@@ -257,8 +274,10 @@ const styles = StyleSheet.create({
   reportId: { color: palette.primary, fontSize: 11, fontWeight: "800" },
   reportContext: { color: palette.muted, fontSize: 13, lineHeight: 19 },
   reportActions: { flexDirection: "row", gap: 8 },
-  reportAction: { flex: 1, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+  reportAction: { flex: 1, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: palette.hairline },
   reportActionText: { color: palette.text, fontSize: 12, fontWeight: "800" },
   reportDanger: { backgroundColor: "rgba(255,102,143,0.15)" },
   reportDangerText: { color: palette.danger, fontSize: 12, fontWeight: "900" }
 });
+}
+const sheets = { light: createStyles(localPalette(palettes.light)), dark: createStyles(localPalette(palettes.dark)) };

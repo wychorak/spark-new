@@ -112,6 +112,8 @@ import { deleteProfilePhotos, uploadProfilePhotos } from "./src/profile-storage"
 import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, registerSparkPushNotifications, setSparkAppBadgeCount } from "./src/notifications";
 import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
+import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
+import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, type ActionItem, type DeckCardData } from "./src/discover/DiscoverParts";
 import {
   defaultSparkReleaseConfig,
   identifyTelemetryUser,
@@ -123,19 +125,6 @@ import {
 } from "./src/telemetry";
 
 
-const colors = {
-  background: "#050507",
-  surface: "rgba(20,20,26,0.86)",
-  surfaceStrong: "#15151c",
-  ink: "#f8f4f7",
-  muted: "#a7a0aa",
-  primary: "#ff2d8d",
-  primaryDeep: "#ff69ad",
-  primarySoft: "rgba(255,45,141,0.18)",
-  line: "rgba(255,45,141,0.22)",
-  green: "#42d982",
-  gold: "#ffbd59"
-};
 
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "sparkapp@gmail.com";
 const appInstallUrl = process.env.EXPO_PUBLIC_APP_INSTALL_URL || "https://apps.apple.com/app/id6785284685";
@@ -249,7 +238,7 @@ function getSocialIcon(label: string): { family: SocialIconFamily; name: string;
     return { family: "fontAwesome", name: "spotify", color: "#1ed760", backgroundColor: "rgba(30,215,96,0.15)" };
   }
 
-  return { family: "material", name: "link-variant", color: colors.primaryDeep, backgroundColor: colors.primarySoft };
+  return { family: "material", name: "link-variant", color: "#ff69ad", backgroundColor: "rgba(255,45,141,0.18)" };
 }
 
 function SocialIcon({ label, size = 14 }: { label: string; size?: number }) {
@@ -1033,6 +1022,7 @@ async function pickImageFromLibrary() {
 }
 
 function AppContent() {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [authDone, setAuthDone] = useState(false);
@@ -3125,8 +3115,8 @@ function AppContent() {
   }
 
   return (
-    <LinearGradient colors={["#050507", "#150711", "#050507"]} style={styles.root}>
-      <StatusBar style="light" />
+    <LinearGradient colors={colors.backgroundGradient} style={styles.root}>
+      <StatusBar style={colors.statusBar} />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
@@ -3380,13 +3370,13 @@ function AppContent() {
         }}
       />
       {!bottomNavHidden && (
-        <BlurView intensity={84} tint="dark" style={[styles.bottomNav, { bottom: Math.max(insets.bottom - 2, 6) }]}>
+        <GlassSurface intensity={60} style={[styles.bottomNav, { bottom: Math.max(insets.bottom - 2, 6) }]}>
         {[
-          ["discover", "Odkryj", "cards-heart"],
-          ["matches", "Matche", "heart-multiple"],
-          ["messages", "Wiadomości", "message-text"],
-          ["premium", "Pro", "crown"],
-          ["profile", "Profil", "account-circle"]
+          ["discover", "Odkrywaj", tab === "discover" ? "compass" : "compass-outline"],
+          ["matches", "Matche", tab === "matches" ? "heart" : "heart-outline"],
+          ["messages", "Czat", tab === "messages" ? "chat" : "chat-outline"],
+          ["premium", "Pro", tab === "premium" ? "crown" : "crown-outline"],
+          ["profile", "Profil", tab === "profile" ? "account" : "account-outline"]
         ].map(([key, label, icon]) => (
           <Pressable
             key={key}
@@ -3401,19 +3391,20 @@ function AppContent() {
             style={[styles.navButton, tab === key && styles.navButtonActive]}
           >
             <View style={styles.navIconWrap}>
-              <MaterialCommunityIcons name={icon as any} size={22} color={tab === key ? colors.primary : colors.muted} />
+              <MaterialCommunityIcons name={icon as any} size={22} color={tab === key ? colors.primary : colors.inkSoft} />
               {key === "messages" && messageAttentionCount > 0 && <View style={styles.navUnreadBadge}><Text style={styles.navUnreadBadgeText}>{formatBadgeCount(messageAttentionCount)}</Text></View>}
             </View>
             <Text style={[styles.navText, tab === key && styles.navTextActive]}>{label}</Text>
           </Pressable>
         ))}
-        </BlurView>
+        </GlassSurface>
       )}
     </LinearGradient>
   );
 }
 
 function AnimatedBackground() {
+  const { styles } = useAppTheme();
   const motion = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -3454,10 +3445,11 @@ function AnimatedBackground() {
 }
 
 function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; contentPadding: object }) {
+  const { colors, styles } = useAppTheme();
   return (
-    <LinearGradient colors={["#020203", "#080307", "#050507"]} style={styles.root}>
+    <LinearGradient colors={colors.backgroundGradient} style={styles.root}>
       <AnimatedBackground />
-      <StatusBar style="light" />
+      <StatusBar style={colors.statusBar} />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
@@ -3473,6 +3465,7 @@ function ScreenFrame({ children, contentPadding }: { children: React.ReactNode; 
 }
 
 function SparkTitle() {
+  const { styles } = useAppTheme();
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -3558,6 +3551,7 @@ function AuthScreen({
   onForgotPassword: () => void;
   onDemoAccount: () => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const [legalAccepted, setLegalAccepted] = useState(false);
   const submitDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
   const socialDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
@@ -3684,6 +3678,7 @@ function AuthScreen({
 }
 
 function LocationControl({ city, country, status, busy, onPress }: { city: string; country: string; status: "idle" | "granted" | "denied"; busy: boolean; onPress: () => void }) {
+  const { colors, styles } = useAppTheme();
   const place = [city, country].filter(Boolean).join(", ");
   const label = busy ? "Pobieranie lokalizacji..." : place ? "Od\u015bwie\u017c lokalizacj\u0119" : status === "denied" ? "W\u0142\u0105cz lokalizacj\u0119 w ustawieniach" : "U\u017cyj mojej lokalizacji";
 
@@ -3700,6 +3695,7 @@ function LocationControl({ city, country, status, busy, onPress }: { city: strin
 }
 
 function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText: (value: string) => void }) {
+  const { colors, styles } = useAppTheme();
   const remaining = 300 - value.length;
   return (
     <View style={styles.fieldGroup}>
@@ -3725,6 +3721,7 @@ function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText:
 }
 
 function IntentMultiSelect({ selected, onChange, compact = false }: { selected: SparkIntent[]; onChange: (value: SparkIntent[]) => void; compact?: boolean }) {
+  const { colors, styles } = useAppTheme();
   function toggleIntent(label: SparkIntent) {
     const next = selected.includes(label) ? selected.filter((item) => item !== label) : [...selected, label];
     if (next.length === 0) {
@@ -3752,6 +3749,7 @@ function IntentMultiSelect({ selected, onChange, compact = false }: { selected: 
 }
 
 function GenderIdentitySelect({ value, onChange, compact = false }: { value: ProfileGender; onChange: (value: ProfileGender) => void; compact?: boolean }) {
+  const { colors, styles } = useAppTheme();
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
       {genderOptions.map((option) => {
@@ -3770,6 +3768,7 @@ function GenderIdentitySelect({ value, onChange, compact = false }: { value: Pro
 }
 
 function GenderPreferencesEditor({ intents, value, onChange, compact = false }: { intents: SparkIntent[]; value: GenderPreferencesByIntent; onChange: (value: GenderPreferencesByIntent) => void; compact?: boolean }) {
+  const { colors, styles } = useAppTheme();
   const visibleIntents = intents.length > 0 ? intents : sparkIntentLabels;
   function toggle(intent: SparkIntent, genderValue: DiscoverableGender) {
     const key = getIntentPreferenceKey(intent);
@@ -3828,6 +3827,7 @@ function OnboardingScreen({
   userCity: string; userCountry: string; locationStatus: "idle" | "granted" | "denied"; locationBusy: boolean; onRequestLocation: () => void; selectedInterests: string[]; setSelectedInterests: (value: string[]) => void;
   canContinue: boolean; onContinue: () => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const derivedAge = calculateAge(birthDate);
 
   async function pickPhoto(index?: number) {
@@ -3987,6 +3987,7 @@ function DiscoverScreen({
   onManageEvents: () => void;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const [reportOpen, setReportOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -3995,21 +3996,22 @@ function DiscoverScreen({
   const [swipeBusy, setSwipeBusy] = useState(false);
   const [swipeFeedback, setSwipeFeedback] = useState<string | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const swipeMotion = useRef(new Animated.Value(0)).current;
+  const pan = useRef(new Animated.ValueXY()).current;
   const { width: viewportWidth } = useWindowDimensions();
+  const exitX = Math.max(420, viewportWidth * 1.25);
   const profileKey = getProfileKey(profile);
   const premiumChatLabel = hasMatchedProfile ? "Chat" : hasRequestedProfile ? "Czeka" : "Napisz teraz";
   const premiumChatSub = hasMatchedProfile ? "Otwórz" : hasRequestedProfile ? "Wysłana" : "Pro";
   const primarySharedEvent = profile.sharedEvents?.[0];
-  const swipeRotate = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: ["-12deg", "0deg", "12deg"] });
-  const swipeOpacity = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.24, 1, 0.24] });
-  const swipeScale = swipeMotion.interpolate({ inputRange: [-420, 0, 420], outputRange: [0.96, 1, 0.96] });
-  const passLabelOpacity = swipeMotion.interpolate({ inputRange: [-260, -80, 0], outputRange: [1, 0.55, 0], extrapolate: "clamp" });
-  const matchLabelOpacity = swipeMotion.interpolate({ inputRange: [0, 80, 260], outputRange: [0, 0.55, 1], extrapolate: "clamp" });
+  const swipeRotate = pan.x.interpolate({ inputRange: [-exitX, 0, exitX], outputRange: ["-16deg", "0deg", "16deg"] });
+  const nextScale = pan.x.interpolate({ inputRange: [-260, 0, 260], outputRange: [1, 0.94, 1], extrapolate: "clamp" });
+  const stamps = useMemo(() => ({
+    like: pan.x.interpolate({ inputRange: [0, 110], outputRange: [0, 1], extrapolate: "clamp" }),
+    pass: pan.x.interpolate({ inputRange: [-110, 0], outputRange: [1, 0], extrapolate: "clamp" }),
+    superlike: pan.y.interpolate({ inputRange: [-130, -30], outputRange: [1, 0], extrapolate: "clamp" })
+  }), [pan]);
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
-  const availableCardHeight = Math.max(210, screenMinHeight - 210);
-  const feedCardWidth = Math.max(168, Math.min(viewportWidth - 20, availableCardHeight * 0.8, 428));
-  const feedCardHeight = feedCardWidth * 1.25;
+  const deckMode = mode === "events" ? "event" : "romantic";
 
   useEffect(() => {
     onChromeHiddenChange?.(overlayOpen);
@@ -4017,9 +4019,13 @@ function DiscoverScreen({
   }, [onChromeHiddenChange, overlayOpen]);
 
   useEffect(() => {
-    swipeMotion.setValue(0);
+    pan.setValue({ x: 0, y: 0 });
     setSwipeBusy(false);
-  }, [profileKey, swipeMotion]);
+  }, [profileKey, pan]);
+
+  function springBack() {
+    Animated.spring(pan, { toValue: { x: 0, y: 0 }, speed: 20, bounciness: 7, useNativeDriver: true }).start();
+  }
 
   useEffect(() => {
     return () => {
@@ -4044,15 +4050,15 @@ function DiscoverScreen({
     }
 
     setSwipeBusy(true);
-    const direction = action === "pass" ? -1 : 1;
-    Animated.timing(swipeMotion, {
-      toValue: direction * 460,
-      duration: 230,
+    const toValue = action === "superlike" ? { x: 0, y: -900 } : { x: action === "pass" ? -exitX : exitX, y: 0 };
+    Animated.timing(pan, {
+      toValue,
+      duration: 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true
     }).start(({ finished }) => {
       if (!finished) {
-        swipeMotion.setValue(0);
+        pan.setValue({ x: 0, y: 0 });
         setSwipeBusy(false);
         return;
       }
@@ -4077,7 +4083,7 @@ function DiscoverScreen({
             feedbackTimer.current = setTimeout(() => setSwipeFeedback(null), 1500);
           }
         } finally {
-          swipeMotion.setValue(0);
+          pan.setValue({ x: 0, y: 0 });
           setSwipeBusy(false);
         }
       })();
@@ -4087,36 +4093,26 @@ function DiscoverScreen({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          !swipeBusy && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
-        onPanResponderMove: (_, gesture) => {
-          swipeMotion.setValue(gesture.dx);
-        },
+        onMoveShouldSetPanResponder: (_, gesture) => !swipeBusy && (Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 14),
+        onPanResponderMove: (_, gesture) => pan.setValue({ x: gesture.dx, y: Math.min(gesture.dy, 60) * (Math.abs(gesture.dy) > Math.abs(gesture.dx) ? 1 : 0.25) }),
         onPanResponderRelease: (_, gesture) => {
-          const shouldCommit = Math.abs(gesture.dx) > 96 || Math.abs(gesture.vx) > 0.55;
-
-          if (shouldCommit) {
+          // Up = SPARKLIKE (Pro), left/right = pass/like.
+          const up = gesture.dy < -110 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2;
+          if (up || gesture.vy < -1.1) {
+            springBack();
+            void promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro);
+            return;
+          }
+          if (Math.abs(gesture.dx) > 100 || Math.abs(gesture.vx) > 0.6) {
             void runSwipeAction(gesture.dx < 0 ? "pass" : "like");
             return;
           }
-
-          Animated.spring(swipeMotion, {
-            toValue: 0,
-            speed: 20,
-            bounciness: 7,
-            useNativeDriver: true
-          }).start();
+          springBack();
         },
-        onPanResponderTerminate: () => {
-          Animated.spring(swipeMotion, {
-            toValue: 0,
-            speed: 20,
-            bounciness: 7,
-            useNativeDriver: true
-          }).start();
-        }
+        onPanResponderTerminate: springBack
       }),
-    [profileKey, swipeBusy, swipeMotion]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profileKey, swipeBusy, pan, hasPro]
   );
 
 
@@ -4180,13 +4176,13 @@ function DiscoverScreen({
 
   return (
     <View style={[styles.discoverScreen, { minHeight: screenMinHeight }]}>
-      <TopBar
-        eyebrow={mode === "events" ? "Event Friends" : "Odkrywaj"}
-        title={mode === "events" ? "Wspólne plany" : "Dla Ciebie"}
-        left={mode === "events" ? "<" : "="}
-        right={mode === "events" ? "calendar-edit" : "tune-variant"}
-        onLeftPress={mode === "events" ? onBackToPeople : () => setMenuOpen(true)}
-        onRightPress={mode === "events" ? onManageEvents : () => setPreferencesOpen(true)}
+      <DiscoverHeader
+        left={mode === "events"
+          ? { icon: "chevron-left", label: "Wróć do osób", onPress: onBackToPeople }
+          : { icon: "menu", label: "Menu", onPress: () => setMenuOpen(true), dot: messageNotificationCount > 0 }}
+        actions={mode === "events" ? [{ icon: "calendar-edit", label: "Twoje wydarzenia", onPress: onManageEvents }] : []}
+        onFilters={mode === "events" ? undefined : () => setPreferencesOpen(true)}
+        filtersActive={countActiveDiscoverFilters(discoverFilters) > 0}
       />
       {mode === "people" && feedExpansionLevel > 0 && (
         <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.feedExpansionNotice}>
@@ -4203,7 +4199,7 @@ function DiscoverScreen({
             <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{primarySharedEvent?.name ?? "Event Friends"}</Text>
           </View>
           <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
       ) : (
         <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}>
@@ -4213,67 +4209,52 @@ function DiscoverScreen({
             <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{activeEvents.length > 0 ? "Otwórz feed wydarzeń" : "Event Friends"}</Text>
           </View>
           {activeEvents.length > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>}
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
       )}
 
-      <View style={styles.stitchMainCanvas}>
-        <View style={[styles.feedCardDeck, { width: feedCardWidth, height: feedCardHeight }]}>
-          {nextProfile && (
-            <View pointerEvents="none" style={styles.nextProfileCard}>
-              <ProfileCard profile={nextProfile} viewerInterests={selectedInterests} compact />
-            </View>
-          )}
-          <Animated.View
-            {...panResponder.panHandlers}
-            style={[
-              styles.swipeCardMotion,
-              { opacity: swipeOpacity, transform: [{ translateX: swipeMotion }, { rotate: swipeRotate }, { scale: swipeScale }] }
-            ]}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={"Profil " + profile.name}
-              accessibilityHint="Przesuń w lewo, aby pominąć, lub w prawo, aby polubić."
-              accessibilityActions={[
-                { name: "activate", label: "Otwórz szczegóły profilu" },
-                { name: "decrement", label: "Pomiń profil" },
-                { name: "increment", label: "Polub profil" }
-              ]}
-              onAccessibilityAction={({ nativeEvent }) => {
-                if (nativeEvent.actionName === "decrement") void runSwipeAction("pass");
-                else if (nativeEvent.actionName === "increment") void runSwipeAction("like");
-                else setPreviewOpen(true);
-              }}
-              onPress={() => setPreviewOpen(true)}
-              style={styles.feedProfilePressable}
-            >
-              <ProfileCard profile={profile} viewerInterests={selectedInterests} onReport={() => setReportOpen(true)} />
-            </Pressable>
-            <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueLeft, { opacity: passLabelOpacity }]}>
-              <Text style={styles.swipeCueText}>POMIŃ</Text>
-            </Animated.View>
-            <Animated.View pointerEvents="none" style={[styles.swipeCue, styles.swipeCueRight, styles.swipeCueLike, { opacity: matchLabelOpacity }]}>
-              <Text style={[styles.swipeCueText, styles.swipeCueTextLike]}>LUBIĘ</Text>
-            </Animated.View>
+      <View style={styles.deckArea}>
+        <DeckBackdrop />
+        {nextProfile && (
+          <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.deckLayer, { transform: [{ scale: nextScale }] }]}>
+            <DeckCard data={toDeckCard(nextProfile, selectedInterests)} mode={deckMode} />
           </Animated.View>
-
-          {swipeFeedback && (
-            <View pointerEvents="none" style={styles.swipeFeedback}>
-              <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
-              <Text style={styles.swipeFeedbackText}>{swipeFeedback}</Text>
-            </View>
-          )}
+        )}
+        <Animated.View
+          key={profileKey}
+          {...panResponder.panHandlers}
+          accessibilityActions={[
+            { name: "activate", label: "Otwórz szczegóły profilu" },
+            { name: "decrement", label: "Pomiń profil" },
+            { name: "increment", label: "Polub profil" }
+          ]}
+          onAccessibilityAction={({ nativeEvent }) => {
+            if (nativeEvent.actionName === "decrement") void runSwipeAction("pass");
+            else if (nativeEvent.actionName === "increment") void runSwipeAction("like");
+            else setPreviewOpen(true);
+          }}
+          style={[styles.deckLayer, { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate: swipeRotate }] }]}
+        >
+          <DeckCard data={toDeckCard(profile, selectedInterests)} mode={deckMode} stamps={stamps} onOpenDetails={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
+        </Animated.View>
+        <View pointerEvents="box-none" style={styles.deckActionDock}>
+          <GlassActionBar
+            mode={deckMode}
+            disabled={swipeBusy}
+            items={[
+              { key: "pass", label: "Pomiń", icon: "close", onPress: () => void runSwipeAction("pass") },
+              { key: "spark", label: hasPro ? `Spark ${superlikesRemaining}` : "SparkLike", icon: "fire", locked: !hasPro, onPress: () => void promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro) },
+              { key: "chat", label: premiumChatLabel === "Napisz teraz" ? "Napisz" : premiumChatLabel, icon: "chat-outline", locked: !hasPro && !hasMatchedProfile, onPress: () => void promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile) },
+              { key: "like", label: "Polub", icon: "heart", primary: true, onPress: () => void runSwipeAction("like") }
+            ] satisfies ActionItem[]}
+          />
         </View>
-      </View>
-
-      <View style={styles.stitchBottomPanel}>
-        <View style={styles.stitchFabDock} pointerEvents="box-none">
-          <SwipeFab label="Szczegóły" icon="account" small onPress={() => setPreviewOpen(true)} />
-          <SwipeFab label="SPARKLIKE" sublabel={`${superlikesRemaining}/10`} icon="fire" primary large locked={!hasPro} onPress={() => promptProFeature("superlike", () => runSwipeAction("superlike"), !hasPro)} />
-          <SwipeFab label={premiumChatLabel} sublabel={premiumChatSub} icon="chat" small locked={!hasPro && !hasMatchedProfile} onPress={() => promptProFeature("message", handlePremiumChat, !hasPro && !hasMatchedProfile)} />
-
-        </View>
+        {swipeFeedback && (
+          <View pointerEvents="none" style={styles.swipeFeedback}>
+            <MaterialCommunityIcons name="check-circle" size={17} color="#fff" />
+            <Text style={styles.swipeFeedbackText}>{swipeFeedback}</Text>
+          </View>
+        )}
       </View>
 
       {previewOpen && (
@@ -4347,7 +4328,32 @@ function DiscoverScreen({
     </View>
   );
 }
+/** Everything the Discover card shows, derived from a profile. */
+function toDeckCard(profile: MatchProfile, viewerInterests: string[]): DeckCardData {
+  const insight = getSharedInterestInsights(profile.interests, viewerInterests)[0];
+  const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
+  const compatibility = getCompatibilityPresentation(profile.compatibilityScore ?? interestMatchPercent);
+  const sharedEvent = profile.sharedEvents?.[0];
+  const activeEvent = sharedEvent ?? profile.activeEvents?.find(isEventActive);
+  const gender = profile.gender && profile.gender !== "unspecified" ? genderOptions.find((option) => option.value === profile.gender)?.label : null;
+  return {
+    key: getProfileKey(profile),
+    name: [profile.name, profile.surname].filter(Boolean).join(" "),
+    age: profile.age,
+    place: [profile.city, profile.distance && profile.distance !== profile.city ? profile.distance : null].filter(Boolean).join(" · "),
+    photos: getProfileGallery(profile),
+    chips: getFeaturedInterests(profile),
+    verified: profile.verified === true,
+    premium: profile.premium === true,
+    meta: [sharedEvent || compatibility.score <= 0 ? null : `${compatibility.score}% · ${compatibility.detail}`, gender, profile.intent].filter(Boolean).join(" · "),
+    highlight: activeEvent
+      ? { icon: activeEvent.icon || "calendar-heart", label: `${sharedEvent ? "Razem na" : "Uczestniczy"}: ${activeEvent.name}` }
+      : insight ? { icon: insight.icon, label: formatSharedInterestInsight(insight) } : null
+  };
+}
+
 function AgeRangeControl({ min, max, onChange }: { min: number; max: number; onChange: (min: number, max: number) => void }) {
+  const { colors, styles } = useAppTheme();
   function adjust(side: "min" | "max", delta: number) {
     if (side === "min") onChange(Math.max(18, Math.min(max, min + delta)), max);
     else onChange(min, Math.min(99, Math.max(min, max + delta)));
@@ -4414,6 +4420,7 @@ function DiscoveryMenuModal({
   onSignOut: () => void;
   onInvite: () => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const activeFilters = countActiveDiscoverFilters(filters);
   const menuItems: Array<{ icon: string; label: string; hint: string; active?: boolean; badge?: number; action: () => void }> = [
@@ -4509,6 +4516,7 @@ function DiscoveryPreferencesModal({
   onClose: () => void;
   onApply: (nextFilters: DiscoverFilters) => Promise<boolean>;
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents], targetGendersByIntent: normalizeGenderPreferences(filters.targetGendersByIntent) }));
   const [saving, setSaving] = useState(false);
@@ -4631,6 +4639,7 @@ function DiscoveryPreferencesModal({
 }
 
 function ProfileCard({ profile, viewerInterests = [], onReport, compact = false }: { profile: MatchProfile; viewerInterests?: string[]; onReport?: () => void; compact?: boolean }) {
+  const { styles } = useAppTheme();
   const featuredInterests = getFeaturedInterests(profile);
   const sharedInterestInsights = getSharedInterestInsights(profile.interests, viewerInterests);
   const primarySharedInterestInsight = sharedInterestInsights[0];
@@ -4750,6 +4759,7 @@ function ProfilePreviewSheet({
   readOnly?: boolean;
   blocked?: boolean;
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -4792,13 +4802,13 @@ function ProfilePreviewSheet({
   }, [isOwnProfile, profile]);
 
   const local = StyleSheet.create({
-    root: { flex: 1, backgroundColor: "#050507" },
-    header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 9, backgroundColor: "rgba(5,5,7,0.88)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
+    root: { flex: 1, backgroundColor: colors.background },
+    header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 9, backgroundColor: colors.scrim, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
     headerTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
     headerButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
     content: { gap: 16, paddingHorizontal: 12 },
-    gallery: { position: "relative", alignSelf: "center", overflow: "hidden", borderRadius: 24, backgroundColor: "#111", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", boxShadow: "0 20px 52px rgba(0,0,0,0.46)" },
-    photoCounter: { position: "absolute", top: 13, right: 13, minHeight: 30, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(5,5,7,0.76)" },
+    gallery: { position: "relative", alignSelf: "center", overflow: "hidden", borderRadius: 24, backgroundColor: colors.photoPlaceholder, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", boxShadow: `0 20px 52px ${colors.shadow}` },
+    photoCounter: { position: "absolute", top: 13, right: 13, minHeight: 30, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: colors.scrim },
     photoCounterText: { color: "#fff", fontSize: 11, fontWeight: "900", fontVariant: ["tabular-nums"] },
     dots: { position: "absolute", left: 0, right: 0, bottom: 14, flexDirection: "row", justifyContent: "center", gap: 6 },
     dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.42)" },
@@ -4860,7 +4870,7 @@ function ProfilePreviewSheet({
     socialIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
     socialLabel: { color: colors.ink, fontSize: 11, fontWeight: "900" },
     socialValue: { marginTop: 2, color: "#d8b5c7", fontSize: 10, fontWeight: "800" },
-    actions: { position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 92, flexDirection: "row", alignItems: "stretch", gap: 8, paddingHorizontal: 10, paddingTop: 9, backgroundColor: "rgba(5,5,7,0.96)", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
+    actions: { position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 92, flexDirection: "row", alignItems: "stretch", gap: 8, paddingHorizontal: 10, paddingTop: 9, backgroundColor: colors.scrim, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
     actionSecondary: { flex: 1, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
     actionPrimary: { flex: 1.25, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 5, borderRadius: 17, backgroundColor: colors.primary, boxShadow: "0 10px 28px rgba(255,45,141,0.3)" },
     actionLabel: { color: colors.ink, fontSize: 10, lineHeight: 13, textAlign: "center", fontWeight: "900" },
@@ -4872,8 +4882,8 @@ function ProfilePreviewSheet({
 
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <LinearGradient colors={["#050507", "#13070f", "#050507"]} style={local.root}>
-        <StatusBar style="light" />
+      <LinearGradient colors={colors.backgroundGradient} style={local.root}>
+        <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} style={local.headerButton}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
@@ -4901,7 +4911,7 @@ function ProfilePreviewSheet({
               onMomentumScrollEnd={(event) => setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / photoWidth))}
             >
               {photos.map((photo, index) => (
-                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: "#111" }} contentFit="contain" transition={180} />
+                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: colors.photoPlaceholder }} contentFit="contain" transition={180} />
               ))}
             </ScrollView>
             <View style={local.photoCounter}>
@@ -5189,6 +5199,7 @@ function SwipeFab({
   small?: boolean;
   locked?: boolean;
 }) {
+  const { colors, styles } = useAppTheme();
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.swipeFabButton}>
       <View style={[styles.swipeFabIcon, small && styles.swipeFabIconSmall, large && styles.swipeFabIconLarge, primary && styles.swipeFabIconPrimary]}>
@@ -5206,6 +5217,7 @@ function SwipeFab({
 }
 
 function EventEmptyAnimation({ compact = false }: { compact?: boolean }) {
+  const { colors } = useAppTheme();
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -5272,6 +5284,7 @@ function EventFriendsManagerModal({
   onCreate: (event: SparkEvent) => Promise<boolean>;
   onDelete: (event: SparkEvent) => Promise<boolean>;
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const eventFormScrollRef = useRef<ScrollView>(null);
   const [draftEvents, setDraftEvents] = useState<SparkEvent[]>(events);
@@ -5286,7 +5299,7 @@ function EventFriendsManagerModal({
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const local = StyleSheet.create({
-    root: { flex: 1, backgroundColor: "#050507" },
+    root: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
     close: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
     eyebrow: { color: colors.primary, fontSize: 10, fontWeight: "900", letterSpacing: 0.8, textTransform: "uppercase" },
@@ -5443,7 +5456,7 @@ function EventFriendsManagerModal({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
-        <StatusBar style="light" />
+        <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
           <Pressable accessibilityRole="button" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
           <View style={styles.fill}><Text style={local.eyebrow}>Event Friends</Text><Text style={local.title}>Twoje wydarzenia</Text></View>
@@ -5542,6 +5555,7 @@ function EventFriendsEmptyState({
   onBack: () => void;
   onManage: () => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const hasEvents = activeEvents.length > 0;
   return <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
     <TopBar eyebrow="Event Friends" title="Wspólne plany" left="<" right="calendar-edit" onLeftPress={onBack} onRightPress={onManage} />
@@ -5591,6 +5605,7 @@ function DiscoverEmptyState({
   onOpenEventFriends: () => void;
   onChromeHiddenChange?: (hidden: boolean) => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const overlayOpen = menuOpen || preferencesOpen;
@@ -5671,6 +5686,7 @@ function MatchCelebration({
   onContinue: () => void;
   onOpenChat: (starter?: string) => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const [selectedStarter, setSelectedStarter] = useState<string | null>(null);
   const starterAnimations = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
   const sparkPulse = useRef(new Animated.Value(0)).current;
@@ -5800,6 +5816,7 @@ function MatchesScreen({
   onOpenMessages: () => void;
   onOpenConversation: (profileKey: string) => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
   const [matchFilter, setMatchFilter] = useState<"all" | "active" | "likes" | "requests">("all");
   const [matchView, setMatchView] = useState<"list" | "grid">("list");
@@ -6091,6 +6108,7 @@ function MessagesScreen({
   viewerInterests: string[];
   showChatListAd: boolean;
 }) {
+  const { colors, styles } = useAppTheme();
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const [profilePreview, setProfilePreview] = useState<MatchProfile | null>(null);
@@ -6288,13 +6306,14 @@ function ChatConversationModal({
   onOpenProfile: () => void;
   viewerInterests: string[];
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const messages = thread?.messages ?? [];
   const [sending, setSending] = useState(false);
   const messageListRef = useRef<FlatList<ChatThread["messages"][number]>>(null);
   const canMessage = conversation?.status === "matched";
   const local = useMemo(() => StyleSheet.create({
-    root: { flex: 1, backgroundColor: "#050507" },
+    root: { flex: 1, backgroundColor: colors.background },
     header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
     back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
     avatar: { width: 42, height: 42, borderRadius: 14, borderCurve: "continuous" },
@@ -6333,7 +6352,7 @@ function ChatConversationModal({
     acceptButton: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.primary },
     rejectButton: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "rgba(255,255,255,0.08)" },
     requestButtonText: { color: "#fff", fontSize: 12, fontWeight: "900" },
-    composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(5,5,7,0.96)" },
+    composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)", backgroundColor: colors.scrim },
     input: { flex: 1, minHeight: 46, maxHeight: 110, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, color: colors.ink, backgroundColor: "rgba(255,255,255,0.07)", fontSize: 14 },
     send: { width: 46, height: 46, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
     sendDisabled: { opacity: 0.4 }
@@ -6389,7 +6408,7 @@ function ChatConversationModal({
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
-        <StatusBar style="light" />
+        <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} style={local.back}>
             <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
@@ -6513,6 +6532,7 @@ function PremiumScreen({
   revenueCat: RevenueCatState;
   entrySource: PremiumEntrySource;
 }) {
+  const { colors, styles } = useAppTheme();
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const premiumMessages: Record<PremiumEntrySource, { badge: string; title: string; body: string }> = {
     navigation: { badge: "Spark Pro", title: "Więcej możliwości, mniej ograniczeń", body: "Zwiększ widoczność, odkrywaj zainteresowane osoby i korzystaj ze Spark bez reklam." },
@@ -6550,7 +6570,7 @@ function PremiumScreen({
   ];
   const local = StyleSheet.create({
     screen: { gap: 16 },
-    top: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6, borderRadius: 24, backgroundColor: "rgba(10,10,14,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    top: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6, borderRadius: 24, backgroundColor: colors.card, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     iconButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
     topTitle: { color: colors.ink, fontSize: 20, fontWeight: "900" },
     hero: { alignItems: "center", gap: 8, paddingTop: 8, paddingHorizontal: 8 },
@@ -6558,8 +6578,8 @@ function PremiumScreen({
     heroTitle: { color: colors.ink, fontSize: 26, lineHeight: 32, textAlign: "center", fontWeight: "900" },
     heroText: { maxWidth: 360, color: "#e4bdc3", fontSize: 13, lineHeight: 20, textAlign: "center", fontWeight: "700" },
     tierGrid: { flexDirection: "row", gap: 8, alignItems: "stretch" },
-    tierCard: { flex: 1, minHeight: 136, gap: 6, paddingHorizontal: 8, paddingTop: 14, paddingBottom: 10, alignItems: "center", justifyContent: "center", borderRadius: 22, borderCurve: "continuous", backgroundColor: "rgba(18,18,24,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)", overflow: "hidden" },
-    tierActive: { borderColor: "rgba(255,45,141,0.9)", backgroundColor: "rgba(33,13,25,0.96)", boxShadow: "0 12px 28px rgba(255,45,141,0.16)" },
+    tierCard: { flex: 1, minHeight: 136, gap: 6, paddingHorizontal: 8, paddingTop: 14, paddingBottom: 10, alignItems: "center", justifyContent: "center", borderRadius: 22, borderCurve: "continuous", backgroundColor: colors.card, borderWidth: 1, borderColor: "rgba(255,255,255,0.09)", overflow: "hidden" },
+    tierActive: { borderColor: "rgba(255,45,141,0.9)", backgroundColor: colors.card, boxShadow: "0 12px 28px rgba(255,45,141,0.16)" },
     bestRibbon: { minHeight: 18, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: colors.primary },
     bestText: { color: "#fff", fontSize: 8, lineHeight: 11, fontWeight: "900", textTransform: "uppercase" },
     tierLabel: { color: colors.ink, fontSize: 13, lineHeight: 17, fontWeight: "900", textAlign: "center" },
@@ -6571,7 +6591,7 @@ function PremiumScreen({
     selectedPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     selectedPillText: { color: colors.muted, fontSize: 9, lineHeight: 12, fontWeight: "900", textTransform: "uppercase" },
     selectedPillTextActive: { color: "#fff" },
-    benefitsPanel: { gap: 14, padding: 16, borderRadius: 30, borderCurve: "continuous", backgroundColor: "rgba(22,22,29,0.9)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+    benefitsPanel: { gap: 14, padding: 16, borderRadius: 30, borderCurve: "continuous", backgroundColor: colors.card, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     sectionTitle: { color: colors.ink, fontSize: 13, fontWeight: "900", textTransform: "uppercase" },
     benefitRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
     benefitIcon: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.14)" },
@@ -6735,6 +6755,7 @@ function SocialHandleField({
   value: string;
   onChangeText: (value: string) => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const icon = getSocialIcon(platform);
 
   return (
@@ -6779,17 +6800,18 @@ function formatProfileViewTime(timestamp: number | null | undefined) {
   return new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "short" }).format(new Date(timestamp));
 }
 
-const profileViewerStyles = StyleSheet.create({
-  panel: { gap: 14, padding: 18, borderRadius: 24, backgroundColor: "rgba(20,20,26,0.94)", borderWidth: 1, borderColor: "rgba(255,45,141,0.24)", boxShadow: "0 14px 34px rgba(0,0,0,0.2)" },
+function createProfileViewerStyles(colors: Palette) {
+  return StyleSheet.create({
+  panel: { gap: 14, padding: 18, borderRadius: 24, backgroundColor: colors.card, borderWidth: 1, borderColor: "rgba(255,45,141,0.24)", boxShadow: `0 14px 34px ${colors.shadow}` },
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
   title: { color: colors.ink, fontSize: 18, fontWeight: "900" },
   hint: { marginTop: 3, color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
   badge: { minWidth: 34, height: 34, paddingHorizontal: 9, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
   badgeText: { color: "#fff", fontSize: 11, fontWeight: "900" },
-  preview: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  preview: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: colors.fillStrong },
   avatarStack: { width: 92, height: 52, position: "relative" },
-  stackedAvatar: { position: "absolute", top: 2, width: 48, height: 48, borderRadius: 17, backgroundColor: "#111", borderWidth: 2, borderColor: "#17171d" },
+  stackedAvatar: { position: "absolute", top: 2, width: 48, height: 48, borderRadius: 17, backgroundColor: colors.photoPlaceholder, borderWidth: 2, borderColor: "#17171d" },
   previewTitle: { color: colors.ink, fontSize: 13, fontWeight: "900" },
   previewMeta: { marginTop: 4, color: colors.muted, fontSize: 10, lineHeight: 14, fontWeight: "700" },
   empty: { minHeight: 90, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.035)" },
@@ -6800,8 +6822,8 @@ const profileViewerStyles = StyleSheet.create({
   openButton: { minHeight: 49, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 17, backgroundColor: colors.primary },
   openButtonText: { color: "#fff", fontSize: 13, fontWeight: "900" },
   screen: { flex: 1, backgroundColor: "#07070a" },
-  screenHeader: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+  screenHeader: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.fill },
+  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: colors.fill, borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
   screenEyebrow: { color: colors.primary, fontSize: 9, letterSpacing: 0.8, fontWeight: "900" },
   screenTitle: { marginTop: 2, color: colors.ink, fontSize: 23, fontWeight: "900" },
   screenCount: { minWidth: 40, height: 40, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, borderRadius: 15, backgroundColor: colors.primarySoft },
@@ -6810,17 +6832,17 @@ const profileViewerStyles = StyleSheet.create({
   search: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
   searchInput: { flex: 1, minWidth: 0, color: colors.ink, fontSize: 14, fontWeight: "700" },
   filterRow: { flexDirection: "row", gap: 7 },
-  filter: { flex: 1, minHeight: 39, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
+  filter: { flex: 1, minHeight: 39, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderRadius: 13, backgroundColor: colors.fill, borderWidth: 1, borderColor: colors.fill },
   filterActive: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.36)" },
   filterText: { color: colors.muted, fontSize: 10, fontWeight: "900" },
   filterTextActive: { color: colors.primary },
   resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 17, paddingVertical: 8 },
   resultsText: { color: colors.muted, fontSize: 10, fontWeight: "800" },
-  sort: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 34, paddingHorizontal: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.05)" },
+  sort: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 34, paddingHorizontal: 10, borderRadius: 12, backgroundColor: colors.fill },
   sortText: { color: colors.ink, fontSize: 10, fontWeight: "900" },
   list: { gap: 9, paddingHorizontal: 16, paddingTop: 4 },
-  row: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 12, padding: 11, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  rowAvatar: { width: 58, height: 58, borderRadius: 19, backgroundColor: "#111" },
+  row: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 12, padding: 11, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: colors.fillStrong },
+  rowAvatar: { width: 58, height: 58, borderRadius: 19, backgroundColor: colors.photoPlaceholder },
   rowName: { color: colors.ink, fontSize: 14, fontWeight: "900" },
   rowMeta: { marginTop: 4, color: colors.muted, fontSize: 10, fontWeight: "700" },
   rowAside: { alignItems: "flex-end", gap: 6 },
@@ -6830,6 +6852,8 @@ const profileViewerStyles = StyleSheet.create({
   screenEmptyTitle: { color: colors.ink, fontSize: 17, fontWeight: "900" },
   screenEmptyText: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: "center", fontWeight: "700" }
 });
+}
+const profileViewerSheets = { dark: createProfileViewerStyles(palettes.dark), light: createProfileViewerStyles(palettes.light) };
 
 function ProfileViewersScreen({
   visible,
@@ -6846,6 +6870,8 @@ function ProfileViewersScreen({
   viewerInterests: string[];
   onClose: () => void;
 }) {
+  const profileViewerStyles = profileViewerSheets[useThemeState().name];
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [range, setRange] = useState<ProfileViewerRange>("all");
@@ -6875,8 +6901,8 @@ function ProfileViewersScreen({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <LinearGradient colors={["#07070a", "#160911", "#07070a"]} style={profileViewerStyles.screen}>
-        <StatusBar style="light" />
+      <LinearGradient colors={colors.backgroundGradient} style={profileViewerStyles.screen}>
+        <StatusBar style={colors.statusBar} />
         <View style={[profileViewerStyles.screenHeader, { paddingTop: Math.max(insets.top, 12) }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Wróć do profilu" onPress={onClose} style={profileViewerStyles.back}>
             <MaterialCommunityIcons name="chevron-left" size={25} color={colors.ink} />
@@ -6974,6 +7000,8 @@ function ProfileViewerPanel({ hasPro, viewers, viewerCount, loading, viewerInter
   viewerInterests: string[];
   onUpgrade: () => void;
 }) {
+  const profileViewerStyles = profileViewerSheets[useThemeState().name];
+  const { colors, styles } = useAppTheme();
   const [screenOpen, setScreenOpen] = useState(false);
   const totalVisits = viewers.reduce((total, viewer) => total + (viewer.profileViewCount ?? 1), 0);
   return (
@@ -7131,6 +7159,7 @@ function ProfileScreen({
   onInvite: () => void;
   verificationStatus: ProfileVerificationStatus;
 }) {
+  const { colors, styles, theme } = useAppTheme();
   const [saveBusy, setSaveBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [shareCardOpen, setShareCardOpen] = useState(false);
@@ -7414,6 +7443,16 @@ function ProfileScreen({
           }}
         />
         <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
+        <View style={styles.themeSettingRow}>
+          <Text style={styles.settingLabel}>Wygląd</Text>
+          <View style={styles.segmentedChoice}>
+            {([["system", "Jak telefon"], ["light", "Jasny"], ["dark", "Ciemny"]] as const).map(([value, label]) => (
+              <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: theme.preference === value }} onPress={() => { tap(); theme.setPreference(value); }} style={[styles.segmentedChoiceItem, theme.preference === value && styles.segmentedChoiceItemActive]}>
+                <Text style={[styles.segmentedChoiceText, theme.preference === value && styles.segmentedChoiceTextActive]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </View>
       <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOutButton}>
         <View style={styles.signOutIcon}><MaterialCommunityIcons name="logout" size={20} color="#ff668f" /></View>
@@ -7556,6 +7595,7 @@ function ShareProfileCardModal({
   profile: MatchProfile;
   onClose: () => void;
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const cardRef = useRef<View>(null);
@@ -7566,7 +7606,7 @@ function ShareProfileCardModal({
   const cardWidth = Math.max(220, Math.min(width - 28, 360, (availableCardHeight * 9) / 16));
   const cardHeight = cardWidth * 16 / 9;
   const local = StyleSheet.create({
-    root: { flex: 1, backgroundColor: "#050507" },
+    root: { flex: 1, backgroundColor: colors.background },
     header: { width: "100%", minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18 },
     close: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.075)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
     headerTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
@@ -7581,7 +7621,7 @@ function ShareProfileCardModal({
     bottom: { gap: 12 },
     invite: { maxWidth: "94%", color: "#fff", fontSize: 34, lineHeight: 37, fontWeight: "900" },
     interests: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    interest: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(5,5,7,0.64)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+    interest: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.scrim, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
     interestText: { color: "#fff", fontSize: 9, fontWeight: "900" },
     install: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.18)" },
     installLabel: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "900" },
@@ -7629,7 +7669,7 @@ function ShareProfileCardModal({
   return (
     <Modal visible={visible} animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <View style={[local.root, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <StatusBar style="light" />
+        <StatusBar style={colors.statusBar} />
         <View style={local.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="Zamknij kartę" onPress={onClose} style={local.close}>
             <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
@@ -7681,6 +7721,7 @@ function ShareProfileCardModal({
 }
 
 function SimpleInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
+  const { colors, styles } = useAppTheme();
   const [showAll, setShowAll] = useState(false);
   const starterOptions = Array.from(new Set([
     ...interestCategories[0].items,
@@ -7751,6 +7792,7 @@ function SimpleInterestPicker({ selected, onToggle, maxSelected = 15 }: { select
 }
 
 function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
+  const { colors, styles } = useAppTheme();
   return (
     <View style={styles.chipWrap}>
       {interestOptions.map((item, index) => {
@@ -7789,6 +7831,7 @@ function InterestChips({ selected, onToggle, maxSelected = 15 }: { selected: str
 }
 
 function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { selected: string[]; onToggle: (item: string) => void; maxSelected?: number }) {
+  const { colors, styles } = useAppTheme();
   const initialCategory = interestCategories.find((category) => category.items.some((item) => selected.includes(item))) ?? interestCategories[0];
   const [activeCategoryTitle, setActiveCategoryTitle] = useState(initialCategory.title);
   const activeCategory = interestCategories.find((category) => category.title === activeCategoryTitle) ?? interestCategories[0];
@@ -7884,6 +7927,7 @@ function CategorizedInterestPicker({ selected, onToggle, maxSelected = 15 }: { s
   );
 }
 function TextField({ label, value, onChangeText, secureTextEntry = false, keyboardType = "default", passwordMode = "current-password" }: { label: string; value: string; onChangeText: (value: string) => void; secureTextEntry?: boolean; keyboardType?: "default" | "email-address" | "numeric"; passwordMode?: "current-password" | "new-password" }) {
+  const { colors, styles } = useAppTheme();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const isPassword = secureTextEntry;
 
@@ -7928,6 +7972,7 @@ function BlockedProfilesModal({
   onUnblock: (profileKey: string) => Promise<boolean>;
   onReport: (profileKey: string, reason?: string) => Promise<boolean>;
 }) {
+  const { colors, styles } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [entries, setEntries] = useState<Array<{ key: string; profile: MatchProfile | null }>>([]);
   const [loading, setLoading] = useState(false);
@@ -7958,7 +8003,7 @@ function BlockedProfilesModal({
   }, [blockedProfileKeys.join("|"), visible]);
 
   const local = StyleSheet.create({
-    root: { flex: 1, backgroundColor: "#050507" },
+    root: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
     back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
     title: { color: colors.ink, fontSize: 19, fontWeight: "900" },
@@ -8014,7 +8059,7 @@ function BlockedProfilesModal({
     <>
       <Modal visible={visible && !previewProfile} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
         <View style={local.root}>
-          <StatusBar style="light" />
+          <StatusBar style={colors.statusBar} />
           <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
             <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} style={local.back}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
             <View style={styles.fill}><Text style={local.title}>Zablokowane osoby</Text><Text style={local.subtitle}>Zarządzaj bezpieczeństwem i widocznością profili.</Text></View>
@@ -8069,6 +8114,7 @@ function SafetyCenter({
   onUnblock: (profileKey: string) => Promise<boolean>;
   onReport: (profileKey: string, reason?: string) => Promise<boolean>;
 }) {
+  const { colors, styles } = useAppTheme();
   const [blockedListOpen, setBlockedListOpen] = useState(false);
   const [notificationPreferencesOpen, setNotificationPreferencesOpen] = useState(false);
   const [moderationQueueOpen, setModerationQueueOpen] = useState(false);
@@ -8199,6 +8245,7 @@ function TopBar({
   onLeftPress?: () => void;
   onRightPress?: () => void;
 }) {
+  const { styles } = useAppTheme();
   return (
     <View style={styles.topBar}>
       <IconButton label={left} onPress={onLeftPress} />
@@ -8245,6 +8292,7 @@ function getIconAccessibilityLabel(label: string) {
 }
 
 function IconButton({ label, onPress }: { label: string; onPress?: () => void }) {
+  const { colors, styles } = useAppTheme();
   if (!onPress) {
     return (
       <View style={styles.iconButtonStatic}>
@@ -8272,6 +8320,7 @@ function RoundAction({
   locked?: boolean;
   onPress?: () => void;
 }) {
+  const { colors, styles } = useAppTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -8288,6 +8337,7 @@ function RoundAction({
   );
 }
 function SettingRow({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
+  const { styles } = useAppTheme();
   return (
     <Pressable style={styles.settingRow} onPress={onPress}>
       <Text style={styles.settingLabel} selectable>{label}</Text>
@@ -8315,6 +8365,7 @@ class SparkErrorBoundary extends React.Component<
 
   render() {
     if (!this.state.hasError) return this.props.children;
+    const styles = themedStyles.dark;
 
     return (
       <View style={styles.appErrorRoot}>
@@ -8331,17 +8382,76 @@ class SparkErrorBoundary extends React.Component<
   }
 }
 
+/**
+ * Development only (web, `?preview=discover&theme=light`): the Discover screen
+ * with bundled demo profiles, without signing in to production.
+ */
+function DevPreview({ themeName }: { themeName: string | null }) {
+  const { colors, styles, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const [index, setIndex] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  const deck = matchProfiles.map((profile, position) => ({ ...profile, distance: `${2 + position * 3} km` }));
+  const profile = deck[index % deck.length];
+  const next = deck[(index + 1) % deck.length];
+  const filters = createDefaultDiscoverFilters();
+  const screenMinHeight = Math.max(520, height - Math.max(insets.top + 4, 12) - Math.max(insets.bottom + 94, 106) + 8);
+  return (
+    <LinearGradient colors={colors.backgroundGradient} style={styles.root}>
+      <StatusBar style={colors.statusBar} />
+      <ScrollView contentContainerStyle={[styles.scroll, styles.discoverScroll, { paddingTop: Math.max(insets.top + 4, 12), paddingBottom: Math.max(insets.bottom + 94, 106), paddingHorizontal: 16 }]}>
+        <DiscoverScreen
+          mode="people"
+          feedExpansionLevel={0}
+          activeEvents={[]}
+          profile={profile}
+          nextProfile={next}
+          hasPro={false}
+          onSwipe={async () => { setIndex((value) => value + 1); return "liked"; }}
+          onPremiumChatRequest={() => undefined}
+          onOpenMessages={() => undefined}
+          messageNotificationCount={1}
+          onOpenMatches={() => undefined}
+          onOpenProfile={() => undefined}
+          onOpenPremium={() => undefined}
+          onOpenSafety={() => undefined}
+          onSignOut={() => undefined}
+          onInvite={() => undefined}
+          hasMatchedProfile={false}
+          hasRequestedProfile={false}
+          superlikesRemaining={10}
+          selectedInterests={["Gaming", "Planszówki", "Muzyka"]}
+          discoverFilters={filters}
+          screenMinHeight={screenMinHeight}
+          onReportProfile={async () => true}
+          onRefresh={() => setIndex(0)}
+          onSavePreferences={async () => true}
+          onOpenEventFriends={() => undefined}
+          onBackToPeople={() => undefined}
+          onManageEvents={() => undefined}
+        />
+      </ScrollView>
+    </LinearGradient>
+  );
+}
+
 export default function App() {
+  const params = __DEV__ && Platform.OS === "web" && typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   return (
     <SafeAreaProvider>
-      <SparkErrorBoundary>
-        <AppContent />
-      </SparkErrorBoundary>
+      <ThemeProvider>
+        <SparkErrorBoundary>
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : <AppContent />}
+        </SparkErrorBoundary>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: Palette) {
+  return StyleSheet.create({
   appErrorRoot: {
     flex: 1,
     alignItems: "center",
@@ -8545,7 +8655,7 @@ const styles = StyleSheet.create({
   },
   lead: {
     maxWidth: 330,
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center"
@@ -8559,7 +8669,7 @@ const styles = StyleSheet.create({
   authHero: { alignItems: "center", gap: 5, paddingTop: 4, paddingBottom: 2 },
   authEyebrow: { color: colors.primary, fontSize: 11, fontWeight: "900", letterSpacing: 1.4 },
   authTitle: { color: colors.ink, fontSize: 30, lineHeight: 35, textAlign: "center", fontWeight: "900" },
-  authSubtitle: { maxWidth: 340, color: "#d8b5c7", fontSize: 14, lineHeight: 20, textAlign: "center", fontWeight: "600" },
+  authSubtitle: { maxWidth: 340, color: colors.inkSoft, fontSize: 14, lineHeight: 20, textAlign: "center", fontWeight: "600" },
   authDivider: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 10 },
   authDividerLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.09)" },
   authDividerText: { color: colors.muted, fontSize: 11, fontWeight: "800" },
@@ -8603,7 +8713,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(26,26,34,0.88)",
+    backgroundColor: colors.card,
     color: colors.ink,
     fontSize: 15,
     fontWeight: "700"
@@ -8643,7 +8753,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.04)"
+    backgroundColor: colors.fill
   },
   legalConsent: {
     flexDirection: "row",
@@ -8659,7 +8769,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.25)",
-    backgroundColor: "rgba(255,255,255,0.04)"
+    backgroundColor: colors.fill
   },
   legalCheckboxActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   legalConsentCopy: { flex: 1, gap: 3 },
@@ -8683,7 +8793,7 @@ const styles = StyleSheet.create({
     gap: 10,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.92)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -8736,7 +8846,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   configWarningText: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 12,
     lineHeight: 18
   },
@@ -8754,10 +8864,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(18,18,25,0.82)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.22)",
-    boxShadow: "0 20px 48px rgba(0,0,0,0.34)"
+    boxShadow: `0 20px 48px ${colors.shadow}`
   },
   panelTitle: {
     color: colors.ink,
@@ -8805,7 +8915,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.05)"
+    backgroundColor: colors.fill
   },
   ageRangeButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
   ageRangeValue: { color: colors.ink, fontSize: 17, fontWeight: "900" },
@@ -8814,7 +8924,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 24,
     borderCurve: "continuous",
-    backgroundColor: "rgba(18,18,24,0.92)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
   },
@@ -8831,7 +8941,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 4,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.05)"
+    backgroundColor: colors.fill
   },
   segmentedChoiceItem: {
     flex: 1,
@@ -8843,11 +8953,12 @@ const styles = StyleSheet.create({
   segmentedChoiceItemActive: { backgroundColor: colors.primary },
   segmentedChoiceText: { color: colors.muted, fontSize: 13, fontWeight: "800" },
   segmentedChoiceTextActive: { color: "#fff" },
+  themeSettingRow: { gap: 10, paddingVertical: 12, paddingHorizontal: 4 },
   setupHelper: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   locationControl: { gap: 8, marginTop: 4 },
   locationStatus: { flexDirection: "row", alignItems: "center", gap: 7 },
   locationStatusText: { color: colors.ink, fontSize: 13, fontWeight: "800" },
-  locationAction: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  locationAction: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.fill, borderWidth: 1, borderColor: colors.fillStrong },
   locationActionText: { color: colors.ink, fontSize: 13, fontWeight: "900", textAlign: "center" },
   locationPrivacyText: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
   onboardingPhotoGrid: { flexDirection: "row", gap: 10 },
@@ -8858,7 +8969,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)"
   },
@@ -8879,7 +8990,7 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)",
-    backgroundColor: "rgba(18,18,25,0.82)",
+    backgroundColor: colors.card,
     boxShadow: "0 14px 34px rgba(99,51,61,0.07)"
   },
   intentCardCompact: {
@@ -8888,7 +8999,7 @@ const styles = StyleSheet.create({
   },
   intentCardActive: {
     borderColor: "rgba(255,45,141,0.32)",
-    backgroundColor: "rgba(34,20,31,0.96)"
+    backgroundColor: colors.cardTinted
   },
   intentIcon: {
     width: 52,
@@ -8925,7 +9036,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -8936,7 +9047,7 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     marginTop: 4,
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 13,
     lineHeight: 19
   },
@@ -8945,10 +9056,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.22)",
-    boxShadow: "0 18px 42px rgba(0,0,0,0.32)"
+    boxShadow: `0 18px 42px ${colors.shadow}`
   },
   ageChoiceRow: {
     flexDirection: "row",
@@ -8963,7 +9074,7 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     borderWidth: 1,
     borderColor: "rgba(145,110,111,0.14)",
-    backgroundColor: "rgba(22,22,29,0.86)"
+    backgroundColor: colors.card
   },
   ageChoiceActive: {
     borderColor: "rgba(255,45,141,0.34)",
@@ -9017,7 +9128,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
   },
@@ -9026,7 +9137,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
   },
@@ -9040,7 +9151,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(24,24,31,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -9049,7 +9160,7 @@ const styles = StyleSheet.create({
     gap: 10
   },
   purchaseHint: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 12,
     lineHeight: 18
   },
@@ -9059,16 +9170,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "800"
   },
-  discoverScreen: {
-    flex: 1,
-    minHeight: 0,
-    width: "100%",
-    gap: 8,
-    paddingTop: 0,
-    paddingHorizontal: 0,
-    paddingBottom: 0,
-    overflow: "hidden"
-  },
+  discoverScreen: { flex: 1, minHeight: 0, width: "100%", gap: 10, paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0, overflow: "hidden" },
+  deckArea: { flex: 1, minHeight: 380, marginTop: 10, position: "relative" },
+  deckLayer: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  // The glass action bar floats inside the bottom of the card.
+  deckActionDock: { position: "absolute", left: 12, right: 12, bottom: 12, zIndex: 20 },
   discoverEmptyScreen: {
     gap: 14
   },
@@ -9117,7 +9223,7 @@ const styles = StyleSheet.create({
   },
   discoverEmptyStatText: {
     flex: 1,
-    color: "#f0d3dd",
+    color: colors.inkSoft,
     fontSize: 12,
     fontWeight: "800"
   },
@@ -9134,7 +9240,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#ef2449",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: colors.fillStronger,
     boxShadow: "0 0 22px rgba(239,36,73,0.42)"
   },
   discoverTitleBlock: {
@@ -9160,9 +9266,9 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: "rgba(26,26,26,0.62)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    borderColor: colors.fillStrong
   },
   locationGlassText: {
     color: colors.ink,
@@ -9179,7 +9285,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 3,
     borderRadius: 18,
-    backgroundColor: "rgba(18,17,22,0.9)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -9195,7 +9301,7 @@ const styles = StyleSheet.create({
   },
   discoverSummaryPillDivider: {
     borderLeftWidth: 1,
-    borderLeftColor: "rgba(255,255,255,0.08)"
+    borderLeftColor: colors.fillStrong
   },
   discoverSummaryText: {
     minWidth: 0,
@@ -9203,95 +9309,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900"
   },
-  feedExpansionNotice: {
-    minHeight: 34,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 11,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,45,141,0.09)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.2)"
-  },
-  feedExpansionNoticeText: {
-    flex: 1,
-    color: "#e8cedb",
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800"
-  },
-  eventFriendsLaunch: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,45,141,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.32)",
-    boxShadow: "0 8px 24px rgba(255,45,141,0.13)"
-  },
-  eventFriendsLaunchActive: {
-    backgroundColor: "rgba(255,45,141,0.2)",
-    borderColor: "rgba(255,45,141,0.46)"
-  },
-  eventFriendsLaunchParty: {
-    backgroundColor: "rgba(135,61,255,0.2)",
-    borderColor: "rgba(255,189,89,0.52)",
-    boxShadow: "0 10px 28px rgba(150,79,255,0.26)"
-  },
-  eventFriendsLaunchPartyIcon: {
-    backgroundColor: "#7d43e8",
-    borderWidth: 1,
-    borderColor: "rgba(255,218,133,0.7)"
-  },
-  eventFriendsLaunchPartyEyebrow: {
-    color: "#ffd17b"
-  },
-  eventFriendsLaunchIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary
-  },
-  eventFriendsLaunchEyebrow: {
-    color: "#ff8fc2",
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.55
-  },
-  eventFriendsLaunchTitle: {
-    marginTop: 2,
-    color: "#fff",
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: "900"
-  },
-  eventFriendsLaunchCount: {
-    minWidth: 25,
-    height: 25,
-    paddingHorizontal: 7,
-    borderRadius: 999,
-    color: "#fff",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    textAlign: "center",
-    textAlignVertical: "center",
-    fontSize: 10,
-    lineHeight: 25,
-    fontWeight: "900"
-  },
+  feedExpansionNotice: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder },
+  feedExpansionNoticeText: { flex: 1, color: colors.inkSoft, fontSize: 11, lineHeight: 14, fontWeight: "600" },
+  eventFriendsLaunch: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 22, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder },
+  eventFriendsLaunchActive: { borderColor: colors.event },
+  eventFriendsLaunchParty: { backgroundColor: colors.glassStrong, borderColor: colors.event },
+  eventFriendsLaunchPartyIcon: { backgroundColor: colors.event },
+  eventFriendsLaunchPartyEyebrow: { color: colors.event },
+  eventFriendsLaunchIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.event },
+  eventFriendsLaunchEyebrow: { color: colors.muted, fontSize: 9, lineHeight: 11, fontWeight: "700", letterSpacing: 0.5 },
+  eventFriendsLaunchTitle: { marginTop: 1, color: colors.ink, fontSize: 14, lineHeight: 17, fontWeight: "700" },
+  eventFriendsLaunchCount: { minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 999, color: colors.onPrimary, backgroundColor: colors.event, textAlign: "center", textAlignVertical: "center", fontSize: 11, lineHeight: 24, fontWeight: "800" },
   stitchPlanButtonActive: {
     backgroundColor: colors.primary,
     boxShadow: "0 0 28px rgba(255,76,131,0.28)"
   },
   stitchPlanText: {
-    color: "#e4bdc3",
+    color: colors.inkSoft,
     fontSize: 14,
     fontWeight: "900"
   },
@@ -9333,7 +9367,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
     borderColor: colors.primary,
-    backgroundColor: "rgba(5,5,7,0.72)",
+    backgroundColor: colors.scrim,
     zIndex: 20
   },
   swipeCueLeft: {
@@ -9346,7 +9380,7 @@ const styles = StyleSheet.create({
   },
   swipeCueLike: {
     borderColor: colors.green,
-    backgroundColor: "rgba(8,32,20,0.78)"
+    backgroundColor: colors.card
   },
   swipeCueText: {
     color: colors.primary,
@@ -9400,13 +9434,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: "rgba(26,26,26,0.62)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   stitchProHintText: {
     flex: 1,
-    color: "#e4bdc3",
+    color: colors.inkSoft,
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "800"
@@ -9422,9 +9456,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 13,
     borderRadius: 999,
-    backgroundColor: "rgba(26,26,26,0.62)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    borderColor: colors.fillStrong
   },
   stitchSafetyText: {
     color: colors.primaryDeep,
@@ -9442,10 +9476,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(26,26,26,0.64)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    boxShadow: "0 14px 30px rgba(0,0,0,0.34)"
+    borderColor: colors.fillStrong,
+    boxShadow: `0 14px 30px ${colors.shadow}`
   },
   swipeFabIconSmall: {
     width: 42,
@@ -9510,7 +9544,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: "rgba(2,2,5,0.7)"
+    backgroundColor: colors.scrim
   },
   discoveryDrawer: {
     width: "86%",
@@ -9521,7 +9555,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0b0a0f",
     borderRightWidth: 1,
     borderRightColor: "rgba(255,45,141,0.2)",
-    boxShadow: "18px 0 54px rgba(0,0,0,0.52)"
+    boxShadow: `18px 0 54px ${colors.shadow}`
   },
   discoveryDrawerScrollView: {
     flex: 1
@@ -9581,9 +9615,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   discoveryDrawerNav: {
     gap: 5
@@ -9651,7 +9685,7 @@ const styles = StyleSheet.create({
   discoveryDrawerDivider: {
     height: 1,
     marginVertical: 14,
-    backgroundColor: "rgba(255,255,255,0.08)"
+    backgroundColor: colors.fillStrong
   },
   discoveryMenuUtility: {
     minHeight: 58,
@@ -9709,7 +9743,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0c0b11",
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)",
-    boxShadow: "0 -20px 54px rgba(0,0,0,0.48)"
+    boxShadow: `0 -20px 54px ${colors.shadow}`
   },
   discoverySheetHandle: {
     width: 42,
@@ -9797,7 +9831,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   discoveryDistanceOptionActive: {
     backgroundColor: "rgba(255,45,141,0.16)",
@@ -9840,7 +9874,7 @@ const styles = StyleSheet.create({
     gap: 9,
     paddingTop: 11,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)"
+    borderTopColor: colors.fillStrong
   },
   discoveryResetButton: {
     minHeight: 52,
@@ -9850,7 +9884,7 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingHorizontal: 15,
     borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)"
   },
@@ -9889,14 +9923,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: "rgba(0,0,0,0.58)"
+    backgroundColor: colors.scrim
   },
   reportSheet: {
     gap: 14,
     padding: 18,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    backgroundColor: "rgba(18,18,25,0.98)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)"
   },
@@ -9925,7 +9959,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)"
+    backgroundColor: colors.fill
   },
   reportInput: {
     minHeight: 126,
@@ -9933,7 +9967,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderCurve: "continuous",
     color: colors.ink,
-    backgroundColor: "rgba(5,5,7,0.84)",
+    backgroundColor: colors.scrim,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)",
     fontSize: 14,
@@ -9961,12 +9995,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.12)"
   },
   monetizationStatusText: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "800"
@@ -9999,7 +10033,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(18,18,24,0.78)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.28)",
     boxShadow: "0 10px 24px rgba(255,45,141,0.1)"
@@ -10028,7 +10062,7 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(18,18,25,0.78)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
   },
@@ -10041,7 +10075,7 @@ const styles = StyleSheet.create({
   },
   segmentButtonActive: {
     backgroundColor: colors.surfaceStrong,
-    boxShadow: "0 12px 30px rgba(0,0,0,0.34)"
+    boxShadow: `0 12px 30px ${colors.shadow}`
   },
   segmentText: {
     color: colors.muted,
@@ -10059,8 +10093,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: "#151017",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    boxShadow: "0 24px 64px rgba(0,0,0,0.54)"
+    borderColor: colors.fill,
+    boxShadow: `0 24px 64px ${colors.shadow}`
   },
   profileCardCompact: {
     minHeight: 0
@@ -10092,7 +10126,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
     color: colors.ink,
-    backgroundColor: "rgba(18,18,22,0.72)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     fontSize: 11,
@@ -10108,7 +10142,7 @@ const styles = StyleSheet.create({
   cardContextText: {
     flexShrink: 1,
     minWidth: 0,
-    color: "#f0d3dd",
+    color: colors.inkSoft,
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "800",
@@ -10281,7 +10315,7 @@ const styles = StyleSheet.create({
   cardBio: {
     maxWidth: 330,
     marginTop: 5,
-    color: "#f0d3dd",
+    color: colors.inkSoft,
     fontSize: 13,
     lineHeight: 18,
     textShadowColor: "rgba(0,0,0,0.4)",
@@ -10299,7 +10333,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(26,26,26,0.62)",
+    backgroundColor: colors.card,
     overflow: "hidden",
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -10343,9 +10377,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 20,
     borderCurve: "continuous",
-    backgroundColor: "rgba(26,26,26,0.62)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    borderColor: colors.fillStrong
   },
   matchScoreText: {
     color: colors.primary,
@@ -10353,7 +10387,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   matchReasonText: {
-    color: "#e4bdc3",
+    color: colors.inkSoft,
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "800"
@@ -10370,7 +10404,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -10392,7 +10426,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: colors.card,
     boxShadow: "0 16px 34px rgba(99,51,61,0.12)"
   },
   roundActionLarge: {
@@ -10439,7 +10473,7 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(26,26,34,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.12)"
   },
@@ -10494,7 +10528,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   premiumHeroText: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 14,
     lineHeight: 21
   },
@@ -10509,7 +10543,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
     color: colors.primaryDeep,
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)",
     fontSize: 12,
@@ -10523,14 +10557,14 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(14,14,20,0.92)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)",
-    boxShadow: "0 18px 42px rgba(0,0,0,0.36)"
+    boxShadow: `0 18px 42px ${colors.shadow}`
   },
   planCardActive: {
     borderColor: "rgba(255,45,141,0.58)",
-    backgroundColor: "rgba(37,10,27,0.96)",
+    backgroundColor: colors.cardTinted,
     boxShadow: "0 22px 52px rgba(255,45,141,0.2)"
   },
   planHeader: {
@@ -10551,7 +10585,7 @@ const styles = StyleSheet.create({
   },
   planIconActive: {
     backgroundColor: colors.primary,
-    borderColor: "rgba(255,255,255,0.18)"
+    borderColor: colors.fillStronger
   },
   planTitle: {
     color: colors.ink,
@@ -10623,9 +10657,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 2,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   matchOverviewValue: {
     color: colors.primary,
@@ -10689,9 +10723,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   matchFilterPillActive: {
     backgroundColor: "rgba(255,45,141,0.18)",
@@ -10711,9 +10745,9 @@ const styles = StyleSheet.create({
     gap: 5,
     padding: 4,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   matchViewButton: {
     width: 38,
@@ -10731,9 +10765,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   matchFilterEmptyText: {
     color: colors.muted,
@@ -10753,8 +10787,8 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    boxShadow: "0 16px 34px rgba(0,0,0,0.26)"
+    borderColor: colors.fillStrong,
+    boxShadow: `0 16px 34px ${colors.shadow}`
   },
   matchCardList: {
     width: "100%",
@@ -10811,9 +10845,9 @@ const styles = StyleSheet.create({
     gap: 11,
     padding: 10,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   pendingMatchAvatar: {
     width: 52,
@@ -10891,7 +10925,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: "rgba(10,10,14,0.72)"
+    backgroundColor: colors.card
   },
   chatToggleButton: {
     flex: 1,
@@ -10901,7 +10935,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.04)"
+    backgroundColor: colors.fill
   },
   chatToggleButtonActive: {
     backgroundColor: colors.primary,
@@ -10919,7 +10953,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     minWidth: 24,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: colors.fillStrong,
     color: colors.muted,
     fontSize: 11,
     fontWeight: "900",
@@ -11026,14 +11060,14 @@ const styles = StyleSheet.create({
   chatItemActive: {
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)",
-    backgroundColor: "rgba(32,20,30,0.94)"
+    backgroundColor: colors.cardTinted
   },
   threadPanel: {
     gap: 14,
     padding: 16,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: "rgba(24,24,31,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -11092,7 +11126,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   requestText: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 12,
     lineHeight: 18
   },
@@ -11106,7 +11140,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
     borderCurve: "continuous",
-    backgroundColor: "rgba(30,30,38,0.9)"
+    backgroundColor: colors.card
   },
   messageBubbleMine: {
     alignSelf: "flex-end",
@@ -11128,7 +11162,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(145,110,111,0.12)"
   },
@@ -11163,7 +11197,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 26,
     borderCurve: "continuous",
-    backgroundColor: "rgba(24,24,31,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)",
     boxShadow: "0 16px 34px rgba(99,51,61,0.08)"
@@ -11200,9 +11234,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 24,
     borderCurve: "continuous",
-    backgroundColor: "rgba(10,10,14,0.78)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   profileRoundIcon: {
     width: 44,
@@ -11210,9 +11244,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   profileTopTitle: {
     color: colors.ink,
@@ -11224,10 +11258,10 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 16,
     borderRadius: 30,
-    backgroundColor: "rgba(18,18,25,0.92)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)",
-    boxShadow: "0 24px 60px rgba(0,0,0,0.42)"
+    boxShadow: `0 24px 60px ${colors.shadow}`
   },
   profileIdentityTop: {
     flexDirection: "row",
@@ -11251,7 +11285,7 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -11272,7 +11306,7 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -11288,7 +11322,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 2,
     borderColor: colors.primary,
-    backgroundColor: "#15151c",
+    backgroundColor: colors.surfaceStrong,
     boxShadow: "0 0 34px rgba(255,45,141,0.34)"
   },
   profileAvatarImage: {
@@ -11328,9 +11362,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: colors.fillStrong,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    borderColor: colors.fillStrong
   },
   profileProText: {
     color: colors.primary,
@@ -11363,7 +11397,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 22,
-    backgroundColor: "rgba(18,18,25,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -11448,9 +11482,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: colors.fill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)"
+    borderColor: colors.fillStrong
   },
   profileGrowthSecondaryText: {
     color: colors.primaryDeep,
@@ -11461,7 +11495,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 14,
     borderRadius: 28,
-    backgroundColor: "rgba(18,18,25,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
   },
@@ -11469,7 +11503,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 14,
     borderRadius: 28,
-    backgroundColor: "rgba(18,18,25,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.16)"
   },
@@ -11489,7 +11523,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.04)"
+    backgroundColor: colors.fill
   },
   profileSectionHeader: {
     flexDirection: "row",
@@ -11518,8 +11552,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 32,
     borderCurve: "continuous",
-    backgroundColor: "#15151c",
-    boxShadow: "0 26px 66px rgba(0,0,0,0.44)"
+    backgroundColor: colors.surfaceStrong,
+    boxShadow: `0 26px 66px ${colors.shadow}`
   },
   profileHeroImage: {
     width: "100%",
@@ -11546,7 +11580,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
     color: colors.ink,
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: colors.card,
     fontSize: 12,
     fontWeight: "900"
   },
@@ -11600,7 +11634,7 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 5,
     overflow: "hidden",
     borderRadius: 20,
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -11618,7 +11652,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 999,
-    backgroundColor: "rgba(12,10,14,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.16)"
   },
@@ -11641,7 +11675,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     color: colors.ink,
     textAlign: "center",
-    backgroundColor: "rgba(26,26,34,0.88)",
+    backgroundColor: colors.card,
     fontSize: 10,
     fontWeight: "900"
   },
@@ -11680,7 +11714,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 14,
     borderRadius: 28,
-    backgroundColor: "rgba(14,14,19,0.76)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.12)"
   },
@@ -11691,7 +11725,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   profileDescription: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 15,
     lineHeight: 23
   },
@@ -11745,7 +11779,7 @@ const styles = StyleSheet.create({
   },
   proFeatureText: {
     flex: 1,
-    color: "#f0d3dd",
+    color: colors.inkSoft,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "800"
@@ -11767,7 +11801,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 14,
     borderRadius: 24,
-    backgroundColor: "rgba(34,12,25,0.9)",
+    backgroundColor: colors.cardTinted,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -11779,7 +11813,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     color: colors.primaryDeep,
     textAlign: "center",
-    backgroundColor: "rgba(30,30,38,0.9)",
+    backgroundColor: colors.card,
     fontSize: 12,
     fontWeight: "900"
   },
@@ -11812,7 +11846,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
     borderRadius: 18,
-    backgroundColor: "rgba(24,24,31,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -11832,9 +11866,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)"
+    borderColor: colors.fill
   },
   socialIconBubble: {
     width: 36,
@@ -11857,7 +11891,7 @@ const styles = StyleSheet.create({
     gap: 11,
     paddingHorizontal: 12,
     borderRadius: 18,
-    backgroundColor: "rgba(22,22,29,0.82)",
+    backgroundColor: colors.card,
     borderWidth: 1
   },
   socialHandleIcon: {
@@ -11942,7 +11976,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 12,
     borderRadius: 18,
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -11966,7 +12000,7 @@ const styles = StyleSheet.create({
   },
   simpleInterestDivider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)"
+    backgroundColor: colors.fillStrong
   },
   simpleInterestMoreButton: {
     minHeight: 44,
@@ -12016,7 +12050,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 20,
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.14)"
   },
@@ -12076,7 +12110,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 13,
     borderRadius: 22,
-    backgroundColor: "rgba(22,22,29,0.9)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.18)"
   },
@@ -12156,9 +12190,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(22,22,29,0.86)",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)"
+    borderColor: colors.fill
   },
   settingLabel: {
     color: colors.ink,
@@ -12176,7 +12210,7 @@ const styles = StyleSheet.create({
     padding: 22,
     borderRadius: 30,
     borderCurve: "continuous",
-    backgroundColor: "rgba(26,26,34,0.88)",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,45,141,0.2)",
     boxShadow: "0 18px 42px rgba(99,51,61,0.1)"
@@ -12201,7 +12235,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0
   },
   safetyHeroText: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 14,
     lineHeight: 21
   },
@@ -12249,7 +12283,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   deleteText: {
-    color: "#d8b5c7",
+    color: colors.inkSoft,
     fontSize: 13,
     lineHeight: 19
   },
@@ -12272,7 +12306,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "rgba(0,0,0,0.78)"
+    backgroundColor: colors.scrim
   },
   matchCelebrationCard: {
     width: "100%",
@@ -12352,7 +12386,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)"
+    borderColor: colors.fillStrong
   },
   matchStarterHeading: {
     flexDirection: "row",
@@ -12419,20 +12453,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900"
   },
-  bottomNav: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 6,
-    minHeight: 68,
-    flexDirection: "row",
-    gap: 4,
-    padding: 7,
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,45,141,0.2)"
-  },
+  bottomNav: { position: "absolute", left: 14, right: 14, bottom: 6, minHeight: 64, flexDirection: "row", gap: 2, padding: 5, borderRadius: 28, overflow: "hidden", backgroundColor: colors.glassStrong, borderWidth: 1, borderColor: colors.glassBorder, boxShadow: colors.name === "light" ? "0 10px 28px rgba(150,60,120,0.14)" : "0 10px 28px rgba(0,0,0,0.45)" },
   navButton: {
     flex: 1,
     minWidth: 0,
@@ -12441,9 +12462,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 2
   },
-  navButtonActive: {
-    backgroundColor: "rgba(255,45,141,0.22)"
-  },
+  navButtonActive: { backgroundColor: colors.primarySoft },
   navIconWrap: {
     position: "relative",
     alignItems: "center",
@@ -12474,13 +12493,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900"
   },
-  navText: {
-    color: colors.muted,
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "900"
-  },
+  navText: { color: colors.inkSoft, fontSize: 10.5, lineHeight: 13, fontWeight: "600" },
   navTextActive: {
     color: colors.primary
   }
 });
+}
+
+const themedStyles = { dark: createStyles(palettes.dark), light: createStyles(palettes.light) };
+type AppStyles = ReturnType<typeof createStyles>;
+
+/** Current palette + matching StyleSheet (light/dark). */
+function useAppTheme(): { colors: Palette; styles: AppStyles; theme: ReturnType<typeof useThemeState> } {
+  const theme = useThemeState();
+  return { colors: theme.palette, styles: themedStyles[theme.name], theme };
+}

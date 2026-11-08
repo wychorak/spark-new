@@ -9,7 +9,7 @@
       "sparkconnect",
       "rc-c14d769c6c"
     ],
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.sparknew.connect",
