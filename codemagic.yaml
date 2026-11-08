@@ -61,7 +61,8 @@ workflows:
 
       - name: Configure code signing
         script: |
-          xcode-project use-profiles
+          # Restrict signing to the app; dependencies can contain example/test projects.
+          xcode-project use-profiles --project ios/Spark.xcodeproj
 
       - name: Build IPA
         script: |
