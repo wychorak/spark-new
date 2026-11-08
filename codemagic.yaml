@@ -19,7 +19,7 @@ workflows:
         bundle_identifier: com.sparknew.connect
 
     integrations:
-      app_store_connect: wychor appstoreconnectkey
+      app_store_connect: driviorelase
 
     scripts:
       - name: Install dependencies
