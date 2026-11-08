@@ -40,6 +40,27 @@ service cloud.firestore {
         && (intents.size() < 3 || (intents[0] != intents[2] && intents[1] != intents[2]));
     }
 
+    // Optional LGBT+ tag. Private settings live in users/{uid}.lgbt (owner only);
+    // the public copy lgbtTag exists only when the person shows it to everyone.
+    function validLgbtIdentityList(list) {
+      return list is list && list.size() <= 5
+        && (list.size() < 1 || list[0] in ['lgbt', 'gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
+        && (list.size() < 2 || list[1] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
+        && (list.size() < 3 || list[2] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
+        && (list.size() < 4 || list[3] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
+        && (list.size() < 5 || list[4] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam']);
+    }
+
+    function validLgbtField(data) {
+      return !('lgbt' in data) || data.lgbt == null || (
+        data.lgbt is map
+        && data.lgbt.keys().hasOnly(['member', 'identities', 'visibility'])
+        && data.lgbt.member is bool
+        && validLgbtIdentityList(data.lgbt.identities)
+        && data.lgbt.visibility in ['everyone', 'lgbt']
+      );
+    }
+
     function validIntentFields(data) {
       return (!('intents' in data) || validIntentList(data.intents))
         && (!('desiredIntents' in data) || validIntentList(data.desiredIntents));
@@ -273,8 +294,9 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'gender', 'intent', 'intents', 'desiredGendersByIntent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'activeEvents', 'activeEventIds', 'photoUrls', 'mainPhotoUrl',
-          'city', 'country', 'location', 'socials', 'isPro', 'isVerified', 'isTestProfile', 'moderationStatus', 'createdAt', 'updatedAt'
+          'city', 'country', 'location', 'socials', 'isPro', 'isVerified', 'isTestProfile', 'moderationStatus', 'lgbtTag', 'createdAt', 'updatedAt'
         ])
+        && (!('lgbtTag' in data) || (validLgbtIdentityList(data.lgbtTag) && data.lgbtTag.size() >= 1))
         && data.uid == uid
         && data.profileNameMode in ['realName', 'nickname']
         && data.firstName is string && data.firstName.size() <= 80
@@ -345,14 +367,16 @@ service cloud.firestore {
         && request.resource.data.get('superlikePeriod', 0) == 0
         && request.resource.data.get('superlikesUsed', 0) == 0
         && validIntentFields(request.resource.data)
-        && validGenderFields(request.resource.data);
+        && validGenderFields(request.resource.data)
+        && validLgbtField(request.resource.data);
       allow update: if isOwner(uid)
         && request.resource.data.uid == uid
         && resource.data.uid == uid
         && protectedProfileFieldsUnchanged()
         && validPremiumUsageUpdate()
         && validIntentFields(request.resource.data)
-        && validGenderFields(request.resource.data);
+        && validGenderFields(request.resource.data)
+        && validLgbtField(request.resource.data);
       allow delete: if isOwner(uid);
       allow read: if isOwner(uid);
 

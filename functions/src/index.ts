@@ -1000,3 +1000,45 @@ export const cleanupExpiredSparkEvents = onSchedule(
     }
   }
 );
+
+// ─── LGBT+ tag ─────────────────────────────────────────────────────────────
+// Sensitive and optional. A tag shown "only to LGBT+ people" never reaches
+// publicProfiles; members read it through this callable instead.
+const lgbtIdentities = new Set(["gej", "lesbijka", "bi", "pan", "queer", "trans", "niebinarna", "ace", "aro", "interseks", "szukam"]);
+
+function lgbtState(value: unknown) {
+  const data = (value ?? {}) as Record<string, unknown>;
+  const member = data.member === true;
+  const identities = member && Array.isArray(data.identities)
+    ? Array.from(new Set(data.identities.filter((item): item is string => typeof item === "string" && lgbtIdentities.has(item)))).slice(0, 5)
+    : [];
+  return { member, identities, visibility: data.visibility === "everyone" ? "everyone" : "lgbt" };
+}
+
+export const getLgbtCommunityTags = onCall(
+  { region, timeoutSeconds: 20 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Zaloguj się ponownie.");
+    const requested = request.data?.uids;
+    if (!Array.isArray(requested) || requested.length > 40 || requested.some((value) => typeof value !== "string" || !value || value.length > 128 || value.includes("/"))) {
+      throw new HttpsError("invalid-argument", "Nieprawidłowa lista profili.");
+    }
+    const viewer = await db.collection("users").doc(uid).get();
+    if (!lgbtState(viewer.get("lgbt")).member || viewer.get("moderationStatus") === "suspended") return { tags: {} };
+    const uids = Array.from(new Set(requested as string[])).filter((value) => value !== uid);
+    if (uids.length === 0) return { tags: {} };
+    const [profiles, blocksByMe] = await Promise.all([
+      db.getAll(...uids.map((value) => db.collection("users").doc(value))),
+      db.collection("users").doc(uid).collection("blocks").get()
+    ]);
+    const blocked = new Set(blocksByMe.docs.map((block) => block.id));
+    const tags: Record<string, string[]> = {};
+    for (const profile of profiles) {
+      if (!profile.exists || blocked.has(profile.id) || profile.get("moderationStatus") === "suspended") continue;
+      const state = lgbtState(profile.get("lgbt"));
+      if (state.member) tags[profile.id] = state.identities.length ? state.identities : ["lgbt"];
+    }
+    return { tags };
+  }
+);

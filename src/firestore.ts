@@ -27,7 +27,12 @@ import { defaultNotificationPreferences, normalizeNotificationPreferences, type 
 
 export type ProfileVerificationStatus = "none" | "pending" | "verified";
 
+/** Optional LGBT+ tag (private settings; the public copy is lgbtTag). */
+export type LgbtSettings = { member: boolean; identities: string[]; visibility: "everyone" | "lgbt" };
+
 export type UserProfileDocument = {
+  lgbt?: LgbtSettings | null;
+  lgbtOnly?: boolean;
   uid: string;
   firstName: string;
   lastName: string;
@@ -322,6 +327,10 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     isTestProfile: existingData.isTestProfile === true,
     isVerified: existingData.isVerified === true,
     moderationStatus: existingData.moderationStatus === "suspended" ? "suspended" : "active",
+    // Shown on the card only when the person chose "everyone".
+    ...(profile.lgbt?.member === true && profile.lgbt.visibility === "everyone"
+      ? { lgbtTag: profile.lgbt.identities.length ? profile.lgbt.identities.slice(0, 5) : ["lgbt"] }
+      : {}),
     createdAt: existingPublic.exists() ? existingData.createdAt : serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -355,6 +364,7 @@ export type DiscoveryPreferencesDocument = {
   requireCommonInterests: boolean;
   proOnly: boolean;
   includeProfilesWithoutLocation: boolean;
+  lgbtOnly: boolean;
 };
 
 export async function loadNotificationPreferences(uid: string) {
@@ -1147,4 +1157,26 @@ export async function unblockUser(blockerUid: string, blockedUid: string) {
     throw new Error("Nieprawidłowy profil do odblokowania.");
   }
   await deleteDoc(doc(requireDb(), "users", blockerUid, "blocks", blockedUid));
+}
+
+/** Saves the private LGBT+ setting and refreshes the public card. */
+export async function updateUserLgbt(uid: string, value: LgbtSettings) {
+  requireCurrentUserUid(uid);
+  const member = value.member === true;
+  const lgbt: LgbtSettings = {
+    member,
+    identities: member ? Array.from(new Set(value.identities)).slice(0, 5) : [],
+    visibility: member && value.visibility === "everyone" ? "everyone" : "lgbt"
+  };
+  await setDoc(doc(requireDb(), "users", uid), { lgbt, updatedAt: serverTimestamp() }, { merge: true });
+  await syncPublicUserProfile(uid);
+  return lgbt;
+}
+
+/** For LGBT+ members: tags others show only to LGBT+ people. */
+export async function getLgbtCommunityTags(uids: string[]) {
+  const unique = Array.from(new Set(uids)).slice(0, 40);
+  if (unique.length === 0) return {} as Record<string, string[]>;
+  const callable = httpsCallable<{ uids: string[] }, { tags: Record<string, string[]> }>(requireCloudFunctions(), "getLgbtCommunityTags");
+  return (await callable({ uids: unique })).data.tags ?? {};
 }

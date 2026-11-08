@@ -83,6 +83,9 @@ import {
   unblockUser,
   updateUserActiveEvents,
   updateUserDiscoveryPreferences,
+  updateUserLgbt,
+  getLgbtCommunityTags,
+  type LgbtSettings,
   upsertUserProfile,
   upsertUserPrivateSettings,
   type DiscoveryCursor,
@@ -113,6 +116,7 @@ import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, re
 import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
+import { LgbtSettingsPanel } from "./src/LgbtSettings";
 import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
   defaultSparkReleaseConfig,
@@ -393,8 +397,8 @@ function genderPreferenceMatches(profile: MatchProfile, viewerGender: ProfileGen
   });
 }
 
-type DiscoverFilters = { proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; targetIntents: SparkIntent[]; targetGendersByIntent: GenderPreferencesByIntent; maxDistanceKm: number; ageMin: number; ageMax: number };
-const createDefaultDiscoverFilters = (): DiscoverFilters => ({ proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], targetIntents: [], targetGendersByIntent: createDefaultGenderPreferences(), maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
+type DiscoverFilters = { lgbtOnly: boolean; proOnly: boolean; requireCommonInterests: boolean; includeProfilesWithoutLocation: boolean; targetInterests: string[]; targetIntents: SparkIntent[]; targetGendersByIntent: GenderPreferencesByIntent; maxDistanceKm: number; ageMin: number; ageMax: number };
+const createDefaultDiscoverFilters = (): DiscoverFilters => ({ lgbtOnly: false, proOnly: false, requireCommonInterests: false, includeProfilesWithoutLocation: true, targetInterests: [], targetIntents: [], targetGendersByIntent: createDefaultGenderPreferences(), maxDistanceKm: 100, ageMin: 18, ageMax: 35 });
 type AuthMode = "login" | "register";
 type SwipeAction = "pass" | "like" | "superlike";
 type SwipeOutcome = "passed" | "liked" | "matched" | "cancelled";
@@ -436,6 +440,7 @@ type MatchProfile = {
   interests: string[];
   activeEvents?: SparkEvent[];
   sharedEvents?: SparkEvent[];
+  lgbtTag?: string[] | null;
   featuredInterests?: string[];
   socials: { label: string; value: string }[];
   premium?: boolean;
@@ -838,6 +843,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     socials,
     premium: item.isPro === true,
     verified: item.isVerified === true,
+    lgbtTag: Array.isArray(item.lgbtTag) ? item.lgbtTag.filter((value): value is string => typeof value === "string").slice(0, 5) : null,
     likedYou: item.likedYou === true,
     isTestProfile: item.isTestProfile === true,
     desiredAgeMin: typeof item.desiredAgeMin === "number" ? item.desiredAgeMin : 18,
@@ -1052,6 +1058,11 @@ function AppContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [onboarded, setOnboarded] = useState(false);
   const [intents, setIntents] = useState<SparkIntent[]>(["Randki"]);
+  const [lgbt, setLgbt] = useState<LgbtSettings | null>(null);
+  const [lgbtBusy, setLgbtBusy] = useState(false);
+  // Tags others show only to LGBT+ people (fetched for members only).
+  const [communityTags, setCommunityTags] = useState<Record<string, string[]>>({});
+  const communityTagsFetched = useRef(new Set<string>());
   const [ageBand, setAgeBand] = useState<AgeBand>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("discover");
@@ -1149,6 +1160,40 @@ function AppContent() {
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
     [remoteProfiles]
   );
+
+  useEffect(() => {
+    if (!appUser?.uid || lgbt?.member !== true) return;
+    const missing = availableProfiles.map((profile) => profile.id).filter((id): id is string => typeof id === "string" && !communityTagsFetched.current.has(id)).slice(0, 40);
+    if (missing.length === 0) return;
+    missing.forEach((id) => communityTagsFetched.current.add(id));
+    getLgbtCommunityTags(missing)
+      .then((tags) => setCommunityTags((current) => ({ ...current, ...tags })))
+      .catch(() => missing.forEach((id) => communityTagsFetched.current.delete(id)));
+  }, [appUser?.uid, lgbt?.member, availableProfiles]);
+
+  // After sign-out the next account never inherits this LGBT+ data.
+  useEffect(() => {
+    if (appUser?.uid) return;
+    setLgbt(null);
+    setCommunityTags({});
+    communityTagsFetched.current.clear();
+  }, [appUser?.uid]);
+
+  async function changeLgbt(value: LgbtSettings) {
+    if (!appUser || lgbtBusy) return;
+    const previous = lgbt;
+    setLgbt(value);
+    setLgbtBusy(true);
+    try {
+      setLgbt(await updateUserLgbt(appUser.uid, value));
+      if (!value.member) { setCommunityTags({}); communityTagsFetched.current.clear(); }
+    } catch {
+      setLgbt(previous);
+      Alert.alert("Tag LGBT+", "Nie udało się zapisać ustawienia. Spróbuj ponownie.");
+    } finally {
+      setLgbtBusy(false);
+    }
+  }
   const profileName = getProfileDisplayName(profileNameMode, nickname, firstName, lastName);
   function openPremium(source: PremiumEntrySource = "navigation") {
     setPremiumEntrySource(source);
@@ -1219,6 +1264,8 @@ function AppContent() {
                     : discoverFilters.maxDistanceKm
               );
         })
+        .map((profile) => (profile.lgbtTag || !profile.id || !communityTags[profile.id] ? profile : { ...profile, lgbtTag: communityTags[profile.id] }))
+        .filter((profile) => !discoverFilters.lgbtOnly || Boolean(profile.lgbtTag?.length))
         .filter((profile) => getProfileIntents(profile).some((profileIntent) => activeLensIntents.includes(profileIntent)))
         .filter((profile) => genderPreferenceMatches(profile, gender, discoverFilters.targetGendersByIntent, activeLensIntents))
         .filter((profile) => feedExpansionLevel > 0 || discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
@@ -1443,7 +1490,8 @@ function AppContent() {
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
-            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, targetGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent), requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly) }));
+            setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, targetGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent), requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly), lgbtOnly: profile.lgbtOnly === true }));
+            setLgbt(profile.lgbt ?? null);
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
             const currentEvents = sanitizeActiveEvents(storedEvents);
@@ -2299,7 +2347,8 @@ function AppContent() {
         desiredGendersByIntent: nextFilters.targetGendersByIntent,
         requireCommonInterests: nextFilters.requireCommonInterests,
         proOnly: nextFilters.proOnly,
-        includeProfilesWithoutLocation: nextFilters.includeProfilesWithoutLocation
+        includeProfilesWithoutLocation: nextFilters.includeProfilesWithoutLocation,
+        lgbtOnly: nextFilters.lgbtOnly
       });
       setDiscoverFilters(nextFilters);
       setFeedExpansionLevel(0);
@@ -3342,6 +3391,9 @@ function AppContent() {
             onSave={saveProfileToFirestore}
             onSignOut={confirmSignOut}
             onInvite={() => { void shareSparkInvite(); }}
+            lgbt={lgbt}
+            lgbtBusy={lgbtBusy}
+            onChangeLgbt={(value) => void changeLgbt(value)}
             verificationStatus={profileVerificationStatus}
           />
         )}
@@ -3777,7 +3829,7 @@ function IntentMultiSelect({ selected, onChange, compact = false }: { selected: 
 
   return (
     <View style={[styles.intentList, compact && styles.intentListCompact]}>
-      {sparkIntentOptions.map(({ label, displayLabel, icon, rainbow }) => {
+      {sparkIntentOptions.filter((option) => option.label !== "LGBT+ / Społeczność" || selected.includes(option.label)).map(({ label, displayLabel, icon, rainbow }) => {
         const active = selected.includes(label);
         const iconContent = <MaterialCommunityIcons name={active ? "check-bold" : icon} size={compact ? 21 : 25} color={rainbow ? "#fff" : colors.primaryDeep} />;
         return (
@@ -4383,6 +4435,7 @@ function toDeckCard(profile: MatchProfile, viewerInterests: string[]): DeckCardD
     chips: getFeaturedInterests(profile),
     verified: profile.verified === true,
     premium: profile.premium === true,
+    lgbt: profile.lgbtTag ?? null,
     meta: [sharedEvent || compatibility.score <= 0 ? null : `${compatibility.score}% · ${compatibility.detail}`, gender, profile.intent].filter(Boolean).join(" · "),
     highlight: activeEvent
       ? { icon: activeEvent.icon || "calendar-heart", label: `${sharedEvent ? "Razem na" : "Uczestniczy"}: ${activeEvent.name}` }
@@ -4422,6 +4475,7 @@ function countActiveDiscoverFilters(filters: DiscoverFilters) {
     filters.requireCommonInterests,
     !filters.includeProfilesWithoutLocation,
     filters.proOnly,
+    filters.lgbtOnly,
     (Object.keys(defaults.targetGendersByIntent) as IntentPreferenceKey[]).some((key) =>
       [...filters.targetGendersByIntent[key]].sort().join(",") !== [...defaults.targetGendersByIntent[key]].sort().join(",")
     )
@@ -4597,6 +4651,13 @@ function DiscoveryPreferencesModal({
               <View style={styles.discoveryFilterSectionHeader}>
                 <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="account-heart-outline" size={19} color={colors.primary} /></View>
                 <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Kogo pokazywać</Text><Text style={styles.discoveryFilterSectionHint}>Tryb Romantic / Friends / Event wybierasz przełącznikiem na górze Odkrywaj.</Text></View>
+              </View>
+              <View style={styles.settingRow}>
+                <View style={styles.fill}>
+                  <Text style={styles.discoveryFilterSectionTitle}>🏳️‍🌈 Tylko osoby LGBT+</Text>
+                  <Text style={styles.discoveryFilterSectionHint}>Pokazuje osoby z tagiem LGBT+. Tagi widoczne tylko dla społeczności zobaczysz po włączeniu własnego tagu w profilu.</Text>
+                </View>
+                <Switch value={draft.lgbtOnly} onValueChange={(lgbtOnly) => setDraft((current) => ({ ...current, lgbtOnly }))} trackColor={{ true: colors.primary }} />
               </View>
               <View style={{ marginTop: 4, gap: 7 }}>
                 <GenderPreferencesEditor compact intents={lensIntentsFor(lensFromIntents(draft.targetIntents, []))} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
@@ -7145,8 +7206,14 @@ function ProfileScreen({
   onSave,
   onSignOut,
   onInvite,
-  verificationStatus
+  verificationStatus,
+  lgbt,
+  lgbtBusy,
+  onChangeLgbt
 }: {
+  lgbt: LgbtSettings | null;
+  lgbtBusy: boolean;
+  onChangeLgbt: (value: LgbtSettings) => void;
   firstName: string;
   setFirstName: (value: string) => void;
   lastName: string;
@@ -7536,6 +7603,7 @@ function ProfileScreen({
           <MaterialCommunityIcons name="account-heart-outline" size={22} color={colors.primary} />
         </View>
         <IntentMultiSelect selected={intents} onChange={setIntents} />
+        <LgbtSettingsPanel value={lgbt} onChange={onChangeLgbt} busy={lgbtBusy} />
         <Text style={styles.fieldLabel}>Preferowane osoby w każdej kategorii</Text>
         <GenderPreferencesEditor intents={intents} value={discoverFilters.targetGendersByIntent} onChange={(targetGendersByIntent) => setDiscoverFilters((current) => ({ ...current, targetGendersByIntent }))} compact />
       </View>
