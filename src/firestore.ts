@@ -18,6 +18,20 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
+
+/** Discover mode a match started in (badge + chat filter). */
+export type MatchModeContext = "romantic" | "friends" | "event";
+const matchModeContexts: MatchModeContext[] = ["romantic", "friends", "event"];
+
+/** Optional catalog extras: where exactly and a few words about it. */
+export type EventDetails = { venue?: string; description?: string };
+
+function cleanEventDetails(value: unknown): EventDetails {
+  const source = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  const venue = typeof source.venue === "string" ? source.venue.replace(/\s+/g, " ").trim().slice(0, 120) : "";
+  const description = typeof source.description === "string" ? source.description.trim().slice(0, 500) : "";
+  return { ...(venue ? { venue } : {}), ...(description ? { description } : {}) };
+}
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
@@ -435,18 +449,21 @@ export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) 
 }
 
 export function observeSparkEvents(
-  onChange: (events: SparkEvent[]) => void,
+  onChange: (events: SparkEvent[], details: Record<string, EventDetails>) => void,
   onError: (error: Error) => void
 ) {
   const eventsQuery = query(collection(requireDb(), "sparkEvents"), orderBy("startsAt", "asc"), limit(50));
   return onSnapshot(
     eventsQuery,
-    (snapshot) => onChange(sanitizeActiveEvents(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))),
+    (snapshot) => onChange(
+      sanitizeActiveEvents(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))),
+      Object.fromEntries(snapshot.docs.map((item) => [item.id, cleanEventDetails(item.data())]))
+    ),
     (error) => onError(error)
   );
 }
 
-export async function publishSparkEvent(uid: string, eventInput: SparkEvent) {
+export async function publishSparkEvent(uid: string, eventInput: SparkEvent, details?: EventDetails) {
   requireCurrentUserUid(uid);
   const event = normalizeSparkEvent(eventInput);
   if (!event) throw new Error("Nieprawidłowe dane wydarzenia.");
@@ -457,6 +474,7 @@ export async function publishSparkEvent(uid: string, eventInput: SparkEvent) {
 
   await setDoc(doc(requireDb(), "sparkEvents", event.id), {
     ...event,
+    ...cleanEventDetails(details),
     createdByUid: uid,
     deleteAt: Timestamp.fromMillis(deleteAtMs),
     createdAt: serverTimestamp(),
@@ -886,10 +904,11 @@ export async function createPremiumChatRequest(params: {
   targetUid: string;
   introMessage: string;
   eventContext?: SparkEvent;
+  modeContext?: "romantic" | "friends";
 }) {
   requireCurrentUserUid();
   const callable = httpsCallable<
-    { targetUid: string; introMessage: string; eventId?: string },
+    { targetUid: string; introMessage: string; eventId?: string; modeContext?: "romantic" | "friends" },
     PremiumChatRequestResponse
   >(requireCloudFunctions(), "createPremiumChatRequest");
 
@@ -897,7 +916,8 @@ export async function createPremiumChatRequest(params: {
     const response = await callable({
       targetUid: params.targetUid,
       introMessage: params.introMessage.trim(),
-      eventId: params.eventContext?.id
+      eventId: params.eventContext?.id,
+      modeContext: params.modeContext
     });
     return response.data;
   } catch (error) {
@@ -912,6 +932,7 @@ export async function createMatchThread(params: {
   source: "mutual-like" | "premium-request" | "superlike";
   introMessage?: string;
   eventContext?: SparkEvent;
+  modeContext?: MatchModeContext | null;
   resetAtMs?: number;
 }) {
   const currentUid = requireCurrentUserUid(params.createdByUid);
@@ -960,6 +981,7 @@ export async function createMatchThread(params: {
       source: params.source,
       introMessage: params.introMessage?.trim() ?? null,
       eventContext: params.eventContext ? sanitizeActiveEvents([params.eventContext])[0] ?? null : null,
+      modeContext: params.eventContext ? "event" : params.modeContext ?? null,
       status: params.source === "premium-request" ? "requested" : "matched",
       resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
       createdAt: serverTimestamp(),
@@ -1014,6 +1036,7 @@ export type RealtimeChatThread = {
   status: "matched" | "requested";
   introMessage?: string;
   eventContext?: SparkEvent;
+  modeContext?: MatchModeContext;
   unreadCount: number;
   lastMessageText?: string;
   lastMessageAtMs?: number | null;
@@ -1037,6 +1060,7 @@ export function observeUserChats(uid: string, onChange: (threads: RealtimeChatTh
           status: data.status,
           introMessage: typeof data.introMessage === "string" ? data.introMessage : undefined,
           eventContext: normalizeSparkEvent(data.eventContext) ?? undefined,
+          modeContext: matchModeContexts.includes(data.modeContext) ? data.modeContext : undefined,
           unreadCount: Math.max(0, Math.min(999, Number(data.unreadCountByUid?.[uid] ?? 0) || 0)),
           lastMessageText: typeof data.lastMessageText === "string" ? data.lastMessageText : undefined,
           lastMessageAtMs: typeof data.lastMessageAt?.toMillis === "function" ? data.lastMessageAt.toMillis() : null,
@@ -1122,10 +1146,10 @@ export async function cancelProfileLike(targetUid: string) {
   }
 }
 
-export async function sendSparkLike(params: { targetUid: string; matchScore?: number; eventId?: string }) {
+export async function sendSparkLike(params: { targetUid: string; matchScore?: number; eventId?: string; modeContext?: "romantic" | "friends" }) {
   const uid = requireCurrentUserUid();
   const callable = httpsCallable<
-    { targetUid: string; matchScore?: number; eventId?: string },
+    { targetUid: string; matchScore?: number; eventId?: string; modeContext?: "romantic" | "friends" },
     { status: "matched"; threadId: string; superlikesRemaining: number }
   >(requireCloudFunctions(), "sendSparkLike");
   try {
@@ -1179,4 +1203,101 @@ export async function getLgbtCommunityTags(uids: string[]) {
   if (unique.length === 0) return {} as Record<string, string[]>;
   const callable = httpsCallable<{ uids: string[] }, { tags: Record<string, string[]> }>(requireCloudFunctions(), "getLgbtCommunityTags");
   return (await callable({ uids: unique })).data.tags ?? {};
+}
+
+// ─── Event proposals ───────────────────────────────────────────────────────
+// Anyone can suggest an event (three slots per person); the owner of Spark
+// approves, edits or rejects it. Approval publishes a normal sparkEvents doc.
+export type EventProposalStatus = "pending" | "approved" | "rejected";
+export type EventProposal = {
+  id: string;
+  createdByUid: string;
+  status: EventProposalStatus;
+  event: SparkEvent;
+  details: EventDetails;
+  createdAtMs: number | null;
+  reviewedAtMs: number | null;
+};
+
+function toMillis(value: unknown) {
+  return value && typeof (value as Timestamp).toMillis === "function" ? (value as Timestamp).toMillis() : null;
+}
+
+function mapEventProposal(id: string, data: DocumentData | undefined): EventProposal | null {
+  if (!data) return null;
+  const event = normalizeSparkEvent(data.event);
+  const status = data.status === "approved" || data.status === "rejected" ? data.status : data.status === "pending" ? "pending" : null;
+  if (!event || !status || typeof data.createdByUid !== "string") return null;
+  return { id, createdByUid: data.createdByUid, status, event, details: cleanEventDetails(data.details), createdAtMs: toMillis(data.createdAt), reviewedAtMs: toMillis(data.reviewedAt) };
+}
+
+function proposalSlots(uid: string) {
+  return [0, 1, 2].map((index) => doc(requireDb(), "eventProposals", uid + "_" + index));
+}
+
+export async function listMyEventProposals(uid: string) {
+  requireCurrentUserUid(uid);
+  const snapshots = await Promise.all(proposalSlots(uid).map((ref) => getDoc(ref)));
+  return snapshots
+    .map((snapshot) => (snapshot.exists() ? mapEventProposal(snapshot.id, snapshot.data()) : null))
+    .filter((item): item is EventProposal => item !== null)
+    .sort((left, right) => (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0));
+}
+
+export async function submitEventProposal(uid: string, eventInput: SparkEvent, details?: EventDetails) {
+  requireCurrentUserUid(uid);
+  const event = normalizeSparkEvent(eventInput);
+  if (!event) throw new Error("Nieprawidłowe dane wydarzenia.");
+  const slots = proposalSlots(uid);
+  const snapshots = await Promise.all(slots.map((ref) => getDoc(ref)));
+  let index = snapshots.findIndex((snapshot) => !snapshot.exists());
+  if (index < 0) {
+    // Reuse the oldest reviewed slot; three pending ones are the limit.
+    const reviewed = snapshots
+      .map((snapshot, slot) => ({ slot, data: snapshot.data() }))
+      .filter((item) => item.data?.status !== "pending")
+      .sort((left, right) => (toMillis(left.data?.createdAt) ?? 0) - (toMillis(right.data?.createdAt) ?? 0));
+    if (reviewed.length === 0) throw new Error("Masz już 3 zgłoszenia czekające na akceptację. Poczekaj na decyzję.");
+    index = reviewed[0].slot;
+    await deleteDoc(slots[index]);
+  }
+  const cleanDetails = cleanEventDetails(details);
+  await setDoc(slots[index], {
+    event,
+    ...(Object.keys(cleanDetails).length ? { details: cleanDetails } : {}),
+    createdByUid: uid,
+    status: "pending",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return slots[index].id;
+}
+
+export async function withdrawEventProposal(proposalId: string) {
+  requireCurrentUserUid();
+  await deleteDoc(doc(requireDb(), "eventProposals", proposalId));
+}
+
+/** Owner of Spark only (rules check the verified admin e-mail). */
+export async function listPendingEventProposals() {
+  requireCurrentUserUid();
+  const snapshot = await getDocs(query(collection(requireDb(), "eventProposals"), where("status", "==", "pending"), limit(50)));
+  return snapshot.docs
+    .map((item) => mapEventProposal(item.id, item.data()))
+    .filter((item): item is EventProposal => item !== null)
+    .sort((left, right) => (left.createdAtMs ?? 0) - (right.createdAtMs ?? 0));
+}
+
+export async function reviewEventProposal(proposalId: string, status: "approved" | "rejected", event?: SparkEvent, details?: EventDetails) {
+  requireCurrentUserUid();
+  const normalized = event ? normalizeSparkEvent(event) : null;
+  if (event && !normalized) throw new Error("Nieprawidłowe dane wydarzenia.");
+  const cleanDetails = details ? cleanEventDetails(details) : null;
+  await updateDoc(doc(requireDb(), "eventProposals", proposalId), {
+    status,
+    ...(normalized ? { event: normalized } : {}),
+    ...(cleanDetails ? { details: cleanDetails } : {}),
+    reviewedAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
 }

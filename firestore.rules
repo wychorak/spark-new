@@ -138,6 +138,14 @@ service cloud.firestore {
         && event.endsAt is string && event.endsAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$');
     }
 
+    // Optional extras shown in the catalog (never copied into profiles).
+    function validEventDetails(details) {
+      return details is map
+        && details.keys().hasOnly(['venue', 'description'])
+        && (!('venue' in details) || (details.venue is string && details.venue.size() <= 120 && allowedUserText(details.venue)))
+        && (!('description' in details) || (details.description is string && details.description.size() <= 500 && allowedUserText(details.description)));
+    }
+
     function validEvent(event) {
       return validEventFields(event)
         && event.keys().hasOnly(['id', 'category', 'name', 'city', 'date', 'kind', 'icon', 'startsAt', 'endsAt']);
@@ -163,7 +171,7 @@ service cloud.firestore {
     }
 
     function validMatch(data) {
-      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid', 'unreadCountByUid', 'readAtByUid', 'lastMessageAt', 'lastMessageSenderUid', 'lastMessageText'])
+      return data.keys().hasOnly(['memberUids', 'createdByUid', 'source', 'status', 'introMessage', 'eventContext', 'modeContext', 'resetAt', 'createdAt', 'updatedAt', 'acceptedByUid', 'rejectedByUid', 'blockedByUid', 'unreadCountByUid', 'readAtByUid', 'lastMessageAt', 'lastMessageSenderUid', 'lastMessageText'])
         && data.memberUids is list && data.memberUids.size() == 2
         && data.memberUids[0] != data.memberUids[1]
         && data.createdByUid is string && data.createdByUid in data.memberUids
@@ -178,6 +186,7 @@ service cloud.firestore {
         && (data.get('lastMessageText', null) == null || (data.lastMessageText is string && data.lastMessageText.size() <= 240 && allowedUserText(data.lastMessageText)))
         && (data.get('resetAt', null) == null || data.resetAt is timestamp)
         && (data.get('eventContext', null) == null || validEvent(data.eventContext))
+        && (data.get('modeContext', null) == null || data.modeContext in ['romantic', 'friends', 'event'])
         && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500 && allowedUserText(data.introMessage)));
     }
 
@@ -463,9 +472,11 @@ service cloud.firestore {
       allow create: if isEventAdmin()
         && request.resource.data.keys().hasOnly([
           'id', 'category', 'name', 'city', 'date', 'kind', 'icon', 'startsAt', 'endsAt',
-          'createdByUid', 'deleteAt', 'createdAt', 'updatedAt'
+          'venue', 'description', 'createdByUid', 'deleteAt', 'createdAt', 'updatedAt'
         ])
         && validEventFields(request.resource.data)
+        && (!('venue' in request.resource.data) || validEventDetails({ 'venue': request.resource.data.venue }))
+        && (!('description' in request.resource.data) || validEventDetails({ 'description': request.resource.data.description }))
         && request.resource.data.id == eventId
         && request.resource.data.createdByUid == request.auth.uid
         && request.resource.data.deleteAt is timestamp
@@ -474,6 +485,29 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
       allow delete: if isEventAdmin();
       allow update: if false;
+    }
+
+    match /eventProposals/{proposalId} {
+      // get on an empty slot must work, so reads are keyed by slot id.
+      allow read: if signedIn() && (proposalId in [request.auth.uid + '_0', request.auth.uid + '_1', request.auth.uid + '_2'] || isEventAdmin());
+      allow create: if activeUser()
+        && proposalId in [request.auth.uid + '_0', request.auth.uid + '_1', request.auth.uid + '_2']
+        && request.resource.data.keys().hasOnly(['event', 'details', 'createdByUid', 'status', 'createdAt', 'updatedAt'])
+        && validEvent(request.resource.data.event)
+        && validEventDetails(request.resource.data.get('details', {}))
+        && allowedUserText(request.resource.data.event.name)
+        && allowedUserText(request.resource.data.event.city)
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isEventAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['event', 'details', 'status', 'updatedAt', 'reviewedAt'])
+        && request.resource.data.status in ['approved', 'rejected']
+        && validEvent(request.resource.data.event)
+        && validEventDetails(request.resource.data.get('details', {}))
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if signedIn() && (resource.data.createdByUid == request.auth.uid || isEventAdmin());
     }
 
     match /privateProfiles/{uid} {
@@ -532,6 +566,7 @@ service cloud.firestore {
         && request.resource.data.source == resource.data.source
         && request.resource.data.get('introMessage', null) == resource.data.get('introMessage', null)
         && request.resource.data.get('eventContext', null) == resource.data.get('eventContext', null)
+        && request.resource.data.get('modeContext', null) == resource.data.get('modeContext', null)
         && request.resource.data.get('resetAt', null) == resource.data.get('resetAt', null)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.get('unreadCountByUid', null) == resource.data.get('unreadCountByUid', null)

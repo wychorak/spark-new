@@ -69,6 +69,13 @@ import {
   observeSparkEvents,
   observeUserChats,
   publishSparkEvent,
+  listMyEventProposals,
+  listPendingEventProposals,
+  reviewEventProposal,
+  submitEventProposal,
+  withdrawEventProposal,
+  type EventDetails,
+  type EventProposal,
   recordCurrentUserProfileView,
   recordProfileSwipe,
   recordUserLogin,
@@ -97,6 +104,7 @@ import {
   formatEventDate,
   formatEventDateRange,
   getEventCategoryDefaultIcon,
+  formatEventDateTimeInput,
   getDefaultEventDateTimes,
   getSharedActiveEvents,
   isEventActive,
@@ -117,7 +125,7 @@ import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
 import { LgbtSettingsPanel } from "./src/LgbtSettings";
-import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
+import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeBadge, ModeFilter, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
   defaultSparkReleaseConfig,
   identifyTelemetryUser,
@@ -336,6 +344,23 @@ function getProfileIntents(profile: Pick<MatchProfile, "intents" | "intent">) {
   return normalizeSparkIntents(profile.intents, profile.intent);
 }
 
+/** Mode a match or like belongs to. Older matches have no modeContext, so
+ *  fall back to the shared event, then to both people's goals. */
+function relationMode(thread: Pick<ChatThread, "modeContext" | "eventContext"> | undefined, profile: Pick<MatchProfile, "intents" | "intent">, own: SparkIntent[]): DeckMode {
+  if (thread?.modeContext) return thread.modeContext;
+  if (thread?.eventContext) return "event";
+  return getProfileIntents(profile).includes("Randki") && (own.length === 0 || own.includes("Randki")) ? "romantic" : "friends";
+}
+
+function countByMode(modes: DeckMode[]): Record<DeckMode | "all", number> {
+  return {
+    all: modes.length,
+    romantic: modes.filter((mode) => mode === "romantic").length,
+    friends: modes.filter((mode) => mode === "friends").length,
+    event: modes.filter((mode) => mode === "event").length
+  };
+}
+
 type ProfileGender = "woman" | "man" | "nonbinary" | "unspecified";
 type DiscoverableGender = Exclude<ProfileGender, "unspecified">;
 type IntentPreferenceKey = "dating" | "friends" | "community";
@@ -419,6 +444,7 @@ type ChatThread = {
   lastMessageText?: string;
   lastMessageAtMs?: number | null;
   eventContext?: SparkEvent;
+  modeContext?: DeckMode;
   unreadCount?: number;
   messages: Array<{ id: string; from: "me" | "them"; text: string; time: string }>;
 };
@@ -1072,6 +1098,9 @@ function AppContent() {
   const [sparkEvents, setSparkEvents] = useState<SparkEvent[]>([]);
   const [sparkEventsLoading, setSparkEventsLoading] = useState(false);
   const [sparkEventsError, setSparkEventsError] = useState<string | null>(null);
+  const [sparkEventDetails, setSparkEventDetails] = useState<Record<string, EventDetails>>({});
+  const [eventProposals, setEventProposals] = useState<EventProposal[]>([]);
+  const [eventProposalsLoading, setEventProposalsLoading] = useState(false);
   const [eventProfiles, setEventProfiles] = useState<MatchProfile[]>([]);
   const [eventManagerOpen, setEventManagerOpen] = useState(false);
   const [eventProfilesLoading, setEventProfilesLoading] = useState(false);
@@ -1201,6 +1230,22 @@ function AppContent() {
   }
   const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
   const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
+
+  async function loadEventProposals() {
+    if (!appUser) return;
+    setEventProposalsLoading(true);
+    try {
+      setEventProposals(canManageSparkEvents ? await listPendingEventProposals() : await listMyEventProposals(appUser.uid));
+    } catch {
+      setEventProposals([]);
+    } finally {
+      setEventProposalsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (eventManagerOpen) void loadEventProposals();
+  }, [eventManagerOpen, appUser?.uid, canManageSparkEvents]);
 
   useEffect(() => {
     let mounted = true;
@@ -1747,8 +1792,9 @@ function AppContent() {
     setSparkEventsLoading(true);
     setSparkEventsError(null);
     const unsubscribe = observeSparkEvents(
-      (catalogEvents) => {
+      (catalogEvents, catalogDetails) => {
         setSparkEvents(catalogEvents);
+        setSparkEventDetails(catalogDetails);
         setSparkEventsLoading(false);
         setActiveEvents((current) => {
           const catalogIds = new Set(catalogEvents.map((event) => event.id));
@@ -1881,6 +1927,7 @@ function AppContent() {
           status: thread.status,
           introMessage: thread.introMessage,
           eventContext: thread.eventContext,
+          modeContext: thread.modeContext,
           unreadCount: thread.unreadCount,
           lastMessageText: thread.lastMessageText,
           lastMessageAtMs: thread.lastMessageAtMs,
@@ -2538,7 +2585,8 @@ function AppContent() {
         const result = await sendSparkLike({
           targetUid: targetKey,
           matchScore: targetProfile.matchScore,
-          eventId: eventContext?.id
+          eventId: eventContext?.id,
+          modeContext: discoverLens
         });
         setSuperlikesRemaining(result.superlikesRemaining);
       } catch (error) {
@@ -2598,6 +2646,7 @@ function AppContent() {
           createdByUid: appUser.uid,
           source: "mutual-like",
           eventContext,
+          modeContext: deckMode,
           resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
         });
       } catch {
@@ -2648,7 +2697,8 @@ function AppContent() {
         memberUids: [appUser.uid, profileKey],
         createdByUid: appUser.uid,
         source: "mutual-like",
-        eventContext
+        eventContext,
+        modeContext: relationMode(eventContext ? { eventContext } : undefined, profile, intents)
       });
 
       setIncomingLikeKinds((current) => {
@@ -2713,7 +2763,8 @@ function AppContent() {
       const requestResult = await createPremiumChatRequest({
         targetUid: activeProfileKey,
         introMessage,
-        eventContext
+        eventContext,
+        modeContext: discoverLens
       });
       if (requestResult.status === "matched") {
         setChatRequestKeys((keys) => keys.filter((key) => key !== activeProfileKey));
@@ -2892,7 +2943,8 @@ function AppContent() {
       const swipeResult = await sendSparkLike({
         targetUid: profileKey,
         matchScore: profile.matchScore,
-        eventId: eventContext?.id
+        eventId: eventContext?.id,
+        modeContext: relationMode(undefined, profile, intents) === "romantic" ? "romantic" : "friends"
       });
 
       if (typeof swipeResult.superlikesRemaining === "number") {
@@ -3302,6 +3354,7 @@ function AppContent() {
             chatThreads={chatThreads}
             hasPro={revenueCat.isPro}
             viewerInterests={selectedInterests}
+            viewerIntents={intents}
             onLikeIncomingProfile={likeIncomingProfile}
             onCancelPendingLike={cancelOutgoingLike}
             onSuperlikePendingProfile={superlikePendingProfile}
@@ -3326,6 +3379,7 @@ function AppContent() {
             onBlockProfile={blockProfile}
             onReportProfile={reportProfile}
             viewerInterests={selectedInterests}
+            viewerIntents={intents}
             showChatListAd={!revenueCat.isPro && adsReady}
           />
         )}
@@ -3414,10 +3468,57 @@ function AppContent() {
           if (saved && events.length > 0) setDiscoverMode("events");
           return saved;
         }}
-        onCreate={async (event) => {
+        eventDetails={sparkEventDetails}
+        proposals={eventProposals}
+        proposalsLoading={eventProposalsLoading}
+        onPropose={async (event, details) => {
+          if (!appUser) return false;
+          try {
+            await submitEventProposal(appUser.uid, event, details);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert("Zgłoszenie wysłane", "Dzięki! Sprawdzimy wydarzenie i damy Ci znać powiadomieniem.");
+            void loadEventProposals();
+            return true;
+          } catch (error) {
+            Alert.alert("Nie udało się wysłać", error instanceof Error ? error.message : "Spróbuj ponownie.");
+            return false;
+          }
+        }}
+        onReviewProposal={async (proposal, status, editedEvent, editedDetails) => {
           if (!appUser || !canManageSparkEvents) return false;
           try {
-            await publishSparkEvent(appUser.uid, event);
+            const event = editedEvent ?? proposal.event;
+            const details = editedDetails ?? proposal.details;
+            if (status === "approved") {
+              if (!isEventActive(event)) {
+                Alert.alert("Data wydarzenia", "To wydarzenie już się skończyło. Edytuj datę albo odrzuć zgłoszenie.");
+                return false;
+              }
+              if (!sparkEvents.some((item) => item.id === event.id)) await publishSparkEvent(appUser.uid, event, details);
+            }
+            await reviewEventProposal(proposal.id, status, editedEvent, editedDetails);
+            setEventProposals((current) => current.filter((item) => item.id !== proposal.id));
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            return true;
+          } catch (error) {
+            Alert.alert("Nie udało się zapisać decyzji", error instanceof Error ? error.message : "Spróbuj ponownie.");
+            return false;
+          }
+        }}
+        onWithdrawProposal={async (proposal) => {
+          try {
+            await withdrawEventProposal(proposal.id);
+            setEventProposals((current) => current.filter((item) => item.id !== proposal.id));
+            return true;
+          } catch {
+            Alert.alert("Nie udało się wycofać", "Sprawdź połączenie i spróbuj ponownie.");
+            return false;
+          }
+        }}
+        onCreate={async (event, details) => {
+          if (!appUser || !canManageSparkEvents) return false;
+          try {
+            await publishSparkEvent(appUser.uid, event, details);
             void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return true;
           } catch (error) {
@@ -5364,8 +5465,20 @@ function EventFriendsManagerModal({
   onClose,
   onSave,
   onCreate,
-  onDelete
+  onDelete,
+  eventDetails,
+  proposals,
+  proposalsLoading,
+  onPropose,
+  onReviewProposal,
+  onWithdrawProposal
 }: {
+  eventDetails: Record<string, EventDetails>;
+  proposals: EventProposal[];
+  proposalsLoading: boolean;
+  onPropose: (event: SparkEvent, details: EventDetails) => Promise<boolean>;
+  onReviewProposal: (proposal: EventProposal, status: "approved" | "rejected", event?: SparkEvent, details?: EventDetails) => Promise<boolean>;
+  onWithdrawProposal: (proposal: EventProposal) => Promise<boolean>;
   visible: boolean;
   events: SparkEvent[];
   availableEvents: SparkEvent[];
@@ -5376,7 +5489,7 @@ function EventFriendsManagerModal({
   catalogError: string | null;
   onClose: () => void;
   onSave: (events: SparkEvent[]) => Promise<boolean>;
-  onCreate: (event: SparkEvent) => Promise<boolean>;
+  onCreate: (event: SparkEvent, details: EventDetails) => Promise<boolean>;
   onDelete: (event: SparkEvent) => Promise<boolean>;
 }) {
   const { colors, styles } = useAppTheme();
@@ -5393,6 +5506,10 @@ function EventFriendsManagerModal({
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [venue, setVenue] = useState("");
+  const [description, setDescription] = useState("");
+  const [editingProposal, setEditingProposal] = useState<EventProposal | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
@@ -5462,8 +5579,25 @@ function EventFriendsManagerModal({
     footerButton: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.07)" },
     saveButton: { flex: 1.5, flexDirection: "row", gap: 8, backgroundColor: colors.primary },
     footerText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
-    saveText: { color: "#fff" }
+    saveText: { color: "#fff" },
+    description: { marginTop: 4, color: colors.inkSoft, fontSize: 11, lineHeight: 16, fontWeight: "600" },
+    textArea: { minHeight: 92, paddingTop: 13, textAlignVertical: "top" },
+    proposalList: { gap: 8 },
+    proposalRow: { gap: 10, padding: 13, borderRadius: 18, backgroundColor: colors.fill, borderWidth: 1, borderColor: colors.fillStrong },
+    proposalTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+    statusPill: { alignSelf: "flex-start", paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
+    statusText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.4 },
+    proposalActions: { flexDirection: "row", gap: 8 },
+    proposalButton: { flex: 1, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 13, backgroundColor: colors.fillStrong },
+    proposalButtonPrimary: { backgroundColor: colors.primary },
+    proposalButtonText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+    proposalButtonTextPrimary: { color: colors.onPrimary }
   });
+  const proposalStatus = {
+    pending: { label: "CZEKA NA AKCEPTACJĘ", color: colors.gold },
+    approved: { label: "ZAAKCEPTOWANE", color: colors.green },
+    rejected: { label: "ODRZUCONE", color: "#ff4d6d" }
+  } as const;
 
   useEffect(() => {
     if (!visible) return;
@@ -5478,6 +5612,10 @@ function EventFriendsManagerModal({
     setSaving(false);
     setCreating(false);
     setDeletingId(null);
+    setVenue("");
+    setDescription("");
+    setEditingProposal(null);
+    setReviewingId(null);
   }, [availableEvents, defaults.end, defaults.start, events, userCity, visible]);
 
   function revealEventDateInput() {
@@ -5498,7 +5636,7 @@ function EventFriendsManagerModal({
   }
 
   async function addCustomEvent() {
-    if (!canManage || creating) return;
+    if (creating) return;
     const startsAt = parseEventDateTimeInput(startsAtInput);
     const endsAt = parseEventDateTimeInput(endsAtInput);
     const event = startsAt && endsAt
@@ -5513,14 +5651,86 @@ function EventFriendsManagerModal({
       return;
     }
     setCreating(true);
-    const created = await onCreate(event);
+    const details: EventDetails = { venue, description };
+    const created = editingProposal
+      ? await onReviewProposal(editingProposal, "approved", event, details)
+      : canManage ? await onCreate(event, details) : await onPropose(event, details);
     setCreating(false);
     if (created) {
+      setEditingProposal(null);
+      setVenue("");
+      setDescription("");
       setName("");
       const nextDefaults = getDefaultEventDateTimes();
       setStartsAtInput(nextDefaults.start);
       setEndsAtInput(nextDefaults.end);
     }
+  }
+
+  function editProposal(proposal: EventProposal) {
+    setEditingProposal(proposal);
+    setCategory(proposal.event.category);
+    setSelectedIcon(proposal.event.icon);
+    setName(proposal.event.name);
+    setCity(proposal.event.city);
+    setStartsAtInput(formatEventDateTimeInput(proposal.event.startsAt));
+    setEndsAtInput(formatEventDateTimeInput(proposal.event.endsAt));
+    setVenue(proposal.details.venue ?? "");
+    setDescription(proposal.details.description ?? "");
+    revealEventDateInput();
+  }
+
+  function cancelEditingProposal() {
+    const nextDefaults = getDefaultEventDateTimes();
+    setEditingProposal(null);
+    setName("");
+    setVenue("");
+    setDescription("");
+    setStartsAtInput(nextDefaults.start);
+    setEndsAtInput(nextDefaults.end);
+  }
+
+  function runProposalAction(proposal: EventProposal, action: () => Promise<boolean>) {
+    if (reviewingId) return;
+    setReviewingId(proposal.id);
+    void action().finally(() => setReviewingId(null));
+  }
+
+  function rejectProposal(proposal: EventProposal) {
+    Alert.alert("Odrzuć zgłoszenie", `Odrzucić „${proposal.event.name}”? Autor dostanie powiadomienie.`, [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Odrzuć", style: "destructive", onPress: () => runProposalAction(proposal, () => onReviewProposal(proposal, "rejected")) }
+    ]);
+  }
+
+  function renderProposal(proposal: EventProposal) {
+    const status = proposalStatus[proposal.status];
+    const busy = reviewingId === proposal.id;
+    const meta = eventCategories.find((item) => item.id === proposal.event.category);
+    return (
+      <View key={proposal.id} style={local.proposalRow}>
+        <View style={local.proposalTop}>
+          <View style={local.activeIcon}><MaterialCommunityIcons name={proposal.event.icon as any} size={21} color={colors.primary} /></View>
+          <View style={styles.fill}>
+            <Text style={local.activeTitle} numberOfLines={2}>{proposal.event.name}</Text>
+            <Text style={local.meta} numberOfLines={1}>{proposal.details.venue ? proposal.details.venue + " · " : ""}{proposal.event.city} · {meta?.label ?? "Wydarzenie"}</Text>
+            <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(proposal.event)}</Text></View>
+          </View>
+          {busy && <ActivityIndicator color={colors.primary} />}
+        </View>
+        {proposal.details.description ? <Text style={local.description}>{proposal.details.description}</Text> : null}
+        {!canManage && <View style={[local.statusPill, { backgroundColor: status.color + "22" }]}><Text style={[local.statusText, { color: status.color }]}>{status.label}</Text></View>}
+        {canManage ? (
+          <View style={local.proposalActions}>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={() => rejectProposal(proposal)} style={local.proposalButton}><MaterialCommunityIcons name="close" size={16} color={colors.ink} /><Text style={local.proposalButtonText}>Odrzuć</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={() => editProposal(proposal)} style={local.proposalButton}><MaterialCommunityIcons name="pencil-outline" size={16} color={colors.ink} /><Text style={local.proposalButtonText}>Edytuj</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={() => runProposalAction(proposal, () => onReviewProposal(proposal, "approved"))} style={[local.proposalButton, local.proposalButtonPrimary]}><MaterialCommunityIcons name="check" size={16} color={colors.onPrimary} /><Text style={[local.proposalButtonText, local.proposalButtonTextPrimary]}>Zatwierdź</Text></Pressable>
+          </View>
+        ) : proposal.status === "pending" ? (
+          <Pressable accessibilityRole="button" disabled={busy} onPress={() => runProposalAction(proposal, () => onWithdrawProposal(proposal))} style={local.proposalButton}><MaterialCommunityIcons name="undo-variant" size={16} color={colors.ink} /><Text style={local.proposalButtonText}>Wycofaj zgłoszenie</Text></Pressable>
+        ) : null}
+      </View>
+    );
   }
 
   async function deleteCatalogEvent(event: SparkEvent) {
@@ -5583,7 +5793,8 @@ function EventFriendsManagerModal({
                     <View style={local.activeIcon}><MaterialCommunityIcons name={event.icon as any} size={21} color={selected ? colors.green : colors.primary} /></View>
                     <View style={styles.fill}>
                       <Text style={local.activeTitle} numberOfLines={2}>{event.name}</Text>
-                      <Text style={local.meta} numberOfLines={1}>{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
+                      <Text style={local.meta} numberOfLines={1}>{eventDetails[event.id]?.venue ? eventDetails[event.id]?.venue + " · " : ""}{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
+                      {eventDetails[event.id]?.description ? <Text style={local.description} numberOfLines={3}>{eventDetails[event.id]?.description}</Text> : null}
                       <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
                     </View>
                     {canManage && <Pressable accessibilityRole="button" accessibilityLabel={`Usuń wydarzenie ${event.name}`} onPress={(pressEvent) => { pressEvent.stopPropagation(); void deleteCatalogEvent(event); }} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
@@ -5594,11 +5805,22 @@ function EventFriendsManagerModal({
             </View>
           )}
           {catalogError && <View style={local.expiry}><MaterialCommunityIcons name="wifi-alert" size={18} color={colors.gold} /><Text style={local.expiryText}>{catalogError}</Text></View>}
-          {canManage && (
+          {(canManage ? proposals.length > 0 || proposalsLoading : proposals.length > 0) && (
+            <>
+              <Text style={local.sectionTitle}>{canManage ? `Zgłoszenia do akceptacji (${proposals.length})` : "Twoje zgłoszenia"}</Text>
+              {proposalsLoading && proposals.length === 0 ? <ActivityIndicator color={colors.primary} /> : <View style={local.proposalList}>{proposals.map(renderProposal)}</View>}
+            </>
+          )}
+          {(
             <View style={local.adminPanel}>
-              <View style={local.adminBadge}><MaterialCommunityIcons name="shield-crown-outline" size={15} color={colors.gold} /><Text style={local.adminBadgeText}>PANEL ORGANIZATORA</Text></View>
-              <Text style={local.sectionTitle}>Opublikuj wydarzenie</Text>
-              <Text style={local.intro}>Tylko Twoje konto może dodawać eventy. Wydarzenie oraz wybory użytkowników zostaną usunięte godzinę po jego zakończeniu.</Text>
+              {canManage && <View style={local.adminBadge}><MaterialCommunityIcons name="shield-crown-outline" size={15} color={colors.gold} /><Text style={local.adminBadgeText}>PANEL ORGANIZATORA</Text></View>}
+              <Text style={local.sectionTitle}>{editingProposal ? "Edytujesz zgłoszenie" : canManage ? "Opublikuj wydarzenie" : "Zgłoś wydarzenie"}</Text>
+              <Text style={local.intro}>{editingProposal
+                ? "Popraw dane i zatwierdź. Wydarzenie trafi od razu do katalogu, a autor dostanie powiadomienie."
+                : canManage
+                  ? "Tylko Twoje konto może publikować eventy. Wydarzenie oraz wybory użytkowników zostaną usunięte godzinę po jego zakończeniu."
+                  : "Znasz koncert, mecz albo wystawę? Wyślij zgłoszenie. Po akceptacji pojawi się w Event Friends, a my damy Ci znać powiadomieniem."}</Text>
+              {editingProposal && <Pressable accessibilityRole="button" onPress={cancelEditingProposal} style={local.proposalButton}><MaterialCommunityIcons name="close" size={16} color={colors.ink} /><Text style={local.proposalButtonText}>Przerwij edycję</Text></Pressable>}
               <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} onPress={() => { setCategory(item.id); setSelectedIcon(getEventCategoryDefaultIcon(item.id)); }} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
               <Text style={local.fieldLabel}>Ikona wydarzenia</Text>
               <View style={local.iconPicker}>
@@ -5625,11 +5847,15 @@ function EventFriendsManagerModal({
               <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Miasto</Text>
               <TextInput value={city} onChangeText={setCity} maxLength={80} placeholder="np. Gdynia" placeholderTextColor={colors.muted} style={local.input} />
+              <Text style={local.fieldLabel}>Miejsce (opcjonalnie)</Text>
+              <TextInput value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
+              <Text style={local.fieldLabel}>Opis (opcjonalnie)</Text>
+              <TextInput value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Kilka słów: kto gra, co się dzieje, dla kogo." placeholderTextColor={colors.muted} style={[local.input, local.textArea]} />
               <Text style={local.fieldLabel}>Start · RRRR-MM-DD GG:MM</Text>
               <TextInput value={startsAtInput} onChangeText={setStartsAtInput} onFocus={revealEventDateInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 18:00" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Koniec · RRRR-MM-DD GG:MM</Text>
               <TextInput value={endsAtInput} onChangeText={setEndsAtInput} onFocus={revealEventDateInput} maxLength={16} keyboardType="numbers-and-punctuation" placeholder="2026-07-20 21:00" placeholderTextColor={colors.muted} style={local.input} />
-              <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>Opublikuj wydarzenie</Text></Pressable>
+              <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>{editingProposal ? "Zatwierdź po zmianach" : canManage ? "Opublikuj wydarzenie" : "Wyślij zgłoszenie"}</Text></Pressable>
             </View>
           )}
         </ScrollView>
@@ -5893,6 +6119,7 @@ function MatchesScreen({
   chatThreads,
   hasPro,
   viewerInterests,
+  viewerIntents,
   onLikeIncomingProfile,
   onCancelPendingLike,
   onSuperlikePendingProfile,
@@ -5908,6 +6135,7 @@ function MatchesScreen({
   chatThreads: Record<string, ChatThread>;
   hasPro: boolean;
   viewerInterests: string[];
+  viewerIntents: SparkIntent[];
   onLikeIncomingProfile: (profileKey: string) => Promise<void>;
   onCancelPendingLike: (profileKey: string) => Promise<void>;
   onSuperlikePendingProfile: (profileKey: string) => Promise<void>;
@@ -5919,22 +6147,30 @@ function MatchesScreen({
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
   const [matchFilter, setMatchFilter] = useState<"all" | "active" | "likes" | "requests">("all");
   const [matchView, setMatchView] = useState<"list" | "grid">("list");
+  const [modeFilter, setModeFilter] = useState<DeckMode | "all">("all");
+  const modeOf = (profile: MatchProfile) => relationMode(chatThreads[getProfileKey(profile)], profile, viewerIntents);
+  const relatedProfiles = profiles.filter((profile) => {
+    const key = getProfileKey(profile);
+    return matchedProfileKeys.includes(key) || likedProfileKeys.includes(key) || chatRequestKeys.includes(key) || (hasPro && Boolean(incomingLikeKinds[key]));
+  });
+  const modeCounts = countByMode(relatedProfiles.map(modeOf));
+  const scopedProfiles = modeFilter === "all" ? profiles : profiles.filter((profile) => modeOf(profile) === modeFilter);
   const [collapsedMatchSections, setCollapsedMatchSections] = useState<Record<"active" | "incoming" | "likes" | "requests", boolean>>({ active: false, incoming: false, likes: false, requests: false });
   const sortNewest = (items: MatchProfile[]) => [...items].sort((left, right) =>
     (chatThreads[getProfileKey(right)]?.createdAtMs ?? right.updatedAtMs ?? 0) - (chatThreads[getProfileKey(left)]?.createdAtMs ?? left.updatedAtMs ?? 0) || left.name.localeCompare(right.name, "pl")
   );
-  const matchedProfiles = sortNewest(profiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile))));
-  const pendingLikes = sortNewest(profiles.filter((profile) => {
+  const matchedProfiles = sortNewest(scopedProfiles.filter((profile) => matchedProfileKeys.includes(getProfileKey(profile))));
+  const pendingLikes = sortNewest(scopedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
     return likedProfileKeys.includes(key) && !matchedProfileKeys.includes(key);
   }));
   const incomingLikes = hasPro
-    ? sortNewest(profiles.filter((profile) => {
+    ? sortNewest(scopedProfiles.filter((profile) => {
         const key = getProfileKey(profile);
         return Boolean(incomingLikeKinds[key]) && !matchedProfileKeys.includes(key);
       }))
     : [];
-  const pendingRequests = sortNewest(profiles.filter((profile) => {
+  const pendingRequests = sortNewest(scopedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
     return chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
   }));
@@ -5970,6 +6206,8 @@ function MatchesScreen({
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{incomingLikes.length + pendingLikes.length}</Text><Text style={styles.matchOverviewLabel}>polubienia</Text></View>
         <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prośby</Text></View>
       </View>
+
+      {relatedProfiles.length > 0 && <ModeFilter value={modeFilter} onChange={setModeFilter} counts={modeCounts} />}
 
       <View style={styles.matchToolbar}>
         <View style={styles.matchFilterRow}>
@@ -6022,6 +6260,7 @@ function MatchesScreen({
                 <View style={styles.matchCardCopy}>
                   <Text style={styles.matchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text>
                   <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie już pisać</Text>
+                  <ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -6053,7 +6292,7 @@ function MatchesScreen({
                 <Pressable key={profileKey} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
                   <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                   <View style={styles.fill}>
-                    <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                    <Text style={styles.pendingMatchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text><ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
                     <Text style={styles.pendingMatchText} selectable>{isSuperlike ? "Wysłał(a) Ci SparkLike" : "Polubił(a) Twój profil"}</Text>
                   </View>
                   <Pressable
@@ -6084,7 +6323,7 @@ function MatchesScreen({
               <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
                 <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                 <View style={styles.fill}>
-                  <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                  <Text style={styles.pendingMatchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text><ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
                   <Text style={styles.pendingMatchText} selectable>Wyślij SparkLike, aby od razu utworzyć match</Text>
                 </View>
                 <Pressable
@@ -6131,7 +6370,7 @@ function MatchesScreen({
                 <Pressable key={profileKey} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
                   <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
                   <View style={styles.fill}>
-                    <Text style={styles.pendingMatchName} selectable>{profile.name}, {profile.age}</Text>
+                    <Text style={styles.pendingMatchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text><ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
                     <Text style={styles.pendingMatchText} selectable>{isIncoming ? "Nowa prośba czeka na Twoją decyzję" : "Prośba wysłana, czeka na akceptację"}</Text>
                   </View>
                   {isIncoming ? (
@@ -6189,6 +6428,7 @@ function MessagesScreen({
   onBlockProfile,
   onReportProfile,
   viewerInterests,
+  viewerIntents,
   showChatListAd
 }: {
   profiles: MatchProfile[];
@@ -6205,11 +6445,13 @@ function MessagesScreen({
   onBlockProfile: (profileKey: string) => void;
   onReportProfile: (profileKey: string) => void;
   viewerInterests: string[];
+  viewerIntents: SparkIntent[];
   showChatListAd: boolean;
 }) {
   const { colors, styles } = useAppTheme();
   const [messageView, setMessageView] = useState<"chats" | "requests">("chats");
   const [searchQuery, setSearchQuery] = useState("");
+  const [modeFilter, setModeFilter] = useState<DeckMode | "all">("all");
   const [profilePreview, setProfilePreview] = useState<MatchProfile | null>(null);
   const [profileReturnChatKey, setProfileReturnChatKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState(
@@ -6245,15 +6487,18 @@ function MessagesScreen({
           : latestMessageText ?? (isMatched ? "Match aktywny - mo\u017cecie pisa\u0107." : thread?.introMessage ?? "Pro\u015bba o chat czeka na akceptacj\u0119."),
         time: latestMessageTime ?? (isMatched ? "aktywny" : "oczekuje"),
         unreadCount,
+        mode: relationMode(thread, profile, viewerIntents),
+        eventTitle: thread?.eventContext?.name,
         status: (isBlocked ? "blocked" : isMatched ? "matched" : "requested") as ChatStatus
       };
-    }), [chatRequestKeys, chatThreads, matchedProfileKeys, profiles]);
+    }), [chatRequestKeys, chatThreads, matchedProfileKeys, profiles, viewerIntents]);
   const requestConversations = conversations.filter((conversation) => conversation.status === "requested");
   const chatConversations = conversations.filter((conversation) => conversation.status !== "requested");
   const unreadChatsCount = chatConversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
   const sourceConversations = messageView === "chats" ? chatConversations : requestConversations;
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const visibleConversations = sourceConversations.filter((conversation) =>
+  const modeCounts = countByMode(sourceConversations.map((conversation) => conversation.mode));
+  const visibleConversations = sourceConversations.filter((conversation) => (modeFilter === "all" || conversation.mode === modeFilter)) .filter((conversation) =>
     !normalizedQuery || conversation.name.toLowerCase().includes(normalizedQuery) || conversation.message.toLowerCase().includes(normalizedQuery)
   );
   const selectedConversation = conversations.find((conversation) => conversation.key === selectedChatKey) ?? null;
@@ -6321,6 +6566,7 @@ function MessagesScreen({
           </Pressable>
         )}
       </View>
+      {sourceConversations.length > 0 && <ModeFilter value={modeFilter} onChange={setModeFilter} counts={modeCounts} />}
       {visibleConversations.length === 0 ? (
         <View style={styles.emptyStateCard}>
           <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="message-outline" size={27} color={colors.primary} /></View>
@@ -6334,7 +6580,10 @@ function MessagesScreen({
               <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (conversation.unreadCount > 0 ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
                 <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
                 <View style={styles.fill}>
-                  <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} selectable>{conversation.name}</Text>
+                  <View style={styles.chatNameRow}>
+                    <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} numberOfLines={1} selectable>{conversation.name}</Text>
+                    <ModeBadge mode={conversation.mode} eventTitle={conversation.eventTitle} />
+                  </View>
                   <Text style={[styles.chatMessage, conversation.unreadCount > 0 && styles.chatMessageUnread]} numberOfLines={2} selectable>{conversation.message}</Text>
                 </View>
                 <View style={styles.chatMetaColumn}>
@@ -10964,6 +11213,7 @@ function createStyles(colors: Palette) {
     borderRadius: 17,
     borderCurve: "continuous"
   },
+  chatNameRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   pendingMatchName: {
     color: colors.ink,
     fontSize: 14,

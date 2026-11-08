@@ -386,6 +386,7 @@ export const sendSparkLike = onCall(
     const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
     const targetUid = stringValue(data.targetUid);
     const eventId = stringValue(data.eventId);
+    const requestedMode = ["romantic", "friends"].includes(stringValue(data.modeContext)) ? stringValue(data.modeContext) : null;
     validateTargetUid(uid, targetUid);
     if (!(await hasVerifiedPro(uid, request.auth?.token ?? {}))) {
       throw new HttpsError("permission-denied", "Spark Pro nie jest jeszcze aktywny po stronie serwera. Odśwież dostęp Pro i spróbuj ponownie za chwilę.");
@@ -490,6 +491,7 @@ export const sendSparkLike = onCall(
           createdByUid: uid,
           source: "superlike",
           eventContext,
+          modeContext: eventContext ? "event" : requestedMode,
           status: "matched",
           resetAt,
           createdAt: FieldValue.serverTimestamp(),
@@ -517,6 +519,7 @@ export const createPremiumChatRequest = onCall(
     const targetUid = stringValue(data.targetUid);
     const introMessage = stringValue(data.introMessage);
     const eventId = stringValue(data.eventId);
+    const requestedMode = ["romantic", "friends"].includes(stringValue(data.modeContext)) ? stringValue(data.modeContext) : null;
 
     if (!targetUid || targetUid.length > 128 || targetUid.includes("/") || targetUid === uid) {
       throw new HttpsError("invalid-argument", "Nieprawidłowy profil odbiorcy.");
@@ -597,6 +600,7 @@ export const createPremiumChatRequest = onCall(
         source: "premium-request",
         introMessage,
         eventContext,
+        modeContext: eventContext ? "event" : requestedMode,
         status: "requested",
         resetAt: targetProfileData.isTestProfile === true ? Timestamp.fromMillis(nowMs + 24 * 60 * 60 * 1000) : null,
         createdAt: FieldValue.serverTimestamp(),
@@ -1040,5 +1044,23 @@ export const getLgbtCommunityTags = onCall(
       if (state.member) tags[profile.id] = state.identities.length ? state.identities : ["lgbt"];
     }
     return { tags };
+  }
+);
+
+// ─── Event proposals ───────────────────────────────────────────────────────
+// Tell the author when the owner of Spark approves or rejects their event.
+export const notifyEventProposalReviewed = onDocumentUpdated(
+  { document: "eventProposals/{proposalId}", region },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after || before.status !== "pending" || !["approved", "rejected"].includes(after.status)) return;
+    if (!(await claimEvent(event.id))) return;
+    const author = stringValue(after.createdByUid);
+    if (!author) return;
+    const eventName = stringValue(after.event?.name) || "Twoje wydarzenie";
+    await sendPush(author, after.status === "approved"
+      ? { category: "events", title: "Wydarzenie zaakceptowane", body: "„" + eventName + "” jest już w Event Friends. Zaznacz, że idziesz, i poznaj ekipę.", data: { route: "eventFriends", eventId: stringValue(after.event?.id) } }
+      : { category: "events", title: "Zgłoszenie wydarzenia", body: "Nie dodaliśmy „" + eventName + "” do Event Friends. Możesz zgłosić je ponownie z poprawionymi danymi.", data: { route: "eventFriends" } });
   }
 );
