@@ -5032,105 +5032,93 @@ function ProfilePreviewSheet({
     void recordCurrentUserProfileView(profileKey).catch(() => undefined);
   }, [isOwnProfile, profile]);
 
+  const genderLabel = genderOptions.find((option) => option.value === profile.gender)?.label;
+  const facts = [genderLabel, locationLabel || "Lokalizacja ukryta", secondaryDistance, profile.heightCm ? profile.heightCm + " cm" : null].filter(Boolean).join(" · ");
+  const orderedInterests = [...visibleInterests].sort((left, right) => Number(sharedInterests.includes(right)) - Number(sharedInterests.includes(left)));
+  const hairline = StyleSheet.hairlineWidth;
+  const infoRows: Array<{ key: string; icon: string; tint?: string; label: string; sub?: string; value?: string; onPress?: () => void }> = [];
+  if (blocked) infoRows.push({ key: "blocked", icon: "account-cancel", tint: "#ff4d6d", label: "Profil zablokowany", sub: "Ta osoba nie widzi Twojego profilu i nie może do Ciebie pisać." });
+  if (activeEvent) infoRows.push({
+    key: "event",
+    icon: activeEvent.icon,
+    label: activeEvent.name,
+    sub: (sharedEvent ? "Wspólny plan · " : "Idzie na wydarzenie · ") + formatEventDateRange(activeEvent) + " · " + activeEvent.city,
+    value: sharedEvent && profile.sharedEvents && profile.sharedEvents.length > 1 ? "+" + (profile.sharedEvents.length - 1) : undefined
+  });
+  if (!isOwnProfile && !sharedEvent && hasInterestMatch && compatibility.score > 0) infoRows.push({
+    key: "match",
+    icon: "chart-donut",
+    label: "Zgodność",
+    sub: compatibility.label.charAt(0).toLocaleUpperCase("pl-PL") + compatibility.label.slice(1).toLocaleLowerCase("pl-PL"),
+    value: compatibility.score + "%",
+    onPress: () => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)
+  });
+  if (!isOwnProfile && !sharedEvent && primarySharedInterestInsight) infoRows.push({
+    key: "vibe",
+    icon: primarySharedInterestInsight.icon,
+    label: formatSharedInterestInsight(primarySharedInterestInsight),
+    sub: primarySharedInterestInsight.interests.length > 1 ? primarySharedInterestInsight.interests.join(" · ") : "Dobry temat na pierwszą wiadomość"
+  });
+
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
-    header: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 9, backgroundColor: colors.scrim, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-    headerTitle: { color: colors.ink, fontSize: 14, fontWeight: "900" },
-    headerButton: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-    content: { gap: 16, paddingHorizontal: 12 },
-    gallery: { position: "relative", alignSelf: "center", overflow: "hidden", borderRadius: 24, backgroundColor: colors.photoPlaceholder, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", boxShadow: `0 20px 52px ${colors.shadow}` },
-    photoCounter: { position: "absolute", top: 13, right: 13, minHeight: 30, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: colors.scrim },
-    photoCounterText: { color: "#fff", fontSize: 11, fontWeight: "900", fontVariant: ["tabular-nums"] },
-    dots: { position: "absolute", left: 0, right: 0, bottom: 14, flexDirection: "row", justifyContent: "center", gap: 6 },
-    dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.42)" },
-    dotActive: { width: 18, backgroundColor: colors.primary },
-    identity: { gap: 8, paddingHorizontal: 4 },
-    statusRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
-    statusBadge: { minHeight: 29, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(66,217,130,0.12)", borderWidth: 1, borderColor: "rgba(66,217,130,0.3)" },
-    statusBadgePro: { backgroundColor: "rgba(255,189,89,0.13)", borderColor: "rgba(255,189,89,0.34)" },
-    statusBadgeMatch: { backgroundColor: colors.primarySoft, borderColor: "rgba(255,45,141,0.25)" },
-    statusBadgeVerified: { backgroundColor: "rgba(72,187,255,0.13)", borderColor: "rgba(99,215,255,0.38)" },
-    statusTextVerified: { color: "#63d7ff" },
-    statusText: { color: colors.green, fontSize: 9, fontWeight: "900", textTransform: "uppercase" },
-    statusTextPro: { color: colors.gold },
-    statusTextMatch: { color: colors.primary },
-    title: { color: colors.ink, fontSize: compactScreen ? 24 : 27, lineHeight: compactScreen ? 29 : 33, fontWeight: "900" },
-    subtitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
-    subtitleText: { color: "#e4bdc3", fontSize: 12, lineHeight: 17, fontWeight: "800" },
-    eventPanel: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.11)", borderWidth: 1, borderColor: "rgba(255,45,141,0.28)" },
-    blockedPanel: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,77,109,0.1)", borderWidth: 1, borderColor: "rgba(255,77,109,0.3)" },
-    blockedIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,77,109,0.16)" },
-    blockedTitle: { color: "#ff8298", fontSize: 12, fontWeight: "900" },
-    blockedText: { marginTop: 2, color: colors.muted, fontSize: 10, lineHeight: 14, fontWeight: "700" },
-    eventIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-    eventEyebrow: { color: colors.primaryDeep, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
-    eventTitle: { marginTop: 2, color: colors.ink, fontSize: 13, fontWeight: "900" },
-    eventMeta: { marginTop: 2, color: colors.muted, fontSize: 10, fontWeight: "800" },
-    featuredPanel: { gap: 9, padding: 13, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.07)", borderWidth: 1, borderColor: "rgba(255,45,141,0.17)" },
-    featuredLabel: { color: colors.primaryDeep, fontSize: 9, letterSpacing: 0.6, fontWeight: "900" },
-    featuredRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-    featuredChip: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
-    featuredChipText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
-    affinityPanel: { gap: 10, padding: 13, borderRadius: 18, backgroundColor: "rgba(91,45,142,0.13)", borderWidth: 1, borderColor: "rgba(211,164,255,0.28)" },
-    affinityMain: { flexDirection: "row", alignItems: "center", gap: 11 },
-    affinityIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,45,141,0.14)", borderWidth: 1, borderColor: "rgba(255,154,200,0.22)" },
-    affinityEyebrow: { color: "#d9b8ff", fontSize: 9, letterSpacing: 0.7, fontWeight: "900" },
-    affinityTitle: { marginTop: 2, color: colors.ink, fontSize: 13, lineHeight: 17, fontWeight: "900" },
-    affinityMeta: { marginTop: 3, color: "#d9c2d4", fontSize: 10, lineHeight: 14, fontWeight: "700" },
-    affinityChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    affinityChip: { minHeight: 28, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(217,184,255,0.2)" },
-    affinityChipText: { color: "#eadcff", fontSize: 9, fontWeight: "900" },
-    metrics: { flexDirection: "row", gap: 7 },
-    metric: { flex: 1, minWidth: 0, minHeight: 76, gap: 4, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.075)" },
-    metricValue: { color: colors.primary, fontSize: 20, fontWeight: "900", fontVariant: ["tabular-nums"] },
-    metricValueCompact: { color: colors.ink, fontSize: 11, lineHeight: 14, textAlign: "center", fontWeight: "900" },
-    metricLabel: { color: colors.muted, fontSize: 9, lineHeight: 12, textAlign: "center", fontWeight: "800" },
-    section: { gap: 9, paddingHorizontal: 4 },
-    sectionTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
-    sectionHint: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
-    bio: { color: "#ecd8e1", fontSize: 14, lineHeight: 21, fontWeight: "600" },
-    bioToggle: { alignSelf: "flex-start", minHeight: 30, justifyContent: "center", paddingRight: 12 },
-    bioToggleText: { color: colors.primary, fontSize: 11, fontWeight: "900" },
-    interestGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    interestCard: { width: "48%", flexGrow: 1, minHeight: 46, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 11, borderRadius: 15, borderWidth: 1 },
-    interestIcon: { width: 27, height: 27, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-    interestText: { flex: 1, minWidth: 0, color: colors.ink, fontSize: 11, fontWeight: "900" },
-    moreInterests: { color: colors.muted, fontSize: 11, fontWeight: "800" },
-    socialList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    social: { width: "48%", flexGrow: 1, minHeight: 62, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1 },
-    socialIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    socialLabel: { color: colors.ink, fontSize: 11, fontWeight: "900" },
-    socialValue: { marginTop: 2, color: "#d8b5c7", fontSize: 10, fontWeight: "800" },
-    actions: { position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 92, flexDirection: "row", alignItems: "stretch", gap: 8, paddingHorizontal: 10, paddingTop: 9, backgroundColor: colors.scrim, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" },
-    actionSecondary: { flex: 1, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.055)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
-    actionPrimary: { flex: 1.25, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 5, borderRadius: 17, backgroundColor: colors.primary, boxShadow: "0 10px 28px rgba(255,45,141,0.3)" },
-    actionLabel: { color: colors.ink, fontSize: 10, lineHeight: 13, textAlign: "center", fontWeight: "900" },
-    actionLabelPrimary: { color: "#fff", fontSize: 11 },
-    actionMetaRow: { minHeight: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
-    actionMeta: { color: colors.muted, fontSize: 8, lineHeight: 10, textAlign: "center", fontWeight: "800" },
-    actionMetaPrimary: { color: "rgba(255,255,255,0.78)" }
+    close: { position: "absolute", left: 26, zIndex: 20, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.38)" },
+    content: { gap: 28, paddingHorizontal: 12 },
+    gallery: { alignSelf: "center", overflow: "hidden", borderRadius: 28, backgroundColor: colors.photoPlaceholder },
+    progress: { position: "absolute", left: 14, right: 14, bottom: 12, flexDirection: "row", gap: 4 },
+    progressBar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.38)" },
+    progressBarActive: { backgroundColor: "#fff" },
+    identity: { gap: 4, paddingHorizontal: 6, marginTop: -6 },
+    ownHint: { color: colors.primary, fontSize: 13, fontWeight: "600" },
+    nameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+    title: { flexShrink: 1, color: colors.ink, fontSize: compactScreen ? 28 : 32, lineHeight: compactScreen ? 34 : 39, fontWeight: "700", letterSpacing: -0.6 },
+    facts: { color: colors.muted, fontSize: 15, lineHeight: 21, fontWeight: "500" },
+    group: { borderRadius: 18, backgroundColor: colors.surfaceStrong, overflow: "hidden" },
+    row: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 11 },
+    rowIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+    rowLabel: { color: colors.ink, fontSize: 15, lineHeight: 20, fontWeight: "500" },
+    rowSub: { marginTop: 1, color: colors.muted, fontSize: 13, lineHeight: 17 },
+    rowValue: { color: colors.muted, fontSize: 15, fontWeight: "500", fontVariant: ["tabular-nums"] },
+    divider: { height: hairline, marginLeft: 56, backgroundColor: colors.line },
+    section: { gap: 10, paddingHorizontal: 6 },
+    sectionHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+    sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: "700", letterSpacing: -0.3 },
+    caption: { color: colors.muted, fontSize: 13, fontWeight: "500" },
+    bio: { color: colors.ink, fontSize: 16, lineHeight: 23, fontWeight: "400" },
+    more: { color: colors.primary, fontSize: 15, fontWeight: "600" },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: { flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingHorizontal: 13, borderRadius: 18, backgroundColor: colors.fill },
+    chipShared: { backgroundColor: colors.primarySoft },
+    chipText: { color: colors.ink, fontSize: 14, fontWeight: "500" },
+    chipTextShared: { color: colors.primary, fontWeight: "600" },
+    socialIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+    actions: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: hairline, borderTopColor: colors.line },
+    round: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", backgroundColor: colors.fillStrong },
+    roundBadge: { position: "absolute", top: -3, right: -3, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.ink },
+    roundBadgeText: { color: colors.background, fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] },
+    primary: { flex: 1, height: 54, borderRadius: 27, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary },
+    primaryText: { color: colors.onPrimary, fontSize: 17, fontWeight: "600" },
+    quiet: { flex: 1, height: 54, borderRadius: 27, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.fill },
+    quietText: { color: colors.inkSoft, fontSize: 16, fontWeight: "600" }
   });
+
+  const renderBadge = (locked: boolean, count?: number) => locked
+    ? <View style={local.roundBadge}><MaterialCommunityIcons name="lock" size={11} color={colors.background} /></View>
+    : typeof count === "number" ? <View style={local.roundBadge}><Text style={local.roundBadgeText}>{count}</Text></View> : null;
 
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
-      <LinearGradient colors={colors.backgroundGradient} style={local.root}>
+      <View style={local.root}>
         <StatusBar style={colors.statusBar} />
-        <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} style={local.headerButton}>
-            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
-          </Pressable>
-          <Text style={local.headerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.15}>{isOwnProfile ? "Podgląd Twojej karty" : displayName}</Text>
-          <View style={local.headerButton}>
-            <MaterialCommunityIcons name={isOwnProfile ? "eye" : profile.premium ? "crown" : "account-circle"} size={21} color={profile.premium ? colors.gold : colors.green} />
-          </View>
-        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} hitSlop={10} style={[local.close, { top: Math.max(insets.top, 10) + 18 }]}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color="#fff" />
+        </Pressable>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          bounces={false}
           contentContainerStyle={[
             local.content,
-            { paddingTop: Math.max(insets.top, 10) + 62, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile || readOnly ? 24 : 108) }
+            { paddingTop: Math.max(insets.top, 10) + 8, paddingBottom: Math.max(insets.bottom, 10) + (isOwnProfile || readOnly ? 24 : 96) }
           ]}
         >
           <View style={[local.gallery, { width: photoWidth }]}>
@@ -5142,223 +5130,115 @@ function ProfilePreviewSheet({
               onMomentumScrollEnd={(event) => setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / photoWidth))}
             >
               {photos.map((photo, index) => (
-                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: colors.photoPlaceholder }} contentFit="contain" transition={180} />
+                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: colors.photoPlaceholder }} contentFit="cover" transition={180} accessibilityLabel={"Zdjęcie " + (index + 1) + " z " + photos.length} />
               ))}
             </ScrollView>
-            <View style={local.photoCounter}>
-              <Text style={local.photoCounterText}>{photoIndex + 1}/{photos.length}</Text>
-            </View>
-            <View style={local.dots}>
-              {photos.map((_, index) => <View key={index} style={[local.dot, index === photoIndex && local.dotActive]} />)}
-            </View>
+            {photos.length > 1 && (
+              <View pointerEvents="none" style={local.progress}>
+                {photos.map((_, index) => <View key={index} style={[local.progressBar, index === photoIndex && local.progressBarActive]} />)}
+              </View>
+            )}
           </View>
 
           <View style={local.identity}>
-            {(profile.premium || profile.verified || (!isOwnProfile && hasInterestMatch && !sharedEvent)) && (
-              <View style={local.statusRow}>
-                {profile.premium && (
-                  <View style={[local.statusBadge, local.statusBadgePro]}>
-                    <MaterialCommunityIcons name="crown" size={12} color={colors.gold} />
-                    <Text style={[local.statusText, local.statusTextPro]}>Spark Pro</Text>
-                  </View>
-                )}
-                {profile.verified && (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} style={[local.statusBadge, local.statusBadgeVerified]}>
-                    <MaterialCommunityIcons name="check-decagram" size={13} color="#63d7ff" />
-                    <Text style={[local.statusText, local.statusTextVerified]}>Zweryfikowany</Text>
-                  </Pressable>
-                )}
-                {!isOwnProfile && hasInterestMatch && !sharedEvent && (
-                  <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[local.statusBadge, local.statusBadgeMatch, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}>
-                    <MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} />
-                    <Text style={[local.statusText, { color: compatibility.color }]}>{compatibility.score}% · {compatibility.label}</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
-            <Text
-              style={local.title}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.78}
-              maxFontSizeMultiplier={1.15}
-            >
-              {displayName}, {profile.age}
-            </Text>
-            <View style={local.subtitle}>
-              <MaterialCommunityIcons name={genderOptions.find((option) => option.value === profile.gender)?.icon ?? "account-question-outline"} size={16} color={colors.primary} />
-              <Text style={local.subtitleText}>{genderOptions.find((option) => option.value === profile.gender)?.label ?? "Nie podano"}</Text>
-              <Text style={local.subtitleText}>{"\u2022"}</Text>
-              <MaterialCommunityIcons name="map-marker" size={16} color={colors.primary} />
-              <Text style={local.subtitleText} maxFontSizeMultiplier={1.2}>{locationLabel || "Lokalizacja ukryta"}</Text>
-              {secondaryDistance && <Text style={local.subtitleText}>• {secondaryDistance}</Text>}
-              {profile.heightCm && <Text style={local.subtitleText}>• {profile.heightCm} cm</Text>}
+            {isOwnProfile && <Text style={local.ownHint}>Tak widzą Cię inni</Text>}
+            <View style={local.nameRow}>
+              <Text style={local.title} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78} maxFontSizeMultiplier={1.15}>{displayName}, {profile.age}</Text>
+              {profile.verified && (
+                <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} hitSlop={8}>
+                  <MaterialCommunityIcons name="check-decagram" size={22} color="#0a84ff" />
+                </Pressable>
+              )}
+              {profile.premium && <MaterialCommunityIcons accessibilityLabel="Spark Pro" name="crown" size={20} color={colors.gold} />}
             </View>
+            <Text style={local.facts} maxFontSizeMultiplier={1.2}>{facts}</Text>
           </View>
 
-          {blocked && (
-            <View style={local.blockedPanel}>
-              <View style={local.blockedIcon}><MaterialCommunityIcons name="account-cancel" size={20} color="#ff8298" /></View>
-              <View style={styles.fill}>
-                <Text style={local.blockedTitle}>Profil zablokowany</Text>
-                <Text style={local.blockedText}>Ta osoba nie może zobaczyć Twojego profilu ani wysyłać Ci wiadomości.</Text>
-              </View>
-              <MaterialCommunityIcons name="shield-check" size={20} color="#ff8298" />
-            </View>
-          )}
-          {activeEvent && (
-            <View style={local.eventPanel}>
-              <View style={local.eventIcon}><MaterialCommunityIcons name={activeEvent.icon as any} size={20} color="#fff" /></View>
-              <View style={styles.fill}>
-                <Text style={local.eventEyebrow}>{sharedEvent ? "WSPÓLNY PLAN" : "UCZESTNICZY W WYDARZENIU"}</Text>
-                <Text style={local.eventTitle} numberOfLines={2}>{activeEvent.name}</Text>
-                <Text style={local.eventMeta}>{formatEventDateRange(activeEvent)} · {activeEvent.city}</Text>
-              </View>
-              {sharedEvent && profile.sharedEvents && profile.sharedEvents.length > 1 && <Text style={local.eventMeta}>+{profile.sharedEvents.length - 1}</Text>}
-            </View>
-          )}
-
-          <View style={local.featuredPanel}>
-            <Text style={local.featuredLabel}>WYRÓŻNIONE ZAINTERESOWANIA</Text>
-            <View style={local.featuredRow}>
-              {featuredInterests.map((interest, index) => {
-                const theme = getInterestTheme(interest, index);
+          {infoRows.length > 0 && (
+            <View style={local.group}>
+              {infoRows.map((row, index) => {
+                const content = (
+                  <>
+                    <View style={[local.rowIcon, row.tint ? { backgroundColor: row.tint + "22" } : null]}>
+                      <MaterialCommunityIcons name={row.icon as any} size={17} color={row.tint ?? colors.primary} />
+                    </View>
+                    <View style={styles.fill}>
+                      <Text style={[local.rowLabel, row.tint ? { color: row.tint } : null]} numberOfLines={2}>{row.label}</Text>
+                      {row.sub ? <Text style={local.rowSub} numberOfLines={2}>{row.sub}</Text> : null}
+                    </View>
+                    {row.value ? <Text style={local.rowValue}>{row.value}</Text> : null}
+                    {row.onPress ? <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} /> : null}
+                  </>
+                );
                 return (
-                  <View key={interest} style={[local.featuredChip, { backgroundColor: theme.soft, borderColor: theme.border }]}>
-                    <MaterialCommunityIcons name="star-four-points" size={12} color={theme.active} />
-                    <Text style={local.featuredChipText} numberOfLines={1} maxFontSizeMultiplier={1.15}>{interest}</Text>
-                  </View>
+                  <React.Fragment key={row.key}>
+                    {index > 0 && <View style={local.divider} />}
+                    {row.onPress
+                      ? <Pressable accessibilityRole="button" onPress={row.onPress} style={({ pressed }) => [local.row, pressed && { backgroundColor: colors.fill }]}>{content}</Pressable>
+                      : <View style={local.row}>{content}</View>}
+                  </React.Fragment>
                 );
               })}
             </View>
-          </View>
+          )}
 
-          {!isOwnProfile && !sharedEvent && primarySharedInterestInsight && (
-            <View style={local.affinityPanel}>
-              <View style={local.affinityMain}>
-                <View style={local.affinityIcon}>
-                  <MaterialCommunityIcons name={primarySharedInterestInsight.icon as any} size={21} color="#ff9ac8" />
-                </View>
-                <View style={styles.fill}>
-                  <Text style={local.affinityEyebrow}>WSPÓLNY VIBE</Text>
-                  <Text style={local.affinityTitle}>{formatSharedInterestInsight(primarySharedInterestInsight)}</Text>
-                  <Text style={local.affinityMeta} numberOfLines={2}>
-                    {primarySharedInterestInsight.interests.length > 1 ? primarySharedInterestInsight.interests.join(" · ") : "Dobry temat na pierwszą wiadomość."}
-                  </Text>
-                </View>
-              </View>
-              {sharedInterestInsights.length > 1 && (
-                <View style={local.affinityChips}>
-                  {sharedInterestInsights.slice(1, 3).map((insight) => (
-                    <View key={insight.title} style={local.affinityChip}>
-                      <MaterialCommunityIcons name={insight.icon as any} size={12} color="#d9b8ff" />
-                      <Text style={local.affinityChipText}>{insight.title} · {insight.interests.length}</Text>
-                    </View>
-                  ))}
-                </View>
+          {profile.bio.trim().length > 0 && (
+            <View style={local.section}>
+              <Text style={local.sectionTitle}>O mnie</Text>
+              <Text style={local.bio} numberOfLines={bioExpanded ? undefined : 4} maxFontSizeMultiplier={1.2}>{profile.bio}</Text>
+              {bioNeedsToggle && (
+                <Pressable accessibilityRole="button" onPress={() => setBioExpanded((value) => !value)} hitSlop={8} style={{ alignSelf: "flex-start" }}>
+                  <Text style={local.more}>{bioExpanded ? "Mniej" : "Więcej"}</Text>
+                </Pressable>
               )}
             </View>
           )}
 
-          {!isOwnProfile && (
-            <View style={local.metrics}>
-              {sharedEvent ? (
-                <>
-                  <View style={local.metric}>
-                    <MaterialCommunityIcons name="calendar-heart" size={17} color={colors.gold} />
-                    <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{profile.sharedEvents?.length ?? 1}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne eventy</Text>
-                  </View>
-                  <View style={local.metric}>
-                    <MaterialCommunityIcons name="cake-variant" size={17} color={colors.gold} />
-                    <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{profile.age}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>lat</Text>
-                  </View>
-                  <View style={local.metric}>
-                    <MaterialCommunityIcons name={sharedEvent.icon as any} size={17} color={colors.gold} />
-                    <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{formatEventDate(sharedEvent)}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>kiedy</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Pressable accessibilityRole="button" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[local.metric, { borderColor: compatibility.border, backgroundColor: compatibility.background }]}>
-                    <MaterialCommunityIcons name={compatibility.icon} size={17} color={compatibility.color} />
-                    <Text style={[local.metricValue, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}%</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>zgodność</Text>
-                  </Pressable>
-                  <View style={local.metric}>
-                    <MaterialCommunityIcons name="account-heart" size={17} color={colors.primary} />
-                    <Text style={local.metricValue} maxFontSizeMultiplier={1.15}>{sharedInterests.length}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>wspólne zainteresowania</Text>
-                  </View>
-                  <View style={local.metric}>
-                    <MaterialCommunityIcons name="map-marker-distance" size={17} color={colors.primary} />
-                    <Text style={local.metricValueCompact} numberOfLines={2} maxFontSizeMultiplier={1.15}>{distanceFact}</Text>
-                    <Text style={local.metricLabel} maxFontSizeMultiplier={1.15}>odległość</Text>
-                  </View>
-                </>
+          {orderedInterests.length > 0 && (
+            <View style={local.section}>
+              <View style={local.sectionHeader}>
+                <Text style={local.sectionTitle}>Zainteresowania</Text>
+                <Text style={local.caption}>
+                  {isOwnProfile ? "Pierwsze trzy widać na karcie" : sharedInterests.length > 0 ? sharedInterests.length + " wspólne" : ""}
+                </Text>
+              </View>
+              <View style={local.chips}>
+                {orderedInterests.map((interest) => {
+                  const shared = !isOwnProfile && sharedInterests.includes(interest);
+                  return (
+                    <View key={interest} style={[local.chip, shared && local.chipShared]}>
+                      <MaterialCommunityIcons name={(shared ? "check" : getInterestIcon(interest, "tag-outline")) as any} size={15} color={shared ? colors.primary : colors.muted} />
+                      <Text style={[local.chipText, shared && local.chipTextShared]} numberOfLines={1} maxFontSizeMultiplier={1.15}>{interest}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+              {profile.interests.length > visibleInterests.length && (
+                <Text style={local.caption}>i {profile.interests.length - visibleInterests.length} więcej</Text>
               )}
             </View>
           )}
-
-          <View style={local.section}>
-            <Text style={local.sectionTitle}>O mnie</Text>
-            <Text style={local.bio} numberOfLines={bioExpanded ? undefined : 3} maxFontSizeMultiplier={1.2}>{profile.bio}</Text>
-            {bioNeedsToggle && (
-              <Pressable accessibilityRole="button" onPress={() => setBioExpanded((value) => !value)} style={local.bioToggle}>
-                <Text style={local.bioToggleText}>{bioExpanded ? "Pokaż mniej" : "Czytaj dalej"}</Text>
-              </Pressable>
-            )}
-          </View>
-
-          <View style={local.section}>
-            <Text style={local.sectionTitle}>Zainteresowania</Text>
-            <Text style={local.sectionHint}>{isOwnProfile ? "Pierwsze trzy są wyróżnione na karcie." : sharedEvent ? "W Event Friends zainteresowania opisują profil, ale nie wpływają na dobór." : "Wspólne zainteresowania mają mocniejsze obramowanie."}</Text>
-            <View style={local.interestGrid}>
-              {visibleInterests.map((interest, index) => {
-                const theme = getInterestTheme(interest, index);
-                const shared = sharedInterests.includes(interest);
-                return (
-                  <View
-                    key={interest}
-                    style={[
-                      local.interestCard,
-                      {
-                        backgroundColor: shared ? "rgba(255,45,141,0.14)" : theme.soft,
-                        borderColor: shared ? colors.primary : theme.border
-                      }
-                    ]}
-                  >
-                    <View style={[local.interestIcon, { backgroundColor: shared ? colors.primarySoft : theme.soft }]}>
-                      <MaterialCommunityIcons name={getInterestIcon(interest, "tag-heart") as any} size={15} color={shared ? colors.primary : theme.active} />
-                    </View>
-                    <Text style={local.interestText} numberOfLines={2} maxFontSizeMultiplier={1.15}>{interest}</Text>
-                  </View>
-                );
-              })}
-            </View>
-            {profile.interests.length > visibleInterests.length && (
-              <Text style={local.moreInterests}>+{profile.interests.length - visibleInterests.length} pozostałych zainteresowań</Text>
-            )}
-          </View>
 
           {profile.socials.length > 0 && (
             <View style={local.section}>
-              <Text style={local.sectionTitle}>Social media</Text>
-              <Text style={local.sectionHint}>Dane kontaktowe są chronione do momentu matcha.</Text>
-              <View style={local.socialList}>
-                {profile.socials.map((social) => {
+              <View style={local.sectionHeader}>
+                <Text style={local.sectionTitle}>Social media</Text>
+                {!canViewSocials && <Text style={local.caption}>Widoczne po matchu</Text>}
+              </View>
+              <View style={local.group}>
+                {profile.socials.map((social, index) => {
                   const socialTheme = getSocialIcon(social.label);
                   return (
-                    <View key={social.label} style={[local.social, { borderColor: socialTheme.backgroundColor }]}>
-                      <View style={[local.socialIcon, { backgroundColor: socialTheme.backgroundColor }]}><SocialIcon label={social.label} size={19} /></View>
-                      <View style={styles.fill}>
-                        <Text style={local.socialLabel}>{social.label}</Text>
-                        <Text style={local.socialValue}>{canViewSocials ? formatSocialHandle(social.value) : "Widoczne po matchu"}</Text>
+                    <React.Fragment key={social.label}>
+                      {index > 0 && <View style={local.divider} />}
+                      <View style={local.row}>
+                        <View style={[local.socialIcon, { backgroundColor: socialTheme.backgroundColor }]}><SocialIcon label={social.label} size={17} /></View>
+                        <Text style={[local.rowLabel, styles.fill]}>{social.label}</Text>
+                        {canViewSocials
+                          ? <Text style={local.rowValue} numberOfLines={1}>{formatSocialHandle(social.value)}</Text>
+                          : <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
                       </View>
-                      {!canViewSocials && <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
-                    </View>
+                    </React.Fragment>
                   );
                 })}
               </View>
@@ -5367,47 +5247,45 @@ function ProfilePreviewSheet({
         </ScrollView>
 
         {!isOwnProfile && !readOnly && (
-          <View style={[local.actions, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <GlassSurface style={[local.actions, { paddingBottom: Math.max(insets.bottom, 12) }]} intensity={60}>
             {isMatchedRelationship ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="Otw\u00f3rz chat" onPress={onMessage} style={[local.actionPrimary, { flex: 1 }]}>
-                <MaterialCommunityIcons name="message-text" size={22} color="#fff" />
-                <Text style={[local.actionLabel, local.actionLabelPrimary]}>Otwórz chat</Text>
-                <Text style={[local.actionMeta, local.actionMetaPrimary]}>Match aktywny</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Otwórz chat" onPress={onMessage} style={({ pressed }) => [local.primary, pressed && styles.controlPressed]}>
+                <MaterialCommunityIcons name="message-text" size={20} color={colors.onPrimary} />
+                <Text style={local.primaryText}>Otwórz chat</Text>
               </Pressable>
             ) : isRequestedRelationship ? (
-              <View style={[local.actionSecondary, { flex: 1 }]}>
-                <MaterialCommunityIcons name="clock-check-outline" size={21} color={colors.primary} />
-                <Text style={local.actionLabel}>Prośba wysłana</Text>
-                <Text style={local.actionMeta}>Czeka na akceptację</Text>
+              <View style={local.quiet}>
+                <MaterialCommunityIcons name="clock-outline" size={19} color={colors.inkSoft} />
+                <Text style={local.quietText}>Prośba wysłana</Text>
               </View>
             ) : (
               <>
-                <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij SPARKLIKE" onPress={onSuperlike} style={local.actionSecondary}>
-                  <MaterialCommunityIcons name="fire" size={20} color={colors.primary} />
-                  <Text style={local.actionLabel} numberOfLines={1} maxFontSizeMultiplier={1.1}>SPARKLIKE</Text>
-                  <View style={local.actionMetaRow}>
-                    {superlikeLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
-                    <Text style={local.actionMeta}>Pro {"\u2022"} {superlikesRemaining}/10</Text>
-                  </View>
+                <Pressable accessibilityRole="button" accessibilityLabel={"Wyślij SparkLike" + (superlikeLocked ? ", wymaga Spark Pro" : ", zostało " + superlikesRemaining)} onPress={onSuperlike} style={({ pressed }) => [local.round, pressed && styles.controlPressed]}>
+                  <MaterialCommunityIcons name="fire" size={24} color={colors.primary} />
+                  {renderBadge(superlikeLocked, superlikesRemaining)}
                 </Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel={isLikedRelationship ? "Profil polubiony" : "Polub profil"} disabled={isLikedRelationship} onPress={onLike} style={[local.actionPrimary, isLikedRelationship && { opacity: 0.6 }]}>
-                  <MaterialCommunityIcons name={isLikedRelationship ? "heart" : "heart-plus"} size={21} color="#fff" />
-                  <Text style={[local.actionLabel, local.actionLabelPrimary]} numberOfLines={1} maxFontSizeMultiplier={1.1}>{isLikedRelationship ? "Polubiono" : "Polub profil"}</Text>
-                  <Text style={[local.actionMeta, local.actionMetaPrimary]}>{isLikedRelationship ? "Czeka na wzajemno\u015b\u0107" : "Match po wzajemno\u015bci"}</Text>
-                </Pressable>
-                {onMessage && <Pressable accessibilityRole="button" accessibilityLabel="Napisz pierwsz\u0105 wiadomo\u015b\u0107" onPress={onMessage} style={local.actionSecondary}>
-                  <MaterialCommunityIcons name="message-plus" size={20} color={colors.primary} />
-                  <Text style={local.actionLabel} numberOfLines={2} maxFontSizeMultiplier={1.1}>Napisz pierwszą</Text>
-                  <View style={local.actionMetaRow}>
-                    {messageLocked && <MaterialCommunityIcons name="lock" size={9} color={colors.muted} />}
-                    <Text style={local.actionMeta}>{messageLocked ? "Spark Pro" : "Przed matchem"}</Text>
+                {isLikedRelationship ? (
+                  <View style={local.quiet}>
+                    <MaterialCommunityIcons name="heart" size={19} color={colors.primary} />
+                    <Text style={local.quietText}>Polubiono</Text>
                   </View>
-                </Pressable>}
+                ) : (
+                  <Pressable accessibilityRole="button" accessibilityLabel="Polub profil" onPress={onLike} style={({ pressed }) => [local.primary, pressed && styles.controlPressed]}>
+                    <MaterialCommunityIcons name="heart" size={20} color={colors.onPrimary} />
+                    <Text style={local.primaryText}>Polub</Text>
+                  </Pressable>
+                )}
+                {onMessage && (
+                  <Pressable accessibilityRole="button" accessibilityLabel={"Napisz pierwszą wiadomość" + (messageLocked ? ", wymaga Spark Pro" : "")} onPress={onMessage} style={({ pressed }) => [local.round, pressed && styles.controlPressed]}>
+                    <MaterialCommunityIcons name="message-outline" size={23} color={colors.ink} />
+                    {renderBadge(messageLocked)}
+                  </Pressable>
+                )}
               </>
             )}
-          </View>
+          </GlassSurface>
         )}
-      </LinearGradient>
+      </View>
     </Modal>
   );
 }
