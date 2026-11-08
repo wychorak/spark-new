@@ -113,7 +113,7 @@ import { getInitialSparkNotificationRoute, observeSparkNotificationResponses, re
 import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
-import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, type ActionItem, type DeckCardData } from "./src/discover/DiscoverParts";
+import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
   defaultSparkReleaseConfig,
   identifyTelemetryUser,
@@ -315,6 +315,17 @@ function normalizeSparkIntents(value: unknown, legacyIntent?: unknown): SparkInt
     .map((item) => repairLegacyText(item.trim()))
     .filter((item): item is SparkIntent => sparkIntentLabels.includes(item as SparkIntent));
   return Array.from(new Set(normalized)).slice(0, 3) as SparkIntent[];
+}
+
+/** People feed lens chosen with the big Romantic / Friends / Event switch. */
+type PeopleLens = "romantic" | "friends";
+function lensFromIntents(target: SparkIntent[], own: SparkIntent[]): PeopleLens {
+  if (target.includes("Randki") && !target.includes("Znajomi")) return "romantic";
+  if (target.includes("Znajomi") && !target.includes("Randki")) return "friends";
+  return own.includes("Randki") || own.length === 0 ? "romantic" : "friends";
+}
+function lensIntentsFor(lens: PeopleLens): SparkIntent[] {
+  return lens === "romantic" ? ["Randki"] : ["Znajomi", "LGBT+ / Społeczność"];
 }
 
 function getProfileIntents(profile: Pick<MatchProfile, "intents" | "intent">) {
@@ -1129,7 +1140,10 @@ function AppContent() {
     () => Array.from(new Set([...discoverFilters.targetInterests, ...selectedInterests])).slice(0, 10),
     [discoverFilters.targetInterests, selectedInterests]
   );
-  const profileQueryKey = [...profileLookupInterests, ...discoverFilters.targetIntents, userCity.trim().toLocaleLowerCase("pl-PL")].slice().sort().join("|");
+  const discoverLens = lensFromIntents(discoverFilters.targetIntents, intents);
+  const activeLensIntents = useMemo(() => lensIntentsFor(discoverLens), [discoverLens]);
+  const deckMode: DeckMode = discoverMode === "events" ? "event" : discoverLens;
+  const profileQueryKey = [...profileLookupInterests, ...activeLensIntents, userCity.trim().toLocaleLowerCase("pl-PL")].slice().sort().join("|");
   const activeEventIdsKey = activeEvents.map((event) => event.id).sort().join("|");
   const availableProfiles = useMemo(
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
@@ -1205,8 +1219,8 @@ function AppContent() {
                     : discoverFilters.maxDistanceKm
               );
         })
-        .filter((profile) => discoverFilters.targetIntents.length === 0 || getProfileIntents(profile).some((profileIntent) => discoverFilters.targetIntents.includes(profileIntent)))
-        .filter((profile) => genderPreferenceMatches(profile, gender, discoverFilters.targetGendersByIntent, discoverFilters.targetIntents.length > 0 ? discoverFilters.targetIntents : intents))
+        .filter((profile) => getProfileIntents(profile).some((profileIntent) => activeLensIntents.includes(profileIntent)))
+        .filter((profile) => genderPreferenceMatches(profile, gender, discoverFilters.targetGendersByIntent, activeLensIntents))
         .filter((profile) => feedExpansionLevel > 0 || discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
         .filter((profile) => feedExpansionLevel > 0 || !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
@@ -1591,7 +1605,7 @@ function AppContent() {
     setProfileFeedError(null);
 
     Promise.allSettled([
-      findProfilesByInterest(profileLookupInterests, null, discoverFilters.targetIntents, userCity),
+      findProfilesByInterest(profileLookupInterests, null, activeLensIntents, userCity),
       canViewTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       canViewTestProfiles ? findMatchThreadsForUser(appUser.uid) : Promise.resolve([])
@@ -1741,7 +1755,7 @@ function AppContent() {
     if (!appUser || !authDone || !onboarded || !profilesHaveMore || !profileCursor || profilesLoading || profilesLoadingMore || discoverProfiles.length > 6) return;
     let mounted = true;
     setProfilesLoadingMore(true);
-    void findProfilesByInterest(profileLookupInterests, profileCursor, discoverFilters.targetIntents, userCity)
+    void findProfilesByInterest(profileLookupInterests, profileCursor, activeLensIntents, userCity)
       .then((page) => {
         if (!mounted) return;
         const nextProfiles = page.profiles
@@ -2358,6 +2372,32 @@ function AppContent() {
       setAuthBusy(false);
     }
   }
+
+  function changeDiscoverMode(next: DeckMode) {
+    tap();
+    if (next === "event") {
+      setDiscoverMode("events");
+      if (activeEvents.length === 0) setEventManagerOpen(true);
+      trackSparkEvent("discover_mode_changed", { mode: "event" });
+      return;
+    }
+    setDiscoverMode("people");
+    if (next !== discoverLens || discoverFilters.targetIntents.join("|") !== lensIntentsFor(next).join("|")) {
+      void saveDiscoveryPreferences({ ...discoverFilters, targetIntents: lensIntentsFor(next) });
+    }
+    trackSparkEvent("discover_mode_changed", { mode: next });
+    const ownGoalMissing = next === "romantic" ? !intents.includes("Randki") : !intents.includes("Znajomi") && !intents.includes("LGBT+ / Społeczność");
+    if (ownGoalMissing) {
+      Alert.alert(
+        next === "romantic" ? "Romantic" : "Friends",
+        next === "romantic"
+          ? "W Twoim profilu nie ma celu „Randki”. Możesz przeglądać, ale osoby szukające randek zobaczą Cię dopiero po dodaniu tego celu w profilu."
+          : "W Twoim profilu nie ma celu „Znajomi”. Możesz przeglądać, ale osoby szukające znajomych zobaczą Cię dopiero po dodaniu tego celu w profilu.",
+        [{ text: "Później", style: "cancel" }, { text: "Otwórz profil", onPress: () => setTab("profile") }]
+      );
+    }
+  }
+  const discoverModeSwitch = <ModeSwitch mode={deckMode} onChange={changeDiscoverMode} />;
 
   async function refreshDiscovery() {
     if (discoveryRefreshBusyRef.current) return;
@@ -3128,6 +3168,8 @@ function AppContent() {
       >
         {tab === "discover" && activeProfile && (
           <DiscoverScreen
+            modeSwitch={discoverModeSwitch}
+            deckMode={deckMode}
             mode={discoverMode}
             feedExpansionLevel={feedExpansionLevel}
             activeEvents={activeEvents}
@@ -3164,6 +3206,7 @@ function AppContent() {
         )}
         {tab === "discover" && !activeProfile && discoverMode === "events" && (
           <EventFriendsEmptyState
+            modeSwitch={discoverModeSwitch}
             screenMinHeight={discoverMinHeight}
             activeEvents={activeEvents}
             loading={eventProfilesLoading}
@@ -3175,6 +3218,7 @@ function AppContent() {
         )}
         {tab === "discover" && !activeProfile && discoverMode === "people" && (
           <DiscoverEmptyState
+            modeSwitch={discoverModeSwitch}
             screenMinHeight={discoverMinHeight}
             activeEventCount={activeEvents.length}
             feedExpansionLevel={feedExpansionLevel}
@@ -3927,6 +3971,8 @@ function OnboardingScreen({
   );
 }
 function DiscoverScreen({
+  modeSwitch,
+  deckMode,
   mode,
   feedExpansionLevel,
   activeEvents,
@@ -3957,6 +4003,8 @@ function DiscoverScreen({
   onManageEvents,
   onChromeHiddenChange
 }: {
+  modeSwitch: React.ReactNode;
+  deckMode: DeckMode;
   mode: DiscoverMode;
   feedExpansionLevel: number;
   activeEvents: SparkEvent[];
@@ -4011,7 +4059,6 @@ function DiscoverScreen({
     superlike: pan.y.interpolate({ inputRange: [-130, -30], outputRange: [1, 0], extrapolate: "clamp" })
   }), [pan]);
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
-  const deckMode = mode === "events" ? "event" : "romantic";
 
   useEffect(() => {
     onChromeHiddenChange?.(overlayOpen);
@@ -4184,6 +4231,7 @@ function DiscoverScreen({
         onFilters={mode === "events" ? undefined : () => setPreferencesOpen(true)}
         filtersActive={countActiveDiscoverFilters(discoverFilters) > 0}
       />
+      {modeSwitch}
       {mode === "people" && feedExpansionLevel > 0 && (
         <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.feedExpansionNotice}>
           <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={colors.primaryDeep} />
@@ -4201,17 +4249,7 @@ function DiscoverScreen({
           <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
-      ) : (
-        <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}>
-          <View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View>
-          <View style={styles.fill}>
-            <Text style={styles.eventFriendsLaunchEyebrow}>{activeEvents.length > 0 ? "UCZESTNICZYSZ W WYDARZENIU" : "NOWY SPOSÓB ODKRYWANIA"}</Text>
-            <Text style={styles.eventFriendsLaunchTitle} numberOfLines={1}>{activeEvents.length > 0 ? "Otwórz feed wydarzeń" : "Event Friends"}</Text>
-          </View>
-          {activeEvents.length > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEvents.length}</Text>}
-          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
-        </Pressable>
-      )}
+      ) : null}
 
       <View style={styles.deckArea}>
         <DeckBackdrop />
@@ -4381,7 +4419,6 @@ function countActiveDiscoverFilters(filters: DiscoverFilters) {
     filters.ageMin !== defaults.ageMin || filters.ageMax !== defaults.ageMax,
     filters.maxDistanceKm !== defaults.maxDistanceKm,
     filters.targetInterests.length > 0,
-    filters.targetIntents.length > 0,
     filters.requireCommonInterests,
     !filters.includeProfilesWithoutLocation,
     filters.proOnly,
@@ -4559,13 +4596,10 @@ function DiscoveryPreferencesModal({
             <View style={styles.discoveryFilterSection}>
               <View style={styles.discoveryFilterSectionHeader}>
                 <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="account-heart-outline" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukam teraz</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetIntents.length ? "Pokaż profile z dowolnej wybranej kategorii." : "Dowolne kategorie - bez zawężania celu."}</Text></View>
+                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Kogo pokazywać</Text><Text style={styles.discoveryFilterSectionHint}>Tryb Romantic / Friends / Event wybierasz przełącznikiem na górze Odkrywaj.</Text></View>
               </View>
-              <IntentMultiSelect compact selected={draft.targetIntents} onChange={(targetIntents) => setDraft((current) => ({ ...current, targetIntents }))} />
-              <View style={{ marginTop: 12, gap: 7 }}>
-                <Text style={styles.discoveryFilterSectionTitle}>Płeć według kategorii</Text>
-                <Text style={styles.discoveryFilterSectionHint}>Możesz szukać innych osób na randki, a innych do znajomości.</Text>
-                <GenderPreferencesEditor compact intents={draft.targetIntents} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
+              <View style={{ marginTop: 4, gap: 7 }}>
+                <GenderPreferencesEditor compact intents={lensIntentsFor(lensFromIntents(draft.targetIntents, []))} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
               </View>
             </View>
 
@@ -5545,8 +5579,9 @@ function EventFriendsManagerModal({
 }
 
 function EventFriendsEmptyState({
-  screenMinHeight, activeEvents, loading, error, expiredCount, onBack, onManage
+  modeSwitch, screenMinHeight, activeEvents, loading, error, expiredCount, onBack, onManage
 }: {
+  modeSwitch: React.ReactNode;
   screenMinHeight: number;
   activeEvents: SparkEvent[];
   loading: boolean;
@@ -5558,13 +5593,15 @@ function EventFriendsEmptyState({
   const { colors, styles } = useAppTheme();
   const hasEvents = activeEvents.length > 0;
   return <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
-    <TopBar eyebrow="Event Friends" title="Wspólne plany" left="<" right="calendar-edit" onLeftPress={onBack} onRightPress={onManage} />
+    <DiscoverHeader left={{ icon: "chevron-left", label: "Wróć do osób", onPress: onBack }} actions={[{ icon: "calendar-edit", label: "Twoje wydarzenia", onPress: onManage }]} />
+    {modeSwitch}
     <Pressable accessibilityRole="button" onPress={onManage} style={[styles.eventFriendsLaunch, styles.eventFriendsLaunchActive]}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>TWOJE WYDARZENIA</Text><Text style={styles.eventFriendsLaunchTitle}>{hasEvents ? `${activeEvents.length} aktywne` : "Wybierz pierwsze"}</Text></View><MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
     <View style={styles.discoverEmptyBody}>{loading ? <View style={styles.discoverEmptyIcon}><ActivityIndicator color={colors.primary} size="large" /></View> : <EventEmptyAnimation compact />}<Text style={styles.discoverEmptyTitle}>{loading ? "Szukamy wspólnych planów" : error ? "Nie udało się pobrać profili" : hasEvents ? "Jeszcze nikogo tu nie ma" : "Brak wybranych wydarzeń"}</Text><Text style={styles.discoverEmptyText}>{loading ? "Sprawdzamy osoby wybierające się na te same wydarzenia." : error ?? (hasEvents ? "Gdy ktoś wybierze jedno z tych samych wydarzeń, pojawi się tutaj jako karta do swipe." : "Wybierz jeden lub kilka eventów z oficjalnej listy Spark. Zobaczysz tylko osoby z przynajmniej jednym identycznym wyborem.")}</Text>{expiredCount > 0 && <View style={styles.discoverEmptyStat}><MaterialCommunityIcons name="clock-outline" size={18} color={colors.gold} /><Text style={styles.discoverEmptyStatText}>Usunięto {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}</Text></View>} {!loading && <><Pressable accessibilityRole="button" onPress={onManage} style={styles.primaryButton}><MaterialCommunityIcons name="calendar-search" size={19} color="#fff" /><Text style={styles.primaryButtonText}>{hasEvents ? "Zmień wydarzenia" : "Zobacz wydarzenia"}</Text></Pressable><Pressable accessibilityRole="button" onPress={onBack} style={styles.secondaryButtonWide}><Text style={styles.secondaryButtonText}>Wróć do zwykłego feedu</Text></Pressable></>}</View>
   </View>;
 }
 
 function DiscoverEmptyState({
+  modeSwitch,
   screenMinHeight,
   activeEventCount,
   feedExpansionLevel,
@@ -5604,6 +5641,7 @@ function DiscoverEmptyState({
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
   onOpenEventFriends: () => void;
   onChromeHiddenChange?: (hidden: boolean) => void;
+  modeSwitch: React.ReactNode;
 }) {
   const { colors, styles } = useAppTheme();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -5618,8 +5656,8 @@ function DiscoverEmptyState({
 
   return (
     <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
-      <TopBar eyebrow="Odkrywaj" title="Dla Ciebie" left="=" right="tune-variant" onLeftPress={() => setMenuOpen(true)} onRightPress={() => setPreferencesOpen(true)} />
-      <Pressable accessibilityRole="button" onPress={onOpenEventFriends} style={styles.eventFriendsLaunch}><View style={styles.eventFriendsLaunchIcon}><MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" /></View><View style={styles.fill}><Text style={styles.eventFriendsLaunchEyebrow}>{activeEventCount > 0 ? "UCZESTNICZYSZ W WYDARZENIU" : "NOWY SPOSÓB ODKRYWANIA"}</Text><Text style={styles.eventFriendsLaunchTitle}>{activeEventCount > 0 ? "Otwórz feed wydarzeń" : "Event Friends"}</Text></View>{activeEventCount > 0 && <Text style={styles.eventFriendsLaunchCount}>{activeEventCount}</Text>}<MaterialCommunityIcons name="chevron-right" size={20} color="#fff" /></Pressable>
+      <DiscoverHeader left={{ icon: "menu", label: "Menu", onPress: () => setMenuOpen(true), dot: messageNotificationCount > 0 }} onFilters={() => setPreferencesOpen(true)} filtersActive={countActiveDiscoverFilters(discoverFilters) > 0} />
+      {modeSwitch}
       <View style={styles.discoverEmptyBody}>
         <View style={styles.discoverEmptyIcon}>
           {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
@@ -8391,6 +8429,7 @@ function DevPreview({ themeName }: { themeName: string | null }) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
+  const [previewMode, setPreviewMode] = useState<DeckMode>("romantic");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
   const deck = matchProfiles.map((profile, position) => ({ ...profile, distance: `${2 + position * 3} km` }));
@@ -8403,7 +8442,9 @@ function DevPreview({ themeName }: { themeName: string | null }) {
       <StatusBar style={colors.statusBar} />
       <ScrollView contentContainerStyle={[styles.scroll, styles.discoverScroll, { paddingTop: Math.max(insets.top + 4, 12), paddingBottom: Math.max(insets.bottom + 94, 106), paddingHorizontal: 16 }]}>
         <DiscoverScreen
-          mode="people"
+          modeSwitch={<ModeSwitch mode={previewMode} onChange={setPreviewMode} />}
+          deckMode={previewMode}
+          mode={previewMode === "event" ? "events" : "people"}
           feedExpansionLevel={0}
           activeEvents={[]}
           profile={profile}
