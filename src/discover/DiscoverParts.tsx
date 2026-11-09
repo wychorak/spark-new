@@ -552,7 +552,7 @@ function createStyles(c: Palette) {
     modeBadgeText: { flexShrink: 1, fontSize: 11, fontWeight: "800" },
     filterRow: { flexDirection: "row", gap: 8, paddingRight: 8 },
     filterChip: { flexDirection: "row", alignItems: "center", gap: 5, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: c.fill, borderWidth: 1, borderColor: c.fillStrong },
-    filterChipText: { color: c.ink, fontSize: 13, fontWeight: "800" }
+    filterChipText: { color: c.ink, fontSize: 13, fontWeight: "600" }
   });
 }
 

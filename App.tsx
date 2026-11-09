@@ -6144,8 +6144,6 @@ function MatchesScreen({
 }) {
   const { colors, styles } = useAppTheme();
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
-  const [matchFilter, setMatchFilter] = useState<"all" | "active" | "likes" | "requests">("all");
-  const [matchView, setMatchView] = useState<"list" | "grid">("list");
   const [modeFilter, setModeFilter] = useState<DeckMode | "all">("all");
   const modeOf = (profile: MatchProfile) => relationMode(chatThreads[getProfileKey(profile)], profile, viewerIntents);
   const relatedProfiles = profiles.filter((profile) => {
@@ -6154,7 +6152,6 @@ function MatchesScreen({
   });
   const modeCounts = countByMode(relatedProfiles.map(modeOf));
   const scopedProfiles = modeFilter === "all" ? profiles : profiles.filter((profile) => modeOf(profile) === modeFilter);
-  const [collapsedMatchSections, setCollapsedMatchSections] = useState<Record<"active" | "incoming" | "likes" | "requests", boolean>>({ active: false, incoming: false, likes: false, requests: false });
   const sortNewest = (items: MatchProfile[]) => [...items].sort((left, right) =>
     (chatThreads[getProfileKey(right)]?.createdAtMs ?? right.updatedAtMs ?? 0) - (chatThreads[getProfileKey(left)]?.createdAtMs ?? left.updatedAtMs ?? 0) || left.name.localeCompare(right.name, "pl")
   );
@@ -6174,226 +6171,138 @@ function MatchesScreen({
     return chatRequestKeys.includes(key) && !matchedProfileKeys.includes(key);
   }));
   const isEmpty = matchedProfiles.length === 0 && incomingLikes.length === 0 && pendingLikes.length === 0 && pendingRequests.length === 0;
-  const selectedFilterCount = matchFilter === "active" ? matchedProfiles.length : matchFilter === "likes" ? incomingLikes.length + pendingLikes.length : matchFilter === "requests" ? pendingRequests.length : matchedProfiles.length + incomingLikes.length + pendingLikes.length + pendingRequests.length;
+  const modeColor = (profile: MatchProfile) => colors[modeOf(profile)];
 
-  function toggleMatchSection(section: "active" | "incoming" | "likes" | "requests") {
-    setCollapsedMatchSections((current) => ({ ...current, [section]: !current[section] }));
+  function confirmCancelLike(profile: MatchProfile) {
+    Alert.alert("Cofnij polubienie", "Profil wróci do Odkrywaj i nie będzie już czekał na match.", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Cofnij", style: "destructive", onPress: () => void onCancelPendingLike(getProfileKey(profile)) }
+    ]);
   }
 
-  function renderMatchSectionHeader(section: "active" | "incoming" | "likes" | "requests", title: string, count: number, subtitle?: string) {
-    const collapsed = collapsedMatchSections[section];
+  function confirmCancelRequest(profile: MatchProfile) {
+    Alert.alert("Anuluj prośbę", "Usunąć oczekującą prośbę o chat?", [
+      { text: "Nie", style: "cancel" },
+      { text: "Anuluj prośbę", style: "destructive", onPress: () => void onCancelRequest(getProfileKey(profile)) }
+    ]);
+  }
+
+  function renderRows(items: MatchProfile[], describe: (profile: MatchProfile) => string, trailing: (profile: MatchProfile) => React.ReactNode) {
     return (
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} accessibilityLabel={`${collapsed ? "Rozwiń" : "Zwiń"} sekcję ${title}`} onPress={() => toggleMatchSection(section)} style={styles.matchSectionHeader}>
-        <View style={styles.fill}>
-          <Text style={styles.matchSectionTitle} selectable>{title}</Text>
-          {subtitle && <Text style={styles.pendingMatchText} selectable>{subtitle}</Text>}
-        </View>
-        <View style={styles.matchSectionHeaderAction}>
-          <Text style={styles.matchSectionCount}>{count}</Text>
-          <MaterialCommunityIcons name={collapsed ? "chevron-down" : "chevron-up"} size={20} color={colors.muted} />
-        </View>
-      </Pressable>
+      <View style={styles.mxGroup}>
+        {items.map((profile, index) => (
+          <React.Fragment key={getProfileKey(profile)}>
+            {index > 0 && <View style={styles.mxDivider} />}
+            <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={({ pressed }) => [styles.mxRow, pressed && { backgroundColor: colors.fill }]}>
+              <Image source={profile.image} style={styles.mxAvatar} contentFit="cover" />
+              <View style={styles.fill}>
+                <View style={styles.mxNameRow}>
+                  <Text style={styles.mxName} numberOfLines={1}>{profile.name}, {profile.age}</Text>
+                  <View style={[styles.mxDot, { backgroundColor: modeColor(profile) }]} />
+                </View>
+                <Text style={styles.mxSub} numberOfLines={1}>{describe(profile)}</Text>
+              </View>
+              {trailing(profile)}
+            </Pressable>
+          </React.Fragment>
+        ))}
+      </View>
     );
   }
 
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Relacje" title="Matche" left="heart-multiple" right="message-text" onRightPress={onOpenMessages} />
-
-      <View style={styles.matchOverview}>
-        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{matchedProfiles.length}</Text><Text style={styles.matchOverviewLabel}>aktywnych</Text></View>
-        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{incomingLikes.length + pendingLikes.length}</Text><Text style={styles.matchOverviewLabel}>polubienia</Text></View>
-        <View style={styles.matchOverviewItem}><Text style={styles.matchOverviewValue}>{pendingRequests.length}</Text><Text style={styles.matchOverviewLabel}>prośby</Text></View>
+      <View style={styles.mxHeader}>
+        <Text style={styles.mxTitle}>Matche</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz czat" onPress={onOpenMessages} hitSlop={8} style={styles.mxHeaderButton}>
+          <MaterialCommunityIcons name="message-outline" size={21} color={colors.ink} />
+        </Pressable>
       </View>
 
       {relatedProfiles.length > 0 && <ModeFilter value={modeFilter} onChange={setModeFilter} counts={modeCounts} />}
 
-      <View style={styles.matchToolbar}>
-        <View style={styles.matchFilterRow}>
-          {([
-            ["all", "Wszystkie"],
-            ["active", "Matche"],
-            ["likes", "Polubienia"],
-            ["requests", "Prośby"]
-          ] as const).map(([value, label]) => {
-            const active = matchFilter === value;
-            return (
-              <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setMatchFilter(value)} style={[styles.matchFilterPill, active && styles.matchFilterPillActive]}>
-                <Text style={[styles.matchFilterText, active && styles.matchFilterTextActive]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <View style={styles.matchViewSwitch}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Widok listy" accessibilityState={{ selected: matchView === "list" }} onPress={() => setMatchView("list")} style={[styles.matchViewButton, matchView === "list" && styles.matchViewButtonActive]}>
-            <MaterialCommunityIcons name="format-list-bulleted" size={18} color={matchView === "list" ? "#fff" : colors.muted} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Widok kafelków" accessibilityState={{ selected: matchView === "grid" }} onPress={() => setMatchView("grid")} style={[styles.matchViewButton, matchView === "grid" && styles.matchViewButtonActive]}>
-            <MaterialCommunityIcons name="view-grid-outline" size={18} color={matchView === "grid" ? "#fff" : colors.muted} />
-          </Pressable>
-        </View>
-      </View>
       {isEmpty && (
-        <View style={styles.emptyStateCard}>
-          <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="heart-outline" size={28} color={colors.primary} /></View>
-          <Text style={styles.emptyStateTitle} selectable>Jeszcze bez polubień</Text>
-          <Text style={styles.emptyStateText} selectable>Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, pojawi się tutaj aktywny match.</Text>
+        <View style={styles.mxEmpty}>
+          <MaterialCommunityIcons name="heart-outline" size={34} color={colors.muted} />
+          <Text style={styles.mxEmptyTitle}>{relatedProfiles.length > 0 ? "Nic w tym trybie" : "Jeszcze bez matchy"}</Text>
+          <Text style={styles.mxEmptyText}>{relatedProfiles.length > 0 ? "Wybierz inny tryb powyżej." : "Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, zobaczysz ją tutaj."}</Text>
         </View>
       )}
 
-      {!isEmpty && selectedFilterCount === 0 && (
-        <View style={styles.matchFilterEmpty}>
-          <MaterialCommunityIcons name="filter-variant-remove" size={22} color={colors.primary} />
-          <Text style={styles.matchFilterEmptyText}>Brak pozycji w tym filtrze</Text>
-        </View>
-      )}
-
-      {(matchFilter === "all" || matchFilter === "active") && matchedProfiles.length > 0 && (
-        <View style={styles.matchSection}>
-          {renderMatchSectionHeader("active", "Aktywne matche", matchedProfiles.length)}
-          {!collapsedMatchSections.active && (
-          <View style={[styles.matchGrid, matchView === "list" && styles.matchList]}>
+      {matchedProfiles.length > 0 && (
+        <View style={styles.mxSection}>
+          <Text style={styles.mxSectionTitle}>Nowe matche</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mxCarousel}>
             {matchedProfiles.map((profile) => (
-              <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={[styles.matchCard, matchView === "list" && styles.matchCardList]}>
-                <Image source={profile.image} style={[styles.matchImage, matchView === "list" && styles.matchImageList]} contentFit="cover" />
-                <View style={styles.matchCardCopy}>
-                  <Text style={styles.matchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text>
-                  <Text style={styles.matchSubtitle} numberOfLines={1} selectable>Możecie już pisać</Text>
-                  <ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
+              <Pressable
+                key={getProfileKey(profile)}
+                accessibilityRole="button"
+                accessibilityLabel={"Napisz do " + profile.name}
+                accessibilityHint="Przytrzymaj, aby zobaczyć profil"
+                onPress={() => onOpenConversation(getProfileKey(profile))}
+                onLongPress={() => setPreviewProfile(profile)}
+                style={({ pressed }) => [styles.mxMatch, pressed && styles.controlPressed]}
+              >
+                <View style={[styles.mxMatchRing, { borderColor: modeColor(profile) }]}>
+                  <Image source={profile.image} style={styles.mxMatchPhoto} contentFit="cover" />
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={"Napisz do " + profile.name}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    onOpenConversation(getProfileKey(profile));
-                  }}
-                  style={styles.matchActiveBadge}
-                >
-                  <MaterialCommunityIcons name="message-text" size={14} color="#fff" />
-                </Pressable>
+                <Text style={styles.mxMatchName} numberOfLines={1}>{profile.name}</Text>
               </Pressable>
             ))}
-          </View>
-          )}
+          </ScrollView>
         </View>
       )}
 
-      {(matchFilter === "all" || matchFilter === "likes") && incomingLikes.length > 0 && (
-        <View style={styles.matchSection}>
-          {renderMatchSectionHeader("incoming", "Polubili Cię", incomingLikes.length, "Spark Pro pokazuje osoby gotowe na match.")}
-          {!collapsedMatchSections.incoming && (
-          <View style={styles.pendingMatchList}>
-            {incomingLikes.map((profile) => {
-              const profileKey = getProfileKey(profile);
-              const isSuperlike = incomingLikeKinds[profileKey] === "superlike";
-              return (
-                <Pressable key={profileKey} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
-                  <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
-                  <View style={styles.fill}>
-                    <Text style={styles.pendingMatchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text><ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
-                    <Text style={styles.pendingMatchText} selectable>{isSuperlike ? "Wysłał(a) Ci SparkLike" : "Polubił(a) Twój profil"}</Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={"Polub " + profile.name + " i utwórz match"}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      void onLikeIncomingProfile(profileKey);
-                    }}
-                    style={styles.incomingLikeButton}
-                  >
-                    <MaterialCommunityIcons name={isSuperlike ? "fire" : "heart"} size={18} color="#fff" />
-                  </Pressable>
-                </Pressable>
-              );
-            })}
-          </View>
-          )}
-        </View>
-      )}
-
-      {(matchFilter === "all" || matchFilter === "likes") && pendingLikes.length > 0 && (
-        <View style={styles.matchSection}>
-          {renderMatchSectionHeader("likes", "Polubione profile", pendingLikes.length)}
-          {!collapsedMatchSections.likes && (
-          <View style={styles.pendingMatchList}>
-            {pendingLikes.map((profile) => (
-              <Pressable key={getProfileKey(profile)} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
-                <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
-                <View style={styles.fill}>
-                  <Text style={styles.pendingMatchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text><ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
-                  <Text style={styles.pendingMatchText} selectable>Wyślij SparkLike, aby od razu utworzyć match</Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={"Wyślij SparkLike do " + profile.name + " i utwórz match"}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    void onSuperlikePendingProfile(getProfileKey(profile));
-                  }}
-                  style={styles.pendingSparkLikeButton}
-                >
-                  <MaterialCommunityIcons name="fire" size={18} color="#fff" />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={"Usu\u0144 polubienie profilu " + profile.name}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    Alert.alert("Usu\u0144 polubienie", "Profil wr\u00f3ci do Odkrywaj i nie b\u0119dzie ju\u017c oczekiwa\u0142 na match.", [
-                      { text: "Anuluj", style: "cancel" },
-                      { text: "Usu\u0144", style: "destructive", onPress: () => void onCancelPendingLike(getProfileKey(profile)) }
-                    ]);
-                  }}
-                  style={styles.pendingCancelButton}
-                >
-                  <MaterialCommunityIcons name="close" size={19} color={colors.primary} />
-                </Pressable>
+      {incomingLikes.length > 0 && (
+        <View style={styles.mxSection}>
+          <Text style={styles.mxSectionTitle}>Polubili Cię</Text>
+          {renderRows(
+            incomingLikes,
+            (profile) => incomingLikeKinds[getProfileKey(profile)] === "superlike" ? "Wysłał(a) Ci SparkLike" : "Polubił(a) Twój profil",
+            (profile) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={"Polub " + profile.name + " i utwórz match"}
+                onPress={(event) => { event.stopPropagation(); void onLikeIncomingProfile(getProfileKey(profile)); }}
+                hitSlop={6}
+                style={styles.mxLikeBack}
+              >
+                <MaterialCommunityIcons name="heart" size={18} color={colors.onPrimary} />
               </Pressable>
-            ))}
-          </View>
+            )
           )}
         </View>
       )}
 
-      {(matchFilter === "all" || matchFilter === "requests") && pendingRequests.length > 0 && (
-        <View style={styles.matchSection}>
-          {renderMatchSectionHeader("requests", "Prośby o chat", pendingRequests.length)}
-          {!collapsedMatchSections.requests && (
-          <View style={styles.pendingMatchList}>
-            {pendingRequests.map((profile) => {
-              const profileKey = getProfileKey(profile);
-              const isIncoming = chatThreads[profileKey]?.requestDirection === "incoming";
-              return (
-                <Pressable key={profileKey} accessibilityRole="button" accessibilityLabel={"Otw\u00f3rz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={styles.pendingMatchRow}>
-                  <Image source={profile.image} style={styles.pendingMatchAvatar} contentFit="cover" />
-                  <View style={styles.fill}>
-                    <Text style={styles.pendingMatchName} numberOfLines={1} selectable>{profile.name}, {profile.age}</Text><ModeBadge mode={modeOf(profile)} eventTitle={chatThreads[getProfileKey(profile)]?.eventContext?.name} />
-                    <Text style={styles.pendingMatchText} selectable>{isIncoming ? "Nowa prośba czeka na Twoją decyzję" : "Prośba wysłana, czeka na akceptację"}</Text>
-                  </View>
-                  {isIncoming ? (
-                    <MaterialCommunityIcons name="email-heart-outline" size={20} color={colors.primary} />
-                  ) : (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={"Anuluj pro\u015bb\u0119 do " + profile.name}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        Alert.alert("Anuluj pro\u015bb\u0119", "Czy usun\u0105\u0107 oczekuj\u0105c\u0105 pro\u015bb\u0119 o chat?", [
-                          { text: "Nie", style: "cancel" },
-                          { text: "Anuluj pro\u015bb\u0119", style: "destructive", onPress: () => void onCancelRequest(profileKey) }
-                        ]);
-                      }}
-                      style={styles.pendingCancelButton}
-                    >
-                      <MaterialCommunityIcons name="close" size={19} color={colors.primary} />
-                    </Pressable>
-                  )}
+      {pendingLikes.length > 0 && (
+        <View style={styles.mxSection}>
+          <Text style={styles.mxSectionTitle}>Polubione przez Ciebie</Text>
+          {renderRows(
+            pendingLikes,
+            () => "Czeka na wzajemność",
+            (profile) => (
+              <Pressable accessibilityRole="button" accessibilityLabel={"Cofnij polubienie profilu " + profile.name} onPress={(event) => { event.stopPropagation(); confirmCancelLike(profile); }} hitSlop={10} style={styles.mxQuiet}>
+                <MaterialCommunityIcons name="close" size={18} color={colors.muted} />
+              </Pressable>
+            )
+          )}
+          <Text style={styles.mxCaption}>Otwórz profil, aby wysłać SparkLike i od razu utworzyć match.</Text>
+        </View>
+      )}
+
+      {pendingRequests.length > 0 && (
+        <View style={styles.mxSection}>
+          <Text style={styles.mxSectionTitle}>Prośby o chat</Text>
+          {renderRows(
+            pendingRequests,
+            (profile) => chatThreads[getProfileKey(profile)]?.requestDirection === "incoming" ? "Czeka na Twoją decyzję w Czacie" : "Wysłana, czeka na akceptację",
+            (profile) => chatThreads[getProfileKey(profile)]?.requestDirection === "incoming"
+              ? <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
+              : (
+                <Pressable accessibilityRole="button" accessibilityLabel={"Anuluj prośbę do " + profile.name} onPress={(event) => { event.stopPropagation(); confirmCancelRequest(profile); }} hitSlop={10} style={styles.mxQuiet}>
+                  <MaterialCommunityIcons name="close" size={18} color={colors.muted} />
                 </Pressable>
-              );
-            })}
-          </View>
+              )
           )}
         </View>
       )}
@@ -8742,6 +8651,37 @@ class SparkErrorBoundary extends React.Component<
   }
 }
 
+/** Development only (web, `?preview=matches&theme=dark`): the Matches screen with demo data. */
+function DevMatchesPreview({ themeName }: { themeName: string | null }) {
+  const { colors, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  const keys = matchProfiles.map(getProfileKey);
+  const noop = async () => undefined;
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>
+      <MatchesScreen
+        profiles={matchProfiles}
+        matchedProfileKeys={keys.slice(0, 2)}
+        likedProfileKeys={keys.slice(2, 4)}
+        incomingLikeKinds={{ [keys[3]]: "like" }}
+        chatRequestKeys={[]}
+        chatThreads={{}}
+        hasPro
+        viewerInterests={[]}
+        viewerIntents={["Randki", "Znajomi"]}
+        onLikeIncomingProfile={noop}
+        onCancelPendingLike={noop}
+        onSuperlikePendingProfile={noop}
+        onCancelRequest={noop}
+        onOpenMessages={() => undefined}
+        onOpenConversation={() => undefined}
+      />
+    </ScrollView>
+  );
+}
+
 /**
  * Development only (web, `?preview=discover&theme=light`): the Discover screen
  * with bundled demo profiles, without signing in to production.
@@ -8824,7 +8764,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <SparkErrorBoundary>
-          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : <AppContent />}
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : <AppContent />}
         </SparkErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
@@ -11247,6 +11187,30 @@ function createStyles(colors: Palette) {
     borderCurve: "continuous"
   },
   chatNameRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  mxHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, paddingTop: 6 },
+  mxTitle: { color: colors.ink, fontSize: 34, lineHeight: 40, fontWeight: "700", letterSpacing: -0.8 },
+  mxHeaderButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.fill },
+  mxSection: { gap: 10 },
+  mxSectionTitle: { paddingHorizontal: 4, color: colors.ink, fontSize: 20, fontWeight: "700", letterSpacing: -0.3 },
+  mxCaption: { paddingHorizontal: 4, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  mxCarousel: { gap: 14, paddingHorizontal: 4, paddingVertical: 2 },
+  mxMatch: { width: 76, alignItems: "center", gap: 6 },
+  mxMatchRing: { width: 76, height: 76, borderRadius: 38, borderWidth: 2.5, padding: 3, alignItems: "center", justifyContent: "center" },
+  mxMatchPhoto: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.photoPlaceholder },
+  mxMatchName: { maxWidth: 76, color: colors.ink, fontSize: 13, fontWeight: "600" },
+  mxGroup: { borderRadius: 18, overflow: "hidden", backgroundColor: colors.surfaceStrong },
+  mxDivider: { height: StyleSheet.hairlineWidth, marginLeft: 76, backgroundColor: colors.fillStronger },
+  mxRow: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  mxAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.photoPlaceholder },
+  mxNameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  mxName: { flexShrink: 1, color: colors.ink, fontSize: 16, fontWeight: "600" },
+  mxDot: { width: 7, height: 7, borderRadius: 4 },
+  mxSub: { marginTop: 2, color: colors.muted, fontSize: 13 },
+  mxLikeBack: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  mxQuiet: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  mxEmpty: { alignItems: "center", gap: 8, paddingVertical: 48, paddingHorizontal: 24 },
+  mxEmptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "700" },
+  mxEmptyText: { maxWidth: 300, color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" },
   pendingMatchName: {
     color: colors.ink,
     fontSize: 14,
