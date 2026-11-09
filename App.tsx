@@ -1229,36 +1229,53 @@ function AppContent() {
 
   useEffect(() => {
     if (!appUser?.uid || lgbt?.member !== true) return;
-    const missing = availableProfiles.map((profile) => profile.id).filter((id): id is string => typeof id === "string" && !communityTagsFetched.current.has(id)).slice(0, 40);
+    const missing = availableProfiles.map((profile) => profile.id).filter((id): id is string => typeof id === "string" && !communityTagsFetched.current.has(id));
     if (missing.length === 0) return;
     missing.forEach((id) => communityTagsFetched.current.add(id));
-    getLgbtCommunityTags(missing)
-      .then((tags) => setCommunityTags((current) => ({ ...current, ...tags })))
-      .catch(() => missing.forEach((id) => communityTagsFetched.current.delete(id)));
+    // The callable takes up to 40 profiles per call.
+    for (let start = 0; start < missing.length; start += 40) {
+      const batch = missing.slice(start, start + 40);
+      getLgbtCommunityTags(batch)
+        .then((tags) => setCommunityTags((current) => ({ ...current, ...tags })))
+        .catch(() => batch.forEach((id) => communityTagsFetched.current.delete(id)));
+    }
   }, [appUser?.uid, lgbt?.member, availableProfiles]);
 
   // After sign-out the next account never inherits this LGBT+ data.
   useEffect(() => {
     if (appUser?.uid) return;
+    if (lgbtSaveTimer.current) clearTimeout(lgbtSaveTimer.current);
+    lgbtSaveTimer.current = null;
+    lgbtSaved.current = null;
     setLgbt(null);
     setCommunityTags({});
     communityTagsFetched.current.clear();
   }, [appUser?.uid]);
 
-  async function changeLgbt(value: LgbtSettings) {
-    if (!appUser || lgbtBusy) return;
-    const previous = lgbt;
+  // Changes show at once; one save goes out after a short pause, so quick
+  // taps (switch + several identities) are never lost.
+  const lgbtSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lgbtSaved = useRef<LgbtSettings | null>(null);
+  useEffect(() => () => { if (lgbtSaveTimer.current) clearTimeout(lgbtSaveTimer.current); }, []);
+
+  function changeLgbt(value: LgbtSettings) {
+    if (!appUser) return;
+    const uid = appUser.uid;
     setLgbt(value);
-    setLgbtBusy(true);
-    try {
-      setLgbt(await updateUserLgbt(appUser.uid, value));
-      if (!value.member) { setCommunityTags({}); communityTagsFetched.current.clear(); }
-    } catch {
-      setLgbt(previous);
-      Alert.alert("Tag LGBT+", "Nie udało się zapisać ustawienia. Spróbuj ponownie.");
-    } finally {
-      setLgbtBusy(false);
-    }
+    if (!value.member) { setCommunityTags({}); communityTagsFetched.current.clear(); }
+    if (lgbtSaveTimer.current) clearTimeout(lgbtSaveTimer.current);
+    lgbtSaveTimer.current = setTimeout(() => {
+      lgbtSaveTimer.current = null;
+      setLgbtBusy(true);
+      updateUserLgbt(uid, value)
+        .then((saved) => { lgbtSaved.current = saved; })
+        .catch((error) => {
+          recordSparkError(error, "lgbt_save");
+          if (!lgbtSaveTimer.current) setLgbt(lgbtSaved.current);
+          Alert.alert("Tag LGBT+", "Nie udało się zapisać ustawienia. Sprawdź połączenie i spróbuj ponownie.");
+        })
+        .finally(() => setLgbtBusy(false));
+    }, 700);
   }
   const profileName = getProfileDisplayName(profileNameMode, nickname, firstName, lastName);
   function openPremium(source: PremiumEntrySource = "navigation") {
@@ -1593,6 +1610,7 @@ function AppContent() {
             setUserCountry(profile.country ?? "");
             setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, targetGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent), requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly), lgbtOnly: profile.lgbtOnly === true }));
             setLgbt(profile.lgbt ?? null);
+            lgbtSaved.current = profile.lgbt ?? null;
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
             const currentEvents = sanitizeActiveEvents(storedEvents);
@@ -4859,7 +4877,18 @@ function DiscoveryPreferencesModal({
             <View style={styles.stGroupWrap}>
               <Text style={styles.stGroupTitle}>Kogo pokazywać</Text>
               <View style={[styles.mxGroup, { padding: 14, gap: 10 }]}>
-                <GenderPreferencesEditor compact intents={lensIntentsFor(lensFromIntents(draft.targetIntents, []))} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
+                <GenderPreferencesEditor
+                  compact
+                  intents={lensFromIntents(draft.targetIntents, []) === "romantic" ? ["Randki"] : ["Znajomi"]}
+                  value={draft.targetGendersByIntent}
+                  onChange={(targetGendersByIntent) => setDraft((current) => ({
+                    ...current,
+                    // Older profiles may still carry the "LGBT+ / Społeczność" goal; keep it in step with Friends.
+                    targetGendersByIntent: lensFromIntents(current.targetIntents, []) === "romantic"
+                      ? targetGendersByIntent
+                      : { ...targetGendersByIntent, community: targetGendersByIntent.friends }
+                  }))}
+                />
               </View>
               <View style={styles.mxGroup}>
                 {toggleRow("Tylko osoby LGBT+", "Osoby z tagiem LGBT+. Tagi widoczne tylko dla społeczności zobaczysz po włączeniu własnego tagu.", draft.lgbtOnly, (lgbtOnly) => setDraft((current) => ({ ...current, lgbtOnly })))}
@@ -7758,9 +7787,8 @@ function ProfileScreen({
           <MaterialCommunityIcons name="account-heart-outline" size={22} color={colors.primary} />
         </View>
         <IntentMultiSelect selected={intents} onChange={setIntents} />
-        <LgbtSettingsPanel value={lgbt} onChange={onChangeLgbt} busy={lgbtBusy} />
-        <Text style={styles.fieldLabel}>Preferowane osoby w każdej kategorii</Text>
-        <GenderPreferencesEditor intents={intents} value={discoverFilters.targetGendersByIntent} onChange={(targetGendersByIntent) => setDiscoverFilters((current) => ({ ...current, targetGendersByIntent }))} compact />
+        <LgbtSettingsPanel value={lgbt} onChange={onChangeLgbt} />
+        <Text style={styles.profileDescription}>{lgbtBusy ? "Zapisywanie tagu…" : "Kogo widzisz w Odkrywaj (płeć, wiek, odległość) ustawiasz w Filtrach na ekranie Odkrywaj."}</Text>
       </View>
 
       <View style={styles.profilePanel}>

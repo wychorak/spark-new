@@ -1238,8 +1238,9 @@ export async function updateUserLgbt(uid: string, value: LgbtSettings) {
     identities: member ? Array.from(new Set(value.identities)).slice(0, 5) : [],
     visibility: member && value.visibility === "everyone" ? "everyone" : "lgbt"
   };
-  await setDoc(doc(requireDb(), "users", uid), { lgbt, updatedAt: serverTimestamp() }, { merge: true });
-  await syncPublicUserProfile(uid);
+  await setDoc(doc(requireDb(), "users", uid), { ...(await repairedOwnerFields(uid)), lgbt, updatedAt: serverTimestamp() }, { merge: true });
+  // The private setting is saved; a failed public refresh must not undo it.
+  await syncPublicUserProfile(uid).catch((error) => recordSparkError(error, "public_profile_sync_lgbt"));
   return lgbt;
 }
 
