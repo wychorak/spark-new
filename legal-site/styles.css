@@ -11,4 +11,5 @@ h2 { margin-top: 34px; font-size: 22px; }
 p, li { color: #d8d2dc; line-height: 1.7; font-size: 16px; }
 .card { border: 1px solid rgba(255,255,255,.12); background: rgba(20,20,26,.78); border-radius: 18px; padding: 28px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
 .meta { color: #a7a0aa; margin-bottom: 28px; }
-footer { margin-top: 36px; color: #a7a0aa; font-size: 14px; }
+footer { margin-top: 36px; color: #a7a0aa; font-size: 14px; }ul { margin: 0 0 16px; padding-left: 22px; }
+li { margin: 6px 0; line-height: 1.6; }

@@ -829,6 +829,7 @@ export const deleteSparkAccount = onCall(  { region, timeoutSeconds: 540, memory
       db.recursiveDelete(db.collection("users").doc(uid)),
       db.recursiveDelete(db.collection("privateProfiles").doc(uid)),
       db.recursiveDelete(db.collection("publicProfiles").doc(uid)),
+      ...[0, 1, 2].map((slot) => db.collection("eventProposals").doc(uid + "_" + slot).delete()),
       db.recursiveDelete(db.collection("revenuecat_customers").doc(uid)),
       deleteQueryDocuments(db.collection("revenuecat_events").where("app_user_id", "==", uid)),
       getStorage().bucket().deleteFiles({ prefix: "users/" + uid + "/" }).catch((error: unknown) => {

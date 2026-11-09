@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import type { LgbtSettings } from "./firestore";
 import { LGBT_LABELS } from "./discover/DiscoverParts";
 import { palettes, useThemeState, type Palette } from "./theme";
@@ -30,13 +30,27 @@ export function LgbtSettingsPanel({ value, onChange, busy }: { value: LgbtSettin
         <Text style={styles.flag}>🏳️‍🌈</Text>
         <View style={styles.fill}>
           <Text style={styles.title}>Tag LGBT+</Text>
-          <Text style={styles.hint}>Opcjonalny. Możesz go w każdej chwili wyłączyć — wtedy znika z profilu.</Text>
+          <Text style={styles.hint}>Opcjonalny i domyślnie widoczny tylko dla osób LGBT+. Wyłączenie usuwa go z profilu.</Text>
         </View>
         <Switch
           accessibilityLabel="Należę do społeczności LGBT+"
           disabled={busy}
           value={current.member}
-          onValueChange={(member) => onChange(member ? { ...current, member } : { member: false, identities: [], visibility: "lgbt" })}
+          onValueChange={(member) => {
+            if (!member) {
+              onChange({ member: false, identities: [], visibility: "lgbt" });
+              return;
+            }
+            // Art. 9 GDPR: sensitive data needs explicit consent.
+            Alert.alert(
+              "Tag LGBT+",
+              "To dane wrażliwe. Włączając tag, zgadzasz się, by Spark przetwarzał tę informację wyłącznie po to, by pokazać ją na Twojej karcie zgodnie z wybraną widocznością i w filtrze „Tylko osoby LGBT+”. Nie używamy jej do reklam ani analityki. Zgodę wycofasz, wyłączając tag.",
+              [
+                { text: "Anuluj", style: "cancel" },
+                { text: "Zgadzam się", onPress: () => onChange({ ...current, member: true }) }
+              ]
+            );
+          }}
           trackColor={{ true: c.primary }}
         />
       </View>
