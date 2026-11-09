@@ -111,7 +111,7 @@ check(packageJson.dependencies?.['expo-store-review'] && storeReviewSource.inclu
 check(!appSource.includes('Profil prywatny') && !appSource.includes('isPrivateProfile') && !publicProfileSync.includes('profile.privateProfile !== true'), 'Private-profile mode must not hide release profiles.');
 check(appSource.includes('SocialHandleField') && appSource.includes('normalizeSocialHandle') && appSource.includes('formatSocialHandle') && firestoreSource.includes('sanitizePublicSocials'), 'Social usernames must be sanitized, persisted, and rendered without URLs.');
 check(rulesSource.includes("data.socials.keys().hasOnly(['Instagram', 'TikTok', 'Facebook'])"), 'Public social usernames need a strict Firestore allowlist.');
-check(appSource.includes('style={styles.signOutButton}') && appSource.includes('onSignOut={confirmSignOut}'), 'A visible profile sign-out action is missing.');
+check(appSource.includes('<Text style={styles.pfSignOut}>Wyloguj się</Text>') && appSource.includes('onSignOut={confirmSignOut}'), 'A visible profile sign-out action is missing.');
 check(appSource.includes('visibilityBoostScore = params.profile.premium ? 4 : 0'), 'Spark Pro visibility boost is not applied to matching.');
 check(!appSource.includes('process.env.EXPO_OS') && appSource.includes('behavior={Platform.OS === "ios" ? "padding" : undefined}'), 'Native iOS behavior must use reliable Platform detection.');
 check(appSource.includes('style={styles.discoveryDrawerScrollView}') && appSource.includes('contentContainerStyle={styles.discoveryDrawerScroll}'), 'Discovery drawer must remain scrollable on compact iPhones.');

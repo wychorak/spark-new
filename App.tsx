@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { BlurView } from "expo-blur";
+import Constants from "expo-constants";
 import * as Crypto from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -7550,182 +7551,162 @@ function ProfileScreen({
   }
   return (
     <View style={styles.profileScreen}>
-      <TopBar eyebrow="Profil" title="Twoja karta" left="shield-check" right="account-circle" onLeftPress={openSafety} />
-
-      <View style={styles.profileIdentitySection}>
-        <View style={styles.profileIdentityTop}>
-          <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileAvatarWrap}>
-            <Image source={previewSource} style={styles.profileAvatarImage} contentFit="cover" />
-            <View style={styles.profileAvatarEdit}>
-              <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
-            </View>
-          </Pressable>
-          <View style={styles.profileIdentityCopy}>
-            <View style={styles.profileNameLine}>
-              <Text style={styles.profileDisplayName} numberOfLines={1} selectable>{profileName}</Text>
-              {hasPro && <MaterialCommunityIcons name="crown" size={19} color={colors.gold} />}
-              {verificationStatus === "verified" && <Pressable accessibilityRole="button" accessibilityLabel="Konto zweryfikowane" onPress={showVerifiedProfileInfo}><MaterialCommunityIcons name="check-decagram" size={20} color="#63d7ff" /></Pressable>}
-            </View>
-            <Text style={styles.profileDescription} numberOfLines={1} selectable>{email}</Text>
-            <View style={styles.profileMetaRow}>
-              <View style={styles.profileMetaPill}>
-                <MaterialCommunityIcons name={genderOptions.find((option) => option.value === gender)?.icon ?? "account-question-outline"} size={14} color={colors.primary} />
-                <Text style={styles.profileMetaText} selectable>{genderOptions.find((option) => option.value === gender)?.label ?? "Nie podano"}</Text>
-              </View>
-              <View style={styles.profileMetaPill}>
-                <MaterialCommunityIcons name="calendar" size={14} color={colors.primary} />
-                <Text style={styles.profileMetaText} selectable>{userAge} lat</Text>
-              </View>
-
-            </View>
-          </View>
-        </View>
-        <View style={styles.profileHeroActions}>
-          <Pressable accessibilityRole="button" onPress={() => pickProfilePhoto(0)} style={styles.profileEditCta}>
-            <MaterialCommunityIcons name="camera-plus" size={17} color="#fff" />
-            <Text style={styles.profileEditCtaText}>Zmień główne zdjęcie</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setPreviewOpen(true)} style={styles.profileSecondaryButton}>
-            <MaterialCommunityIcons name="eye" size={17} color={colors.primary} />
-            <Text style={styles.profileSecondaryButtonText}>Podgląd</Text>
-          </Pressable>
-        </View>
+      <View style={styles.mxHeader}>
+        <Text style={styles.mxTitle}>Profil</Text>
       </View>
 
-      <View style={styles.profileQuickStats}>
-        {profileStatusRows.map(([value, label]) => (
-          <View key={label} style={styles.profileQuickStat}>
-            <Text style={styles.profileQuickStatValue} selectable>{value}</Text>
-            <Text style={styles.profileQuickStatLabel} selectable>{label}</Text>
-          </View>
-        ))}
+      <View style={styles.pfIdentity}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Podgląd Twojej karty" onPress={() => setPreviewOpen(true)} style={({ pressed }) => [pressed && styles.controlPressed]}>
+          <Image source={previewSource} style={styles.pfAvatar} contentFit="cover" />
+        </Pressable>
+        <View style={styles.pfNameRow}>
+          <Text style={styles.pfName} numberOfLines={1}>{profileName}</Text>
+          {verificationStatus === "verified" && <Pressable accessibilityRole="button" accessibilityLabel="Konto zweryfikowane" onPress={showVerifiedProfileInfo} hitSlop={8}><MaterialCommunityIcons name="check-decagram" size={20} color="#0a84ff" /></Pressable>}
+          {hasPro && <MaterialCommunityIcons accessibilityLabel="Spark Pro" name="crown" size={18} color={colors.gold} />}
+        </View>
+        <Text style={styles.pfMeta} numberOfLines={1}>{[userAge + " lat", userCity].filter(Boolean).join(" · ")}</Text>
+        <Pressable accessibilityRole="button" onPress={() => setPreviewOpen(true)} hitSlop={8}>
+          <Text style={styles.pfLink}>Zobacz, jak widzą Cię inni</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.segmentedChoice}>
-        <Pressable accessibilityRole="tab" accessibilityState={{ selected: profileSection === "overview" }} onPress={() => setProfileSection("overview")} style={[styles.segmentedChoiceItem, profileSection === "overview" && styles.segmentedChoiceItemActive]}>
-          <Text style={[styles.segmentedChoiceText, profileSection === "overview" && styles.segmentedChoiceTextActive]}>Przegląd</Text>
-        </Pressable>
-        <Pressable accessibilityRole="tab" accessibilityState={{ selected: profileSection === "edit" }} onPress={() => setProfileSection("edit")} style={[styles.segmentedChoiceItem, profileSection === "edit" && styles.segmentedChoiceItemActive]}>
-          <Text style={[styles.segmentedChoiceText, profileSection === "edit" && styles.segmentedChoiceTextActive]}>Edytuj profil</Text>
-        </Pressable>
+      <View style={styles.cxSegment} accessibilityRole="tablist">
+        {([["overview", "Przegląd"], ["edit", "Edytuj profil"]] as const).map(([value, label]) => {
+          const active = profileSection === value;
+          return (
+            <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setProfileSection(value)} style={[styles.cxSegmentItem, active && styles.cxSegmentItemActive]}>
+              <Text style={[styles.cxSegmentText, active && styles.cxSegmentTextActive]}>{label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {profileSection === "overview" && (
         <>
-          {profileCompletion < profileChecks.length && <Pressable accessibilityRole="button" accessibilityLabel="Uzupełnij profil" onPress={() => setProfileSection("edit")} style={[styles.profilePanel, { gap: 10 }]}><Text style={styles.panelTitle}>Uzupełnij swoją kartę · {profileCompletion}/4</Text><Text style={styles.profileDescription}>Dodaj imię, krótki opis, zdjęcie i przynajmniej 3 zainteresowania.</Text><View style={{ height: 5, borderRadius: 5, backgroundColor: colors.fillStrong, overflow: "hidden" }}><View style={{ width: `${profileCompletion * 25}%`, height: 5, backgroundColor: colors.primary }} /></View></Pressable>}
-          <View style={styles.profilePanel}>
-            <View style={profileLocal.eventHeader}>
-              <View style={profileLocal.eventHeaderCopy}>
-                <Text style={styles.eyebrow}>EVENT FRIENDS</Text>
-                <Text style={styles.panelTitle}>Moje wydarzenia</Text>
-                <Text style={styles.profileDescription}>{activeEvents.length > 0 ? "Przejdź do osób z tych samych wydarzeń albo zrezygnuj z udziału." : "Dołącz do wydarzenia i poznaj osoby, które też tam będą."}</Text>
-              </View>
-              <Pressable accessibilityRole="button" onPress={onManageEvents} style={profileLocal.eventManage}>
-                <Text style={profileLocal.eventManageText}>{activeEvents.length > 0 ? "Zarządzaj" : "Wybierz"}</Text>
+          {profileCompletion < profileChecks.length && (
+            <View style={styles.mxGroup}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Uzupełnij profil" onPress={() => setProfileSection("edit")} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                <View style={[styles.pfRowIcon, { backgroundColor: colors.primary }]}><MaterialCommunityIcons name="account-edit" size={17} color="#fff" /></View>
+                <View style={styles.fill}>
+                  <Text style={styles.pfRowLabel}>Uzupełnij profil</Text>
+                  <View style={styles.pfProgress}><View style={[styles.pfProgressFill, { width: `${profileCompletion * 25}%` }]} /></View>
+                </View>
+                <Text style={styles.pfRowValue}>{profileCompletion}/4</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
               </Pressable>
             </View>
-            {activeEvents.length > 0 ? (
-              <View style={profileLocal.eventList}>
-                {activeEvents.slice(0, 3).map((event) => (
-                  <View key={event.id} style={profileLocal.eventRow}>
-                    <View style={profileLocal.eventIcon}><MaterialCommunityIcons name={event.icon as any} size={20} color={colors.primaryDeep} /></View>
+          )}
+
+          <View style={styles.mxSection}>
+            <Text style={styles.mxSectionTitle}>Wydarzenia</Text>
+            <View style={styles.mxGroup}>
+              {activeEvents.slice(0, 3).map((event) => (
+                <React.Fragment key={event.id}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz feed " + event.name} onPress={onOpenEventFeed} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                    <View style={[styles.pfRowIcon, { backgroundColor: colors.event }]}><MaterialCommunityIcons name={event.icon as any} size={17} color="#fff" /></View>
                     <View style={styles.fill}>
-                      <Text style={profileLocal.eventName} numberOfLines={1}>{event.name}</Text>
-                      <Text style={profileLocal.eventMeta} numberOfLines={1}>{formatEventDateRange(event)} · {event.city}</Text>
+                      <Text style={styles.pfRowLabel} numberOfLines={1}>{event.name}</Text>
+                      <Text style={styles.pfRowSub} numberOfLines={1}>{formatEventDateRange(event)} · {event.city}</Text>
                     </View>
-                    <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz feed " + event.name} onPress={onOpenEventFeed} style={profileLocal.eventOpen}>
-                      <MaterialCommunityIcons name="account-search-outline" size={18} color="#fff" />
+                    <Pressable accessibilityRole="button" accessibilityLabel={"Zrezygnuj z " + event.name} disabled={leavingEventId === event.id} onPress={(pressEvent) => { pressEvent.stopPropagation(); confirmLeaveEvent(event); }} hitSlop={8} style={styles.mxQuiet}>
+                      {leavingEventId === event.id ? <ActivityIndicator size="small" color={colors.muted} /> : <MaterialCommunityIcons name="close" size={18} color={colors.muted} />}
                     </Pressable>
-                    <Pressable accessibilityRole="button" accessibilityLabel={"Zrezygnuj z " + event.name} disabled={leavingEventId === event.id} onPress={() => confirmLeaveEvent(event)} style={profileLocal.eventLeave}>
-                      {leavingEventId === event.id ? <ActivityIndicator size="small" color={colors.primaryDeep} /> : <MaterialCommunityIcons name="close" size={18} color={colors.primaryDeep} />}
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Pressable accessibilityRole="button" onPress={onManageEvents} style={profileLocal.eventEmpty}>
-                <MaterialCommunityIcons name="calendar-heart" size={24} color={colors.primaryDeep} />
-                <Text style={profileLocal.eventEmptyText}>Nie uczestniczysz jeszcze w żadnym aktywnym wydarzeniu.</Text>
-                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.primaryDeep} />
+                  </Pressable>
+                  <View style={styles.pfDivider} />
+                </React.Fragment>
+              ))}
+              <Pressable accessibilityRole="button" onPress={onManageEvents} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                <View style={[styles.pfRowIcon, { backgroundColor: colors.event }]}><MaterialCommunityIcons name="calendar-plus" size={17} color="#fff" /></View>
+                <Text style={[styles.pfRowLabel, styles.fill]}>{activeEvents.length > 0 ? "Zarządzaj wydarzeniami" : "Wybierz wydarzenie"}</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
               </Pressable>
-            )}
-          </View>
-
-          <Pressable accessibilityRole="button" onPress={showVerifiedProfileInfo} style={[styles.profilePanel, { borderColor: verificationStatus === "verified" ? "rgba(99,215,255,0.38)" : "rgba(255,255,255,0.1)", backgroundColor: verificationStatus === "verified" ? "rgba(72,187,255,0.09)" : "rgba(255,255,255,0.035)" }]}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={{ width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: verificationStatus === "verified" ? "rgba(72,187,255,0.16)" : "rgba(255,255,255,0.06)" }}>
-                <MaterialCommunityIcons name={verificationStatus === "verified" ? "check-decagram" : "shield-account-outline"} size={23} color={verificationStatus === "verified" ? "#63d7ff" : colors.muted} />
-              </View>
-              <View style={styles.fill}>
-                <Text style={styles.panelTitle}>{verificationStatus === "verified" ? "Konto zweryfikowane" : "Zweryfikuj konto"}</Text>
-                <Text style={styles.profileDescription}>{verificationStatus === "verified" ? "Logowanie Google lub Apple zostało potwierdzone. Odznaka jest widoczna na Twoim profilu." : "Odznakę otrzymasz po zalogowaniu kontem Google lub Apple. Nie oznacza ona weryfikacji dokumentu."}</Text>
-              </View>
-              <MaterialCommunityIcons name="information-outline" size={20} color={verificationStatus === "verified" ? "#63d7ff" : colors.muted} />
             </View>
-          </Pressable>
-
-      <ProfileViewerPanel
-        hasPro={hasPro}
-        viewers={profileViewers}
-        viewerCount={profileViewerCount}
-        loading={profileViewersLoading}
-        viewerInterests={selectedInterests}
-        onUpgrade={() => openPremium("profile_views")}
-      />
-
-      <LinearGradient colors={["rgba(255,45,141,0.2)", "rgba(74,18,54,0.34)", "rgba(20,20,26,0.92)"]} style={styles.profileGrowthPanel}>
-        <View style={styles.profileGrowthHeader}>
-          <View style={styles.profileGrowthIcon}>
-            <MaterialCommunityIcons name="share-variant" size={22} color="#fff" />
           </View>
-          <View style={styles.fill}>
-            <Text style={styles.profileGrowthEyebrow}>TWOJA KARTA SPARK</Text>
-            <Text style={styles.profileGrowthTitle}>Pokaż swój vibe</Text>
-            <Text style={styles.profileGrowthHint}>Gotowy format Story bez nazwiska, lokalizacji i sociali.</Text>
-          </View>
-        </View>
-        <View style={styles.profileGrowthActions}>
-          <Pressable accessibilityRole="button" onPress={() => setShareCardOpen(true)} style={styles.profileGrowthPrimary}>
-            <MaterialCommunityIcons name="image-multiple-outline" size={18} color="#fff" />
-            <Text style={styles.profileGrowthPrimaryText}>Utwórz kartę</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={onInvite} style={styles.profileGrowthSecondary}>
-            <MaterialCommunityIcons name="account-multiple-plus" size={18} color={colors.primaryDeep} />
-            <Text style={styles.profileGrowthSecondaryText}>Zaproś</Text>
-          </Pressable>
-        </View>
-      </LinearGradient>
 
-      <View style={styles.settingsList}>
-        <SettingRow label="Spark Pro" value={hasPro ? "Aktywne" : "Zobacz"} onPress={openPremium} />
-        <SettingRow
-          label="Subskrypcja"
-          value="Zarządzaj"
-          onPress={async () => {
-            const result = await openCustomerCenter();
-            if (!result.ok && result.message) Alert.alert("Customer Center", result.message);
-          }}
+      {hasPro ? (
+        <ProfileViewerPanel
+          hasPro={hasPro}
+          viewers={profileViewers}
+          viewerCount={profileViewerCount}
+          loading={profileViewersLoading}
+          viewerInterests={selectedInterests}
+          onUpgrade={() => openPremium("profile_views")}
         />
-        <SettingRow label="Bezpieczeństwo" value="Otwórz" onPress={openSafety} />
-        <View style={styles.themeSettingRow}>
-          <Text style={styles.settingLabel}>Wygląd</Text>
-          <View style={styles.segmentedChoice}>
-            {([["system", "Jak telefon"], ["light", "Jasny"], ["dark", "Ciemny"]] as const).map(([value, label]) => (
-              <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: theme.preference === value }} onPress={() => { tap(); theme.setPreference(value); }} style={[styles.segmentedChoiceItem, theme.preference === value && styles.segmentedChoiceItemActive]}>
-                <Text style={[styles.segmentedChoiceText, theme.preference === value && styles.segmentedChoiceTextActive]}>{label}</Text>
-              </Pressable>
+      ) : (
+        <View style={styles.mxGroup}>
+          <Pressable accessibilityRole="button" onPress={() => openPremium("profile_views")} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+            <View style={[styles.pfRowIcon, { backgroundColor: colors.primary }]}><MaterialCommunityIcons name="eye-outline" size={17} color="#fff" /></View>
+            <View style={styles.fill}>
+              <Text style={styles.pfRowLabel}>Kto oglądał Twój profil</Text>
+              <Text style={styles.pfRowSub}>Dostępne w Spark Pro</Text>
+            </View>
+            <MaterialCommunityIcons name="lock-outline" size={18} color={colors.muted} />
+          </Pressable>
+        </View>
+      )}
+
+          <View style={styles.mxGroup}>
+            {([
+              ["image-multiple-outline", colors.primary, "Udostępnij swoją kartę", "Story bez nazwiska i lokalizacji", () => setShareCardOpen(true)],
+              ["account-multiple-plus", colors.friends, "Zaproś znajomych", undefined, onInvite]
+            ] as const).map(([icon, tint, label, sub, onPress], index) => (
+              <React.Fragment key={label}>
+                {index > 0 && <View style={styles.pfDivider} />}
+                <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                  <View style={[styles.pfRowIcon, { backgroundColor: tint }]}><MaterialCommunityIcons name={icon} size={17} color="#fff" /></View>
+                  <View style={styles.fill}>
+                    <Text style={styles.pfRowLabel}>{label}</Text>
+                    {sub ? <Text style={styles.pfRowSub}>{sub}</Text> : null}
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
+                </Pressable>
+              </React.Fragment>
             ))}
           </View>
-        </View>
-      </View>
-      <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOutButton}>
-        <View style={styles.signOutIcon}><MaterialCommunityIcons name="logout" size={20} color="#ff668f" /></View>
-        <View style={styles.fill}>
-          <Text style={styles.signOutTitle}>Wyloguj się</Text>
-          <Text style={styles.signOutHint}>Zakończ sesję na tym urządzeniu</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={21} color={colors.muted} />
-      </Pressable>
+
+          <View style={styles.mxGroup}>
+            {([
+              ["crown", colors.gold, "Spark Pro", hasPro ? "Aktywne" : "Zobacz", () => openPremium()],
+              ["credit-card-outline", "#34c759", "Subskrypcja", "Zarządzaj", async () => {
+                const result = await openCustomerCenter();
+                if (!result.ok && result.message) Alert.alert("Subskrypcja", result.message);
+              }],
+              [verificationStatus === "verified" ? "check-decagram" : "shield-account-outline", "#0a84ff", "Weryfikacja", verificationStatus === "verified" ? "Zweryfikowane" : "Brak", showVerifiedProfileInfo],
+              ["cog-outline", "#8e8e93", "Ustawienia", "", openSafety]
+            ] as const).map(([icon, tint, label, value, onPress], index) => (
+              <React.Fragment key={label}>
+                {index > 0 && <View style={styles.pfDivider} />}
+                <Pressable accessibilityRole="button" onPress={() => { void onPress(); }} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                  <View style={[styles.pfRowIcon, { backgroundColor: tint }]}><MaterialCommunityIcons name={icon as any} size={17} color="#fff" /></View>
+                  <Text style={[styles.pfRowLabel, styles.fill]}>{label}</Text>
+                  {value ? <Text style={styles.pfRowValue}>{value}</Text> : null}
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
+                </Pressable>
+              </React.Fragment>
+            ))}
+            <View style={styles.pfDivider} />
+            <View style={[styles.pfRow, { flexWrap: "wrap" }]}>
+              <View style={[styles.pfRowIcon, { backgroundColor: "#8e8e93" }]}><MaterialCommunityIcons name="theme-light-dark" size={17} color="#fff" /></View>
+              <Text style={[styles.pfRowLabel, styles.fill]}>Wygląd</Text>
+              <View style={[styles.cxSegment, { flexBasis: "100%", marginTop: 4 }]}>
+                {([["system", "Jak telefon"], ["light", "Jasny"], ["dark", "Ciemny"]] as const).map(([value, label]) => {
+                  const active = theme.preference === value;
+                  return (
+                    <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { tap(); theme.setPreference(value); }} style={[styles.cxSegmentItem, active && styles.cxSegmentItemActive]}>
+                      <Text style={[styles.cxSegmentText, active && styles.cxSegmentTextActive]}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.mxGroup}>
+            <Pressable accessibilityRole="button" onPress={onSignOut} style={({ pressed }) => [styles.pfRow, { justifyContent: "center" }, pressed && { backgroundColor: colors.fill }]}>
+              <Text style={styles.pfSignOut}>Wyloguj się</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.pfFootnote} numberOfLines={1}>{email}</Text>
         </>
       )}
 
@@ -8395,99 +8376,74 @@ function SafetyCenter({
     }
   };
 
-  const actions = [
+  type Row = { icon: string; tint: string; label: string; value?: string; onPress: () => void; destructive?: boolean };
+  const groups: Array<{ title: string; footer?: string; rows: Row[] }> = [
     {
-      title: "Powiadomienia",
-      body: "Wybierz rodzaje alert\u00f3w, d\u017awi\u0119k i godziny ciszy.",
-      cta: "Ustaw",
-      onPress: () => setNotificationPreferencesOpen(true)
+      title: "Konto",
+      rows: [
+        { icon: "bell-outline", tint: "#ff3b30", label: "Powiadomienia", onPress: () => setNotificationPreferencesOpen(true) },
+        { icon: "account-cancel-outline", tint: "#8e8e93", label: "Zablokowane osoby", value: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) : "Brak", onPress: () => setBlockedListOpen(true) }
+      ]
+    },
+    {
+      title: "Prywatność",
+      footer: "Profil możesz zgłosić lub zablokować z jego karty albo z rozmowy. Blokada od razu ukrywa profil i przerywa kontakt.",
+      rows: [
+        { icon: "shield-lock-outline", tint: "#0a84ff", label: "Polityka prywatności", onPress: () => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL") },
+        { icon: "bullhorn-outline", tint: "#ff9500", label: "Zgody reklamowe", onPress: () => void manageAdPrivacy() }
+      ]
+    },
+    {
+      title: "Pomoc i informacje",
+      rows: [
+        { icon: "email-outline", tint: "#34c759", label: "Napisz do nas", onPress: () => openSupportEmail("Spark - pomoc i bezpieczeństwo") },
+        { icon: "account-group-outline", tint: colors.primary, label: "Zasady społeczności", onPress: () => openLegalDocument("Zasady społeczności", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL") },
+        { icon: "file-document-outline", tint: "#5e5ce6", label: "Regulamin", onPress: () => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL") }
+      ]
     },
     ...(canManageModeration ? [{
-      title: "Panel moderacji",
-      body: "Przejrzyj zg\u0142oszenia i reaguj na naruszenia przed publikacj\u0105.",
-      cta: "Otw\u00f3rz",
-      onPress: () => setModerationQueueOpen(true)
+      title: "Moderacja",
+      rows: [{ icon: "gavel", tint: "#af52de", label: "Panel moderacji", onPress: () => setModerationQueueOpen(true) }]
     }] : []),
     {
-      title: "Zablokowane osoby",
-      body: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) + " zablokowane. Otwórz listę, aby zarządzać." : "Lista zablokowanych profili jest pusta.",
-      cta: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) : "Otwórz",
-      onPress: () => setBlockedListOpen(true)
-    },
-    {
-      title: "Zgłoś profil",
-      body: "Wyślij zgłoszenie do moderacji z karty profilu lub rozmowy.",
-      cta: "W profilu",
-      onPress: () => Alert.alert("Zgłoś profil", "Zgłoszenia wysyłasz z karty profilu lub wątku rozmowy.")
-    },
-    {
-      title: "Zasady społeczności",
-      body: "Szacunek, zgoda, prawdziwa tożsamość i brak nękania.",
-      cta: "Czytaj",
-      onPress: () => openLegalDocument("Zasady społeczności", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL")
-    },
-    {
-      title: "Prywatność i dane",
-      body: "Polityka prywatności, dane konta, lokalizacja i reklamy.",
-      cta: "Otwórz",
-      onPress: () => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")
-    },
-    {
-      title: "Prywatność reklam",
-      body: "Zmień wybór dotyczący zgód i sposobu wyświetlania reklam.",
-      cta: "Ustaw",
-      onPress: () => void manageAdPrivacy()
-    },
-    {
-      title: "Regulamin",
-      body: "Warunki korzystania, płatności premium i zasady konta.",
-      cta: "Otwórz",
-      onPress: () => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")
+      title: "",
+      footer: "Usunie konto, zdjęcia, profil, polubienia, matche i wiadomości. Minimalne dane bezpieczeństwa i rozliczeń mogą zostać zachowane zgodnie z polityką prywatności.",
+      rows: [{ icon: "delete-outline", tint: "#ff3b30", label: "Usuń konto", onPress: onDeleteAccount, destructive: true }]
     }
   ];
+  const appVersion = Constants.expoConfig?.version ?? "";
 
   return (
     <View style={styles.gapLg}>
-      <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" onPress={onBack} style={styles.iconButton}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+      <View style={styles.stHeader}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Wróć do profilu" onPress={onBack} hitSlop={8} style={styles.stBack}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={colors.primary} />
+          <Text style={styles.stBackText}>Profil</Text>
         </Pressable>
-        <View style={styles.fill}>
-          <Text style={styles.eyebrow} selectable>Bezpieczeństwo</Text>
-          <Text style={styles.screenTitle} selectable>Centrum bezpieczeństwa</Text>
+      </View>
+      <Text style={styles.mxTitle}>Ustawienia</Text>
+
+      {groups.map((group) => (
+        <View key={group.title || "danger"} style={styles.stGroupWrap}>
+          {!!group.title && <Text style={styles.stGroupTitle}>{group.title}</Text>}
+          <View style={styles.mxGroup}>
+            {group.rows.map((row, index) => (
+              <React.Fragment key={row.label}>
+                {index > 0 && <View style={styles.pfDivider} />}
+                <Pressable accessibilityRole="button" onPress={row.onPress} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                  <View style={[styles.pfRowIcon, { backgroundColor: row.tint }]}><MaterialCommunityIcons name={row.icon as any} size={17} color="#fff" /></View>
+                  <Text style={[styles.pfRowLabel, styles.fill, row.destructive && { color: "#ff3b30" }]}>{row.label}</Text>
+                  {row.value ? <Text style={styles.pfRowValue}>{row.value}</Text> : null}
+                  {!row.destructive && <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />}
+                </Pressable>
+              </React.Fragment>
+            ))}
+          </View>
+          {!!group.footer && <Text style={styles.stFooter}>{group.footer}</Text>}
         </View>
-        <IconButton label="?" onPress={() => openSupportEmail("Spark - pomoc i bezpieczeństwo")} />
-      </View>
+      ))}
 
-      <View style={styles.safetyHero}>
-        <View style={styles.safetyHeroIcon}><MaterialCommunityIcons name={"shield-heart" as any} size={28} color={colors.primaryDeep} /></View>
-        <Text style={styles.safetyHeroTitle} selectable>Bezpieczne poznawanie ludzi</Text>
-        <Text style={styles.safetyHeroText} selectable>
-          Każdy profil może zostać zgłoszony lub zablokowany. Zgłoszenia trafiają do moderacji, a blokada natychmiast ukrywa profil i przerywa kontakt.
-        </Text>
-      </View>
-
-      <View style={styles.safetyList}>
-        {actions.map((action) => (
-          <Pressable key={action.title} onPress={action.onPress} style={styles.safetyAction}>
-            <View style={styles.fill}>
-              <Text style={styles.safetyActionTitle} selectable>{action.title}</Text>
-              <Text style={styles.safetyActionText} selectable>{action.body}</Text>
-            </View>
-            <Text style={styles.safetyActionCta}>{action.cta}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.deleteCard}>
-        <Text style={styles.deleteTitle} selectable>Usunięcie konta w aplikacji</Text>
-        <Text style={styles.deleteText} selectable>
-          Usunie konto, zdjęcia, profil, polubienia, matche i wiadomości. Minimalne dane bezpieczeństwa i rozliczeń mogą zostać zachowane zgodnie z polityką prywatności.
-        </Text>
-        <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={styles.deleteAccountButton}>
-          <Text style={styles.deleteAccountButtonText}>Usuń konto</Text>
-        </Pressable>
-      </View>
+      {!!appVersion && <Text style={styles.pfFootnote}>Spark {appVersion}</Text>}
 
       <BlockedProfilesModal visible={blockedListOpen} blockedProfileKeys={blockedProfileKeys} onClose={() => setBlockedListOpen(false)} onUnblock={onUnblock} onReport={onReport} />
       <NotificationPreferencesModal visible={notificationPreferencesOpen} uid={userUid} onClose={() => setNotificationPreferencesOpen(false)} />
@@ -8689,6 +8645,51 @@ function DevChatPreview({ themeName, openFirst }: { themeName: string | null; op
   );
 }
 
+/** Development only (web, `?preview=settings&theme=dark`). */
+function DevSettingsPreview({ themeName }: { themeName: string | null }) {
+  const { colors, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>
+      <SafetyCenter userUid="" canManageModeration onBack={() => undefined} onDeleteAccount={() => undefined} blockedProfileKeys={["a"]} onUnblock={async () => true} onReport={async () => true} />
+    </ScrollView>
+  );
+}
+
+/** Development only (web, `?preview=profile&theme=dark`): the Profile screen with demo data. */
+function DevProfilePreview({ themeName }: { themeName: string | null }) {
+  const { colors, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  const demo = matchProfiles[1];
+  const [filters, setFilters] = useState(createDefaultDiscoverFilters());
+  const [socials, setSocials] = useState<SocialHandles>({ instagram: "", tiktok: "", facebook: "" });
+  const noop = () => undefined;
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>
+      <ProfileScreen
+        firstName={demo.name} setFirstName={noop} lastName="" setLastName={noop}
+        profileNameMode="realName" setProfileNameMode={noop} nickname="" setNickname={noop}
+        gender="woman" setGender={noop} birthDate="2000-05-01" intents={["Randki", "Znajomi"]} setIntents={noop}
+        profileBio={demo.bio} setProfileBio={noop} onBirthDateChange={noop}
+        discoverFilters={filters} setDiscoverFilters={setFilters}
+        userCity="Kraków" userCountry="Polska" locationStatus="granted" locationBusy={false} onRequestLocation={noop}
+        activeEvents={[]} onManageEvents={noop} onOpenEventFeed={noop} onLeaveEvent={async () => true}
+        email="demo@spark.app" selectedInterests={demo.interests} setSelectedInterests={noop}
+        userAge={demo.age} setUserAge={noop} profilePhotos={[demo.image as ProfilePhoto]} setProfilePhotos={noop}
+        profileName={demo.name} socialHandles={socials} setSocialHandles={setSocials}
+        premiumPlan="monthly" hasPro={false} profileViewers={[]} profileViewerCount={0} profileViewersLoading={false}
+        openPremium={noop} openCustomerCenter={async () => ({ ok: true })} openSafety={noop}
+        onSave={async () => true} onSignOut={noop} onInvite={noop} verificationStatus="verified"
+        lgbt={null} lgbtBusy={false} onChangeLgbt={noop}
+      />
+    </ScrollView>
+  );
+}
+
 /** Development only (web, `?preview=matches&theme=dark`): the Matches screen with demo data. */
 function DevMatchesPreview({ themeName }: { themeName: string | null }) {
   const { colors, theme } = useAppTheme();
@@ -8802,7 +8803,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <SparkErrorBoundary>
-          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "settings" ? <DevSettingsPreview themeName={params.get("theme")} /> : params?.get("preview") === "profile" ? <DevProfilePreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
         </SparkErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
@@ -11267,6 +11268,28 @@ function createStyles(colors: Palette) {
   cxMessageUnread: { color: colors.ink, fontWeight: "500" },
   cxUnread: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
   cxUnreadText: { color: colors.onPrimary, fontSize: 11, fontWeight: "700" },
+  pfIdentity: { alignItems: "center", gap: 4, paddingTop: 4, paddingBottom: 6 },
+  pfAvatar: { width: 104, height: 104, borderRadius: 52, marginBottom: 8, backgroundColor: colors.photoPlaceholder },
+  pfNameRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, maxWidth: "90%" },
+  pfName: { flexShrink: 1, color: colors.ink, fontSize: 24, fontWeight: "700", letterSpacing: -0.4 },
+  pfMeta: { color: colors.muted, fontSize: 15 },
+  pfLink: { marginTop: 4, color: colors.primary, fontSize: 15, fontWeight: "600" },
+  pfRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  pfRowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  pfRowLabel: { color: colors.ink, fontSize: 16 },
+  pfRowSub: { marginTop: 1, color: colors.muted, fontSize: 13 },
+  pfRowValue: { color: colors.muted, fontSize: 15 },
+  pfDivider: { height: StyleSheet.hairlineWidth, marginLeft: 56, backgroundColor: colors.fillStronger },
+  pfProgress: { height: 4, marginTop: 6, borderRadius: 2, overflow: "hidden", backgroundColor: colors.fillStrong },
+  pfProgressFill: { height: 4, borderRadius: 2, backgroundColor: colors.primary },
+  pfSignOut: { color: "#ff3b30", fontSize: 16, fontWeight: "500" },
+  pfFootnote: { textAlign: "center", color: colors.muted, fontSize: 13 },
+  stHeader: { flexDirection: "row", alignItems: "center", marginLeft: -8 },
+  stBack: { flexDirection: "row", alignItems: "center", paddingVertical: 4, paddingRight: 8 },
+  stBackText: { color: colors.primary, fontSize: 17 },
+  stGroupWrap: { gap: 7 },
+  stGroupTitle: { paddingHorizontal: 16, color: colors.muted, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.2 },
+  stFooter: { paddingHorizontal: 16, color: colors.muted, fontSize: 13, lineHeight: 18 },
   mxEmpty: { alignItems: "center", gap: 8, paddingVertical: 48, paddingHorizontal: 24 },
   mxEmptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "700" },
   mxEmptyText: { maxWidth: 300, color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" },
