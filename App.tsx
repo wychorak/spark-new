@@ -202,7 +202,7 @@ function openLegalDocument(title: string, url: string, envName: string) {
   });
 }
 const brandLogoImage = require("./assets/photologo.png");
-const headerLogoImage = require("./assets/header.png");
+const headerLogoImage = require("./assets/spark-logo.png");
 const loginLogoImage = require("./assets/loginpagelogo.png");
 
 const profileImages = [
@@ -9979,8 +9979,8 @@ function createStyles(colors: Palette) {
     borderColor: "rgba(255,45,141,0.24)"
   },
   discoveryDrawerLogoImage: {
-    width: 30,
-    height: 30
+    width: 40,
+    height: 20
   },
   discoveryDrawerEyebrow: {
     color: colors.primary,
@@ -10409,7 +10409,7 @@ function createStyles(colors: Palette) {
     gap: 6
   },
   topBarLogo: {
-    width: 18,
+    width: 36,
     height: 18
   },
   iconButton: {

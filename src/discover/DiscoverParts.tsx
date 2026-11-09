@@ -104,7 +104,7 @@ export const ModeSwitch = memo(function ModeSwitch({ mode, onChange }: { mode: D
 });
 
 // ─── Header (logo + filters) ─────────────────────────────────────────────
-const wordmark = require("../../assets/spark-wordmark.png");
+const wordmark = require("../../assets/spark-logo.png");
 
 export type HeaderAction = { icon: string; label: string; onPress: () => void; dot?: boolean };
 
@@ -456,7 +456,7 @@ function createStyles(c: Palette) {
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 },
     headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
     headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-    wordmark: { width: 108, height: 46 },
+    wordmark: { width: 100, height: 50 },
     roundGlass: {
       width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center",
       backgroundColor: c.glass, borderWidth: 1, borderColor: c.glassBorder
