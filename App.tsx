@@ -214,22 +214,30 @@ const profileImages = [
   require("./assets/profiles/profile-6.jpg")
 ];
 
+const testerFeedImages = [
+  require("./assets/profiles/tester-1.jpg"),
+  require("./assets/profiles/tester-2.jpg"),
+  require("./assets/profiles/tester-3.jpg")
+];
+
 const bundledTestProfileImages: Record<string, any> = {
-  spark_test_kuba: profileImages[3],
-  spark_test_maja: profileImages[4],
-  spark_test_alex: profileImages[5]
+  spark_test_kuba: testerFeedImages[0],
+  spark_test_maja: testerFeedImages[1],
+  spark_test_alex: testerFeedImages[2]
+};
+
+// Test profiles are only shown to tester accounts; these values win over the seeded documents
+// so the photo, name and gender always match.
+const bundledTestProfileOverrides: Record<string, { name: string; gender: ProfileGender }> = {
+  spark_test_kuba: { name: "Wiktoria", gender: "woman" },
+  spark_test_maja: { name: "Maja", gender: "woman" },
+  spark_test_alex: { name: "Nela", gender: "woman" }
 };
 
 const bundledTestProfileIntents: Record<string, SparkIntent[]> = {
-  spark_test_kuba: ["Znajomi", "Randki"],
-  spark_test_maja: ["Znajomi", "LGBT+ / Społeczność"],
-  spark_test_alex: ["Randki", "LGBT+ / Społeczność"]
-};
-
-const bundledTestProfileGenders: Record<string, ProfileGender> = {
-  spark_test_kuba: "man",
-  spark_test_maja: "woman",
-  spark_test_alex: "nonbinary"
+  spark_test_kuba: ["Randki", "Znajomi"],
+  spark_test_maja: ["Randki", "Znajomi"],
+  spark_test_alex: ["Randki", "Znajomi"]
 };
 
 const demoAccount = {
@@ -831,12 +839,13 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
   const nameMode = item.profileNameMode === "nickname" ? "nickname" : "realName";
   const nickname = typeof item.nickname === "string" ? repairLegacyText(item.nickname.trim()) : "";
   const firstName = typeof item.firstName === "string" ? repairLegacyText(item.firstName.trim()) : "";
-  const name = nameMode === "nickname" && nickname ? nickname : firstName;
   const rawSurname = typeof item.lastName === "string" ? repairLegacyText(item.lastName.trim()) : "";
-  const surname = nameMode === "nickname" && nickname ? "" : rawSurname;
   const interests = Array.isArray(item.interests) ? item.interests.filter((value): value is string => typeof value === "string").map(repairLegacyText) : [];
+  const testOverride = id && item.isTestProfile === true ? bundledTestProfileOverrides[id] : undefined;
+  const name = testOverride?.name ?? (nameMode === "nickname" && nickname ? nickname : firstName);
+  const surname = testOverride || (nameMode === "nickname" && nickname) ? "" : rawSurname;
   const storedIntents = normalizeSparkIntents(item.intents, item.intent);
-  const intents = storedIntents.length > 0 ? storedIntents : (id && item.isTestProfile === true ? bundledTestProfileIntents[id] ?? ["Znajomi"] : []);
+  const intents = testOverride && id ? bundledTestProfileIntents[id] : storedIntents.length > 0 ? storedIntents : (id && item.isTestProfile === true ? ["Znajomi" as SparkIntent] : []);
   const photoUrls = Array.isArray(item.photoUrls) ? item.photoUrls.filter((value): value is string => typeof value === "string" && value.length > 0) : [];
   const mainPhotoUrl = typeof item.mainPhotoUrl === "string" && item.mainPhotoUrl.length > 0 ? item.mainPhotoUrl : photoUrls[0];
   const bundledTestImage = id && item.isTestProfile === true ? bundledTestProfileImages[id] : undefined;
@@ -886,7 +895,7 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     weightKg: typeof item.weightKg === "number" ? item.weightKg : undefined,
     intent: intents[0],
     intents,
-    gender: normalizeProfileGender(item.gender ?? (id && item.isTestProfile === true ? bundledTestProfileGenders[id] : undefined)),
+    gender: normalizeProfileGender(testOverride?.gender ?? item.gender),
     desiredGendersByIntent: normalizeGenderPreferences(item.desiredGendersByIntent),
     activeEvents,
     updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined

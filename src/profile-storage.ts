@@ -1,3 +1,5 @@
+import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
+import { Image } from "react-native";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "./firebase";
 
@@ -39,6 +41,33 @@ function getPhotoMetadata(blob: Blob) {
   return { contentType: fileType, extension };
 }
 
+// Camera photos are 2-4 MB; every feed card downloads them. 1080 px JPEG is
+// sharp on any phone and ~10x smaller (Storage egress, feed speed, memory).
+const PROFILE_PHOTO_MAX_EDGE = 1440;
+const PROFILE_PHOTO_WIDTH = 1080;
+
+function imageSize(uri: string) {
+  return new Promise<{ width: number; height: number } | null>((resolve) => {
+    Image.getSize(uri, (width, height) => resolve({ width, height }), () => resolve(null));
+  });
+}
+
+async function shrinkPhoto(uri: string) {
+  try {
+    const size = await imageSize(uri);
+    const resize = !size
+      ? [{ resize: { width: PROFILE_PHOTO_WIDTH } }]
+      : size.width > PROFILE_PHOTO_WIDTH || size.height > PROFILE_PHOTO_MAX_EDGE
+        ? [{ resize: size.width / size.height >= PROFILE_PHOTO_WIDTH / PROFILE_PHOTO_MAX_EDGE ? { width: PROFILE_PHOTO_WIDTH } : { height: PROFILE_PHOTO_MAX_EDGE } }]
+        : [];
+    const result = await manipulateAsync(uri, resize, { compress: 0.8, format: SaveFormat.JPEG });
+    return result.uri;
+  } catch {
+    // Fall back to the original file; the 8 MB limit still applies.
+    return uri;
+  }
+}
+
 export async function uploadProfilePhotos(uid: string, photos: ProfilePhoto[]) {
   if (!storage) {
     throw new Error("Przesyłanie zdjęć jest chwilowo niedostępne. Spróbuj ponownie później.");
@@ -50,7 +79,7 @@ export async function uploadProfilePhotos(uid: string, photos: ProfilePhoto[]) {
     photos.filter((photo): photo is string => typeof photo === "string").map(async (uri, index) => {
       if (/^https?:\/\//i.test(uri)) return uri;
 
-      const blob = await readLocalPhoto(uri);
+      const blob = await readLocalPhoto(await shrinkPhoto(uri));
       const { contentType, extension } = getPhotoMetadata(blob);
       const photoRef = ref(currentStorage, `users/${uid}/profile/${index}-${Date.now()}.${extension}`);
       await uploadBytes(photoRef, blob, { contentType });

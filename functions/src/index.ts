@@ -5,6 +5,10 @@ import { getStorage } from "firebase-admin/storage";
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { setGlobalOptions } from "firebase-functions/v2";
+
+// Hard cap per function: a traffic spike or a runaway trigger cannot scale costs without limit.
+setGlobalOptions({ maxInstances: 20 });
 
 initializeApp();
 
