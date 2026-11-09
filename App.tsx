@@ -5533,7 +5533,21 @@ function EventFriendsManagerModal({
   const createInFlight = useRef(false);
   const saveInFlight = useRef(false);
   const wasVisible = useRef(false);
-  const visibleEvents = availableEvents.filter((event) => (view !== "mine" || draftEvents.some((item) => item.id === event.id)) && searchKey(`${event.name} ${event.city} ${eventDetails[event.id]?.venue ?? ""}`).includes(searchKey(query)));
+  // Odkrywaj shows the user's city first; "Cała Polska" widens it to every event.
+  const cityKey = searchKey(userCity.trim());
+  const [scope, setScope] = useState<"city" | "country">("city");
+  const effectiveScope = cityKey ? scope : "country";
+  const inUserCity = (event: SparkEvent) => {
+    const eventCityKey = searchKey(event.city);
+    if (!cityKey || !eventCityKey) return false;
+    return eventCityKey === cityKey || (Math.min(eventCityKey.length, cityKey.length) >= 4 && (eventCityKey.includes(cityKey) || cityKey.includes(eventCityKey)));
+  };
+  const cityEventCount = availableEvents.filter(inUserCity).length;
+  const visibleEvents = availableEvents
+    .filter((event) => (view !== "mine" || draftEvents.some((item) => item.id === event.id))
+      && (view !== "discover" || effectiveScope === "country" || inUserCity(event))
+      && searchKey(`${event.name} ${event.city} ${eventDetails[event.id]?.venue ?? ""}`).includes(searchKey(query)))
+    .sort((a, b) => Number(inUserCity(b)) - Number(inUserCity(a)));
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
@@ -5791,6 +5805,17 @@ function EventFriendsManagerModal({
           </View>
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
           <Text style={local.sectionTitle}>{view === "mine" ? "Twój udział" : "Aktualne wydarzenia"}</Text>
+          {view === "discover" && (cityKey ? (
+            <View style={local.segment}>
+              {([["city", `${userCity.trim()} (${cityEventCount})`], ["country", `Cała Polska (${availableEvents.length})`]] as const).map(([key, label]) => (
+                <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: effectiveScope === key }} onPress={() => setScope(key)} style={[local.segmentButton, effectiveScope === key && local.segmentActive]}>
+                  <Text style={[local.segmentText, effectiveScope === key && local.segmentTextActive]} numberOfLines={1}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={local.intro}>Pokazujemy wydarzenia z całej Polski. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.</Text>
+          ))}
           <TextInput accessibilityLabel="Szukaj wydarzenia lub miasta" value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
           {!!query && <Pressable accessibilityRole="button" onPress={() => setQuery("")} style={local.proposalButton}><Text style={local.proposalButtonText}>Wyczyść wyszukiwanie</Text></Pressable>}
           {catalogLoading ? (
@@ -5800,8 +5825,14 @@ function EventFriendsManagerModal({
           ) : visibleEvents.length === 0 ? (
             <View style={local.emptyWrap}>
               <EventEmptyAnimation />
-              <Text style={local.emptyTitle}>{query ? "Nie ma takich wydarzeń" : view === "mine" ? "Jeszcze bez planów?" : "Brak aktualnych wydarzeń"}</Text>
-              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
+              <Text style={local.emptyTitle}>{query ? "Nie ma takich wydarzeń" : view === "mine" ? "Jeszcze bez planów?" : effectiveScope === "city" ? `Brak wydarzeń: ${userCity.trim()}` : "Brak aktualnych wydarzeń"}</Text>
+              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : effectiveScope === "city" ? "Zobacz wydarzenia w całej Polsce albo dodaj własne." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
+              {view === "discover" && effectiveScope === "city" && availableEvents.length > 0 && (
+                <Pressable accessibilityRole="button" onPress={() => setScope("country")} style={[local.proposalButton, { paddingHorizontal: 16, marginTop: 12, flex: 0, minHeight: 44 }]}>
+                  <MaterialCommunityIcons name="map-outline" size={17} color={colors.ink} />
+                  <Text style={local.proposalButtonText}>Pokaż całą Polskę</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             <View style={local.suggestionList}>
@@ -8837,14 +8868,25 @@ function DevPreview({ themeName }: { themeName: string | null }) {
 function DevEventPreview({ themeName }: { themeName: string | null }) {
   const theme = useThemeState();
   const [open, setOpen] = useState(true);
-  const [events, setEvents] = useState<SparkEvent[]>([]);
+  const previewCity = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("city") ?? "Warszawa" : "Warszawa";
+  const [events, setEvents] = useState<SparkEvent[]>(() => {
+    const start = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+    const make = (id: string, name: string, city: string, category: EventCategoryId, icon: EventIconId): SparkEvent => ({ id, name, city, category, icon, kind: "specific", date: start.toISOString().slice(0, 10), startsAt: start.toISOString(), endsAt: end.toISOString() });
+    return [
+      make("dev-mata", "Koncert Maty", "Warszawa", "music", "microphone-variant"),
+      make("dev-kino", "Maraton filmowy", "Kraków", "cinema", "movie-open-outline"),
+      make("dev-plansz", "Planszówki w Hali Koszyki", "Warszawa", "games", "dice-multiple"),
+      make("dev-mecz", "Lech – Legia", "Poznań", "sport", "soccer")
+    ];
+  });
   const [selected, setSelected] = useState<SparkEvent[]>([]);
   const [proposals, setProposals] = useState<EventProposal[]>([]);
   const failNextSave = useRef(typeof window !== "undefined" && new URLSearchParams(window.location.search).has("failOnce"));
   useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
   return <View style={{ flex: 1, backgroundColor: theme.palette.background, paddingTop: 40 }}>
     <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: theme.palette.ink }}>Otwórz wydarzenia</Text></Pressable>
-    <EventFriendsManagerModal visible={open} events={selected} availableEvents={events} userCity="" expiredCount={0} canManage={false} catalogLoading={false} catalogError={null} eventDetails={{}} proposals={proposals} proposalsLoading={false} proposalsError={null} onReloadCatalog={() => undefined} onReloadProposals={() => undefined} onClose={() => setOpen(false)} onSave={async (next) => { setSelected(next); return true; }} onCreate={async (event) => { setEvents((current) => [...current, event]); return true; }} onDelete={async (event) => { setEvents((current) => current.filter((item) => item.id !== event.id)); return true; }} onPropose={async (event, details) => {
+    <EventFriendsManagerModal visible={open} events={selected} availableEvents={events} userCity={previewCity} expiredCount={0} canManage={false} catalogLoading={false} catalogError={null} eventDetails={{}} proposals={proposals} proposalsLoading={false} proposalsError={null} onReloadCatalog={() => undefined} onReloadProposals={() => undefined} onClose={() => setOpen(false)} onSave={async (next) => { setSelected(next); return true; }} onCreate={async (event) => { setEvents((current) => [...current, event]); return true; }} onDelete={async (event) => { setEvents((current) => current.filter((item) => item.id !== event.id)); return true; }} onPropose={async (event, details) => {
       if (failNextSave.current) { failNextSave.current = false; return false; }
       setProposals((current) => [...current, { id: event.id, event, details, status: "pending", createdByUid: "preview", createdAtMs: Date.now(), reviewedAtMs: null }]);
       return true;
