@@ -6,7 +6,7 @@ workflows:
 
     environment:
       node: 22.14.0
-      xcode: latest
+      xcode: 26.4
       cocoapods: default
       groups:
         - spark keys
