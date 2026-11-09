@@ -30,7 +30,7 @@ export function LgbtSettingsPanel({ value, onChange, busy }: { value: LgbtSettin
         <Text style={styles.flag}>🏳️‍🌈</Text>
         <View style={styles.fill}>
           <Text style={styles.title}>Tag LGBT+</Text>
-          <Text style={styles.hint}>Opcjonalny i domyślnie widoczny tylko dla osób LGBT+. Wyłączenie usuwa go z profilu.</Text>
+          <Text style={styles.hint}>Pokaż, że należysz do społeczności.</Text>
         </View>
         <Switch
           accessibilityLabel="Należę do społeczności LGBT+"
@@ -44,20 +44,20 @@ export function LgbtSettingsPanel({ value, onChange, busy }: { value: LgbtSettin
             // Art. 9 GDPR: sensitive data needs explicit consent.
             Alert.alert(
               "Tag LGBT+",
-              "To dane wrażliwe. Włączając tag, zgadzasz się, by Spark przetwarzał tę informację wyłącznie po to, by pokazać ją na Twojej karcie zgodnie z wybraną widocznością i w filtrze „Tylko osoby LGBT+”. Nie używamy jej do reklam ani analityki. Zgodę wycofasz, wyłączając tag.",
+              "To informacja wrażliwa. Pokażemy ją tylko tak, jak wybierzesz, i nigdy nie użyjemy jej do reklam. Wyłączenie tagu od razu ją usuwa.",
               [
                 { text: "Anuluj", style: "cancel" },
                 { text: "Zgadzam się", onPress: () => onChange({ ...current, member: true }) }
               ]
             );
           }}
-          trackColor={{ true: c.primary }}
+          trackColor={{ false: c.fillStronger, true: c.primary }}
         />
       </View>
 
       {current.member && (
         <>
-          <Text style={styles.label}>Jak się określasz? (do {MAX_IDENTITIES})</Text>
+          <Text style={styles.label}>Jak się określasz? Opcjonalnie</Text>
           <View style={styles.chips}>
             {IDENTITIES.map((id) => {
               const active = current.identities.includes(id);
@@ -71,7 +71,7 @@ export function LgbtSettingsPanel({ value, onChange, busy }: { value: LgbtSettin
           </View>
           <Text style={styles.label}>Kto widzi tag</Text>
           <View style={styles.segmented}>
-            {([["everyone", "Wszyscy", "earth"], ["lgbt", "Tylko osoby LGBT+", "account-heart"]] as const).map(([key, label, icon]) => {
+            {([["lgbt", "Osoby LGBT+", "account-heart"], ["everyone", "Wszyscy", "earth"]] as const).map(([key, label, icon]) => {
               const active = current.visibility === key;
               return (
                 <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: active }} disabled={busy} onPress={() => onChange({ ...current, visibility: key })} style={[styles.segment, active && styles.segmentActive]}>
@@ -82,9 +82,7 @@ export function LgbtSettingsPanel({ value, onChange, busy }: { value: LgbtSettin
             })}
           </View>
           <Text style={styles.hint}>
-            {current.visibility === "everyone"
-              ? "Tag zobaczy każdy na Twojej karcie, a osoby z filtrem „Tylko LGBT+” łatwiej Cię znajdą."
-              : "Tag zobaczą tylko inne osoby z tagiem LGBT+. Dla pozostałych Twój profil wygląda zwyczajnie."}
+            {current.visibility === "everyone" ? "Tag widzi każdy." : "Tag widzą tylko inne osoby z tagiem."}
           </Text>
         </>
       )}
@@ -98,9 +96,9 @@ function createStyles(c: Palette) {
     row: { flexDirection: "row", alignItems: "center", gap: 12 },
     fill: { flex: 1 },
     flag: { fontSize: 24 },
-    title: { color: c.ink, fontSize: 16, fontWeight: "900" },
+    title: { color: c.ink, fontSize: 16, fontWeight: "700" },
     hint: { color: c.muted, fontSize: 13, lineHeight: 18 },
-    label: { color: c.muted, fontSize: 12, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.6 },
+    label: { color: c.muted, fontSize: 13, fontWeight: "600" },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 36, paddingHorizontal: 13, borderRadius: 18, backgroundColor: c.surfaceStrong, borderWidth: 1, borderColor: c.fillStrong },
     chipActive: { backgroundColor: c.primary, borderColor: c.primary },

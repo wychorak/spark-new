@@ -1600,8 +1600,10 @@ function AppContent() {
             setNickname(repairLegacyText(profile.nickname ?? ""));
             setGender(normalizeProfileGender(profile.gender));
             setBirthDate(privateSettings?.birthDate ?? "");
-            const loadedIntents = normalizeSparkIntents(profile.intents, profile.intent);
-            const nextIntents: SparkIntent[] = loadedIntents.length ? loadedIntents : ["Randki"];
+            const storedIntents = normalizeSparkIntents(profile.intents, profile.intent);
+            const loadedIntents = storedIntents.filter((value) => value !== "LGBT+ / Społeczność");
+            // Someone who only had the old LGBT+ goal was looking for people, not dates by default.
+            const nextIntents: SparkIntent[] = loadedIntents.length ? loadedIntents : storedIntents.length ? ["Znajomi"] : ["Randki"];
             setIntents(nextIntents);
             setProfileBio(typeof profile.bio === "string" && profile.bio.trim().length >= 20 ? profile.bio.trim().slice(0, 300) : "Poznajmy si\u0119 przez wsp\u00f3lne zainteresowania i dobr\u0105 rozmow\u0119.");
             setAgeBand(profile.ageBand ?? null);
@@ -4015,7 +4017,8 @@ function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText:
 function IntentMultiSelect({ selected, onChange, compact = false }: { selected: SparkIntent[]; onChange: (value: SparkIntent[]) => void; compact?: boolean }) {
   const { colors, styles } = useAppTheme();
   function toggleIntent(label: SparkIntent) {
-    const next = selected.includes(label) ? selected.filter((item) => item !== label) : [...selected, label];
+    const current: SparkIntent[] = selected.filter((item) => item !== "LGBT+ / Społeczność");
+    const next = current.includes(label) ? current.filter((item) => item !== label) : [...current, label];
     if (next.length === 0) {
       Alert.alert("Wybierz cel", "Zaznacz przynajmniej jedną kategorię.");
       return;
@@ -4025,7 +4028,7 @@ function IntentMultiSelect({ selected, onChange, compact = false }: { selected: 
 
   return (
     <View style={[styles.intentList, compact && styles.intentListCompact]}>
-      {sparkIntentOptions.filter((option) => option.label !== "LGBT+ / Społeczność" || selected.includes(option.label)).map(({ label, displayLabel, icon, rainbow }) => {
+      {sparkIntentOptions.filter((option) => option.label !== "LGBT+ / Społeczność").map(({ label, displayLabel, icon, rainbow }) => {
         const active = selected.includes(label);
         const iconContent = <MaterialCommunityIcons name={active ? "check-bold" : icon} size={compact ? 21 : 25} color={rainbow ? "#fff" : colors.primaryDeep} />;
         return (
@@ -4891,7 +4894,7 @@ function DiscoveryPreferencesModal({
                 />
               </View>
               <View style={styles.mxGroup}>
-                {toggleRow("Tylko osoby LGBT+", "Osoby z tagiem LGBT+. Tagi widoczne tylko dla społeczności zobaczysz po włączeniu własnego tagu.", draft.lgbtOnly, (lgbtOnly) => setDraft((current) => ({ ...current, lgbtOnly })))}
+                {toggleRow("Tylko osoby LGBT+", "Pokazuje tylko osoby z tagiem LGBT+.", draft.lgbtOnly, (lgbtOnly) => setDraft((current) => ({ ...current, lgbtOnly })))}
               </View>
               <Text style={styles.stFooter}>Romantic, Friends i Event zmieniasz przełącznikiem na górze Odkrywaj.</Text>
             </View>
