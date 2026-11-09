@@ -153,7 +153,7 @@ const legalLinks = {
 const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
 // Owner + the App Review demo account always see test profiles, so a
 // reviewer never lands on an empty feed; the env list can add more testers.
-const builtInTestProfileViewerEmails = ["wychor234@gmail.com", "agnessa79@o2.pl"];
+const builtInTestProfileViewerEmails = ["wychor234@gmail.com", "agnessa79@o2.pl", "ilovekanye797979@gmail.com"];
 const configuredTestProfileViewerEmails = Array.from(new Set([
   ...builtInTestProfileViewerEmails,
   ...(process.env.EXPO_PUBLIC_TEST_PROFILE_VIEWER_EMAILS || "").split(",")
