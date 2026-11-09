@@ -206,20 +206,6 @@ function requireCurrentUserUid(expectedUid?: string) {
   return uid;
 }
 
-async function keepPublishedSparkEvents(eventsInput: unknown) {
-  const events = sanitizeActiveEvents(eventsInput);
-  if (events.length === 0) return [];
-  const snapshots = await Promise.all(events.map((event) => getDoc(doc(requireDb(), "sparkEvents", event.id))));
-  const publishedIds = new Set(
-    snapshots
-      .filter((snapshot) => snapshot.exists())
-      .map((snapshot) => normalizeSparkEvent({ id: snapshot.id, ...snapshot.data() }))
-      .filter((event): event is SparkEvent => Boolean(event))
-      .map((event) => event.id)
-  );
-  return events.filter((event) => publishedIds.has(event.id));
-}
-
 async function getVerifiedProClaim(uid: string) {
   const currentUser = auth?.currentUser;
   if (!currentUser || currentUser.uid !== uid) return false;
@@ -311,7 +297,10 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
   const intents = normalizeSparkIntents(profile.intents, profile.intent);
   const desiredAgeMin = Math.max(18, Math.min(99, profile.desiredAgeMin ?? 18));
   const desiredAgeMax = Math.max(desiredAgeMin, Math.min(99, profile.desiredAgeMax ?? 99));
-  const activeEvents = await keepPublishedSparkEvents(profile.activeEvents);
+  // Event badges on the public card are owned by the updateActiveEvents function;
+  // a profile save keeps them exactly as they are.
+  const activeEvents = existingPublic.exists() && Array.isArray(existingData.activeEvents) ? existingData.activeEvents : [];
+  const activeEventIds = existingPublic.exists() && Array.isArray(existingData.activeEventIds) ? existingData.activeEventIds : [];
   await setDoc(publicProfileRef, {
     uid,
     firstName: profile.firstName,
@@ -332,7 +321,7 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     desiredGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent),
     interests: profile.interests,
     activeEvents,
-    activeEventIds: activeEvents.map((event) => event.id),
+    activeEventIds,
     photoUrls: publicPhotoUrls,
     mainPhotoUrl: publicMainPhotoUrl,
     city: profile.city ?? "",

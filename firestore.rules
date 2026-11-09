@@ -30,25 +30,21 @@ service cloud.firestore {
         && !text.lower().matches('.*(porn|porno|nudes?|onlyfans|escort|prostytucj|sekskamera|zgwalce|zabije cie|heil hitler).*');
     }
 
+    // Set operations keep these checks to a handful of rule expressions; per-item
+    // checks pushed profile writes past Firestore's 1000-expression limit.
     function validIntentList(intents) {
       return intents is list
         && intents.size() >= 1 && intents.size() <= 3
-        && intents[0] in ['Randki', 'Znajomi', 'LGBT+ / Społeczność']
-        && (intents.size() < 2 || intents[1] in ['Randki', 'Znajomi', 'LGBT+ / Społeczność'])
-        && (intents.size() < 3 || intents[2] in ['Randki', 'Znajomi', 'LGBT+ / Społeczność'])
-        && (intents.size() < 2 || intents[0] != intents[1])
-        && (intents.size() < 3 || (intents[0] != intents[2] && intents[1] != intents[2]));
+        && intents.hasOnly(['Randki', 'Znajomi', 'LGBT+ / Społeczność'])
+        && intents.toSet().size() == intents.size();
     }
 
     // Optional LGBT+ tag. Private settings live in users/{uid}.lgbt (owner only);
     // the public copy lgbtTag exists only when the person shows it to everyone.
     function validLgbtIdentityList(list) {
       return list is list && list.size() <= 5
-        && (list.size() < 1 || list[0] in ['lgbt', 'gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
-        && (list.size() < 2 || list[1] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
-        && (list.size() < 3 || list[2] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
-        && (list.size() < 4 || list[3] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
-        && (list.size() < 5 || list[4] in ['gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam']);
+        && list.hasOnly(['lgbt', 'gej', 'lesbijka', 'bi', 'pan', 'queer', 'trans', 'niebinarna', 'ace', 'aro', 'interseks', 'szukam'])
+        && list.toSet().size() == list.size();
     }
 
     function validLgbtField(data) {
@@ -73,11 +69,8 @@ service cloud.firestore {
     function validDesiredGenderList(genders) {
       return genders is list
         && genders.size() >= 1 && genders.size() <= 3
-        && genders[0] in ['woman', 'man', 'nonbinary']
-        && (genders.size() < 2 || genders[1] in ['woman', 'man', 'nonbinary'])
-        && (genders.size() < 3 || genders[2] in ['woman', 'man', 'nonbinary'])
-        && (genders.size() < 2 || genders[0] != genders[1])
-        && (genders.size() < 3 || (genders[0] != genders[2] && genders[1] != genders[2]));
+        && genders.hasOnly(['woman', 'man', 'nonbinary'])
+        && genders.toSet().size() == genders.size();
     }
 
     function validGenderPreferences(preferences) {
@@ -149,25 +142,6 @@ service cloud.firestore {
     function validEvent(event) {
       return validEventFields(event)
         && event.keys().hasOnly(['id', 'category', 'name', 'city', 'date', 'kind', 'icon', 'startsAt', 'endsAt']);
-    }
-
-    function validSelectedEvent(event) {
-      return validEvent(event)
-        && exists(/databases/$(database)/documents/sparkEvents/$(event.id))
-        && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.id == event.id
-        && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.name == event.name
-        && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.get('icon', event.icon) == event.icon
-        && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.startsAt == event.startsAt
-        && get(/databases/$(database)/documents/sparkEvents/$(event.id)).data.endsAt == event.endsAt;
-    }
-
-    function validEventList(events, eventIds) {
-      return events is list && eventIds is list
-        && events.size() == eventIds.size() && events.size() <= 4
-        && (events.size() < 1 || (validSelectedEvent(events[0]) && eventIds[0] == events[0].id))
-        && (events.size() < 2 || (validSelectedEvent(events[1]) && eventIds[1] == events[1].id))
-        && (events.size() < 3 || (validSelectedEvent(events[2]) && eventIds[2] == events[2].id))
-        && (events.size() < 4 || (validSelectedEvent(events[3]) && eventIds[3] == events[3].id));
     }
 
     function validMatch(data) {
@@ -324,7 +298,7 @@ service cloud.firestore {
         && data.desiredAgeMin is number && data.desiredAgeMin >= 18 && data.desiredAgeMin <= 99
         && data.desiredAgeMax is number && data.desiredAgeMax >= data.desiredAgeMin && data.desiredAgeMax <= 99
         && data.interests is list && data.interests.size() >= 3 && data.interests.size() <= 15
-        && validEventList(data.activeEvents, data.activeEventIds)
+        && data.activeEvents is list && data.activeEventIds is list
         && data.photoUrls is list && data.photoUrls.size() >= 1
         && data.photoUrls.size() <= (hasRevenueCatPro() ? 15 : 3)
         && (
@@ -457,13 +431,18 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
+        && request.resource.data.activeEvents.size() == 0
+        && request.resource.data.activeEventIds.size() == 0
         && request.resource.data.isPro == hasRevenueCatPro()
         && request.resource.data.get('isTestProfile', false) == false
         && request.resource.data.get('moderationStatus', 'active') == 'active'
         && request.resource.data.get('isVerified', false) == false;
       allow update: if isOwner(uid)
         && validPublicProfile(request.resource.data, uid)
-        && protectedPublicFieldsUnchanged();
+        && protectedPublicFieldsUnchanged()
+        // Event badges are written only by the updateActiveEvents function.
+        && request.resource.data.activeEvents == resource.data.get('activeEvents', [])
+        && request.resource.data.activeEventIds == resource.data.get('activeEventIds', []);
       allow delete: if isOwner(uid);
     }
 
