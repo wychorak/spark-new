@@ -3,7 +3,7 @@ import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { memo, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { palettes, useThemeState, type Palette } from "../theme";
 /** Discover context used for accents and badges (Romantic / Friends / Event). */
 export type DiscoverMode = "romantic" | "friends" | "event";
@@ -264,22 +264,111 @@ export const DeckCard = memo(function DeckCard({ data, mode, onOpenDetails, onRe
         </Pressable>
       )}
 
-      {stamps && (
-        <>
-          <Animated.View pointerEvents="none" style={[styles.stamp, styles.stampLike, { borderColor: accent, opacity: stamps.like }]}>
-            <Text style={[styles.stampText, { color: accent }]}>LUBIĘ</Text>
-          </Animated.View>
-          <Animated.View pointerEvents="none" style={[styles.stamp, styles.stampPass, { opacity: stamps.pass }]}>
-            <Text style={[styles.stampText, styles.stampPassText]}>NIE</Text>
-          </Animated.View>
-          <Animated.View pointerEvents="none" style={[styles.stamp, styles.stampSuper, { opacity: stamps.superlike }]}>
-            <Text style={[styles.stampText, styles.stampSuperText]}>SUPER</Text>
-          </Animated.View>
-        </>
-      )}
+      {stamps && <SwipeEffects stamps={stamps} />}
     </View>
   );
 });
+
+// ─── Swipe effects (no words) ─────────────────────────────────────────────
+// Everything is driven by the drag itself (opacity/transform only, no blur,
+// no layout work per frame). The only loop is a small flame flicker that
+// runs on the native driver.
+const EMBERS = [
+  { left: "8%", size: 30, from: 0.15, color: "#ff6a1a" },
+  { left: "30%", size: 40, from: 0.3, color: "#ff9a1f" },
+  { left: "54%", size: 32, from: 0.2, color: "#ff5a1f" },
+  { left: "76%", size: 44, from: 0.38, color: "#ffb02e" }
+] as const;
+const FLOAT_HEARTS = [
+  { left: "14%", size: 20, from: 0.3 },
+  { left: "74%", size: 26, from: 0.4 },
+  { left: "58%", size: 16, from: 0.55 }
+] as const;
+
+function SwipeEffects({ stamps }: { stamps: Stamps }) {
+  const { styles } = useStyles();
+  const flicker = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const native = Platform.OS !== "web";
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(flicker, { toValue: 1, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
+      Animated.timing(flicker, { toValue: 0, duration: 460, easing: Easing.inOut(Easing.quad), useNativeDriver: native })
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [flicker]);
+  const flickerScale = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.06] });
+  const flickerGlow = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1] });
+  const { pass, like, superlike } = stamps;
+
+  return (
+    <View pointerEvents="none" style={styles.fxFill}>
+      {/* Left: the card warms up to red and starts to burn from the bottom. */}
+      <Animated.View style={[styles.fxFill, { opacity: pass.interpolate({ inputRange: [0, 1], outputRange: [0, 0.78] }) }]}>
+        <LinearGradient colors={["rgba(255,45,45,0.5)", "rgba(196,8,30,0.96)"]} style={styles.fxFill} />
+      </Animated.View>
+      <Animated.View style={[styles.fxFire, { opacity: pass, transform: [{ translateY: pass.interpolate({ inputRange: [0, 1], outputRange: [90, 0] }) }] }]}>
+        <Animated.View style={[styles.fxFill, { opacity: flickerGlow }]}>
+          <LinearGradient colors={["transparent", "rgba(255,70,20,0.6)", "rgba(255,150,30,0.95)", "rgba(255,200,60,1)"]} locations={[0, 0.45, 0.8, 1]} style={styles.fxFill} />
+        </Animated.View>
+      </Animated.View>
+      {EMBERS.map((ember) => (
+        <Animated.View
+          key={ember.left}
+          style={[styles.fxEmber, {
+            left: ember.left,
+            opacity: pass.interpolate({ inputRange: [ember.from, Math.min(1, ember.from + 0.35)], outputRange: [0, 1], extrapolate: "clamp" }),
+            transform: [{ translateY: pass.interpolate({ inputRange: [ember.from, 1], outputRange: [24, -ember.size * 1.6], extrapolate: "clamp" }) }]
+          }]}
+        >
+          <Animated.View style={{ transform: [{ scale: flickerScale }] }}>
+            <MaterialCommunityIcons name="fire" size={ember.size} color={ember.color} />
+          </Animated.View>
+        </Animated.View>
+      ))}
+
+      {/* Right: soft white-pink light and one clean heart. */}
+      <Animated.View style={[styles.fxFill, { opacity: like.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] }) }]}>
+        <LinearGradient colors={["rgba(255,255,255,0.85)", "rgba(255,214,234,0.9)"]} style={styles.fxFill} />
+      </Animated.View>
+      <Animated.View style={[styles.fxCenter, {
+        opacity: like.interpolate({ inputRange: [0.12, 0.6], outputRange: [0, 1], extrapolate: "clamp" }),
+        transform: [{ scale: like.interpolate({ inputRange: [0, 0.75, 1], outputRange: [0.55, 1.06, 1], extrapolate: "clamp" }) }]
+      }]}>
+        <View style={styles.fxHalo}>
+          <MaterialCommunityIcons name="heart" size={78} color="#ff2d8d" />
+        </View>
+      </Animated.View>
+      {FLOAT_HEARTS.map((heart) => (
+        <Animated.View
+          key={heart.left}
+          style={[styles.fxFloat, {
+            left: heart.left,
+            opacity: like.interpolate({ inputRange: [heart.from, Math.min(1, heart.from + 0.3)], outputRange: [0, 0.9], extrapolate: "clamp" }),
+            transform: [{ translateY: like.interpolate({ inputRange: [heart.from, 1], outputRange: [20, -90], extrapolate: "clamp" }) }]
+          }]}
+        >
+          <MaterialCommunityIcons name="heart" size={heart.size} color="#ff7eb6" />
+        </Animated.View>
+      ))}
+
+      {/* Up (SparkLike): a pink glow from the top and a spark. */}
+      <Animated.View style={[styles.fxFill, { opacity: superlike.interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] }) }]}>
+        <LinearGradient colors={["rgba(255,45,141,0.85)", "rgba(255,255,255,0.2)"]} style={styles.fxFill} />
+      </Animated.View>
+      <Animated.View style={[styles.fxCenter, {
+        opacity: superlike,
+        transform: [{ scale: superlike.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]
+      }]}>
+        <View style={styles.fxHalo}>
+          <Animated.View style={{ transform: [{ scale: flickerScale }] }}>
+            <MaterialCommunityIcons name="star-four-points" size={70} color="#ff2d8d" />
+          </Animated.View>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
 
 /** Decorative frames behind the deck (the stacked-cards look). */
 export function DeckBackdrop() {
@@ -419,6 +508,12 @@ function createStyles(c: Palette) {
       position: "absolute", right: 14, top: 52, width: 30, height: 30, borderRadius: 15,
       alignItems: "center", justifyContent: "center", backgroundColor: c.glass, borderWidth: 1, borderColor: c.glassBorder
     },
+    fxFill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+    fxFire: { position: "absolute", left: 0, right: 0, bottom: 0, height: "64%" },
+    fxEmber: { position: "absolute", bottom: 128 },
+    fxCenter: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+    fxHalo: { width: 148, height: 148, borderRadius: 74, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.88)" },
+    fxFloat: { position: "absolute", bottom: 150 },
     stamp: { position: "absolute", top: "40%", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12, borderWidth: 4, backgroundColor: "rgba(255,255,255,0.14)" },
     stampLike: { left: 26, transform: [{ rotate: "-14deg" }] },
     stampPass: { right: 26, borderColor: "#ff4d5e", transform: [{ rotate: "14deg" }] },

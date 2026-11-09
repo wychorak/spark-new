@@ -4281,8 +4281,8 @@ function DiscoverScreen({
   const swipeRotate = pan.x.interpolate({ inputRange: [-exitX, 0, exitX], outputRange: ["-16deg", "0deg", "16deg"] });
   const nextScale = pan.x.interpolate({ inputRange: [-260, 0, 260], outputRange: [1, 0.94, 1], extrapolate: "clamp" });
   const stamps = useMemo(() => ({
-    like: pan.x.interpolate({ inputRange: [0, 110], outputRange: [0, 1], extrapolate: "clamp" }),
-    pass: pan.x.interpolate({ inputRange: [-110, 0], outputRange: [1, 0], extrapolate: "clamp" }),
+    like: pan.x.interpolate({ inputRange: [0, 130], outputRange: [0, 1], extrapolate: "clamp" }),
+    pass: pan.x.interpolate({ inputRange: [-130, 0], outputRange: [1, 0], extrapolate: "clamp" }),
     superlike: pan.y.interpolate({ inputRange: [-130, -30], outputRange: [1, 0], extrapolate: "clamp" })
   }), [pan]);
   const overlayOpen = previewOpen || preferencesOpen || reportOpen || menuOpen;
