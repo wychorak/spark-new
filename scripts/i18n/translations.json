@@ -419,6 +419,12 @@
   "uk": "Події не вибрано",
   "es": "No has elegido eventos"
  },
+ "Brak wydarzeń: {0}": {
+  "en": "No events: {0}",
+  "de": "Keine Events: {0}",
+  "uk": "Немає подій: {0}",
+  "es": "No hay eventos: {0}"
+ },
  "Brak wyników": {
   "en": "No results",
   "de": "Keine Ergebnisse",
@@ -436,6 +442,12 @@
   "de": "Warst du in letzter Zeit auf einer Ausstellung?",
   "uk": "Була останнім часом на якійсь виставці?",
   "es": "¿Has ido a alguna exposición últimamente?"
+ },
+ "Cała Polska ({0})": {
+  "en": "All of Poland ({0})",
+  "de": "Ganz Polen ({0})",
+  "uk": "Уся Польща ({0})",
+  "es": "Toda Polonia ({0})"
  },
  "Cały kraj": {
   "en": "Whole country",
@@ -3101,6 +3113,18 @@
   "uk": "Показує лише людей з тегом LGBT+.",
   "es": "Muestra solo personas con la etiqueta LGBT+."
  },
+ "Pokazujemy wydarzenia z całej Polski. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.": {
+  "en": "Showing events from all of Poland. Add your city to your profile to see the ones near you first.",
+  "de": "Wir zeigen Events aus ganz Polen. Füge deine Stadt im Profil hinzu, um zuerst die in deiner Nähe zu sehen.",
+  "uk": "Показуємо події з усієї Польщі. Додай місто в профілі, щоб спершу бачити ті, що поруч.",
+  "es": "Mostramos eventos de toda Polonia. Añade tu ciudad en el perfil para ver primero los de tu zona."
+ },
+ "Pokaż całą Polskę": {
+  "en": "Show all of Poland",
+  "de": "Ganz Polen anzeigen",
+  "uk": "Показати всю Польщу",
+  "es": "Mostrar toda Polonia"
+ },
  "Pokaż mniej": {
   "en": "Show less",
   "de": "Weniger anzeigen",
@@ -5692,6 +5716,12 @@
   "de": "Events ansehen",
   "uk": "Переглянути події",
   "es": "Ver eventos"
+ },
+ "Zobacz wydarzenia w całej Polsce albo dodaj własne.": {
+  "en": "See events across Poland or add your own.",
+  "de": "Sieh dir Events in ganz Polen an oder füge eigene hinzu.",
+  "uk": "Переглянь події по всій Польщі або додай власну.",
+  "es": "Mira eventos en toda Polonia o añade el tuyo."
  },
  "Zobacz, jak widzą Cię inni": {
   "en": "See how others see you",
