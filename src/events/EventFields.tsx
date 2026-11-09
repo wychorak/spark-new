@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Keyboard, Pressable, Text, TextInput, View } from "react-native";
+import { Keyboard, Pressable, View } from "react-native";
+import { Text, TextInput } from "../i18n/Text";
 import { useThemeState } from "../theme";
 import { formatEventDateTimeInput, parseEventDateTimeInput } from "../events";
 import { EventPicker } from "./EventPicker";

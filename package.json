@@ -13,7 +13,9 @@
     "build:android": "eas build -p android --profile production",
     "build:testflight": "eas build -p ios --profile production --auto-submit",
     "release:check": "npm run typecheck && node scripts/release-audit.cjs",
-    "test": "node --test tests/events.test.cjs"
+    "test": "node --test tests/events.test.cjs",
+    "i18n:extract": "node scripts/i18n-extract.cjs",
+    "i18n:build": "node scripts/i18n-build.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.17",
@@ -38,6 +40,7 @@
     "expo-image-manipulator": "~56.0.26",
     "expo-image-picker": "~56.0.25",
     "expo-linear-gradient": "*",
+    "expo-localization": "~56.0.6",
     "expo-location": "~56.0.26",
     "expo-notifications": "~56.0.26",
     "expo-sharing": "~56.0.27",

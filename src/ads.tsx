@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { Text } from "./i18n/Text";
 import Purchases from "react-native-purchases";
 import { trackSparkEvent } from "./telemetry";
 import mobileAds, {

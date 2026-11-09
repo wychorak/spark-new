@@ -1,0 +1,5768 @@
+{
+ "- zgłoszenie trafi bezpośrednio do moderacji": {
+  "en": "- report goes straight to moderation",
+  "de": "- Meldung geht direkt an die Moderation",
+  "uk": "- скарга надійде прямо до модерації",
+  "es": "- la denuncia irá directamente a moderación"
+ },
+ ", wymaga Spark Pro": {
+  "en": ", requires Spark Pro",
+  "de": ", erfordert Spark Pro",
+  "uk": ", потрібен Spark Pro",
+  "es": ", requiere Spark Pro"
+ },
+ ", zostało": {
+  "en": ", left",
+  "de": ", übrig",
+  "uk": ", залишилося",
+  "es": ", quedan"
+ },
+ ", zostało {0}": {
+  "en": ", {0} left",
+  "de": ", noch {0}",
+  "uk": ", залишилося {0}",
+  "es": ", quedan {0}"
+ },
+ "? Profil może ponownie pojawić się w odkrywaniu, ale stary match nie zostanie automatycznie przywrócony.": {
+  "en": "? The profile may appear in Discover again, but the old match won't be restored automatically.",
+  "de": "? Das Profil kann wieder in Entdecken auftauchen, aber das alte Match wird nicht automatisch wiederhergestellt.",
+  "uk": "? Профіль може знову з'явитися в «Відкривай», але старий метч не буде відновлено автоматично.",
+  "es": "? El perfil puede volver a aparecer en Descubrir, pero el match anterior no se restaurará automáticamente."
+ },
+ ". Dotknij, aby przeglądać i filtrować.": {
+  "en": ". Tap to browse and filter.",
+  "de": ". Tippen zum Durchsuchen und Filtern.",
+  "uk": ". Торкнися, щоб переглянути й відфільтрувати.",
+  "es": ". Toca para ver y filtrar."
+ },
+ ". Nieprzeczytane:": {
+  "en": ". Unread:",
+  "de": ". Ungelesen:",
+  "uk": ". Непрочитані:",
+  "es": ". Sin leer:"
+ },
+ ". Nieprzeczytane: {0}": {
+  "en": ". Unread: {0}",
+  "de": ". Ungelesen: {0}",
+  "uk": ". Непрочитані: {0}",
+  "es": ". Sin leer: {0}"
+ },
+ ". Pozostało dziś:": {
+  "en": ". Left today:",
+  "de": ". Heute übrig:",
+  "uk": ". Залишилося сьогодні:",
+  "es": ". Quedan hoy:"
+ },
+ ". Rozmowa jest już odblokowana.": {
+  "en": ". The chat is already unlocked.",
+  "de": ". Der Chat ist bereits freigeschaltet.",
+  "uk": ". Чат уже відкрито.",
+  "es": ". El chat ya está desbloqueado."
+ },
+ ". Rozmowa jest odblokowana.": {
+  "en": ". The chat is unlocked.",
+  "de": ". Der Chat ist freigeschaltet.",
+  "uk": ". Чат відкрито.",
+  "es": ". El chat está desbloqueado."
+ },
+ ". Wynik uwzględnia wspólne zainteresowania (": {
+  "en": ". The score includes shared interests (",
+  "de": ". Die Bewertung berücksichtigt gemeinsame Interessen (",
+  "uk": ". Оцінка враховує спільні інтереси (",
+  "es": ". La puntuación tiene en cuenta intereses comunes ("
+ },
+ "”. Możesz dołączyć ponownie, dopóki wydarzenie jest aktywne.": {
+  "en": "”. You can join again while the event is active.",
+  "de": "“. Du kannst wieder beitreten, solange das Event aktiv ist.",
+  "uk": "». Ти можеш приєднатися знову, поки подія активна.",
+  "es": "». Puedes volver a unirte mientras el evento esté activo."
+ },
+ "{0} · {1} lat": {
+  "en": "{0} · {1} years",
+  "de": "{0} · {1} Jahre",
+  "uk": "{0} · {1} р.",
+  "es": "{0} · {1} años"
+ },
+ "{0} {1} - zgłoszenie trafi bezpośrednio do moderacji": {
+  "en": "{0} {1} - report goes straight to moderation",
+  "de": "{0} {1} - Meldung geht direkt an die Moderation",
+  "uk": "{0} {1} - скарга надійде прямо до модерації",
+  "es": "{0} {1} - la denuncia irá directamente a moderación"
+ },
+ "{0} aktywne filtry": {
+  "en": "{0} active filters",
+  "de": "{0} aktive Filter",
+  "uk": "Активних фільтрів: {0}",
+  "es": "{0} filtros activos"
+ },
+ "{0} aktywnych filtrów": {
+  "en": "{0} active filters",
+  "de": "{0} aktive Filter",
+  "uk": "Активних фільтрів: {0}",
+  "es": "{0} filtros activos"
+ },
+ "{0} dni temu": {
+  "en": "{0} days ago",
+  "de": "vor {0} Tagen",
+  "uk": "{0} дн. тому",
+  "es": "hace {0} días"
+ },
+ "{0} godz. temu": {
+  "en": "{0} h ago",
+  "de": "vor {0} Std.",
+  "uk": "{0} год тому",
+  "es": "hace {0} h"
+ },
+ "{0} km od Ciebie": {
+  "en": "{0} km from you",
+  "de": "{0} km von dir",
+  "uk": "{0} км від тебе",
+  "es": "a {0} km de ti"
+ },
+ "{0} lat": {
+  "en": "{0} years",
+  "de": "{0} Jahre",
+  "uk": "{0} р.",
+  "es": "{0} años"
+ },
+ "{0} lat - Spark jest dostępny od 18 lat.": {
+  "en": "{0} years old - Spark is available from age 18.",
+  "de": "{0} Jahre - Spark ist ab 18 Jahren verfügbar.",
+  "uk": "{0} р. - Spark доступний з 18 років.",
+  "es": "{0} años - Spark está disponible a partir de 18 años."
+ },
+ "{0} lat · {1}": {
+  "en": "{0} years · {1}",
+  "de": "{0} Jahre · {1}",
+  "uk": "{0} р. · {1}",
+  "es": "{0} años · {1}"
+ },
+ "{0} min temu": {
+  "en": "{0} min ago",
+  "de": "vor {0} Min.",
+  "uk": "{0} хв тому",
+  "es": "hace {0} min"
+ },
+ "{0} osób • {1} wizyt": {
+  "en": "{0} people • {1} visits",
+  "de": "{0} Personen • {1} Besuche",
+  "uk": "{0} осіб • {1} відвідувань",
+  "es": "{0} personas • {1} visitas"
+ },
+ "{0} polubień czeka na wzajemność": {
+  "en": "{0} likes waiting to be returned",
+  "de": "{0} Likes warten auf Gegenseitigkeit",
+  "uk": "{0} вподобань чекають на взаємність",
+  "es": "{0} likes esperando reciprocidad"
+ },
+ "{0} wspólne": {
+  "en": "{0} in common",
+  "de": "{0} gemeinsam",
+  "uk": "{0} спільних",
+  "es": "{0} en común"
+ },
+ "{0} wspólne wydarzenia": {
+  "en": "{0} shared events",
+  "de": "{0} gemeinsame Events",
+  "uk": "{0} спільних подій",
+  "es": "{0} eventos en común"
+ },
+ "{0} wyników": {
+  "en": "{0} results",
+  "de": "{0} Ergebnisse",
+  "uk": "Результатів: {0}",
+  "es": "{0} resultados"
+ },
+ "{0} zdjęć zachowanych - odblokuj Pro, aby je ponownie pokazać": {
+  "en": "{0} photos kept - unlock Pro to show them again",
+  "de": "{0} Fotos behalten - schalte Pro frei, um sie wieder zu zeigen",
+  "uk": "Збережено фото: {0} - відкрий Pro, щоб знову їх показати",
+  "es": "{0} fotos guardadas - desbloquea Pro para volver a mostrarlas"
+ },
+ "{0} znaków": {
+  "en": "{0} characters",
+  "de": "{0} Zeichen",
+  "uk": "{0} символів",
+  "es": "{0} caracteres"
+ },
+ "{0}. Wynik uwzględnia wspólne zainteresowania ({1}%), cel poznania, wzajemne preferencje wieku, odległość i kompletność profilu.{2} To podpowiedź Spark, nie gwarancja relacji.": {
+  "en": "{0}. The score includes shared interests ({1}%), what you're looking for, mutual age preferences, distance and profile completeness.{2} This is a Spark hint, not a relationship guarantee.",
+  "de": "{0}. Die Bewertung berücksichtigt gemeinsame Interessen ({1} %), das Kennenlern-Ziel, gegenseitige Alterspräferenzen, Entfernung und Vollständigkeit des Profils.{2} Das ist ein Spark-Tipp, keine Beziehungsgarantie.",
+  "uk": "{0}. Оцінка враховує спільні інтереси ({1}%), мету знайомства, взаємні вікові вподобання, відстань і заповненість профілю.{2} Це підказка Spark, а не гарантія стосунків.",
+  "es": "{0}. La puntuación tiene en cuenta intereses comunes ({1}%), lo que buscas, las preferencias de edad mutuas, la distancia y lo completo que está el perfil.{2} Es una pista de Spark, no una garantía de relación."
+ },
+ "{0}% zgodności zainteresowań": {
+  "en": "{0}% interest match",
+  "de": "{0} % Interessen-Übereinstimmung",
+  "uk": "{0}% збігу інтересів",
+  "es": "{0}% de intereses en común"
+ },
+ "% zgodności zainteresowań": {
+  "en": "% interest match",
+  "de": "% Interessen-Übereinstimmung",
+  "uk": "% збігу інтересів",
+  "es": "% de intereses en común"
+ },
+ "%), cel poznania, wzajemne preferencje wieku, odległość i kompletność profilu.": {
+  "en": "%), what you're looking for, mutual age preferences, distance and profile completeness.",
+  "de": "%), das Kennenlern-Ziel, gegenseitige Alterspräferenzen, Entfernung und Vollständigkeit des Profils.",
+  "uk": "%), мету знайомства, взаємні вікові вподобання, відстань і заповненість профілю.",
+  "es": "%), lo que buscas, las preferencias de edad mutuas, la distancia y lo completo que está el perfil."
+ },
+ "1 aktywny filtr": {
+  "en": "1 active filter",
+  "de": "1 aktiver Filter",
+  "uk": "1 активний фільтр",
+  "es": "1 filtro activo"
+ },
+ "1 nieprzeczytana wiadomość": {
+  "en": "1 unread message",
+  "de": "1 ungelesene Nachricht",
+  "uk": "1 непрочитане повідомлення",
+  "es": "1 mensaje sin leer"
+ },
+ "10 SparkLike miesięcznie": {
+  "en": "10 SparkLikes a month",
+  "de": "10 SparkLikes pro Monat",
+  "uk": "10 SparkLike на місяць",
+  "es": "10 SparkLikes al mes"
+ },
+ "15 zdjęć profilu zamiast 3": {
+  "en": "15 profile photos instead of 3",
+  "de": "15 Profilfotos statt 3",
+  "uk": "15 фото профілю замість 3",
+  "es": "15 fotos de perfil en lugar de 3"
+ },
+ "24 godz.": {
+  "en": "24 h",
+  "de": "24 Std.",
+  "uk": "24 год",
+  "es": "24 h"
+ },
+ "7 dni": {
+  "en": "7 days",
+  "de": "7 Tage",
+  "uk": "7 днів",
+  "es": "7 días"
+ },
+ "Akceptuj": {
+  "en": "Accept",
+  "de": "Annehmen",
+  "uk": "Прийняти",
+  "es": "Aceptar"
+ },
+ "Akceptuje zasady Spark:": {
+  "en": "I accept the Spark rules:",
+  "de": "Ich akzeptiere die Spark-Regeln:",
+  "uk": "Приймаю правила Spark:",
+  "es": "Acepto las normas de Spark:"
+ },
+ "Aktualne wydarzenia": {
+  "en": "Current events",
+  "de": "Aktuelle Events",
+  "uk": "Актуальні події",
+  "es": "Eventos actuales"
+ },
+ "Aktywne": {
+  "en": "Active",
+  "de": "Aktiv",
+  "uk": "Активні",
+  "es": "Activos"
+ },
+ "Aktywne i oczekujące": {
+  "en": "Active and pending",
+  "de": "Aktiv und ausstehend",
+  "uk": "Активні й очікувані",
+  "es": "Activos y pendientes"
+ },
+ "Anuluj": {
+  "en": "Cancel",
+  "de": "Abbrechen",
+  "uk": "Скасувати",
+  "es": "Cancelar"
+ },
+ "Anuluj prośbę": {
+  "en": "Cancel request",
+  "de": "Anfrage zurückziehen",
+  "uk": "Скасувати запит",
+  "es": "Cancelar solicitud"
+ },
+ "Anuluj prośbę do": {
+  "en": "Cancel request to",
+  "de": "Anfrage zurückziehen an",
+  "uk": "Скасувати запит до",
+  "es": "Cancelar solicitud a"
+ },
+ "Apple nie zwrócił danych potrzebnych do usunięcia konta.": {
+  "en": "Apple didn't return the data needed to delete the account.",
+  "de": "Apple hat die zum Löschen des Kontos nötigen Daten nicht geliefert.",
+  "uk": "Apple не повернув даних, потрібних для видалення акаунта.",
+  "es": "Apple no devolvió los datos necesarios para eliminar la cuenta."
+ },
+ "Apple nie zwrócił tokenu logowania.": {
+  "en": "Apple didn't return a sign-in token.",
+  "de": "Apple hat kein Anmelde-Token geliefert.",
+  "uk": "Apple не повернув токен входу.",
+  "es": "Apple no devolvió el token de inicio de sesión."
+ },
+ "Architektura": {
+  "en": "Architecture",
+  "de": "Architektur",
+  "uk": "Архітектура",
+  "es": "Arquitectura"
+ },
+ "Bardzo wysoka zgodność": {
+  "en": "Very high match",
+  "de": "Sehr hohe Übereinstimmung",
+  "uk": "Дуже високий збіг",
+  "es": "Compatibilidad muy alta"
+ },
+ "Basen": {
+  "en": "Swimming",
+  "de": "Schwimmen",
+  "uk": "Басейн",
+  "es": "Piscina"
+ },
+ "Bez dodatkowych filtrów": {
+  "en": "No extra filters",
+  "de": "Keine zusätzlichen Filter",
+  "uk": "Без додаткових фільтрів",
+  "es": "Sin filtros adicionales"
+ },
+ "Bez limitu czasu": {
+  "en": "No time limit",
+  "de": "Ohne Zeitlimit",
+  "uk": "Без обмеження часу",
+  "es": "Sin límite de tiempo"
+ },
+ "Bez reklam z Pro": {
+  "en": "No ads with Pro",
+  "de": "Ohne Werbung mit Pro",
+  "uk": "Без реклами з Pro",
+  "es": "Sin anuncios con Pro"
+ },
+ "Bezpieczeństwo": {
+  "en": "Safety",
+  "de": "Sicherheit",
+  "uk": "Безпека",
+  "es": "Seguridad"
+ },
+ "Bieganie": {
+  "en": "Running",
+  "de": "Laufen",
+  "uk": "Біг",
+  "es": "Correr"
+ },
+ "Blisko nikogo nie ma — pokazujemy też dalsze profile": {
+  "en": "Nobody nearby — showing profiles further away too",
+  "de": "Niemand in der Nähe — wir zeigen auch weiter entfernte Profile",
+  "uk": "Поруч нікого немає — показуємо й дальші профілі",
+  "es": "No hay nadie cerca — también mostramos perfiles más lejanos"
+ },
+ "Blokada": {
+  "en": "Block",
+  "de": "Blockieren",
+  "uk": "Блокування",
+  "es": "Bloqueo"
+ },
+ "Boost widoczności": {
+  "en": "Visibility boost",
+  "de": "Sichtbarkeits-Boost",
+  "uk": "Буст видимості",
+  "es": "Impulso de visibilidad"
+ },
+ "Brak": {
+  "en": "None",
+  "de": "Keine",
+  "uk": "Немає",
+  "es": "Ninguno"
+ },
+ "Brak aktualnych wydarzeń": {
+  "en": "No current events",
+  "de": "Keine aktuellen Events",
+  "uk": "Немає актуальних подій",
+  "es": "No hay eventos actuales"
+ },
+ "Brak aktywnego zakupu": {
+  "en": "No active purchase",
+  "de": "Kein aktiver Kauf",
+  "uk": "Немає активної покупки",
+  "es": "No hay ninguna compra activa"
+ },
+ "Brak aktywnych chatów": {
+  "en": "No active chats",
+  "de": "Keine aktiven Chats",
+  "uk": "Немає активних чатів",
+  "es": "No hay chats activos"
+ },
+ "Brak nowych próśb": {
+  "en": "No new requests",
+  "de": "Keine neuen Anfragen",
+  "uk": "Немає нових запитів",
+  "es": "No hay solicitudes nuevas"
+ },
+ "Brak pasujących osób": {
+  "en": "No matching people",
+  "de": "Keine passenden Personen",
+  "uk": "Немає відповідних людей",
+  "es": "No hay personas que encajen"
+ },
+ "Brak połączenia z internetem. Spróbuj ponownie.": {
+  "en": "No internet connection. Please try again.",
+  "de": "Keine Internetverbindung. Versuch es erneut.",
+  "uk": "Немає з'єднання з інтернетом. Спробуй ще раз.",
+  "es": "Sin conexión a internet. Inténtalo de nuevo."
+ },
+ "Brak wybranych wydarzeń": {
+  "en": "No events selected",
+  "de": "Keine Events ausgewählt",
+  "uk": "Події не вибрано",
+  "es": "No has elegido eventos"
+ },
+ "Brak wyników": {
+  "en": "No results",
+  "de": "Keine Ergebnisse",
+  "uk": "Немає результатів",
+  "es": "Sin resultados"
+ },
+ "Brak zalogowanego użytkownika.": {
+  "en": "No signed-in user.",
+  "de": "Kein angemeldeter Nutzer.",
+  "uk": "Немає користувача, що ввійшов.",
+  "es": "No hay ningún usuario con sesión iniciada."
+ },
+ "Byłaś ostatnio na jakiejś wystawie?": {
+  "en": "Been to any exhibition lately?",
+  "de": "Warst du in letzter Zeit auf einer Ausstellung?",
+  "uk": "Була останнім часом на якійсь виставці?",
+  "es": "¿Has ido a alguna exposición últimamente?"
+ },
+ "Cały kraj": {
+  "en": "Whole country",
+  "de": "Ganzes Land",
+  "uk": "Уся країна",
+  "es": "Todo el país"
+ },
+ "cel profilu:": {
+  "en": "profile goal:",
+  "de": "Profilziel:",
+  "uk": "мета профілю:",
+  "es": "objetivo del perfil:"
+ },
+ "cel profilu: {0}": {
+  "en": "profile goal: {0}",
+  "de": "Profilziel: {0}",
+  "uk": "мета профілю: {0}",
+  "es": "objetivo del perfil: {0}"
+ },
+ "Ceramika, książki i wypady za miasto. Ceni ciepły humor i jasne intencje.": {
+  "en": "Ceramics, books and trips out of town. Values warm humour and clear intentions.",
+  "de": "Keramik, Bücher und Ausflüge ins Grüne. Schätzt warmen Humor und klare Absichten.",
+  "uk": "Кераміка, книжки й поїздки за місто. Цінує теплий гумор і чіткі наміри.",
+  "es": "Cerámica, libros y escapadas fuera de la ciudad. Valora el humor cálido y las intenciones claras."
+ },
+ "Chat pojawi się tutaj po wzajemnym matchu.": {
+  "en": "The chat will appear here after a mutual match.",
+  "de": "Der Chat erscheint hier nach einem gegenseitigen Match.",
+  "uk": "Чат з'явиться тут після взаємного метчу.",
+  "es": "El chat aparecerá aquí tras un match mutuo."
+ },
+ "Chce z Tobą porozmawiać": {
+  "en": "Wants to talk to you",
+  "de": "Möchte mit dir reden",
+  "uk": "Хоче з тобою поговорити",
+  "es": "Quiere hablar contigo"
+ },
+ "Ciemny": {
+  "en": "Dark",
+  "de": "Dunkel",
+  "uk": "Темна",
+  "es": "Oscuro"
+ },
+ "Cisza nocna": {
+  "en": "Quiet hours",
+  "de": "Ruhezeit",
+  "uk": "Тихі години",
+  "es": "Horas de silencio"
+ },
+ "Co jest nie tak z profilem {0}?": {
+  "en": "What's wrong with {0}'s profile?",
+  "de": "Was stimmt mit dem Profil von {0} nicht?",
+  "uk": "Що не так із профілем {0}?",
+  "es": "¿Qué pasa con el perfil de {0}?"
+ },
+ "Co zyskujesz": {
+  "en": "What you get",
+  "de": "Deine Vorteile",
+  "uk": "Що ти отримуєш",
+  "es": "Lo que consigues"
+ },
+ "Cofnij": {
+  "en": "Undo",
+  "de": "Rückgängig",
+  "uk": "Скасувати",
+  "es": "Deshacer"
+ },
+ "Cofnij polubienie": {
+  "en": "Undo like",
+  "de": "Like zurücknehmen",
+  "uk": "Скасувати вподобання",
+  "es": "Deshacer like"
+ },
+ "Cofnij polubienie profilu": {
+  "en": "Undo profile like",
+  "de": "Profil-Like zurücknehmen",
+  "uk": "Скасувати вподобання профілю",
+  "es": "Deshacer like al perfil"
+ },
+ "Coś poszło nie tak": {
+  "en": "Something went wrong",
+  "de": "Etwas ist schiefgelaufen",
+  "uk": "Щось пішло не так",
+  "es": "Algo salió mal"
+ },
+ "Cz": {
+  "en": "Th",
+  "de": "Do",
+  "uk": "Чт",
+  "es": "Ju"
+ },
+ "Czat": {
+  "en": "Chat",
+  "de": "Chat",
+  "uk": "Чат",
+  "es": "Chat"
+ },
+ "Czeka": {
+  "en": "Waiting",
+  "de": "Wartet",
+  "uk": "Очікує",
+  "es": "Pendiente"
+ },
+ "CZEKA NA AKCEPTACJĘ": {
+  "en": "AWAITING ACCEPTANCE",
+  "de": "WARTET AUF ANNAHME",
+  "uk": "ОЧІКУЄ ПРИЙНЯТТЯ",
+  "es": "ESPERANDO ACEPTACIÓN"
+ },
+ "Czeka na Twoją decyzję w Czacie": {
+  "en": "Waiting for your decision in Chat",
+  "de": "Wartet auf deine Entscheidung im Chat",
+  "uk": "Чекає на твоє рішення в Чаті",
+  "es": "Espera tu decisión en el Chat"
+ },
+ "Czeka na wzajemność": {
+  "en": "Waiting for a like back",
+  "de": "Wartet auf Gegenseitigkeit",
+  "uk": "Чекає на взаємність",
+  "es": "Esperando reciprocidad"
+ },
+ "Czekamy na odpowiedź": {
+  "en": "Waiting for a reply",
+  "de": "Wir warten auf eine Antwort",
+  "uk": "Чекаємо на відповідь",
+  "es": "Esperando respuesta"
+ },
+ "Cześć! Chcesz pogadać o planszówkach?": {
+  "en": "Hi! Want to talk board games?",
+  "de": "Hi! Lust, über Brettspiele zu quatschen?",
+  "uk": "Привіт! Поговоримо про настолки?",
+  "es": "¡Hola! ¿Hablamos de juegos de mesa?"
+ },
+ "Częstsze pojawianie się na głównej": {
+  "en": "Show up more often on the main feed",
+  "de": "Häufiger auf der Startseite erscheinen",
+  "uk": "Частіше з'являтися на головній",
+  "es": "Aparece más a menudo en la portada"
+ },
+ "Częstsze pojawianie się u innych w odkrywaniu.": {
+  "en": "Show up more often in other people's Discover.",
+  "de": "Häufiger bei anderen in Entdecken erscheinen.",
+  "uk": "Частіше з'являтися в «Відкривай» в інших.",
+  "es": "Aparece más a menudo en Descubrir de otras personas."
+ },
+ "Czy chcesz usunąć to zdjęcie?": {
+  "en": "Do you want to delete this photo?",
+  "de": "Möchtest du dieses Foto löschen?",
+  "uk": "Видалити це фото?",
+  "es": "¿Quieres eliminar esta foto?"
+ },
+ "Czy na pewno chcesz zablokować {0}?": {
+  "en": "Are you sure you want to block {0}?",
+  "de": "Möchtest du {0} wirklich blockieren?",
+  "uk": "Точно заблокувати {0}?",
+  "es": "¿Seguro que quieres bloquear a {0}?"
+ },
+ "Czy na pewno chcesz zakończyć sesję na tym urządzeniu?": {
+  "en": "Are you sure you want to sign out on this device?",
+  "de": "Möchtest du dich auf diesem Gerät wirklich abmelden?",
+  "uk": "Точно завершити сеанс на цьому пристрої?",
+  "es": "¿Seguro que quieres cerrar sesión en este dispositivo?"
+ },
+ "Daj szansę rozmowie": {
+  "en": "Give the conversation a chance",
+  "de": "Gib dem Gespräch eine Chance",
+  "uk": "Дай розмові шанс",
+  "es": "Dale una oportunidad a la conversación"
+ },
+ "Dalej": {
+  "en": "Next",
+  "de": "Weiter",
+  "uk": "Далі",
+  "es": "Siguiente"
+ },
+ "Data urodzenia (RRRR-MM-DD)": {
+  "en": "Date of birth (YYYY-MM-DD)",
+  "de": "Geburtsdatum (JJJJ-MM-TT)",
+  "uk": "Дата народження (РРРР-ММ-ДД)",
+  "es": "Fecha de nacimiento (AAAA-MM-DD)"
+ },
+ "Data wydarzenia": {
+  "en": "Event date",
+  "de": "Event-Datum",
+  "uk": "Дата події",
+  "es": "Fecha del evento"
+ },
+ "Dla bezpieczeństwa możesz wysłać maksymalnie 20 wiadomości na minutę.": {
+  "en": "For safety, you can send up to 20 messages per minute.",
+  "de": "Aus Sicherheitsgründen kannst du maximal 20 Nachrichten pro Minute senden.",
+  "uk": "З міркувань безпеки можна надсилати не більше 20 повідомлень на хвилину.",
+  "es": "Por seguridad, puedes enviar como máximo 20 mensajes por minuto."
+ },
+ "Dla Twojego regionu nie są wymagane dodatkowe ustawienia zgód reklamowych.": {
+  "en": "No additional ad consent settings are required in your region.",
+  "de": "In deiner Region sind keine zusätzlichen Werbe-Einwilligungen nötig.",
+  "uk": "Для твого регіону додаткові налаштування згод на рекламу не потрібні.",
+  "es": "En tu región no se necesitan ajustes adicionales de consentimiento publicitario."
+ },
+ "dni temu": {
+  "en": "days ago",
+  "de": "Tagen",
+  "uk": "дн. тому",
+  "es": "días"
+ },
+ "Do": {
+  "en": "To",
+  "de": "Bis",
+  "uk": "До",
+  "es": "Hasta"
+ },
+ "Do 15 zdjęć": {
+  "en": "Up to 15 photos",
+  "de": "Bis zu 15 Fotos",
+  "uk": "До 15 фото",
+  "es": "Hasta 15 fotos"
+ },
+ "do Spark!": {
+  "en": "to Spark!",
+  "de": "bei Spark!",
+  "uk": "до Spark!",
+  "es": "¡a Spark!"
+ },
+ "Dobry start": {
+  "en": "Good start",
+  "de": "Guter Start",
+  "uk": "Добрий старт",
+  "es": "Buen comienzo"
+ },
+ "Dobry temat na pierwszą wiadomość": {
+  "en": "A good topic for a first message",
+  "de": "Gutes Thema für die erste Nachricht",
+  "uk": "Добра тема для першого повідомлення",
+  "es": "Buen tema para el primer mensaje"
+ },
+ "DOBRY VIBE": {
+  "en": "GOOD VIBE",
+  "de": "GUTER VIBE",
+  "uk": "ДОБРИЙ ВАЙБ",
+  "es": "BUEN ROLLO"
+ },
+ "Dodaj": {
+  "en": "Add",
+  "de": "Hinzufügen",
+  "uk": "Додати",
+  "es": "Añadir"
+ },
+ "Dodaj do 15 zdjęć i zbuduj profil, który łatwiej rozpoczyna rozmowę.": {
+  "en": "Add up to 15 photos and build a profile that makes starting a chat easier.",
+  "de": "Füge bis zu 15 Fotos hinzu und baue ein Profil, das den Gesprächseinstieg erleichtert.",
+  "uk": "Додай до 15 фото й створи профіль, з якого легше почати розмову.",
+  "es": "Añade hasta 15 fotos y crea un perfil que facilite empezar a hablar."
+ },
+ "Dodaj jeszcze kilka tagów": {
+  "en": "Add a few more tags",
+  "de": "Füge noch ein paar Tags hinzu",
+  "uk": "Додай ще кілька тегів",
+  "es": "Añade algunas etiquetas más"
+ },
+ "Dodaj same nicki. Bez linków i adresów URL.": {
+  "en": "Add usernames only. No links or URLs.",
+  "de": "Nur Benutzernamen. Keine Links oder URLs.",
+  "uk": "Додай лише нікнейми. Без посилань і URL.",
+  "es": "Añade solo nombres de usuario. Sin enlaces ni URL."
+ },
+ "Dodaj wydarzenie, na które warto się wybrać.": {
+  "en": "Add an event worth going to.",
+  "de": "Füge ein Event hinzu, das sich lohnt.",
+  "uk": "Додай подію, на яку варто піти.",
+  "es": "Añade un evento al que merezca la pena ir."
+ },
+ "Dodaj zdjęcie główne i opcjonalnie dwa dodatkowe. Format 4:5.": {
+  "en": "Add a main photo and optionally two more. 4:5 format.",
+  "de": "Füge ein Hauptfoto und optional zwei weitere hinzu. Format 4:5.",
+  "uk": "Додай головне фото й за бажанням ще два. Формат 4:5.",
+  "es": "Añade una foto principal y, si quieres, dos más. Formato 4:5."
+ },
+ "Dokument jest chwilowo niedostępny. Kontakt: {0}": {
+  "en": "The document is temporarily unavailable. Contact: {0}",
+  "de": "Das Dokument ist vorübergehend nicht verfügbar. Kontakt: {0}",
+  "uk": "Документ тимчасово недоступний. Контакт: {0}",
+  "es": "El documento no está disponible temporalmente. Contacto: {0}"
+ },
+ "Dołącz": {
+  "en": "Join",
+  "de": "Beitreten",
+  "uk": "Приєднатися",
+  "es": "Unirse"
+ },
+ "Dołącz do mnie w Spark": {
+  "en": "Join me on Spark",
+  "de": "Komm zu mir auf Spark",
+  "uk": "Приєднуйся до мене в Spark",
+  "es": "Únete a mí en Spark"
+ },
+ "Dołącz do Spark": {
+  "en": "Join Spark",
+  "de": "Tritt Spark bei",
+  "uk": "Приєднуйся до Spark",
+  "es": "Únete a Spark"
+ },
+ "Dołącz ze mną": {
+  "en": "Join me",
+  "de": "Komm mit",
+  "uk": "Приєднуйся разом зі мною",
+  "es": "Únete conmigo"
+ },
+ "Dołącz ze mną{0}do Spark!": {
+  "en": "Join me{0}on Spark!",
+  "de": "Komm mit mir{0}zu Spark!",
+  "uk": "Приєднуйся разом зі мною{0}до Spark!",
+  "es": "¡Únete conmigo{0}a Spark!"
+ },
+ "Dopasowanie": {
+  "en": "Match",
+  "de": "Übereinstimmung",
+  "uk": "Збіг",
+  "es": "Compatibilidad"
+ },
+ "Dopasowujemy osoby do Twoich zainteresowań i preferencji.": {
+  "en": "We match people by your interests and preferences.",
+  "de": "Wir bringen Menschen nach deinen Interessen und Vorlieben zusammen.",
+  "uk": "Ми підбираємо людей за твоїми інтересами й уподобаннями.",
+  "es": "Conectamos a personas según tus intereses y preferencias."
+ },
+ "Dostęp do zdjęć": {
+  "en": "Photo access",
+  "de": "Fotozugriff",
+  "uk": "Доступ до фото",
+  "es": "Acceso a fotos"
+ },
+ "Dostęp premium jest aktywny.": {
+  "en": "Premium access is active.",
+  "de": "Premium-Zugang ist aktiv.",
+  "uk": "Преміум-доступ активний.",
+  "es": "El acceso premium está activo."
+ },
+ "Dostępne w Spark Pro": {
+  "en": "Available in Spark Pro",
+  "de": "Verfügbar in Spark Pro",
+  "uk": "Доступно в Spark Pro",
+  "es": "Disponible en Spark Pro"
+ },
+ "Druga osoba musi zaakceptować prośbę albo odwzajemnić polubienie.": {
+  "en": "The other person has to accept the request or like you back.",
+  "de": "Die andere Person muss die Anfrage annehmen oder dein Like erwidern.",
+  "uk": "Інша людина має прийняти запит або відповісти вподобанням.",
+  "es": "La otra persona tiene que aceptar la solicitud o devolverte el like."
+ },
+ "Dzięki reklamom Spark może być darmowy.": {
+  "en": "Ads keep Spark free.",
+  "de": "Dank Werbung kann Spark kostenlos sein.",
+  "uk": "Завдяки рекламі Spark може бути безкоштовним.",
+  "es": "Gracias a los anuncios, Spark puede ser gratis."
+ },
+ "Dzięki! Sprawdzimy wydarzenie i damy Ci znać powiadomieniem.": {
+  "en": "Thanks! We'll review the event and let you know with a notification.",
+  "de": "Danke! Wir prüfen das Event und benachrichtigen dich.",
+  "uk": "Дякуємо! Ми перевіримо подію й повідомимо тебе.",
+  "es": "¡Gracias! Revisaremos el evento y te avisaremos con una notificación."
+ },
+ "Dziękujemy. Zespół moderacji sprawdzi zgłoszenie wraz z dostępnym kontekstem.": {
+  "en": "Thank you. The moderation team will review the report with the available context.",
+  "de": "Danke. Das Moderationsteam prüft die Meldung mit dem verfügbaren Kontext.",
+  "uk": "Дякуємо. Команда модерації перевірить скаргу з урахуванням доступного контексту.",
+  "es": "Gracias. El equipo de moderación revisará la denuncia con el contexto disponible."
+ },
+ "Dźwięk": {
+  "en": "Sound",
+  "de": "Ton",
+  "uk": "Звук",
+  "es": "Sonido"
+ },
+ "Dźwięk dla dozwolonych powiadomień": {
+  "en": "Sound for allowed notifications",
+  "de": "Ton für erlaubte Benachrichtigungen",
+  "uk": "Звук для дозволених сповіщень",
+  "es": "Sonido para las notificaciones permitidas"
+ },
+ "Edytuj": {
+  "en": "Edit",
+  "de": "Bearbeiten",
+  "uk": "Редагувати",
+  "es": "Editar"
+ },
+ "Edytuj profil": {
+  "en": "Edit profile",
+  "de": "Profil bearbeiten",
+  "uk": "Редагувати профіль",
+  "es": "Editar perfil"
+ },
+ "Edytujesz zgłoszenie": {
+  "en": "You're editing a submission",
+  "de": "Du bearbeitest eine Einreichung",
+  "uk": "Ти редагуєш заявку",
+  "es": "Estás editando una propuesta"
+ },
+ "Fałszywy profil": {
+  "en": "Fake profile",
+  "de": "Fake-Profil",
+  "uk": "Фейковий профіль",
+  "es": "Perfil falso"
+ },
+ "Filmy": {
+  "en": "Movies",
+  "de": "Filme",
+  "uk": "Фільми",
+  "es": "Películas"
+ },
+ "Filmy i seriale": {
+  "en": "Movies & series",
+  "de": "Filme & Serien",
+  "uk": "Фільми й серіали",
+  "es": "Películas y series"
+ },
+ "Filtry": {
+  "en": "Filters",
+  "de": "Filter",
+  "uk": "Фільтри",
+  "es": "Filtros"
+ },
+ "Foto": {
+  "en": "Photo",
+  "de": "Foto",
+  "uk": "Фото",
+  "es": "Foto"
+ },
+ "Foto {0}{1}": {
+  "en": "Photo {0}{1}",
+  "de": "Foto {0}{1}",
+  "uk": "Фото {0}{1}",
+  "es": "Foto {0}{1}"
+ },
+ "Fotografia": {
+  "en": "Photography",
+  "de": "Fotografie",
+  "uk": "Фотографія",
+  "es": "Fotografía"
+ },
+ "Fotografia analogowa, góry i niedzielne brunche. Najbardziej lubi ludzi, którzy pytają drugi raz.": {
+  "en": "Analog photography, mountains and Sunday brunches. Likes people who ask a second time.",
+  "de": "Analoge Fotografie, Berge und Sonntagsbrunch. Mag Menschen, die zweimal nachfragen.",
+  "uk": "Плівкова фотографія, гори й недільні бранчі. Найбільше любить людей, які перепитують.",
+  "es": "Fotografía analógica, montañas y brunch de domingo. Le gusta la gente que pregunta dos veces."
+ },
+ "Free ma limit 3 zdjęcia. Premium odblokuje 15.": {
+  "en": "Free has a 3-photo limit. Premium unlocks 15.",
+  "de": "Free hat ein Limit von 3 Fotos. Premium schaltet 15 frei.",
+  "uk": "У Free ліміт 3 фото. Premium відкриває 15.",
+  "es": "Free tiene un límite de 3 fotos. Premium desbloquea 15."
+ },
+ "Galeria": {
+  "en": "Gallery",
+  "de": "Galerie",
+  "uk": "Галерея",
+  "es": "Galería"
+ },
+ "Gaming i planszówki": {
+  "en": "Gaming & board games",
+  "de": "Gaming & Brettspiele",
+  "uk": "Ігри й настолки",
+  "es": "Gaming y juegos de mesa"
+ },
+ "Gdy ktoś otworzy pełne szczegóły Twojego profilu, zobaczysz go tutaj.": {
+  "en": "When someone opens your full profile details, you'll see them here.",
+  "de": "Wenn jemand deine vollständigen Profildetails öffnet, siehst du es hier.",
+  "uk": "Коли хтось відкриє повні деталі твого профілю, ти побачиш це тут.",
+  "es": "Cuando alguien abra todos los detalles de tu perfil, lo verás aquí."
+ },
+ "Gdy ktoś wybierze jedno z tych samych wydarzeń, pojawi się tutaj jako karta do swipe.": {
+  "en": "When someone picks one of the same events, they'll show up here as a swipe card.",
+  "de": "Wenn jemand eines der gleichen Events wählt, erscheint die Person hier als Swipe-Karte.",
+  "uk": "Коли хтось вибере одну з тих самих подій, людина з'явиться тут як картка для свайпу.",
+  "es": "Cuando alguien elija uno de los mismos eventos, aparecerá aquí como tarjeta para deslizar."
+ },
+ "Gdy w pobliżu nikogo nie ma, pokażemy też dalsze profile.": {
+  "en": "If there's no one nearby, we'll show profiles further away too.",
+  "de": "Wenn niemand in der Nähe ist, zeigen wir auch weiter entfernte Profile.",
+  "uk": "Якщо поруч нікого немає, покажемо й дальші профілі.",
+  "es": "Si no hay nadie cerca, también mostraremos perfiles más lejanos."
+ },
+ "Gej": {
+  "en": "Gay",
+  "de": "Schwul",
+  "uk": "Гей",
+  "es": "Gay"
+ },
+ "Główne": {
+  "en": "Main",
+  "de": "Hauptfoto",
+  "uk": "Головне",
+  "es": "Principal"
+ },
+ "godz. temu": {
+  "en": "h ago",
+  "de": "Std.",
+  "uk": "год тому",
+  "es": "h"
+ },
+ "Godzina": {
+  "en": "Time",
+  "de": "Uhrzeit",
+  "uk": "Година",
+  "es": "Hora"
+ },
+ "Godziny są podane w strefie czasowej Twojego telefonu. Zmiana początku przesuwa też koniec wydarzenia.": {
+  "en": "Times are shown in your phone's time zone. Changing the start also moves the end of the event.",
+  "de": "Die Zeiten werden in der Zeitzone deines Handys angezeigt. Wenn du den Beginn änderst, verschiebt sich auch das Ende.",
+  "uk": "Час показано в часовому поясі твого телефона. Зміна початку зсуває й кінець події.",
+  "es": "Las horas se muestran en la zona horaria de tu teléfono. Cambiar el inicio también mueve el final del evento."
+ },
+ "Google nie zwrócił tokenu logowania.": {
+  "en": "Google didn't return a sign-in token.",
+  "de": "Google hat kein Anmelde-Token geliefert.",
+  "uk": "Google не повернув токен входу.",
+  "es": "Google no devolvió el token de inicio de sesión."
+ },
+ "Gotowanie": {
+  "en": "Cooking",
+  "de": "Kochen",
+  "uk": "Готування",
+  "es": "Cocinar"
+ },
+ "Gotowe": {
+  "en": "Done",
+  "de": "Fertig",
+  "uk": "Готово",
+  "es": "Listo"
+ },
+ "Gotowe do dopasowań": {
+  "en": "Ready for matches",
+  "de": "Bereit für Matches",
+  "uk": "Готово до метчів",
+  "es": "Listo para matches"
+ },
+ "góry": {
+  "en": "mountains",
+  "de": "Berge",
+  "uk": "гори",
+  "es": "montaña"
+ },
+ "Góry": {
+  "en": "Mountains",
+  "de": "Berge",
+  "uk": "Гори",
+  "es": "Montaña"
+ },
+ "Gry": {
+  "en": "Games",
+  "de": "Spiele",
+  "uk": "Ігри",
+  "es": "Juegos"
+ },
+ "Hasła nie są takie same.": {
+  "en": "Passwords don't match.",
+  "de": "Die Passwörter stimmen nicht überein.",
+  "uk": "Паролі не збігаються.",
+  "es": "Las contraseñas no coinciden."
+ },
+ "Hasło": {
+  "en": "Password",
+  "de": "Passwort",
+  "uk": "Пароль",
+  "es": "Contraseña"
+ },
+ "Hasło jest zbyt słabe. Użyj co najmniej 8 znaków.": {
+  "en": "Password is too weak. Use at least 8 characters.",
+  "de": "Das Passwort ist zu schwach. Verwende mindestens 8 Zeichen.",
+  "uk": "Пароль надто слабкий. Використай щонайменше 8 символів.",
+  "es": "La contraseña es demasiado débil. Usa al menos 8 caracteres."
+ },
+ "Hasło musi mieć co najmniej 8 znaków.": {
+  "en": "Password must be at least 8 characters.",
+  "de": "Das Passwort muss mindestens 8 Zeichen haben.",
+  "uk": "Пароль має містити щонайменше 8 символів.",
+  "es": "La contraseña debe tener al menos 8 caracteres."
+ },
+ "Hej {0}! Co ostatnio poprawiło Ci humor?": {
+  "en": "Hey {0}! What made you smile lately?",
+  "de": "Hey {0}! Was hat dich zuletzt zum Lächeln gebracht?",
+  "uk": "Привіт, {0}! Що останнім часом підняло тобі настрій?",
+  "es": "¡Hola, {0}! ¿Qué te ha alegrado el día últimamente?"
+ },
+ "Hej {0}! Też wybierasz się na „{1}”. Co przekonało Cię do tego wydarzenia?": {
+  "en": "Hey {0}! You're going to “{1}” too. What convinced you to go?",
+  "de": "Hey {0}! Du gehst auch zu „{1}“. Was hat dich überzeugt?",
+  "uk": "Привіт, {0}! Ти теж ідеш на «{1}». Що тебе переконало?",
+  "es": "¡Hola, {0}! Tú también vas a «{1}». ¿Qué te convenció?"
+ },
+ "Hej {0}! Widzę, że też wybierasz „{1}”. Co najbardziej Cię w tym kręci?": {
+  "en": "Hey {0}! I see you picked “{1}” too. What do you like most about it?",
+  "de": "Hey {0}! Du hast auch „{1}“ gewählt. Was reizt dich daran am meisten?",
+  "uk": "Привіт, {0}! Бачу, ти теж обираєш «{1}». Що тобі в цьому найбільше подобається?",
+  "es": "¡Hola, {0}! Veo que tú también elegiste «{1}». ¿Qué es lo que más te gusta?"
+ },
+ "Hej, mamy match. Kawa albo spacer?": {
+  "en": "Hey, we matched. Coffee or a walk?",
+  "de": "Hey, wir haben ein Match. Kaffee oder Spaziergang?",
+  "uk": "Привіт, у нас метч. Кава чи прогулянка?",
+  "es": "Hola, tenemos match. ¿Café o paseo?"
+ },
+ "Hej, widzę wspólne klimaty. Masz ochotę pogadać?": {
+  "en": "Hey, looks like we're into the same things. Fancy a chat?",
+  "de": "Hey, wir scheinen auf dasselbe zu stehen. Lust zu quatschen?",
+  "uk": "Привіт, бачу спільний вайб. Хочеш поговорити?",
+  "es": "Hola, veo que tenemos gustos en común. ¿Te apetece hablar?"
+ },
+ "Hej! Też wybieram się na „{0}”. Chcesz pogadać przed wydarzeniem?": {
+  "en": "Hey! I'm going to “{0}” too. Want to chat before the event?",
+  "de": "Hey! Ich gehe auch zu „{0}“. Wollen wir vorher schreiben?",
+  "uk": "Привіт! Я теж іду на «{0}». Поговоримо до події?",
+  "es": "¡Hola! Yo también voy a «{0}». ¿Hablamos antes del evento?"
+ },
+ "Hej! Widzę, że też lubisz sztukę 🙂": {
+  "en": "Hey! I see you like art too 🙂",
+  "de": "Hey! Du magst also auch Kunst 🙂",
+  "uk": "Привіт! Бачу, ти теж любиш мистецтво 🙂",
+  "es": "¡Hola! Veo que a ti también te gusta el arte 🙂"
+ },
+ "Historia": {
+  "en": "History",
+  "de": "Verlauf",
+  "uk": "Історія",
+  "es": "Historial"
+ },
+ "i {0} więcej": {
+  "en": "and {0} more",
+  "de": "und {0} weitere",
+  "uk": "і ще {0}",
+  "es": "y {0} más"
+ },
+ "i utwórz match": {
+  "en": "and create a match",
+  "de": "und Match erstellen",
+  "uk": "і створити метч",
+  "es": "y crear un match"
+ },
+ "Identyfikator użytkownika nie pasuje do zalogowanego konta.": {
+  "en": "The user ID doesn't match the signed-in account.",
+  "de": "Die Nutzer-ID passt nicht zum angemeldeten Konto.",
+  "uk": "Ідентифікатор користувача не відповідає акаунту, в який виконано вхід.",
+  "es": "El ID de usuario no coincide con la cuenta con sesión iniciada."
+ },
+ "Idzie na wydarzenie ·": {
+  "en": "Going to the event ·",
+  "de": "Geht zum Event ·",
+  "uk": "Іде на подію ·",
+  "es": "Va al evento ·"
+ },
+ "Ikona wydarzenia": {
+  "en": "Event icon",
+  "de": "Event-Symbol",
+  "uk": "Іконка події",
+  "es": "Icono del evento"
+ },
+ "Imię": {
+  "en": "First name",
+  "de": "Vorname",
+  "uk": "Ім'я",
+  "es": "Nombre"
+ },
+ "Imię i nazwisko": {
+  "en": "Full name",
+  "de": "Vor- und Nachname",
+  "uk": "Ім'я та прізвище",
+  "es": "Nombre y apellido"
+ },
+ "Inne pasje": {
+  "en": "Other passions",
+  "de": "Andere Leidenschaften",
+  "uk": "Інші захоплення",
+  "es": "Otras pasiones"
+ },
+ "Interseks": {
+  "en": "Intersex",
+  "de": "Intersex",
+  "uk": "Інтерсекс",
+  "es": "Intersexual"
+ },
+ "Jak mamy Cię pokazać?": {
+  "en": "How should we show you?",
+  "de": "Wie sollen wir dich zeigen?",
+  "uk": "Як тебе показувати?",
+  "es": "¿Cómo te mostramos?"
+ },
+ "Jak się określasz? Opcjonalnie": {
+  "en": "How do you identify? Optional",
+  "de": "Wie bezeichnest du dich? Optional",
+  "uk": "Як ти себе визначаєш? Необов'язково",
+  "es": "¿Cómo te identificas? Opcional"
+ },
+ "Jak telefon": {
+  "en": "Same as phone",
+  "de": "Wie Handy",
+  "uk": "Як у телефоні",
+  "es": "Como el teléfono"
+ },
+ "Jasny": {
+  "en": "Light",
+  "de": "Hell",
+  "uk": "Світла",
+  "es": "Claro"
+ },
+ "Jedna prośba o chat do": {
+  "en": "One chat request to",
+  "de": "Eine Chat-Anfrage an",
+  "uk": "Один запит на чат до",
+  "es": "Una solicitud de chat a"
+ },
+ "Jedna prośba o chat do {0} już czeka na akceptację.": {
+  "en": "One chat request to {0} is already waiting to be accepted.",
+  "de": "Eine Chat-Anfrage an {0} wartet bereits auf Annahme.",
+  "uk": "Один запит на чат до {0} уже чекає на прийняття.",
+  "es": "Una solicitud de chat a {0} ya espera ser aceptada."
+ },
+ "Jedno pytanie na start: jaki był Twój ostatni dobry moment związany z „{0}”?": {
+  "en": "One question to start: what was your last great moment related to “{0}”?",
+  "de": "Eine Frage zum Start: Was war dein letzter schöner Moment mit „{0}“?",
+  "uk": "Одне питання на старт: який був твій останній класний момент, пов'язаний із «{0}»?",
+  "es": "Una pregunta para empezar: ¿cuál fue tu último buen momento relacionado con «{0}»?"
+ },
+ "Jedzenie i kawa": {
+  "en": "Food & coffee",
+  "de": "Essen & Kaffee",
+  "uk": "Їжа й кава",
+  "es": "Comida y café"
+ },
+ "Jest iskra!": {
+  "en": "It's a spark!",
+  "de": "Es funkt!",
+  "uk": "Є іскра!",
+  "es": "¡Hay chispa!"
+ },
+ "jest już aktywna.": {
+  "en": "is already active.",
+  "de": "ist bereits aktiv.",
+  "uk": "уже активна.",
+  "es": "ya está activa."
+ },
+ "JEST POTENCJAŁ": {
+  "en": "THERE'S POTENTIAL",
+  "de": "DA IST POTENZIAL",
+  "uk": "Є ПОТЕНЦІАЛ",
+  "es": "HAY POTENCIAL"
+ },
+ "Jestem tu po:": {
+  "en": "I'm here for:",
+  "de": "Ich bin hier für:",
+  "uk": "Я тут заради:",
+  "es": "Estoy aquí por:"
+ },
+ "Jestem tu po: {0}.": {
+  "en": "I'm here for: {0}.",
+  "de": "Ich bin hier für: {0}.",
+  "uk": "Я тут заради: {0}.",
+  "es": "Estoy aquí por: {0}."
+ },
+ "Jeszcze bez matchy": {
+  "en": "No matches yet",
+  "de": "Noch keine Matches",
+  "uk": "Ще немає метчів",
+  "es": "Aún no hay matches"
+ },
+ "Jeszcze bez planów?": {
+  "en": "No plans yet?",
+  "de": "Noch keine Pläne?",
+  "uk": "Ще немає планів?",
+  "es": "¿Aún sin planes?"
+ },
+ "Jeszcze bez wizyt": {
+  "en": "No visits yet",
+  "de": "Noch keine Besuche",
+  "uk": "Ще немає відвідувань",
+  "es": "Aún no hay visitas"
+ },
+ "Jeszcze nikogo tu nie ma": {
+  "en": "Nobody here yet",
+  "de": "Hier ist noch niemand",
+  "uk": "Тут ще нікого немає",
+  "es": "Aún no hay nadie aquí"
+ },
+ "Język": {
+  "en": "Language",
+  "de": "Sprache",
+  "uk": "Мова",
+  "es": "Idioma"
+ },
+ "Joga": {
+  "en": "Yoga",
+  "de": "Yoga",
+  "uk": "Йога",
+  "es": "Yoga"
+ },
+ "Jutro koncert, idziesz?": {
+  "en": "Concert tomorrow, are you going?",
+  "de": "Morgen Konzert, kommst du?",
+  "uk": "Завтра концерт, ідеш?",
+  "es": "Mañana hay concierto, ¿vas?"
+ },
+ "już czeka na akceptację.": {
+  "en": "is already waiting to be accepted.",
+  "de": "wartet bereits auf Annahme.",
+  "uk": "уже чекає на прийняття.",
+  "es": "ya espera ser aceptada."
+ },
+ "Karta Spark": {
+  "en": "Spark card",
+  "de": "Spark-Karte",
+  "uk": "Картка Spark",
+  "es": "Tarjeta Spark"
+ },
+ "Kawa": {
+  "en": "Coffee",
+  "de": "Kaffee",
+  "uk": "Кава",
+  "es": "Café"
+ },
+ "Kawiarnie": {
+  "en": "Cafés",
+  "de": "Cafés",
+  "uk": "Кав'ярні",
+  "es": "Cafeterías"
+ },
+ "Kilka słów: kto gra, co się dzieje, dla kogo.": {
+  "en": "A few words: who's playing, what's happening, who it's for.",
+  "de": "Ein paar Worte: wer spielt, was passiert, für wen.",
+  "uk": "Кілька слів: хто грає, що відбувається, для кого.",
+  "es": "Unas palabras: quién toca, qué pasa, para quién es."
+ },
+ "Kino": {
+  "en": "Cinema",
+  "de": "Kino",
+  "uk": "Кіно",
+  "es": "Cine"
+ },
+ "Kino studyjne": {
+  "en": "Arthouse cinema",
+  "de": "Programmkino",
+  "uk": "Артхаусне кіно",
+  "es": "Cine de autor"
+ },
+ "km od Ciebie": {
+  "en": "km from you",
+  "de": "km von dir",
+  "uk": "км від тебе",
+  "es": "km de ti"
+ },
+ "Kobieta": {
+  "en": "Woman",
+  "de": "Frau",
+  "uk": "Жінка",
+  "es": "Mujer"
+ },
+ "Kogo chcesz poznać?": {
+  "en": "Who do you want to meet?",
+  "de": "Wen möchtest du kennenlernen?",
+  "uk": "Кого хочеш зустріти?",
+  "es": "¿A quién quieres conocer?"
+ },
+ "Kogo chcesz widzieć?": {
+  "en": "Who do you want to see?",
+  "de": "Wen möchtest du sehen?",
+  "uk": "Кого хочеш бачити?",
+  "es": "¿A quién quieres ver?"
+ },
+ "Kogo pokazywać": {
+  "en": "Who to show",
+  "de": "Wen anzeigen",
+  "uk": "Кого показувати",
+  "es": "A quién mostrar"
+ },
+ "Kogo widzisz w Odkrywaj (płeć, wiek, odległość) ustawiasz w Filtrach na ekranie Odkrywaj.": {
+  "en": "Who you see in Discover (gender, age, distance) is set in Filters on the Discover screen.",
+  "de": "Wen du in Entdecken siehst (Geschlecht, Alter, Entfernung), stellst du in den Filtern auf dem Entdecken-Bildschirm ein.",
+  "uk": "Кого ти бачиш у «Відкривай» (стать, вік, відстань), налаштовується у Фільтрах на екрані «Відкривай».",
+  "es": "A quién ves en Descubrir (género, edad, distancia) se configura en Filtros, en la pantalla Descubrir."
+ },
+ "Kolejka jest pusta": {
+  "en": "The queue is empty",
+  "de": "Die Warteschlange ist leer",
+  "uk": "Черга порожня",
+  "es": "La cola está vacía"
+ },
+ "Kolejka zgłoszeń": {
+  "en": "Report queue",
+  "de": "Meldungs-Warteschlange",
+  "uk": "Черга скарг",
+  "es": "Cola de denuncias"
+ },
+ "Komiksy": {
+  "en": "Comics",
+  "de": "Comics",
+  "uk": "Комікси",
+  "es": "Cómics"
+ },
+ "Koncert": {
+  "en": "Concert",
+  "de": "Konzert",
+  "uk": "Концерт",
+  "es": "Concierto"
+ },
+ "Koncerty": {
+  "en": "Concerts",
+  "de": "Konzerte",
+  "uk": "Концерти",
+  "es": "Conciertos"
+ },
+ "Koncerty i festiwale": {
+  "en": "Concerts & festivals",
+  "de": "Konzerte & Festivals",
+  "uk": "Концерти й фестивалі",
+  "es": "Conciertos y festivales"
+ },
+ "Koncerty, rower i dokumenty muzyczne. Zawsze zna mały lokal z dobrą sceną.": {
+  "en": "Concerts, cycling and music documentaries. Always knows a small venue with a good stage.",
+  "de": "Konzerte, Fahrrad und Musikdokus. Kennt immer eine kleine Location mit guter Bühne.",
+  "uk": "Концерти, велосипед і музичні документалки. Завжди знає маленьке місце з доброю сценою.",
+  "es": "Conciertos, bici y documentales musicales. Siempre conoce un local pequeño con buen escenario."
+ },
+ "Konfiguracja Firebase": {
+  "en": "Firebase setup",
+  "de": "Firebase-Konfiguration",
+  "uk": "Налаштування Firebase",
+  "es": "Configuración de Firebase"
+ },
+ "Koniec": {
+  "en": "End",
+  "de": "Ende",
+  "uk": "Кінець",
+  "es": "Fin"
+ },
+ "Koniec musi być późniejszy niż początek wydarzenia.": {
+  "en": "The end must be later than the start of the event.",
+  "de": "Das Ende muss nach dem Beginn des Events liegen.",
+  "uk": "Кінець має бути пізніше за початок події.",
+  "es": "El final debe ser posterior al inicio del evento."
+ },
+ "Koniec wydarzenia musi przypadać w przyszłości.": {
+  "en": "The end of the event must be in the future.",
+  "de": "Das Ende des Events muss in der Zukunft liegen.",
+  "uk": "Кінець події має бути в майбутньому.",
+  "es": "El final del evento debe ser en el futuro."
+ },
+ "Konto": {
+  "en": "Account",
+  "de": "Konto",
+  "uk": "Акаунт",
+  "es": "Cuenta"
+ },
+ "Konto testowe": {
+  "en": "Test account",
+  "de": "Testkonto",
+  "uk": "Тестовий акаунт",
+  "es": "Cuenta de prueba"
+ },
+ "Konto testowe: tester@spark.app": {
+  "en": "Test account: tester@spark.app",
+  "de": "Testkonto: tester@spark.app",
+  "uk": "Тестовий акаунт: tester@spark.app",
+  "es": "Cuenta de prueba: tester@spark.app"
+ },
+ "Konto usunięte": {
+  "en": "Account deleted",
+  "de": "Konto gelöscht",
+  "uk": "Акаунт видалено",
+  "es": "Cuenta eliminada"
+ },
+ "Konto usunięte lub ukryte": {
+  "en": "Account deleted or hidden",
+  "de": "Konto gelöscht oder verborgen",
+  "uk": "Акаунт видалено або приховано",
+  "es": "Cuenta eliminada u oculta"
+ },
+ "Konto z tym adresem email już istnieje.": {
+  "en": "An account with this email already exists.",
+  "de": "Ein Konto mit dieser E-Mail-Adresse existiert bereits.",
+  "uk": "Акаунт із цим email уже існує.",
+  "es": "Ya existe una cuenta con este correo."
+ },
+ "Konto, profil, zdjęcia i dane powiązane zostały trwale usunięte.": {
+  "en": "Your account, profile, photos and related data have been permanently deleted.",
+  "de": "Konto, Profil, Fotos und zugehörige Daten wurden dauerhaft gelöscht.",
+  "uk": "Акаунт, профіль, фото й пов'язані дані остаточно видалено.",
+  "es": "La cuenta, el perfil, las fotos y los datos relacionados se han eliminado de forma permanente."
+ },
+ "Kontynuuj z Google": {
+  "en": "Continue with Google",
+  "de": "Weiter mit Google",
+  "uk": "Продовжити з Google",
+  "es": "Continuar con Google"
+ },
+ "Kontynuuj za": {
+  "en": "Continue for",
+  "de": "Weiter für",
+  "uk": "Продовжити за",
+  "es": "Continuar por"
+ },
+ "Kontynuuj za {0}": {
+  "en": "Continue for {0}",
+  "de": "Weiter für {0}",
+  "uk": "Продовжити за {0}",
+  "es": "Continuar por {0}"
+ },
+ "Korona Pro": {
+  "en": "Pro crown",
+  "de": "Pro-Krone",
+  "uk": "Корона Pro",
+  "es": "Corona Pro"
+ },
+ "Korona Pro przy profilowym": {
+  "en": "Pro crown on your profile photo",
+  "de": "Pro-Krone am Profilbild",
+  "uk": "Корона Pro біля фото профілю",
+  "es": "Corona Pro en tu foto de perfil"
+ },
+ "Koszykówka": {
+  "en": "Basketball",
+  "de": "Basketball",
+  "uk": "Баскетбол",
+  "es": "Baloncesto"
+ },
+ "Krótka przerwa techniczna": {
+  "en": "Short technical break",
+  "de": "Kurze technische Pause",
+  "uk": "Коротка технічна перерва",
+  "es": "Breve pausa técnica"
+ },
+ "Książki": {
+  "en": "Books",
+  "de": "Bücher",
+  "uk": "Книжки",
+  "es": "Libros"
+ },
+ "Kto Cię zauważył": {
+  "en": "Who noticed you",
+  "de": "Wer dich bemerkt hat",
+  "uk": "Хто тебе помітив",
+  "es": "Quién se fijó en ti"
+ },
+ "Kto oglądał Twój profil": {
+  "en": "Who viewed your profile",
+  "de": "Wer dein Profil angesehen hat",
+  "uk": "Хто переглядав твій профіль",
+  "es": "Quién vio tu perfil"
+ },
+ "Kto widzi tag": {
+  "en": "Who sees the tag",
+  "de": "Wer den Tag sieht",
+  "uk": "Хто бачить тег",
+  "es": "Quién ve la etiqueta"
+ },
+ "Kuchnia": {
+  "en": "Cuisine",
+  "de": "Küche",
+  "uk": "Кухня",
+  "es": "Cocina"
+ },
+ "Kultura": {
+  "en": "Culture",
+  "de": "Kultur",
+  "uk": "Культура",
+  "es": "Cultura"
+ },
+ "Kultura i sztuka": {
+  "en": "Culture & art",
+  "de": "Kultur & Kunst",
+  "uk": "Культура й мистецтво",
+  "es": "Cultura y arte"
+ },
+ "lat - Spark jest dostępny od 18 lat.": {
+  "en": "years old - Spark is available from age 18.",
+  "de": "Jahre - Spark ist ab 18 Jahren verfügbar.",
+  "uk": "р. - Spark доступний з 18 років.",
+  "es": "años - Spark está disponible a partir de 18 años."
+ },
+ "Lesbijka": {
+  "en": "Lesbian",
+  "de": "Lesbisch",
+  "uk": "Лесбійка",
+  "es": "Lesbiana"
+ },
+ "LGBT+ / Społeczność": {
+  "en": "LGBT+ / Community",
+  "de": "LGBT+ / Community",
+  "uk": "LGBT+ / Спільнота",
+  "es": "LGBT+ / Comunidad"
+ },
+ "Limit odległości jest ścisły — nigdy go nie poszerzamy.": {
+  "en": "The distance limit is strict — we never widen it.",
+  "de": "Das Entfernungslimit ist strikt — wir erweitern es nie.",
+  "uk": "Обмеження відстані суворе — ми ніколи його не розширюємо.",
+  "es": "El límite de distancia es estricto — nunca lo ampliamos."
+ },
+ "Limit Premium to 15 zdjęć.": {
+  "en": "The Premium limit is 15 photos.",
+  "de": "Das Premium-Limit sind 15 Fotos.",
+  "uk": "Ліміт Premium — 15 фото.",
+  "es": "El límite Premium es de 15 fotos."
+ },
+ "Limit wiadomości": {
+  "en": "Message limit",
+  "de": "Nachrichtenlimit",
+  "uk": "Ліміт повідомлень",
+  "es": "Límite de mensajes"
+ },
+ "Lista jest pusta": {
+  "en": "The list is empty",
+  "de": "Die Liste ist leer",
+  "uk": "Список порожній",
+  "es": "La lista está vacía"
+ },
+ "Logowanie": {
+  "en": "Sign in",
+  "de": "Anmelden",
+  "uk": "Вхід",
+  "es": "Iniciar sesión"
+ },
+ "Logowanie Apple jest dostępne na iPhonie.": {
+  "en": "Sign in with Apple is available on iPhone.",
+  "de": "Die Anmeldung mit Apple ist auf dem iPhone verfügbar.",
+  "uk": "Вхід через Apple доступний на iPhone.",
+  "es": "El inicio de sesión con Apple está disponible en iPhone."
+ },
+ "Logowanie jest chwilowo niedostępne. Spróbuj ponownie później.": {
+  "en": "Sign-in is temporarily unavailable. Please try again later.",
+  "de": "Die Anmeldung ist vorübergehend nicht verfügbar. Versuch es später erneut.",
+  "uk": "Вхід тимчасово недоступний. Спробуй пізніше.",
+  "es": "El inicio de sesión no está disponible temporalmente. Inténtalo más tarde."
+ },
+ "Lokalizacja": {
+  "en": "Location",
+  "de": "Standort",
+  "uk": "Локація",
+  "es": "Ubicación"
+ },
+ "Lokalizacja jest opcjonalna": {
+  "en": "Location is optional",
+  "de": "Standort ist optional",
+  "uk": "Локація необов'язкова",
+  "es": "La ubicación es opcional"
+ },
+ "lokalizacja ukryta": {
+  "en": "location hidden",
+  "de": "Standort verborgen",
+  "uk": "локацію приховано",
+  "es": "ubicación oculta"
+ },
+ "Lokalizacja ukryta": {
+  "en": "Location hidden",
+  "de": "Standort verborgen",
+  "uk": "Локацію приховано",
+  "es": "Ubicación oculta"
+ },
+ "lub kontynuuj przez": {
+  "en": "or continue with",
+  "de": "oder weiter mit",
+  "uk": "або продовж через",
+  "es": "o continúa con"
+ },
+ "Ładowanie pakietów...": {
+  "en": "Loading plans...",
+  "de": "Pakete werden geladen...",
+  "uk": "Завантажуємо пакети...",
+  "es": "Cargando planes..."
+ },
+ "Ładujemy wizyty": {
+  "en": "Loading visits",
+  "de": "Besuche werden geladen",
+  "uk": "Завантажуємо відвідування",
+  "es": "Cargando visitas"
+ },
+ "Łączą Was {0} {1} · {2}": {
+  "en": "You share {0} {1} · {2}",
+  "de": "Euch verbinden {0} {1} · {2}",
+  "uk": "Вас об'єднують {0} {1} · {2}",
+  "es": "Os une {0} {1} · {2}"
+ },
+ "Łączenie...": {
+  "en": "Connecting...",
+  "de": "Verbinden...",
+  "uk": "З'єднання...",
+  "es": "Conectando..."
+ },
+ "Łączy Was: {0}": {
+  "en": "You share: {0}",
+  "de": "Euch verbindet: {0}",
+  "uk": "Вас об'єднує: {0}",
+  "es": "Os une: {0}"
+ },
+ "Mam już konto — Zaloguj się": {
+  "en": "I already have an account — Sign in",
+  "de": "Ich habe schon ein Konto — Anmelden",
+  "uk": "У мене вже є акаунт — Увійти",
+  "es": "Ya tengo cuenta — Iniciar sesión"
+ },
+ "Mamy match, więc szybki wybór: kawa, spacer czy długa rozmowa?": {
+  "en": "We matched, so quick pick: coffee, a walk or a long chat?",
+  "de": "Wir haben ein Match, also schnelle Wahl: Kaffee, Spaziergang oder ein langes Gespräch?",
+  "uk": "У нас метч, тож швидкий вибір: кава, прогулянка чи довга розмова?",
+  "es": "Tenemos match, así que elige rápido: ¿café, paseo o una charla larga?"
+ },
+ "Masz już 3 zgłoszenia czekające na akceptację. Poczekaj na decyzję.": {
+  "en": "You already have 3 submissions waiting for review. Wait for a decision.",
+  "de": "Du hast bereits 3 Einreichungen, die auf Prüfung warten. Warte auf die Entscheidung.",
+  "uk": "У тебе вже 3 заявки на розгляді. Зачекай на рішення.",
+  "es": "Ya tienes 3 propuestas esperando revisión. Espera la decisión."
+ },
+ "Masz już match z": {
+  "en": "You already matched with",
+  "de": "Du hast bereits ein Match mit",
+  "uk": "У тебе вже є метч із",
+  "es": "Ya tienes match con"
+ },
+ "Masz już match z {0}. Rozmowa jest odblokowana.": {
+  "en": "You already matched with {0}. The chat is unlocked.",
+  "de": "Du hast bereits ein Match mit {0}. Der Chat ist freigeschaltet.",
+  "uk": "У тебе вже є метч із {0}. Чат відкрито.",
+  "es": "Ya tienes match con {0}. El chat está desbloqueado."
+ },
+ "Match aktywny - możecie pisać.": {
+  "en": "Match active - you can chat.",
+  "de": "Match aktiv - ihr könnt schreiben.",
+  "uk": "Метч активний - можете писати.",
+  "es": "Match activo - podéis escribir."
+ },
+ "Match musi łączyć dwa różne identyfikatory użytkowników.": {
+  "en": "A match must connect two different user IDs.",
+  "de": "Ein Match muss zwei verschiedene Nutzer-IDs verbinden.",
+  "uk": "Метч має поєднувати два різні ідентифікатори користувачів.",
+  "es": "Un match debe unir dos ID de usuario distintos."
+ },
+ "Matche": {
+  "en": "Matches",
+  "de": "Matches",
+  "uk": "Метчі",
+  "es": "Matches"
+ },
+ "Mecz": {
+  "en": "Game",
+  "de": "Spiel",
+  "uk": "Матч",
+  "es": "Partido"
+ },
+ "Mecze i aktywność": {
+  "en": "Games & sports",
+  "de": "Spiele & Bewegung",
+  "uk": "Матчі й активність",
+  "es": "Partidos y actividad"
+ },
+ "Mężczyzna": {
+  "en": "Man",
+  "de": "Mann",
+  "uk": "Чоловік",
+  "es": "Hombre"
+ },
+ "Miasto": {
+  "en": "City",
+  "de": "Stadt",
+  "uk": "Місто",
+  "es": "Ciudad"
+ },
+ "Miasto nocą": {
+  "en": "City at night",
+  "de": "Stadt bei Nacht",
+  "uk": "Місто вночі",
+  "es": "Ciudad de noche"
+ },
+ "Miejsce (opcjonalnie)": {
+  "en": "Venue (optional)",
+  "de": "Ort (optional)",
+  "uk": "Місце (необов'язково)",
+  "es": "Lugar (opcional)"
+ },
+ "Miesiąc": {
+  "en": "Month",
+  "de": "Monat",
+  "uk": "Місяць",
+  "es": "Mes"
+ },
+ "Miesięczny limit SparkLike został wykorzystany.": {
+  "en": "Monthly SparkLike limit reached.",
+  "de": "Monatliches SparkLike-Limit erreicht.",
+  "uk": "Місячний ліміт SparkLike вичерпано.",
+  "es": "Has alcanzado el límite mensual de SparkLike."
+ },
+ "Mikrofon": {
+  "en": "Microphone",
+  "de": "Mikrofon",
+  "uk": "Мікрофон",
+  "es": "Micrófono"
+ },
+ "Miło Cię widzieć": {
+  "en": "Nice to see you",
+  "de": "Schön, dich zu sehen",
+  "uk": "Радо тебе бачити",
+  "es": "Qué bien verte"
+ },
+ "min temu": {
+  "en": "min ago",
+  "de": "Min.",
+  "uk": "хв тому",
+  "es": "min"
+ },
+ "Minimalizm": {
+  "en": "Minimalism",
+  "de": "Minimalismus",
+  "uk": "Мінімалізм",
+  "es": "Minimalismo"
+ },
+ "Minimum 20 znaków": {
+  "en": "At least 20 characters",
+  "de": "Mindestens 20 Zeichen",
+  "uk": "Щонайменше 20 символів",
+  "es": "Mínimo 20 caracteres"
+ },
+ "Mniej": {
+  "en": "Less",
+  "de": "Weniger",
+  "uk": "Менше",
+  "es": "Menos"
+ },
+ "MOCNA ISKRA": {
+  "en": "STRONG SPARK",
+  "de": "STARKER FUNKE",
+  "uk": "СИЛЬНА ІСКРА",
+  "es": "CHISPA FUERTE"
+ },
+ "Moda": {
+  "en": "Fashion",
+  "de": "Mode",
+  "uk": "Мода",
+  "es": "Moda"
+ },
+ "Moderacja": {
+  "en": "Moderation",
+  "de": "Moderation",
+  "uk": "Модерація",
+  "es": "Moderación"
+ },
+ "MODERACJA SPARK": {
+  "en": "SPARK MODERATION",
+  "de": "SPARK-MODERATION",
+  "uk": "МОДЕРАЦІЯ SPARK",
+  "es": "MODERACIÓN SPARK"
+ },
+ "Moje": {
+  "en": "Mine",
+  "de": "Meine",
+  "uk": "Мої",
+  "es": "Míos"
+ },
+ "Możesz korzystać ze Spark bez lokalizacji. Aby pokazywać przybliżoną odległość, włącz dostęp w ustawieniach.": {
+  "en": "You can use Spark without location. To show approximate distance, enable access in settings.",
+  "de": "Du kannst Spark ohne Standort nutzen. Um die ungefähre Entfernung anzuzeigen, aktiviere den Zugriff in den Einstellungen.",
+  "uk": "Spark можна користуватися без локації. Щоб показувати приблизну відстань, увімкни доступ у налаштуваннях.",
+  "es": "Puedes usar Spark sin ubicación. Para mostrar la distancia aproximada, activa el acceso en los ajustes."
+ },
+ "Możesz obserwować maksymalnie {0} wydarzenia jednocześnie.": {
+  "en": "You can follow up to {0} events at once.",
+  "de": "Du kannst maximal {0} Events gleichzeitig folgen.",
+  "uk": "Можна стежити максимум за {0} подіями одночасно.",
+  "es": "Puedes seguir como máximo {0} eventos a la vez."
+ },
+ "Możesz pokazywać imię i nazwisko albo wyłącznie nick.": {
+  "en": "You can show your full name or just a nickname.",
+  "de": "Du kannst deinen vollen Namen oder nur einen Nickname zeigen.",
+  "uk": "Можна показувати ім'я та прізвище або лише нікнейм.",
+  "es": "Puedes mostrar tu nombre y apellido o solo un apodo."
+ },
+ "Możesz połączyć kilka kategorii. Zmiany zapiszesz przyciskiem na dole.": {
+  "en": "You can combine several categories. Save changes with the button below.",
+  "de": "Du kannst mehrere Kategorien kombinieren. Speichere die Änderungen mit dem Button unten.",
+  "uk": "Можна поєднати кілька категорій. Збережи зміни кнопкою внизу.",
+  "es": "Puedes combinar varias categorías. Guarda los cambios con el botón de abajo."
+ },
+ "Możesz wybrać maksymalnie": {
+  "en": "You can choose up to",
+  "de": "Du kannst maximal wählen",
+  "uk": "Можна вибрати максимум",
+  "es": "Puedes elegir como máximo"
+ },
+ "Możesz wybrać maksymalnie {0} zainteresowań.": {
+  "en": "You can choose up to {0} interests.",
+  "de": "Du kannst maximal {0} Interessen wählen.",
+  "uk": "Можна вибрати максимум {0} інтересів.",
+  "es": "Puedes elegir como máximo {0} intereses."
+ },
+ "Musisz być zalogowany, aby usunąć konto.": {
+  "en": "You must be signed in to delete your account.",
+  "de": "Du musst angemeldet sein, um dein Konto zu löschen.",
+  "uk": "Щоб видалити акаунт, потрібно увійти.",
+  "es": "Tienes que iniciar sesión para eliminar la cuenta."
+ },
+ "Musisz być zalogowany, aby wykonać tę operację.": {
+  "en": "You must be signed in to do this.",
+  "de": "Du musst angemeldet sein, um das zu tun.",
+  "uk": "Щоб виконати цю дію, потрібно увійти.",
+  "es": "Tienes que iniciar sesión para hacer esto."
+ },
+ "Muzea": {
+  "en": "Museums",
+  "de": "Museen",
+  "uk": "Музеї",
+  "es": "Museos"
+ },
+ "Muzyka": {
+  "en": "Music",
+  "de": "Musik",
+  "uk": "Музика",
+  "es": "Música"
+ },
+ "Na dobry początek": {
+  "en": "For a good start",
+  "de": "Für einen guten Start",
+  "uk": "Для доброго початку",
+  "es": "Para empezar bien"
+ },
+ "Na profilu pojawi się tymczasowe oznaczenie, a specjalny feed pokaże osoby z tego samego wydarzenia i pasującego wieku. Wybór znika godzinę po zakończeniu.": {
+  "en": "A temporary badge will appear on your profile, and a special feed will show people from the same event and a matching age. Your pick disappears an hour after the event ends.",
+  "de": "Auf deinem Profil erscheint eine vorübergehende Markierung, und ein spezieller Feed zeigt Personen vom gleichen Event im passenden Alter. Die Auswahl verschwindet eine Stunde nach Ende.",
+  "uk": "У профілі з'явиться тимчасова позначка, а спеціальна стрічка покаже людей з тієї самої події та відповідного віку. Вибір зникне через годину після завершення.",
+  "es": "En tu perfil aparecerá una marca temporal y un feed especial mostrará a personas del mismo evento y de edad compatible. La elección desaparece una hora después de que termine."
+ },
+ "Na próbę": {
+  "en": "Trial",
+  "de": "Zum Testen",
+  "uk": "На пробу",
+  "es": "De prueba"
+ },
+ "Na zawsze": {
+  "en": "Forever",
+  "de": "Für immer",
+  "uk": "Назавжди",
+  "es": "Para siempre"
+ },
+ "Nadaj Spark dostęp do zdjęć, aby dodać zdjęcie profilowe.": {
+  "en": "Give Spark access to your photos to add a profile photo.",
+  "de": "Erlaube Spark den Zugriff auf deine Fotos, um ein Profilbild hinzuzufügen.",
+  "uk": "Дай Spark доступ до фото, щоб додати фото профілю.",
+  "es": "Da acceso a tus fotos a Spark para añadir una foto de perfil."
+ },
+ "Najczęstsze": {
+  "en": "Most frequent",
+  "de": "Am häufigsten",
+  "uk": "Найчастіші",
+  "es": "Más frecuentes"
+ },
+ "Najlepszy wybór": {
+  "en": "Best value",
+  "de": "Beste Wahl",
+  "uk": "Найкращий вибір",
+  "es": "La mejor opción"
+ },
+ "Najnowsze": {
+  "en": "Newest",
+  "de": "Neueste",
+  "uk": "Найновіші",
+  "es": "Más recientes"
+ },
+ "Najpierw sprawdzaj groźby, nękanie i podszywanie się.": {
+  "en": "Check threats, harassment and impersonation first.",
+  "de": "Prüfe zuerst Drohungen, Belästigung und Identitätsbetrug.",
+  "uk": "Спершу перевіряй погрози, цькування та видавання себе за інших.",
+  "es": "Revisa primero amenazas, acoso y suplantación de identidad."
+ },
+ "Napisz": {
+  "en": "Message",
+  "de": "Schreiben",
+  "uk": "Написати",
+  "es": "Escribir"
+ },
+ "Napisz do": {
+  "en": "Message",
+  "de": "Schreib an",
+  "uk": "Написати",
+  "es": "Escribir a"
+ },
+ "Napisz do nas": {
+  "en": "Contact us",
+  "de": "Schreib uns",
+  "uk": "Напиши нам",
+  "es": "Escríbenos"
+ },
+ "Napisz do nas:": {
+  "en": "Contact us:",
+  "de": "Schreib uns:",
+  "uk": "Напиши нам:",
+  "es": "Escríbenos:"
+ },
+ "Napisz do nas: {0}": {
+  "en": "Contact us: {0}",
+  "de": "Schreib uns: {0}",
+  "uk": "Напиши нам: {0}",
+  "es": "Escríbenos: {0}"
+ },
+ "Napisz do profilu przed matchem i czekaj na akceptację.": {
+  "en": "Message the profile before a match and wait for them to accept.",
+  "de": "Schreib dem Profil vor dem Match und warte auf die Annahme.",
+  "uk": "Напиши профілю до метчу й чекай на прийняття.",
+  "es": "Escribe al perfil antes del match y espera a que lo acepte."
+ },
+ "Napisz kilka zdań o sobie, swoich pasjach i osobach, które chcesz poznać.": {
+  "en": "Write a few sentences about yourself, your passions and the people you want to meet.",
+  "de": "Schreib ein paar Sätze über dich, deine Leidenschaften und die Menschen, die du kennenlernen möchtest.",
+  "uk": "Напиши кілька речень про себе, свої захоплення й людей, яких хочеш зустріти.",
+  "es": "Escribe unas frases sobre ti, tus pasiones y las personas que quieres conocer."
+ },
+ "Napisz o czymś, co naprawdę Was łączy.": {
+  "en": "Write about something you really have in common.",
+  "de": "Schreib über etwas, das euch wirklich verbindet.",
+  "uk": "Напиши про те, що вас справді об'єднує.",
+  "es": "Escribe sobre algo que de verdad tengáis en común."
+ },
+ "Napisz pierwszą wiadomość": {
+  "en": "Write the first message",
+  "de": "Schreib die erste Nachricht",
+  "uk": "Напиши перше повідомлення",
+  "es": "Escribe el primer mensaje"
+ },
+ "Napisz przed matchem": {
+  "en": "Message before a match",
+  "de": "Vor dem Match schreiben",
+  "uk": "Написати до метчу",
+  "es": "Escribir antes del match"
+ },
+ "Napisz teraz": {
+  "en": "Message now",
+  "de": "Jetzt schreiben",
+  "uk": "Написати зараз",
+  "es": "Escribir ahora"
+ },
+ "Następne zdjęcie stanie się głównym.": {
+  "en": "The next photo will become your main one.",
+  "de": "Das nächste Foto wird dein Hauptfoto.",
+  "uk": "Наступне фото стане головним.",
+  "es": "La siguiente foto pasará a ser la principal."
+ },
+ "Natura": {
+  "en": "Nature",
+  "de": "Natur",
+  "uk": "Природа",
+  "es": "Naturaleza"
+ },
+ "Nazwa musi mieć od 3 do 80 znaków.": {
+  "en": "The name must be 3 to 80 characters.",
+  "de": "Der Name muss 3 bis 80 Zeichen haben.",
+  "uk": "Назва має містити від 3 до 80 символів.",
+  "es": "El nombre debe tener entre 3 y 80 caracteres."
+ },
+ "Nazwa wydarzenia": {
+  "en": "Event name",
+  "de": "Name des Events",
+  "uk": "Назва події",
+  "es": "Nombre del evento"
+ },
+ "Nazwisko": {
+  "en": "Last name",
+  "de": "Nachname",
+  "uk": "Прізвище",
+  "es": "Apellido"
+ },
+ "Nazwisko (opcjonalnie)": {
+  "en": "Last name (optional)",
+  "de": "Nachname (optional)",
+  "uk": "Прізвище (необов'язково)",
+  "es": "Apellido (opcional)"
+ },
+ "Nd": {
+  "en": "Su",
+  "de": "So",
+  "uk": "Нд",
+  "es": "Do"
+ },
+ "Nękanie": {
+  "en": "Harassment",
+  "de": "Belästigung",
+  "uk": "Цькування",
+  "es": "Acoso"
+ },
+ "Nękanie lub obraźliwe wiadomości": {
+  "en": "Harassment or abusive messages",
+  "de": "Belästigung oder beleidigende Nachrichten",
+  "uk": "Цькування або образливі повідомлення",
+  "es": "Acoso o mensajes ofensivos"
+ },
+ "Nękanie lub obraźliwe zachowanie": {
+  "en": "Harassment or abusive behaviour",
+  "de": "Belästigung oder beleidigendes Verhalten",
+  "uk": "Цькування або образлива поведінка",
+  "es": "Acoso o comportamiento ofensivo"
+ },
+ "Nic w tym trybie": {
+  "en": "Nothing in this mode",
+  "de": "Nichts in diesem Modus",
+  "uk": "У цьому режимі нічого немає",
+  "es": "Nada en este modo"
+ },
+ "Nick": {
+  "en": "Nickname",
+  "de": "Nickname",
+  "uk": "Нікнейм",
+  "es": "Apodo"
+ },
+ "Nicki zobaczą dopiero osoby, z którymi masz match.": {
+  "en": "Only people you've matched with will see your usernames.",
+  "de": "Benutzernamen sehen nur Personen, mit denen du ein Match hast.",
+  "uk": "Нікнейми побачать лише люди, з якими в тебе метч.",
+  "es": "Solo las personas con las que tengas match verán tus usuarios."
+ },
+ "Nie": {
+  "en": "No",
+  "de": "Nein",
+  "uk": "Ні",
+  "es": "No"
+ },
+ "Nie ma takich wydarzeń": {
+  "en": "No such events",
+  "de": "Keine solchen Events",
+  "uk": "Таких подій немає",
+  "es": "No hay eventos así"
+ },
+ "Nie masz jeszcze wybranych tagów.": {
+  "en": "You haven't picked any tags yet.",
+  "de": "Du hast noch keine Tags ausgewählt.",
+  "uk": "Ти ще не вибрав(-ла) тегів.",
+  "es": "Aún no has elegido etiquetas."
+ },
+ "Nie masz obecnie zablokowanych osób.": {
+  "en": "You haven't blocked anyone.",
+  "de": "Du hast derzeit niemanden blockiert.",
+  "uk": "Наразі ти нікого не заблокував(-ла).",
+  "es": "Ahora mismo no tienes a nadie bloqueado."
+ },
+ "Nie można otworzyć dokumentu. Kontakt: {0}": {
+  "en": "Can't open the document. Contact: {0}",
+  "de": "Das Dokument kann nicht geöffnet werden. Kontakt: {0}",
+  "uk": "Не вдається відкрити документ. Контакт: {0}",
+  "es": "No se puede abrir el documento. Contacto: {0}"
+ },
+ "Nie pamiętasz hasła?": {
+  "en": "Forgot your password?",
+  "de": "Passwort vergessen?",
+  "uk": "Забув(-ла) пароль?",
+  "es": "¿Has olvidado tu contraseña?"
+ },
+ "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty.": {
+  "en": "We don't show profiles you've already rated again. Come back later or restore skipped cards.",
+  "de": "Profile, die du schon bewertet hast, zeigen wir nicht erneut. Komm später wieder oder hol übersprungene Karten zurück.",
+  "uk": "Ми не показуємо повторно профілі, які ти вже оцінив(-ла). Повернися пізніше або віднови пропущені картки.",
+  "es": "No volvemos a mostrar perfiles que ya has valorado. Vuelve más tarde o recupera las tarjetas omitidas."
+ },
+ "Nie przegap nowego matchu": {
+  "en": "Don't miss a new match",
+  "de": "Verpasse kein neues Match",
+  "uk": "Не пропусти новий метч",
+  "es": "No te pierdas un nuevo match"
+ },
+ "Nie teraz": {
+  "en": "Not now",
+  "de": "Nicht jetzt",
+  "uk": "Не зараз",
+  "es": "Ahora no"
+ },
+ "Nie udało się anulować prośby. Spróbuj ponownie.": {
+  "en": "Couldn't cancel the request. Please try again.",
+  "de": "Die Anfrage konnte nicht zurückgezogen werden. Versuch es erneut.",
+  "uk": "Не вдалося скасувати запит. Спробуй ще раз.",
+  "es": "No se pudo cancelar la solicitud. Inténtalo de nuevo."
+ },
+ "Nie udało się odblokować profilu. Sprawdź połączenie i spróbuj ponownie.": {
+  "en": "Couldn't unblock the profile. Check your connection and try again.",
+  "de": "Das Profil konnte nicht entsperrt werden. Prüfe deine Verbindung und versuch es erneut.",
+  "uk": "Не вдалося розблокувати профіль. Перевір з'єднання й спробуй ще раз.",
+  "es": "No se pudo desbloquear el perfil. Comprueba tu conexión e inténtalo de nuevo."
+ },
+ "Nie udało się odczytać wybranego zdjęcia.": {
+  "en": "Couldn't read the selected photo.",
+  "de": "Das ausgewählte Foto konnte nicht gelesen werden.",
+  "uk": "Не вдалося прочитати вибране фото.",
+  "es": "No se pudo leer la foto elegida."
+ },
+ "Nie udało się odnaleźć tego profilu. Odśwież listę i spróbuj ponownie.": {
+  "en": "Couldn't find this profile. Refresh the list and try again.",
+  "de": "Dieses Profil wurde nicht gefunden. Aktualisiere die Liste und versuch es erneut.",
+  "uk": "Не вдалося знайти цей профіль. Онови список і спробуй ще раз.",
+  "es": "No se encontró este perfil. Actualiza la lista e inténtalo de nuevo."
+ },
+ "Nie udało się odrzucić prośby. Spróbuj ponownie.": {
+  "en": "Couldn't decline the request. Please try again.",
+  "de": "Die Anfrage konnte nicht abgelehnt werden. Versuch es erneut.",
+  "uk": "Не вдалося відхилити запит. Спробуй ще раз.",
+  "es": "No se pudo rechazar la solicitud. Inténtalo de nuevo."
+ },
+ "Nie udało się odświeżyć statusu weryfikacji.": {
+  "en": "Couldn't refresh verification status.",
+  "de": "Der Verifizierungsstatus konnte nicht aktualisiert werden.",
+  "uk": "Не вдалося оновити статус верифікації.",
+  "es": "No se pudo actualizar el estado de verificación."
+ },
+ "Nie udało się opublikować": {
+  "en": "Couldn't publish",
+  "de": "Veröffentlichen fehlgeschlagen",
+  "uk": "Не вдалося опублікувати",
+  "es": "No se pudo publicar"
+ },
+ "Nie udało się otworzyć galerii. Spróbuj ponownie lub sprawdź ustawienia Spark.": {
+  "en": "Couldn't open the gallery. Try again or check Spark's settings.",
+  "de": "Die Galerie konnte nicht geöffnet werden. Versuch es erneut oder prüfe die Spark-Einstellungen.",
+  "uk": "Не вдалося відкрити галерею. Спробуй ще раз або перевір налаштування Spark.",
+  "es": "No se pudo abrir la galería. Inténtalo de nuevo o revisa los ajustes de Spark."
+ },
+ "Nie udało się otworzyć pakietów. Spróbuj ponownie później.": {
+  "en": "Couldn't open plans. Please try again later.",
+  "de": "Die Pakete konnten nicht geöffnet werden. Versuch es später erneut.",
+  "uk": "Не вдалося відкрити пакети. Спробуй пізніше.",
+  "es": "No se pudieron abrir los planes. Inténtalo más tarde."
+ },
+ "Nie udało się otworzyć udostępniania. Spróbuj ponownie.": {
+  "en": "Couldn't open sharing. Please try again.",
+  "de": "Teilen konnte nicht geöffnet werden. Versuch es erneut.",
+  "uk": "Не вдалося відкрити меню «Поділитися». Спробуй ще раз.",
+  "es": "No se pudo abrir el menú para compartir. Inténtalo de nuevo."
+ },
+ "Nie udało się otworzyć ustawień. Sprawdź połączenie i spróbuj ponownie.": {
+  "en": "Couldn't open settings. Check your connection and try again.",
+  "de": "Die Einstellungen konnten nicht geöffnet werden. Prüfe deine Verbindung und versuch es erneut.",
+  "uk": "Не вдалося відкрити налаштування. Перевір з'єднання й спробуй ще раз.",
+  "es": "No se pudieron abrir los ajustes. Comprueba tu conexión e inténtalo de nuevo."
+ },
+ "Nie udało się otworzyć zarządzania subskrypcją. Otwórz Ustawienia iPhone > Apple ID > Subskrypcje.": {
+  "en": "Couldn't open subscription management. Open iPhone Settings > Apple ID > Subscriptions.",
+  "de": "Die Abo-Verwaltung konnte nicht geöffnet werden. Öffne iPhone-Einstellungen > Apple-ID > Abonnements.",
+  "uk": "Не вдалося відкрити керування підпискою. Відкрий Налаштування iPhone > Apple ID > Підписки.",
+  "es": "No se pudo abrir la gestión de la suscripción. Abre Ajustes del iPhone > ID de Apple > Suscripciones."
+ },
+ "Nie udało się oznaczyć rozmowy jako przeczytanej.": {
+  "en": "Couldn't mark the chat as read.",
+  "de": "Das Gespräch konnte nicht als gelesen markiert werden.",
+  "uk": "Не вдалося позначити розмову як прочитану.",
+  "es": "No se pudo marcar la conversación como leída."
+ },
+ "Nie udało się pobrać aktualnych pakietów z App Store.": {
+  "en": "Couldn't load current plans from the App Store.",
+  "de": "Die aktuellen Pakete konnten nicht aus dem App Store geladen werden.",
+  "uk": "Не вдалося завантажити актуальні пакети з App Store.",
+  "es": "No se pudieron cargar los planes actuales del App Store."
+ },
+ "Nie udało się pobrać aktualnych wydarzeń.": {
+  "en": "Couldn't load current events.",
+  "de": "Die aktuellen Events konnten nicht geladen werden.",
+  "uk": "Не вдалося завантажити актуальні події.",
+  "es": "No se pudieron cargar los eventos actuales."
+ },
+ "Nie udało się pobrać kolejki moderacji.": {
+  "en": "Couldn't load the moderation queue.",
+  "de": "Die Moderationswarteschlange konnte nicht geladen werden.",
+  "uk": "Не вдалося завантажити чергу модерації.",
+  "es": "No se pudo cargar la cola de moderación."
+ },
+ "Nie udało się pobrać lokalizacji. Spróbuj ponownie lub sprawdź ustawienia Spark.": {
+  "en": "Couldn't get your location. Try again or check Spark's settings.",
+  "de": "Der Standort konnte nicht ermittelt werden. Versuch es erneut oder prüfe die Spark-Einstellungen.",
+  "uk": "Не вдалося визначити локацію. Спробуй ще раз або перевір налаштування Spark.",
+  "es": "No se pudo obtener la ubicación. Inténtalo de nuevo o revisa los ajustes de Spark."
+ },
+ "Nie udało się pobrać profili": {
+  "en": "Couldn't load profiles",
+  "de": "Profile konnten nicht geladen werden",
+  "uk": "Не вдалося завантажити профілі",
+  "es": "No se pudieron cargar los perfiles"
+ },
+ "Nie udało się pobrać profili z tych wydarzeń.": {
+  "en": "Couldn't load profiles from these events.",
+  "de": "Profile von diesen Events konnten nicht geladen werden.",
+  "uk": "Не вдалося завантажити профілі з цих подій.",
+  "es": "No se pudieron cargar los perfiles de estos eventos."
+ },
+ "Nie udało się pobrać profili.": {
+  "en": "Couldn't load profiles.",
+  "de": "Profile konnten nicht geladen werden.",
+  "uk": "Не вдалося завантажити профілі.",
+  "es": "No se pudieron cargar los perfiles."
+ },
+ "Nie udało się pobrać profili. Spróbuj odświeżyć listę.": {
+  "en": "Couldn't load profiles. Try refreshing the list.",
+  "de": "Profile konnten nicht geladen werden. Aktualisiere die Liste.",
+  "uk": "Не вдалося завантажити профілі. Спробуй оновити список.",
+  "es": "No se pudieron cargar los perfiles. Prueba a actualizar la lista."
+ },
+ "Nie udało się pobrać ustawień.": {
+  "en": "Couldn't load settings.",
+  "de": "Die Einstellungen konnten nicht geladen werden.",
+  "uk": "Не вдалося завантажити налаштування.",
+  "es": "No se pudieron cargar los ajustes."
+ },
+ "Nie udało się pobrać zgłoszeń.": {
+  "en": "Couldn't load reports.",
+  "de": "Die Meldungen konnten nicht geladen werden.",
+  "uk": "Не вдалося завантажити скарги.",
+  "es": "No se pudieron cargar las denuncias."
+ },
+ "Nie udało się pobrać zgłoszeń. Spróbuj ponownie.": {
+  "en": "Couldn't load reports. Please try again.",
+  "de": "Meldungen konnten nicht geladen werden. Versuch es erneut.",
+  "uk": "Не вдалося завантажити скарги. Спробуй ще раз.",
+  "es": "No se pudieron cargar las denuncias. Inténtalo de nuevo."
+ },
+ "Nie udało się połączyć z płatnościami. Spróbuj ponownie.": {
+  "en": "Couldn't connect to payments. Please try again.",
+  "de": "Verbindung zu den Zahlungen fehlgeschlagen. Versuch es erneut.",
+  "uk": "Не вдалося з'єднатися з платежами. Спробуй ще раз.",
+  "es": "No se pudo conectar con los pagos. Inténtalo de nuevo."
+ },
+ "Nie udało się połączyć. Szkic jest zachowany — spróbuj ponownie.": {
+  "en": "Couldn't connect. Your draft is saved — please try again.",
+  "de": "Verbindung fehlgeschlagen. Der Entwurf ist gespeichert — versuch es erneut.",
+  "uk": "Не вдалося з'єднатися. Чернетку збережено — спробуй ще раз.",
+  "es": "No se pudo conectar. El borrador está guardado — inténtalo de nuevo."
+ },
+ "Nie udało się przywrócić pominiętych profili. Spróbuj ponownie.": {
+  "en": "Couldn't restore skipped profiles. Please try again.",
+  "de": "Übersprungene Profile konnten nicht wiederhergestellt werden. Versuch es erneut.",
+  "uk": "Не вдалося відновити пропущені профілі. Спробуй ще раз.",
+  "es": "No se pudieron recuperar los perfiles omitidos. Inténtalo de nuevo."
+ },
+ "Nie udało się przywrócić profili. Spróbuj ponownie.": {
+  "en": "Couldn't restore profiles. Please try again.",
+  "de": "Profile konnten nicht wiederhergestellt werden. Versuch es erneut.",
+  "uk": "Не вдалося відновити профілі. Спробуй ще раз.",
+  "es": "No se pudieron recuperar los perfiles. Inténtalo de nuevo."
+ },
+ "Nie udało się przywrócić profilu. Zaloguj się ponownie.": {
+  "en": "Couldn't restore the profile. Please sign in again.",
+  "de": "Das Profil konnte nicht wiederhergestellt werden. Melde dich erneut an.",
+  "uk": "Не вдалося відновити профіль. Увійди ще раз.",
+  "es": "No se pudo recuperar el perfil. Vuelve a iniciar sesión."
+ },
+ "Nie udało się unieważnić dostępu Apple. Spróbuj ponownie.": {
+  "en": "Couldn't revoke Apple access. Please try again.",
+  "de": "Der Apple-Zugriff konnte nicht widerrufen werden. Versuch es erneut.",
+  "uk": "Не вдалося відкликати доступ Apple. Спробуй ще раз.",
+  "es": "No se pudo revocar el acceso de Apple. Inténtalo de nuevo."
+ },
+ "Nie udało się usunąć": {
+  "en": "Couldn't delete",
+  "de": "Löschen fehlgeschlagen",
+  "uk": "Не вдалося видалити",
+  "es": "No se pudo eliminar"
+ },
+ "Nie udało się usunąć konta i danych. Spróbuj ponownie.": {
+  "en": "Couldn't delete the account and data. Please try again.",
+  "de": "Konto und Daten konnten nicht gelöscht werden. Versuch es erneut.",
+  "uk": "Не вдалося видалити акаунт і дані. Спробуй ще раз.",
+  "es": "No se pudieron eliminar la cuenta y los datos. Inténtalo de nuevo."
+ },
+ "Nie udało się usunąć konta.": {
+  "en": "Couldn't delete the account.",
+  "de": "Das Konto konnte nicht gelöscht werden.",
+  "uk": "Не вдалося видалити акаунт.",
+  "es": "No se pudo eliminar la cuenta."
+ },
+ "Nie udało się usunąć oczekującego polubienia. Spróbuj ponownie.": {
+  "en": "Couldn't remove the pending like. Please try again.",
+  "de": "Das ausstehende Like konnte nicht entfernt werden. Versuch es erneut.",
+  "uk": "Не вдалося видалити очікуване вподобання. Спробуй ще раз.",
+  "es": "No se pudo quitar el like pendiente. Inténtalo de nuevo."
+ },
+ "Nie udało się usunąć polubienia. Spróbuj ponownie.": {
+  "en": "Couldn't remove the like. Please try again.",
+  "de": "Das Like konnte nicht entfernt werden. Versuch es erneut.",
+  "uk": "Не вдалося видалити вподобання. Спробуй ще раз.",
+  "es": "No se pudo quitar el like. Inténtalo de nuevo."
+ },
+ "Nie udało się utworzyć konta.": {
+  "en": "Couldn't create the account.",
+  "de": "Das Konto konnte nicht erstellt werden.",
+  "uk": "Не вдалося створити акаунт.",
+  "es": "No se pudo crear la cuenta."
+ },
+ "Nie udało się utworzyć matchu.": {
+  "en": "Couldn't create the match.",
+  "de": "Das Match konnte nicht erstellt werden.",
+  "uk": "Не вдалося створити метч.",
+  "es": "No se pudo crear el match."
+ },
+ "Nie udało się utworzyć matchu. Spróbuj ponownie.": {
+  "en": "Couldn't create the match. Please try again.",
+  "de": "Das Match konnte nicht erstellt werden. Versuch es erneut.",
+  "uk": "Не вдалося створити метч. Спробуй ще раз.",
+  "es": "No se pudo crear el match. Inténtalo de nuevo."
+ },
+ "Nie udało się utworzyć obrazu. Spróbuj ponownie po pełnym załadowaniu zdjęcia.": {
+  "en": "Couldn't create the image. Try again once the photo has fully loaded.",
+  "de": "Das Bild konnte nicht erstellt werden. Versuch es erneut, wenn das Foto vollständig geladen ist.",
+  "uk": "Не вдалося створити зображення. Спробуй ще раз після повного завантаження фото.",
+  "es": "No se pudo crear la imagen. Inténtalo de nuevo cuando la foto haya cargado del todo."
+ },
+ "Nie udało się wczytać wydarzeń": {
+  "en": "Couldn't load events",
+  "de": "Events konnten nicht geladen werden",
+  "uk": "Не вдалося завантажити події",
+  "es": "No se pudieron cargar los eventos"
+ },
+ "Nie udało się wycofać": {
+  "en": "Couldn't withdraw",
+  "de": "Zurückziehen fehlgeschlagen",
+  "uk": "Не вдалося відкликати",
+  "es": "No se pudo retirar"
+ },
+ "Nie udało się wylogować.": {
+  "en": "Couldn't sign out.",
+  "de": "Abmelden fehlgeschlagen.",
+  "uk": "Не вдалося вийти.",
+  "es": "No se pudo cerrar sesión."
+ },
+ "Nie udało się wysłać": {
+  "en": "Couldn't send",
+  "de": "Senden fehlgeschlagen",
+  "uk": "Не вдалося надіслати",
+  "es": "No se pudo enviar"
+ },
+ "Nie udało się wysłać linku resetującego.": {
+  "en": "Couldn't send the reset link.",
+  "de": "Der Link zum Zurücksetzen konnte nicht gesendet werden.",
+  "uk": "Не вдалося надіслати посилання для скидання.",
+  "es": "No se pudo enviar el enlace de restablecimiento."
+ },
+ "Nie udało się wysłać prośby. Spróbuj ponownie.": {
+  "en": "Couldn't send the request. Please try again.",
+  "de": "Die Anfrage konnte nicht gesendet werden. Versuch es erneut.",
+  "uk": "Не вдалося надіслати запит. Спробуй ще раз.",
+  "es": "No se pudo enviar la solicitud. Inténtalo de nuevo."
+ },
+ "Nie udało się wysłać SparkLike. Spróbuj ponownie.": {
+  "en": "Couldn't send the SparkLike. Please try again.",
+  "de": "Das SparkLike konnte nicht gesendet werden. Versuch es erneut.",
+  "uk": "Не вдалося надіслати SparkLike. Спробуй ще раз.",
+  "es": "No se pudo enviar el SparkLike. Inténtalo de nuevo."
+ },
+ "Nie udało się wysłać wiadomości. Spróbuj ponownie.": {
+  "en": "Couldn't send the message. Please try again.",
+  "de": "Die Nachricht konnte nicht gesendet werden. Versuch es erneut.",
+  "uk": "Не вдалося надіслати повідомлення. Спробуй ще раз.",
+  "es": "No se pudo enviar el mensaje. Inténtalo de nuevo."
+ },
+ "Nie udało się wysłać zgłoszenia. Spróbuj ponownie.": {
+  "en": "Couldn't send the report. Please try again.",
+  "de": "Die Meldung konnte nicht gesendet werden. Versuch es erneut.",
+  "uk": "Не вдалося надіслати скаргу. Спробуй ще раз.",
+  "es": "No se pudo enviar la denuncia. Inténtalo de nuevo."
+ },
+ "Nie udało się zaakceptować prośby. Spróbuj ponownie.": {
+  "en": "Couldn't accept the request. Please try again.",
+  "de": "Die Anfrage konnte nicht angenommen werden. Versuch es erneut.",
+  "uk": "Не вдалося прийняти запит. Спробуй ще раз.",
+  "es": "No se pudo aceptar la solicitud. Inténtalo de nuevo."
+ },
+ "Nie udało się zablokować profilu. Spróbuj ponownie.": {
+  "en": "Couldn't block the profile. Please try again.",
+  "de": "Das Profil konnte nicht blockiert werden. Versuch es erneut.",
+  "uk": "Не вдалося заблокувати профіль. Спробуй ще раз.",
+  "es": "No se pudo bloquear el perfil. Inténtalo de nuevo."
+ },
+ "Nie udało się zaktualizować zgłoszenia.": {
+  "en": "Couldn't update the submission.",
+  "de": "Die Einreichung konnte nicht aktualisiert werden.",
+  "uk": "Не вдалося оновити заявку.",
+  "es": "No se pudo actualizar la propuesta."
+ },
+ "Nie udało się zalogować": {
+  "en": "Couldn't sign in",
+  "de": "Anmeldung fehlgeschlagen",
+  "uk": "Не вдалося увійти",
+  "es": "No se pudo iniciar sesión"
+ },
+ "Nie udało się zalogować przez Apple.": {
+  "en": "Couldn't sign in with Apple.",
+  "de": "Anmeldung mit Apple fehlgeschlagen.",
+  "uk": "Не вдалося увійти через Apple.",
+  "es": "No se pudo iniciar sesión con Apple."
+ },
+ "Nie udało się zalogować przez Google.": {
+  "en": "Couldn't sign in with Google.",
+  "de": "Anmeldung mit Google fehlgeschlagen.",
+  "uk": "Не вдалося увійти через Google.",
+  "es": "No se pudo iniciar sesión con Google."
+ },
+ "Nie udało się zalogować.": {
+  "en": "Couldn't sign in.",
+  "de": "Anmeldung fehlgeschlagen.",
+  "uk": "Не вдалося увійти.",
+  "es": "No se pudo iniciar sesión."
+ },
+ "Nie udało się zapisać decyzji": {
+  "en": "Couldn't save the decision",
+  "de": "Entscheidung konnte nicht gespeichert werden",
+  "uk": "Не вдалося зберегти рішення",
+  "es": "No se pudo guardar la decisión"
+ },
+ "Nie udało się zapisać decyzji.": {
+  "en": "Couldn't save the decision.",
+  "de": "Die Entscheidung konnte nicht gespeichert werden.",
+  "uk": "Не вдалося зберегти рішення.",
+  "es": "No se pudo guardar la decisión."
+ },
+ "Nie udało się zapisać decyzji. Spróbuj ponownie.": {
+  "en": "Couldn't save the decision. Please try again.",
+  "de": "Die Entscheidung konnte nicht gespeichert werden. Versuch es erneut.",
+  "uk": "Не вдалося зберегти рішення. Спробуй ще раз.",
+  "es": "No se pudo guardar la decisión. Inténtalo de nuevo."
+ },
+ "Nie udało się zapisać preferencji. Spróbuj ponownie.": {
+  "en": "Couldn't save preferences. Please try again.",
+  "de": "Die Einstellungen konnten nicht gespeichert werden. Versuch es erneut.",
+  "uk": "Не вдалося зберегти вподобання. Спробуй ще раз.",
+  "es": "No se pudieron guardar las preferencias. Inténtalo de nuevo."
+ },
+ "Nie udało się zapisać profilu": {
+  "en": "Couldn't save the profile",
+  "de": "Profil konnte nicht gespeichert werden",
+  "uk": "Не вдалося зберегти профіль",
+  "es": "No se pudo guardar el perfil"
+ },
+ "Nie udało się zapisać profilu.": {
+  "en": "Couldn't save the profile.",
+  "de": "Das Profil konnte nicht gespeichert werden.",
+  "uk": "Не вдалося зберегти профіль.",
+  "es": "No se pudo guardar el perfil."
+ },
+ "Nie udało się zapisać udziału": {
+  "en": "Couldn't save your attendance",
+  "de": "Teilnahme konnte nicht gespeichert werden",
+  "uk": "Не вдалося зберегти участь",
+  "es": "No se pudo guardar tu asistencia"
+ },
+ "Nie udało się zapisać udziału w wydarzeniach. Spróbuj ponownie.": {
+  "en": "Couldn't save your event attendance. Please try again.",
+  "de": "Die Teilnahme an Events konnte nicht gespeichert werden. Versuch es erneut.",
+  "uk": "Не вдалося зберегти участь у подіях. Спробуй ще раз.",
+  "es": "No se pudo guardar tu asistencia a los eventos. Inténtalo de nuevo."
+ },
+ "Nie udało się zapisać ustawienia. Sprawdź połączenie i spróbuj ponownie.": {
+  "en": "Couldn't save the setting. Check your connection and try again.",
+  "de": "Die Einstellung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuch es erneut.",
+  "uk": "Не вдалося зберегти налаштування. Перевір з'єднання й спробуй ще раз.",
+  "es": "No se pudo guardar el ajuste. Comprueba tu conexión e inténtalo de nuevo."
+ },
+ "Nie udało się zapisać ustawień.": {
+  "en": "Couldn't save settings.",
+  "de": "Die Einstellungen konnten nicht gespeichert werden.",
+  "uk": "Не вдалося зберегти налаштування.",
+  "es": "No se pudieron guardar los ajustes."
+ },
+ "Nie udało się zapisać wydarzeń. Sprawdź połączenie i spróbuj ponownie.": {
+  "en": "Couldn't save events. Check your connection and try again.",
+  "de": "Die Events konnten nicht gespeichert werden. Prüfe deine Verbindung und versuch es erneut.",
+  "uk": "Не вдалося зберегти події. Перевір з'єднання й спробуй ще раз.",
+  "es": "No se pudieron guardar los eventos. Comprueba tu conexión e inténtalo de nuevo."
+ },
+ "Nie udało się zapisać. Szkic jest zachowany — spróbuj ponownie.": {
+  "en": "Couldn't save. Your draft is saved — please try again.",
+  "de": "Speichern fehlgeschlagen. Der Entwurf ist gespeichert — versuch es erneut.",
+  "uk": "Не вдалося зберегти. Чернетку збережено — спробуй ще раз.",
+  "es": "No se pudo guardar. El borrador está guardado — inténtalo de nuevo."
+ },
+ "Nie znaleziono aktywnego dostępu Spark Pro do przywrócenia.": {
+  "en": "No active Spark Pro access found to restore.",
+  "de": "Kein aktiver Spark-Pro-Zugang zum Wiederherstellen gefunden.",
+  "uk": "Не знайдено активного доступу Spark Pro для відновлення.",
+  "es": "No se encontró ningún acceso activo a Spark Pro para restaurar."
+ },
+ "Nie znaleziono aktywnego Spark Pro dla tego konta sklepu.": {
+  "en": "No active Spark Pro found for this store account.",
+  "de": "Für dieses Store-Konto wurde kein aktives Spark Pro gefunden.",
+  "uk": "Для цього акаунта магазину не знайдено активного Spark Pro.",
+  "es": "No se encontró ningún Spark Pro activo para esta cuenta de la tienda."
+ },
+ "Nie znaleziono konta użytkownika.": {
+  "en": "User account not found.",
+  "de": "Nutzerkonto nicht gefunden.",
+  "uk": "Акаунт користувача не знайдено.",
+  "es": "No se encontró la cuenta de usuario."
+ },
+ "Niebinarna/y": {
+  "en": "Non-binary",
+  "de": "Nichtbinär",
+  "uk": "Небінарна особа",
+  "es": "No binario/a"
+ },
+ "Nieobsługiwany format zdjęcia. Wybierz JPEG, PNG, HEIC lub WebP.": {
+  "en": "Unsupported photo format. Choose JPEG, PNG, HEIC or WebP.",
+  "de": "Nicht unterstütztes Fotoformat. Wähle JPEG, PNG, HEIC oder WebP.",
+  "uk": "Непідтримуваний формат фото. Вибери JPEG, PNG, HEIC або WebP.",
+  "es": "Formato de foto no compatible. Elige JPEG, PNG, HEIC o WebP."
+ },
+ "Nieodpowiedni profil lub wiadomość": {
+  "en": "Inappropriate profile or message",
+  "de": "Unangemessenes Profil oder unangemessene Nachricht",
+  "uk": "Неприйнятний профіль або повідомлення",
+  "es": "Perfil o mensaje inapropiado"
+ },
+ "Nieprawidłowe dane wydarzenia.": {
+  "en": "Invalid event details.",
+  "de": "Ungültige Event-Daten.",
+  "uk": "Неправильні дані події.",
+  "es": "Datos del evento no válidos."
+ },
+ "Nieprawidłowy email lub hasło.": {
+  "en": "Wrong email or password.",
+  "de": "Falsche E-Mail oder falsches Passwort.",
+  "uk": "Неправильний email або пароль.",
+  "es": "Correo o contraseña incorrectos."
+ },
+ "Nieprawidłowy profil do odblokowania.": {
+  "en": "Invalid profile to unblock.",
+  "de": "Ungültiges Profil zum Entsperren.",
+  "uk": "Неправильний профіль для розблокування.",
+  "es": "Perfil no válido para desbloquear."
+ },
+ "nieprzeczytane wiadomości": {
+  "en": "unread messages",
+  "de": "ungelesene Nachrichten",
+  "uk": "непрочитані повідомлення",
+  "es": "mensajes sin leer"
+ },
+ "nieprzeczytanych wiadomości": {
+  "en": "unread messages",
+  "de": "ungelesene Nachrichten",
+  "uk": "непрочитаних повідомлень",
+  "es": "mensajes sin leer"
+ },
+ "Nocne spacery": {
+  "en": "Night walks",
+  "de": "Nächtliche Spaziergänge",
+  "uk": "Нічні прогулянки",
+  "es": "Paseos nocturnos"
+ },
+ "Nowe matche": {
+  "en": "New matches",
+  "de": "Neue Matches",
+  "uk": "Нові метчі",
+  "es": "Nuevos matches"
+ },
+ "NOWE ODKRYCIE": {
+  "en": "NEW DISCOVERY",
+  "de": "NEUE ENTDECKUNG",
+  "uk": "НОВЕ ВІДКРИТТЯ",
+  "es": "NUEVO DESCUBRIMIENTO"
+ },
+ "Nowe wiadomości w aktywnych rozmowach": {
+  "en": "New messages in active chats",
+  "de": "Neue Nachrichten in aktiven Gesprächen",
+  "uk": "Нові повідомлення в активних розмовах",
+  "es": "Nuevos mensajes en conversaciones activas"
+ },
+ "Nowe wydarzenia dodane przez Spark": {
+  "en": "New events added by Spark",
+  "de": "Neue Events von Spark",
+  "uk": "Нові події, додані Spark",
+  "es": "Nuevos eventos añadidos por Spark"
+ },
+ "Nowe wzajemne dopasowania": {
+  "en": "New mutual matches",
+  "de": "Neue gegenseitige Matches",
+  "uk": "Нові взаємні метчі",
+  "es": "Nuevos matches mutuos"
+ },
+ "Nowi znajomi": {
+  "en": "New friends",
+  "de": "Neue Freunde",
+  "uk": "Нові друзі",
+  "es": "Nuevos amigos"
+ },
+ "Nowy profil w Spark. Poznajcie się przez wspólne zainteresowania.": {
+  "en": "New on Spark. Get to know each other through shared interests.",
+  "de": "Neu bei Spark. Lernt euch über gemeinsame Interessen kennen.",
+  "uk": "Новий профіль у Spark. Знайомтеся через спільні інтереси.",
+  "es": "Perfil nuevo en Spark. Conoceos a través de intereses comunes."
+ },
+ "np. Open'er Festival": {
+  "en": "e.g. Open'er Festival",
+  "de": "z. B. Open'er Festival",
+  "uk": "напр. Open'er Festival",
+  "es": "p. ej. Open'er Festival"
+ },
+ "np. Tauron Arena, ul. Lema 7": {
+  "en": "e.g. Tauron Arena, 7 Lema St",
+  "de": "z. B. Tauron Arena, ul. Lema 7",
+  "uk": "напр. Tauron Arena, вул. Лема 7",
+  "es": "p. ej. Tauron Arena, ul. Lema 7"
+ },
+ "O mnie": {
+  "en": "About me",
+  "de": "Über mich",
+  "uk": "Про мене",
+  "es": "Sobre mí"
+ },
+ "Oczekuje na akceptację": {
+  "en": "Waiting for acceptance",
+  "de": "Wartet auf Annahme",
+  "uk": "Очікує прийняття",
+  "es": "Esperando aceptación"
+ },
+ "Od": {
+  "en": "From",
+  "de": "Von",
+  "uk": "Від",
+  "es": "Desde"
+ },
+ "Odblokować": {
+  "en": "Unblock",
+  "de": "Entsperren",
+  "uk": "Розблокувати",
+  "es": "Desbloquear"
+ },
+ "Odblokować {0}? Profil może ponownie pojawić się w odkrywaniu, ale stary match nie zostanie automatycznie przywrócony.": {
+  "en": "Unblock {0}? The profile may appear in Discover again, but the old match won't be restored automatically.",
+  "de": "{0} entsperren? Das Profil kann wieder in Entdecken auftauchen, aber das alte Match wird nicht automatisch wiederhergestellt.",
+  "uk": "Розблокувати {0}? Профіль може знову з'явитися в «Відкривай», але старий метч не буде відновлено автоматично.",
+  "es": "¿Desbloquear a {0}? El perfil puede volver a aparecer en Descubrir, pero el match anterior no se restaurará automáticamente."
+ },
+ "Odblokowanie": {
+  "en": "Unblocking",
+  "de": "Entsperren",
+  "uk": "Розблокування",
+  "es": "Desbloqueo"
+ },
+ "Odblokuj": {
+  "en": "Unblock",
+  "de": "Entsperren",
+  "uk": "Розблокувати",
+  "es": "Desbloquear"
+ },
+ "Odblokuj profil": {
+  "en": "Unblock profile",
+  "de": "Profil entsperren",
+  "uk": "Розблокувати профіль",
+  "es": "Desbloquear perfil"
+ },
+ "Odblokuj w Spark Pro": {
+  "en": "Unlock in Spark Pro",
+  "de": "In Spark Pro freischalten",
+  "uk": "Відкрий у Spark Pro",
+  "es": "Desbloquea en Spark Pro"
+ },
+ "Odczekaj chwilę przed wysłaniem kolejnej wiadomości.": {
+  "en": "Wait a moment before sending another message.",
+  "de": "Warte kurz, bevor du die nächste Nachricht sendest.",
+  "uk": "Зачекай трохи перед наступним повідомленням.",
+  "es": "Espera un momento antes de enviar otro mensaje."
+ },
+ "Odkrywaj": {
+  "en": "Discover",
+  "de": "Entdecken",
+  "uk": "Відкривай",
+  "es": "Descubrir"
+ },
+ "Odkrywaj dalej": {
+  "en": "Keep discovering",
+  "de": "Weiter entdecken",
+  "uk": "Відкривати далі",
+  "es": "Seguir descubriendo"
+ },
+ "Odkrywaj osoby, które już dały Ci swipe.": {
+  "en": "Discover people who've already swiped on you.",
+  "de": "Entdecke Personen, die dich schon geswiped haben.",
+  "uk": "Відкривай людей, які вже тебе свайпнули.",
+  "es": "Descubre a personas que ya te han dado swipe."
+ },
+ "Odległość": {
+  "en": "Distance",
+  "de": "Entfernung",
+  "uk": "Відстань",
+  "es": "Distancia"
+ },
+ "Odrzucić „{0}”? Autor dostanie powiadomienie.": {
+  "en": "Decline “{0}”? The author will get a notification.",
+  "de": "„{0}“ ablehnen? Die einreichende Person wird benachrichtigt.",
+  "uk": "Відхилити «{0}»? Автор отримає сповіщення.",
+  "es": "¿Rechazar «{0}»? Su autor recibirá una notificación."
+ },
+ "ODRZUCONE": {
+  "en": "DECLINED",
+  "de": "ABGELEHNT",
+  "uk": "ВІДХИЛЕНО",
+  "es": "RECHAZADO"
+ },
+ "Odrzuć": {
+  "en": "Decline",
+  "de": "Ablehnen",
+  "uk": "Відхилити",
+  "es": "Rechazar"
+ },
+ "Odrzuć zgłoszenie": {
+  "en": "Decline submission",
+  "de": "Einreichung ablehnen",
+  "uk": "Відхилити заявку",
+  "es": "Rechazar propuesta"
+ },
+ "Odśwież feed": {
+  "en": "Refresh feed",
+  "de": "Feed aktualisieren",
+  "uk": "Оновити стрічку",
+  "es": "Actualizar feed"
+ },
+ "Odśwież lokalizację": {
+  "en": "Refresh location",
+  "de": "Standort aktualisieren",
+  "uk": "Оновити локацію",
+  "es": "Actualizar ubicación"
+ },
+ "Odświeżamy wizyty...": {
+  "en": "Refreshing visits...",
+  "de": "Besuche werden aktualisiert...",
+  "uk": "Оновлюємо відвідування...",
+  "es": "Actualizando visitas..."
+ },
+ "Odwiedziny": {
+  "en": "Visits",
+  "de": "Besuche",
+  "uk": "Відвідування",
+  "es": "Visitas"
+ },
+ "Odznaka oznacza, że konto logowania zostało potwierdzone przez Google lub Apple. Nie oznacza weryfikacji dokumentu, wieku ani zgodności zdjęcia z osobą.": {
+  "en": "The badge means the sign-in account was confirmed by Google or Apple. It doesn't verify ID, age or that the photos match the person.",
+  "de": "Das Abzeichen bedeutet, dass das Anmeldekonto von Google oder Apple bestätigt wurde. Es bestätigt keinen Ausweis, kein Alter und nicht, dass die Fotos zur Person passen.",
+  "uk": "Значок означає, що акаунт входу підтверджено Google або Apple. Це не перевірка документа, віку чи відповідності фото людині.",
+  "es": "La insignia significa que la cuenta de inicio de sesión fue confirmada por Google o Apple. No verifica documentos, edad ni que las fotos correspondan a la persona."
+ },
+ "Opcjonalne. Pokażemy tylko osoby z przynajmniej jednym z wybranych tagów.": {
+  "en": "Optional. We'll only show people with at least one of the selected tags.",
+  "de": "Optional. Wir zeigen nur Personen mit mindestens einem der gewählten Tags.",
+  "uk": "Необов'язково. Покажемо лише людей хоча б з одним із вибраних тегів.",
+  "es": "Opcional. Solo mostraremos personas con al menos una de las etiquetas elegidas."
+ },
+ "Opcjonalne. Publicznie pokazujemy tylko przybliżoną odległość oraz miasto lub kraj.": {
+  "en": "Optional. Publicly we only show approximate distance and your city or country.",
+  "de": "Optional. Öffentlich zeigen wir nur die ungefähre Entfernung und deine Stadt oder dein Land.",
+  "uk": "Необов'язково. Публічно показуємо лише приблизну відстань і місто або країну.",
+  "es": "Opcional. Públicamente solo mostramos la distancia aproximada y la ciudad o el país."
+ },
+ "Opcjonalne. Ukryje profile bez wspólnych tagów.": {
+  "en": "Optional. Hides profiles with no shared tags.",
+  "de": "Optional. Blendet Profile ohne gemeinsame Tags aus.",
+  "uk": "Необов'язково. Приховає профілі без спільних тегів.",
+  "es": "Opcional. Oculta perfiles sin etiquetas en común."
+ },
+ "Opis (opcjonalnie)": {
+  "en": "Description (optional)",
+  "de": "Beschreibung (optional)",
+  "uk": "Опис (необов'язково)",
+  "es": "Descripción (opcional)"
+ },
+ "Opis będzie widoczny na Twojej karcie": {
+  "en": "The description will be visible on your card",
+  "de": "Die Beschreibung ist auf deiner Karte sichtbar",
+  "uk": "Опис буде видно на твоїй картці",
+  "es": "La descripción será visible en tu tarjeta"
+ },
+ "Opis profilu": {
+  "en": "Profile description",
+  "de": "Profilbeschreibung",
+  "uk": "Опис профілю",
+  "es": "Descripción del perfil"
+ },
+ "Opisz problem trochę dokładniej.": {
+  "en": "Describe the problem in a bit more detail.",
+  "de": "Beschreib das Problem etwas genauer.",
+  "uk": "Опиши проблему трохи детальніше.",
+  "es": "Describe el problema con un poco más de detalle."
+ },
+ "Opisz problem, np. fałszywy profil, obraźliwe treści, spam...": {
+  "en": "Describe the problem, e.g. fake profile, offensive content, spam...",
+  "de": "Beschreib das Problem, z. B. Fake-Profil, beleidigende Inhalte, Spam...",
+  "uk": "Опиши проблему, напр. фейковий профіль, образливий вміст, спам...",
+  "es": "Describe el problema, p. ej. perfil falso, contenido ofensivo, spam..."
+ },
+ "Opublikuj wydarzenie": {
+  "en": "Publish event",
+  "de": "Event veröffentlichen",
+  "uk": "Опублікувати подію",
+  "es": "Publicar evento"
+ },
+ "Osoba niebinarna": {
+  "en": "Non-binary person",
+  "de": "Nichtbinäre Person",
+  "uk": "Небінарна особа",
+  "es": "Persona no binaria"
+ },
+ "Osoby LGBT+": {
+  "en": "LGBT+ people",
+  "de": "LGBT+-Personen",
+  "uk": "Люди LGBT+",
+  "es": "Personas LGBT+"
+ },
+ "osób •": {
+  "en": "people •",
+  "de": "Personen •",
+  "uk": "осіб •",
+  "es": "personas •"
+ },
+ "Ostatnio": {
+  "en": "Recent",
+  "de": "Zuletzt",
+  "uk": "Нещодавно",
+  "es": "Recientes"
+ },
+ "Ostatnio:": {
+  "en": "Last:",
+  "de": "Zuletzt:",
+  "uk": "Нещодавно:",
+  "es": "Último:"
+ },
+ "Ostatnio: {0}. Dotknij, aby przeglądać i filtrować.": {
+  "en": "Last: {0}. Tap to browse and filter.",
+  "de": "Zuletzt: {0}. Tippen zum Durchsuchen und Filtern.",
+  "uk": "Нещодавно: {0}. Торкнися, щоб переглянути й відфільтрувати.",
+  "es": "Último: {0}. Toca para ver y filtrar."
+ },
+ "Ostrzeż": {
+  "en": "Warn",
+  "de": "Verwarnen",
+  "uk": "Попередити",
+  "es": "Advertir"
+ },
+ "otwarty profil": {
+  "en": "opened profile",
+  "de": "Profil geöffnet",
+  "uk": "відкритий профіль",
+  "es": "perfil abierto"
+ },
+ "otwartych zgłoszeń": {
+  "en": "open reports",
+  "de": "offene Meldungen",
+  "uk": "відкритих скарг",
+  "es": "denuncias abiertas"
+ },
+ "Otwórz": {
+  "en": "Open",
+  "de": "Öffnen",
+  "uk": "Відкрити",
+  "es": "Abrir"
+ },
+ "Otwórz chat": {
+  "en": "Open chat",
+  "de": "Chat öffnen",
+  "uk": "Відкрити чат",
+  "es": "Abrir chat"
+ },
+ "Otwórz feed": {
+  "en": "Open feed",
+  "de": "Feed öffnen",
+  "uk": "Відкрити стрічку",
+  "es": "Abrir feed"
+ },
+ "Otwórz profil": {
+  "en": "Open profile",
+  "de": "Profil öffnen",
+  "uk": "Відкрити профіль",
+  "es": "Abrir perfil"
+ },
+ "Otwórz profil, aby wysłać SparkLike i od razu utworzyć match.": {
+  "en": "Open a profile to send a SparkLike and match instantly.",
+  "de": "Öffne ein Profil, um ein SparkLike zu senden und sofort ein Match zu haben.",
+  "uk": "Відкрий профіль, щоб надіслати SparkLike і одразу створити метч.",
+  "es": "Abre un perfil para enviar un SparkLike y crear un match al instante."
+ },
+ "Otwórz rozmowę z": {
+  "en": "Open chat with",
+  "de": "Chat öffnen mit",
+  "uk": "Відкрити розмову з",
+  "es": "Abrir conversación con"
+ },
+ "Otwórz szczegóły profilu": {
+  "en": "Open profile details",
+  "de": "Profildetails öffnen",
+  "uk": "Відкрити деталі профілю",
+  "es": "Abrir detalles del perfil"
+ },
+ "Otwórz ustawienia": {
+  "en": "Open settings",
+  "de": "Einstellungen öffnen",
+  "uk": "Відкрити налаштування",
+  "es": "Abrir ajustes"
+ },
+ "Otwórz wydarzenia": {
+  "en": "Open events",
+  "de": "Events öffnen",
+  "uk": "Відкрити події",
+  "es": "Abrir eventos"
+ },
+ "Pakiety chwilowo niedostępne": {
+  "en": "Plans temporarily unavailable",
+  "de": "Pakete vorübergehend nicht verfügbar",
+  "uk": "Пакети тимчасово недоступні",
+  "es": "Planes no disponibles temporalmente"
+ },
+ "Pakiety i funkcje premium": {
+  "en": "Plans and premium features",
+  "de": "Pakete und Premium-Funktionen",
+  "uk": "Пакети й преміум-функції",
+  "es": "Planes y funciones premium"
+ },
+ "Pakiety nadal nie są dostępne. Sprawdź połączenie i spróbuj ponownie.": {
+  "en": "Plans are still unavailable. Check your connection and try again.",
+  "de": "Die Pakete sind weiterhin nicht verfügbar. Prüfe deine Verbindung und versuch es erneut.",
+  "uk": "Пакети досі недоступні. Перевір з'єднання й спробуй ще раз.",
+  "es": "Los planes siguen sin estar disponibles. Comprueba tu conexión e inténtalo de nuevo."
+ },
+ "Panel moderacji": {
+  "en": "Moderation panel",
+  "de": "Moderationsbereich",
+  "uk": "Панель модерації",
+  "es": "Panel de moderación"
+ },
+ "PANEL ORGANIZATORA": {
+  "en": "ORGANISER PANEL",
+  "de": "VERANSTALTER-BEREICH",
+  "uk": "ПАНЕЛЬ ОРГАНІЗАТОРА",
+  "es": "PANEL DEL ORGANIZADOR"
+ },
+ "Pierwsza iskra": {
+  "en": "First spark",
+  "de": "Erster Funke",
+  "uk": "Перша іскра",
+  "es": "Primera chispa"
+ },
+ "Pierwsze trzy widać na karcie": {
+  "en": "The first three show on your card",
+  "de": "Die ersten drei sind auf der Karte sichtbar",
+  "uk": "Перші три видно на картці",
+  "es": "Las tres primeras se ven en la tarjeta"
+ },
+ "Piłka nożna": {
+  "en": "Football",
+  "de": "Fußball",
+  "uk": "Футбол",
+  "es": "Fútbol"
+ },
+ "Plan Lifetime jest zakupem jednorazowym bez automatycznego odnawiania.": {
+  "en": "The Lifetime plan is a one-time purchase with no auto-renewal.",
+  "de": "Der Lifetime-Plan ist ein Einmalkauf ohne automatische Verlängerung.",
+  "uk": "План Lifetime — це одноразова покупка без автоматичного поновлення.",
+  "es": "El plan Lifetime es una compra única sin renovación automática."
+ },
+ "Planszówki": {
+  "en": "Board games",
+  "de": "Brettspiele",
+  "uk": "Настільні ігри",
+  "es": "Juegos de mesa"
+ },
+ "Planszówkowe wieczory": {
+  "en": "Board game nights",
+  "de": "Spieleabende",
+  "uk": "Вечори настільних ігор",
+  "es": "Noches de juegos de mesa"
+ },
+ "Płatności Spark Pro są chwilowo niedostępne.": {
+  "en": "Spark Pro payments are temporarily unavailable.",
+  "de": "Spark-Pro-Zahlungen sind vorübergehend nicht verfügbar.",
+  "uk": "Платежі Spark Pro тимчасово недоступні.",
+  "es": "Los pagos de Spark Pro no están disponibles temporalmente."
+ },
+ "Pn": {
+  "en": "Mo",
+  "de": "Mo",
+  "uk": "Пн",
+  "es": "Lu"
+ },
+ "Pobieramy listę zablokowanych osób.": {
+  "en": "Loading your blocked list.",
+  "de": "Blockierte Personen werden geladen.",
+  "uk": "Завантажуємо список заблокованих.",
+  "es": "Cargando la lista de personas bloqueadas."
+ },
+ "Pobieramy wydarzenia": {
+  "en": "Loading events",
+  "de": "Events werden geladen",
+  "uk": "Завантажуємо події",
+  "es": "Cargando eventos"
+ },
+ "Pobieranie lokalizacji...": {
+  "en": "Getting location...",
+  "de": "Standort wird ermittelt...",
+  "uk": "Визначаємо локацію...",
+  "es": "Obteniendo ubicación..."
+ },
+ "Pobieranie...": {
+  "en": "Loading...",
+  "de": "Wird geladen...",
+  "uk": "Завантаження...",
+  "es": "Cargando..."
+ },
+ "Pobierz profile ponownie": {
+  "en": "Reload profiles",
+  "de": "Profile neu laden",
+  "uk": "Завантажити профілі ще раз",
+  "es": "Volver a cargar perfiles"
+ },
+ "Pobierz Spark w App Store": {
+  "en": "Get Spark on the App Store",
+  "de": "Hol dir Spark im App Store",
+  "uk": "Завантаж Spark з App Store",
+  "es": "Descarga Spark en el App Store"
+ },
+ "Początek": {
+  "en": "Start",
+  "de": "Beginn",
+  "uk": "Початок",
+  "es": "Inicio"
+ },
+ "Początek wydarzenia musi przypadać w przyszłości.": {
+  "en": "The start of the event must be in the future.",
+  "de": "Der Beginn des Events muss in der Zukunft liegen.",
+  "uk": "Початок події має бути в майбутньому.",
+  "es": "El inicio del evento debe ser en el futuro."
+ },
+ "Podaj prawidłową datę urodzenia.": {
+  "en": "Enter a valid date of birth.",
+  "de": "Gib ein gültiges Geburtsdatum ein.",
+  "uk": "Вкажи правильну дату народження.",
+  "es": "Introduce una fecha de nacimiento válida."
+ },
+ "Podaj prawidłową datę.": {
+  "en": "Enter a valid date.",
+  "de": "Gib ein gültiges Datum ein.",
+  "uk": "Вкажи правильну дату.",
+  "es": "Introduce una fecha válida."
+ },
+ "Podaj prawidłowy adres email.": {
+  "en": "Enter a valid email address.",
+  "de": "Gib eine gültige E-Mail-Adresse ein.",
+  "uk": "Вкажи правильну адресу email.",
+  "es": "Introduce un correo electrónico válido."
+ },
+ "Podróże": {
+  "en": "Travel",
+  "de": "Reisen",
+  "uk": "Подорожі",
+  "es": "Viajes"
+ },
+ "Podróże i natura": {
+  "en": "Travel & nature",
+  "de": "Reisen & Natur",
+  "uk": "Подорожі й природа",
+  "es": "Viajes y naturaleza"
+ },
+ "Podstawy": {
+  "en": "Basics",
+  "de": "Grundlagen",
+  "uk": "Основне",
+  "es": "Lo básico"
+ },
+ "Poezja": {
+  "en": "Poetry",
+  "de": "Poesie",
+  "uk": "Поезія",
+  "es": "Poesía"
+ },
+ "Pokazuje tylko osoby z tagiem LGBT+.": {
+  "en": "Shows only people with the LGBT+ tag.",
+  "de": "Zeigt nur Personen mit dem LGBT+-Tag.",
+  "uk": "Показує лише людей з тегом LGBT+.",
+  "es": "Muestra solo personas con la etiqueta LGBT+."
+ },
+ "Pokaż mniej": {
+  "en": "Show less",
+  "de": "Weniger anzeigen",
+  "uk": "Показати менше",
+  "es": "Mostrar menos"
+ },
+ "Pokaż pominięte ponownie": {
+  "en": "Show skipped again",
+  "de": "Übersprungene wieder anzeigen",
+  "uk": "Показати пропущені знову",
+  "es": "Volver a mostrar omitidos"
+ },
+ "Pokaż więcej siebie": {
+  "en": "Show more of yourself",
+  "de": "Zeig mehr von dir",
+  "uk": "Покажи більше себе",
+  "es": "Muestra más de ti"
+ },
+ "Pokaż więcej tagów": {
+  "en": "Show more tags",
+  "de": "Mehr Tags anzeigen",
+  "uk": "Показати більше тегів",
+  "es": "Mostrar más etiquetas"
+ },
+ "Pokaż, że należysz do społeczności.": {
+  "en": "Show that you're part of the community.",
+  "de": "Zeig, dass du zur Community gehörst.",
+  "uk": "Покажи, що ти частина спільноти.",
+  "es": "Muestra que formas parte de la comunidad."
+ },
+ "Polityka prywatności": {
+  "en": "Privacy policy",
+  "de": "Datenschutzerklärung",
+  "uk": "Політика конфіденційності",
+  "es": "Política de privacidad"
+ },
+ "Politykę prywatności": {
+  "en": "Privacy policy",
+  "de": "Datenschutzerklärung",
+  "uk": "Політику конфіденційності",
+  "es": "Política de privacidad"
+ },
+ "Polska": {
+  "en": "Poland",
+  "de": "Polen",
+  "uk": "Польща",
+  "es": "Polonia"
+ },
+ "Polub": {
+  "en": "Like",
+  "de": "Liken",
+  "uk": "Вподобати",
+  "es": "Me gusta"
+ },
+ "Polub profil": {
+  "en": "Like profile",
+  "de": "Profil liken",
+  "uk": "Вподобати профіль",
+  "es": "Dar like al perfil"
+ },
+ "Polub profil w Odkrywaj. Gdy druga osoba zrobi to samo, zobaczysz ją tutaj.": {
+  "en": "Like a profile in Discover. When they like you back, you'll see them here.",
+  "de": "Like ein Profil in Entdecken. Wenn die Person dich auch liked, siehst du sie hier.",
+  "uk": "Вподобай профіль у «Відкривай». Коли інша людина зробить те саме, побачиш її тут.",
+  "es": "Da like a un perfil en Descubrir. Cuando esa persona haga lo mismo, la verás aquí."
+ },
+ "Polubienia i nowe iskry": {
+  "en": "Likes and new sparks",
+  "de": "Likes und neue Funken",
+  "uk": "Вподобання й нові іскри",
+  "es": "Likes y nuevas chispas"
+ },
+ "Polubienie": {
+  "en": "Like",
+  "de": "Like",
+  "uk": "Вподобання",
+  "es": "Like"
+ },
+ "Polubienie wysłane": {
+  "en": "Like sent",
+  "de": "Like gesendet",
+  "uk": "Вподобання надіслано",
+  "es": "Like enviado"
+ },
+ "polubień czeka na wzajemność": {
+  "en": "likes waiting to be returned",
+  "de": "Likes warten auf Gegenseitigkeit",
+  "uk": "вподобань чекають на взаємність",
+  "es": "likes esperando reciprocidad"
+ },
+ "Polubili Cię": {
+  "en": "Liked you",
+  "de": "Haben dich geliked",
+  "uk": "Тебе вподобали",
+  "es": "Les gustas"
+ },
+ "polubiliście się. Rozmowa jest już odblokowana.": {
+  "en": "you liked each other. The chat is unlocked.",
+  "de": "ihr habt euch gegenseitig geliked. Der Chat ist freigeschaltet.",
+  "uk": "ви вподобали одне одного. Чат уже відкрито.",
+  "es": "os habéis dado like. El chat ya está desbloqueado."
+ },
+ "Polubił(a) Twój profil": {
+  "en": "Liked your profile",
+  "de": "Hat dein Profil geliked",
+  "uk": "Вподобав(-ла) твій профіль",
+  "es": "Le gustó tu perfil"
+ },
+ "Polubione przez Ciebie": {
+  "en": "Liked by you",
+  "de": "Von dir geliked",
+  "uk": "Вподобані тобою",
+  "es": "Te gustaron"
+ },
+ "Polubiono": {
+  "en": "Liked",
+  "de": "Geliked",
+  "uk": "Вподобано",
+  "es": "Te gusta"
+ },
+ "Pominięte profile": {
+  "en": "Skipped profiles",
+  "de": "Übersprungene Profile",
+  "uk": "Пропущені профілі",
+  "es": "Perfiles omitidos"
+ },
+ "Pomiń": {
+  "en": "Skip",
+  "de": "Überspringen",
+  "uk": "Пропустити",
+  "es": "Omitir"
+ },
+ "Pomiń profil": {
+  "en": "Skip profile",
+  "de": "Profil überspringen",
+  "uk": "Пропустити профіль",
+  "es": "Omitir perfil"
+ },
+ "Pomoc": {
+  "en": "Help",
+  "de": "Hilfe",
+  "uk": "Допомога",
+  "es": "Ayuda"
+ },
+ "Pomoc i informacje": {
+  "en": "Help & info",
+  "de": "Hilfe & Infos",
+  "uk": "Допомога й інформація",
+  "es": "Ayuda e información"
+ },
+ "Ponów pobieranie zgłoszeń": {
+  "en": "Reload reports",
+  "de": "Meldungen neu laden",
+  "uk": "Завантажити скарги ще раз",
+  "es": "Volver a cargar denuncias"
+ },
+ "Popraw dane i zatwierdź. Wydarzenie trafi od razu do katalogu, a autor dostanie powiadomienie.": {
+  "en": "Fix the details and approve. The event goes straight to the catalogue and the author gets a notification.",
+  "de": "Korrigiere die Angaben und bestätige. Das Event landet sofort im Katalog und die einreichende Person wird benachrichtigt.",
+  "uk": "Виправ дані й затверди. Подія одразу потрапить до каталогу, а автор отримає сповіщення.",
+  "es": "Corrige los datos y aprueba. El evento irá directamente al catálogo y su autor recibirá una notificación."
+ },
+ "Popularne": {
+  "en": "Popular",
+  "de": "Beliebt",
+  "uk": "Популярні",
+  "es": "Populares"
+ },
+ "Popularny": {
+  "en": "Popular",
+  "de": "Beliebt",
+  "uk": "Популярний",
+  "es": "Popular"
+ },
+ "Poszerzyliśmy zasięg, ale nie ma kolejnych profili. Zmień filtry, przywróć pominięte karty albo wróć później.": {
+  "en": "We widened the range, but there are no more profiles. Change filters, restore skipped cards or come back later.",
+  "de": "Wir haben den Radius erweitert, aber es gibt keine weiteren Profile. Ändere die Filter, hol übersprungene Karten zurück oder komm später wieder.",
+  "uk": "Ми розширили радіус, але більше профілів немає. Зміни фільтри, віднови пропущені картки або повернися пізніше.",
+  "es": "Hemos ampliado el radio, pero no hay más perfiles. Cambia los filtros, recupera las tarjetas omitidas o vuelve más tarde."
+ },
+ "Powiadomienia": {
+  "en": "Notifications",
+  "de": "Benachrichtigungen",
+  "uk": "Сповіщення",
+  "es": "Notificaciones"
+ },
+ "Powiadomienia zostaną dostarczone bez przerywania odpoczynku.": {
+  "en": "Notifications will arrive without disturbing your rest.",
+  "de": "Benachrichtigungen kommen an, ohne deine Ruhe zu stören.",
+  "uk": "Сповіщення надходитимуть, не порушуючи відпочинку.",
+  "es": "Las notificaciones llegarán sin interrumpir tu descanso."
+ },
+ "Powód zgłoszenia": {
+  "en": "Reason for report",
+  "de": "Grund der Meldung",
+  "uk": "Причина скарги",
+  "es": "Motivo de la denuncia"
+ },
+ "Powtórz hasło": {
+  "en": "Repeat password",
+  "de": "Passwort wiederholen",
+  "uk": "Повтори пароль",
+  "es": "Repite la contraseña"
+ },
+ "Poznajmy nowych ludzi przez wspólne zainteresowania w Spark. Pobierz aplikację: {0}": {
+  "en": "Let's meet new people through shared interests on Spark. Get the app: {0}",
+  "de": "Lass uns auf Spark neue Leute über gemeinsame Interessen kennenlernen. Hol dir die App: {0}",
+  "uk": "Знайомимося з новими людьми через спільні інтереси в Spark. Завантаж застосунок: {0}",
+  "es": "Conozcamos gente nueva a través de intereses comunes en Spark. Descarga la app: {0}"
+ },
+ "Poznajmy się przez wspólne zainteresowania i dobrą rozmowę.": {
+  "en": "Let's get to know each other through shared interests and a good conversation.",
+  "de": "Lernen wir uns über gemeinsame Interessen und ein gutes Gespräch kennen.",
+  "uk": "Познайомимося через спільні інтереси й добру розмову.",
+  "es": "Conozcámonos a través de intereses comunes y una buena conversación."
+ },
+ "Poznajmy się przez wspólne zainteresowania.": {
+  "en": "Let's get to know each other through shared interests.",
+  "de": "Lernen wir uns über gemeinsame Interessen kennen.",
+  "uk": "Познайомимося через спільні інтереси.",
+  "es": "Conozcámonos a través de intereses comunes."
+ },
+ "Później": {
+  "en": "Later",
+  "de": "Später",
+  "uk": "Пізніше",
+  "es": "Más tarde"
+ },
+ "Preferencje": {
+  "en": "Preferences",
+  "de": "Präferenzen",
+  "uk": "Вподобання",
+  "es": "Preferencias"
+ },
+ "Preferencje i filtry": {
+  "en": "Preferences & filters",
+  "de": "Präferenzen & Filter",
+  "uk": "Вподобання й фільтри",
+  "es": "Preferencias y filtros"
+ },
+ "Preferencje odkrywania": {
+  "en": "Discovery preferences",
+  "de": "Entdecken-Präferenzen",
+  "uk": "Налаштування пошуку",
+  "es": "Preferencias de descubrimiento"
+ },
+ "Preferowany wiek": {
+  "en": "Preferred age",
+  "de": "Bevorzugtes Alter",
+  "uk": "Бажаний вік",
+  "es": "Edad preferida"
+ },
+ "Premiery i maratony": {
+  "en": "Premieres & marathons",
+  "de": "Premieren & Marathons",
+  "uk": "Прем'єри й марафони",
+  "es": "Estrenos y maratones"
+ },
+ "Premium aktywne na zawsze": {
+  "en": "Premium active forever",
+  "de": "Premium für immer aktiv",
+  "uk": "Premium активний назавжди",
+  "es": "Premium activo para siempre"
+ },
+ "Profil": {
+  "en": "Profile",
+  "de": "Profil",
+  "uk": "Профіль",
+  "es": "Perfil"
+ },
+ "Profil możesz zgłosić lub zablokować z jego karty albo z rozmowy. Blokada od razu ukrywa profil i przerywa kontakt.": {
+  "en": "You can report or block a profile from its card or from a chat. Blocking hides the profile immediately and ends contact.",
+  "de": "Du kannst ein Profil über seine Karte oder aus dem Chat melden oder blockieren. Blockieren verbirgt das Profil sofort und beendet den Kontakt.",
+  "uk": "Профіль можна поскаржити або заблокувати з його картки чи з розмови. Блокування одразу приховує профіль і припиняє контакт.",
+  "es": "Puedes denunciar o bloquear un perfil desde su tarjeta o desde la conversación. El bloqueo oculta el perfil al instante y corta el contacto."
+ },
+ "Profil musi mieć co najmniej jedno zdjęcie.": {
+  "en": "Your profile needs at least one photo.",
+  "de": "Dein Profil braucht mindestens ein Foto.",
+  "uk": "Профіль має містити щонайменше одне фото.",
+  "es": "El perfil debe tener al menos una foto."
+ },
+ "Profil niedostępny": {
+  "en": "Profile unavailable",
+  "de": "Profil nicht verfügbar",
+  "uk": "Профіль недоступний",
+  "es": "Perfil no disponible"
+ },
+ "Profil pominięty": {
+  "en": "Profile skipped",
+  "de": "Profil übersprungen",
+  "uk": "Профіль пропущено",
+  "es": "Perfil omitido"
+ },
+ "Profil wróci do Odkrywaj i nie będzie już czekał na match.": {
+  "en": "The profile will go back to Discover and won't wait for a match anymore.",
+  "de": "Das Profil kehrt zu Entdecken zurück und wartet nicht mehr auf ein Match.",
+  "uk": "Профіль повернеться до «Відкривай» і більше не чекатиме на метч.",
+  "es": "El perfil volverá a Descubrir y ya no esperará un match."
+ },
+ "Profil zablokowany": {
+  "en": "Profile blocked",
+  "de": "Profil blockiert",
+  "uk": "Профіль заблоковано",
+  "es": "Perfil bloqueado"
+ },
+ "Profil zablokowany.": {
+  "en": "Profile blocked.",
+  "de": "Profil blockiert.",
+  "uk": "Профіль заблоковано.",
+  "es": "Perfil bloqueado."
+ },
+ "Profil zapisany": {
+  "en": "Profile saved",
+  "de": "Profil gespeichert",
+  "uk": "Профіль збережено",
+  "es": "Perfil guardado"
+ },
+ "Profil zniknie z feedu „": {
+  "en": "The profile will disappear from the “",
+  "de": "Das Profil verschwindet aus dem Feed „",
+  "uk": "Профіль зникне зі стрічки «",
+  "es": "El perfil desaparecerá del feed «"
+ },
+ "Profil zniknie z feedu „{0}”. Możesz dołączyć ponownie, dopóki wydarzenie jest aktywne.": {
+  "en": "The profile will disappear from the “{0}” feed. You can join again while the event is active.",
+  "de": "Das Profil verschwindet aus dem Feed „{0}“. Du kannst wieder beitreten, solange das Event aktiv ist.",
+  "uk": "Профіль зникне зі стрічки «{0}». Ти можеш приєднатися знову, поки подія активна.",
+  "es": "El perfil desaparecerá del feed «{0}». Puedes volver a unirte mientras el evento esté activo."
+ },
+ "Profil zostanie natychmiast ukryty, a konto straci możliwość korzystania z aplikacji.": {
+  "en": "The profile will be hidden immediately and the account will lose access to the app.",
+  "de": "Das Profil wird sofort verborgen und das Konto verliert den Zugang zur App.",
+  "uk": "Профіль буде одразу приховано, а акаунт втратить доступ до застосунку.",
+  "es": "El perfil se ocultará al instante y la cuenta perderá el acceso a la app."
+ },
+ "Profil zweryfikowany": {
+  "en": "Verified profile",
+  "de": "Profil verifiziert",
+  "uk": "Профіль підтверджено",
+  "es": "Perfil verificado"
+ },
+ "Profil:": {
+  "en": "Profile:",
+  "de": "Profil:",
+  "uk": "Профіль:",
+  "es": "Perfil:"
+ },
+ "Profil: {0}": {
+  "en": "Profile: {0}",
+  "de": "Profil: {0}",
+  "uk": "Профіль: {0}",
+  "es": "Perfil: {0}"
+ },
+ "Programowanie": {
+  "en": "Programming",
+  "de": "Programmieren",
+  "uk": "Програмування",
+  "es": "Programación"
+ },
+ "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu.": {
+  "en": "Designer and hunter of hidden cafés and galleries. Looking for someone to talk to without rushing.",
+  "de": "Designerin, Jägerin versteckter Cafés und Galerien. Sucht jemanden für Gespräche ohne Eile.",
+  "uk": "Дизайнерка, мисливиця на приховані кав'ярні й галереї. Шукає когось для неквапливих розмов.",
+  "es": "Diseñadora y cazadora de cafeterías y galerías escondidas. Busca a alguien para charlar sin prisas."
+ },
+ "Prośba o chat": {
+  "en": "Chat request",
+  "de": "Chat-Anfrage",
+  "uk": "Запит на чат",
+  "es": "Solicitud de chat"
+ },
+ "Prośba o chat czeka na akceptację.": {
+  "en": "The chat request is waiting to be accepted.",
+  "de": "Die Chat-Anfrage wartet auf Annahme.",
+  "uk": "Запит на чат чекає на прийняття.",
+  "es": "La solicitud de chat espera ser aceptada."
+ },
+ "Prośba oczekuje": {
+  "en": "Request pending",
+  "de": "Anfrage ausstehend",
+  "uk": "Запит очікує",
+  "es": "Solicitud pendiente"
+ },
+ "Prośba wysłana": {
+  "en": "Request sent",
+  "de": "Anfrage gesendet",
+  "uk": "Запит надіслано",
+  "es": "Solicitud enviada"
+ },
+ "Prośby": {
+  "en": "Requests",
+  "de": "Anfragen",
+  "uk": "Запити",
+  "es": "Solicitudes"
+ },
+ "Prośby o chat": {
+  "en": "Chat requests",
+  "de": "Chat-Anfragen",
+  "uk": "Запити на чат",
+  "es": "Solicitudes de chat"
+ },
+ "Prośby o rozmowę czekają tutaj osobno do czasu akceptacji.": {
+  "en": "Chat requests wait here separately until they're accepted.",
+  "de": "Gesprächsanfragen warten hier separat, bis sie angenommen werden.",
+  "uk": "Запити на розмову чекають тут окремо до прийняття.",
+  "es": "Las solicitudes de conversación esperan aquí por separado hasta que se aceptan."
+ },
+ "Prośby o rozmowę i ich akceptacje": {
+  "en": "Chat requests and their acceptance",
+  "de": "Gesprächsanfragen und ihre Annahme",
+  "uk": "Запити на розмову та їх прийняття",
+  "es": "Solicitudes de conversación y su aceptación"
+ },
+ "Prywatna lista dostępna w Spark Pro.": {
+  "en": "Private list available in Spark Pro.",
+  "de": "Private Liste in Spark Pro verfügbar.",
+  "uk": "Приватний список доступний у Spark Pro.",
+  "es": "Lista privada disponible en Spark Pro."
+ },
+ "Prywatna lista osób, które otworzyły szczegóły Twojej karty.": {
+  "en": "A private list of people who opened your card details.",
+  "de": "Private Liste der Personen, die die Details deiner Karte geöffnet haben.",
+  "uk": "Приватний список людей, які відкрили деталі твоєї картки.",
+  "es": "Lista privada de personas que abrieron los detalles de tu tarjeta."
+ },
+ "Prywatność": {
+  "en": "Privacy",
+  "de": "Privatsphäre",
+  "uk": "Конфіденційність",
+  "es": "Privacidad"
+ },
+ "Prywatność reklam": {
+  "en": "Ad privacy",
+  "de": "Werbe-Datenschutz",
+  "uk": "Конфіденційність реклами",
+  "es": "Privacidad de anuncios"
+ },
+ "Przed chwilą": {
+  "en": "Just now",
+  "de": "Gerade eben",
+  "uk": "Щойно",
+  "es": "Hace un momento"
+ },
+ "Przegląd": {
+  "en": "Overview",
+  "de": "Übersicht",
+  "uk": "Огляд",
+  "es": "Resumen"
+ },
+ "Przeglądaj pełną listę odwiedzin, filtruj ją i wracaj do interesujących osób.": {
+  "en": "Browse the full list of visits, filter it and come back to interesting people.",
+  "de": "Durchsuche die komplette Besucherliste, filtere sie und komm auf interessante Personen zurück.",
+  "uk": "Переглядай повний список відвідувань, фільтруй його й повертайся до цікавих людей.",
+  "es": "Consulta la lista completa de visitas, fíltrala y vuelve a las personas interesantes."
+ },
+ "Przeglądaj wszystkie wizyty": {
+  "en": "Browse all visits",
+  "de": "Alle Besuche ansehen",
+  "uk": "Переглянути всі відвідування",
+  "es": "Ver todas las visitas"
+ },
+ "Przeglądanie profili bez przerw i bez bannerów.": {
+  "en": "Browse profiles without breaks and without banners.",
+  "de": "Profile ohne Pausen und ohne Banner durchsehen.",
+  "uk": "Перегляд профілів без перерв і без банерів.",
+  "es": "Ver perfiles sin pausas y sin banners."
+ },
+ "Przejdź do matchy": {
+  "en": "Go to matches",
+  "de": "Zu den Matches",
+  "uk": "Перейти до метчів",
+  "es": "Ir a los matches"
+ },
+ "Przerwij edycję": {
+  "en": "Stop editing",
+  "de": "Bearbeitung abbrechen",
+  "uk": "Перервати редагування",
+  "es": "Dejar de editar"
+ },
+ "Przesyłanie zdjęć jest chwilowo niedostępne. Spróbuj ponownie później.": {
+  "en": "Photo upload is temporarily unavailable. Please try again later.",
+  "de": "Das Hochladen von Fotos ist vorübergehend nicht verfügbar. Versuch es später erneut.",
+  "uk": "Завантаження фото тимчасово недоступне. Спробуй пізніше.",
+  "es": "La subida de fotos no está disponible temporalmente. Inténtalo más tarde."
+ },
+ "Przytrzymaj + lub −, żeby zmieniać szybciej.": {
+  "en": "Hold + or − to change faster.",
+  "de": "Halte + oder − gedrückt, um schneller zu ändern.",
+  "uk": "Утримуй + або −, щоб змінювати швидше.",
+  "es": "Mantén pulsado + o − para cambiar más rápido."
+ },
+ "Przywracanie nieudane": {
+  "en": "Restore failed",
+  "de": "Wiederherstellung fehlgeschlagen",
+  "uk": "Відновлення не вдалося",
+  "es": "Error al restaurar"
+ },
+ "Przywracanie...": {
+  "en": "Restoring...",
+  "de": "Wird wiederhergestellt...",
+  "uk": "Відновлення...",
+  "es": "Restaurando..."
+ },
+ "Przywróć zakupy": {
+  "en": "Restore purchases",
+  "de": "Käufe wiederherstellen",
+  "uk": "Відновити покупки",
+  "es": "Restaurar compras"
+ },
+ "Psychologia": {
+  "en": "Psychology",
+  "de": "Psychologie",
+  "uk": "Психологія",
+  "es": "Psicología"
+ },
+ "Pt": {
+  "en": "Fr",
+  "de": "Fr",
+  "uk": "Пт",
+  "es": "Vi"
+ },
+ "Randki": {
+  "en": "Dating",
+  "de": "Dating",
+  "uk": "Побачення",
+  "es": "Citas"
+ },
+ "Rap / Pop świat": {
+  "en": "Rap / Pop world",
+  "de": "Rap / Pop-Welt",
+  "uk": "Світ репу / попу",
+  "es": "Mundo rap / pop"
+ },
+ "Rap PL": {
+  "en": "Polish rap",
+  "de": "Polnischer Rap",
+  "uk": "Польський реп",
+  "es": "Rap polaco"
+ },
+ "Razem na": {
+  "en": "Together at",
+  "de": "Zusammen bei",
+  "uk": "Разом на",
+  "es": "Juntos en"
+ },
+ "Regulamin": {
+  "en": "Terms of service",
+  "de": "Nutzungsbedingungen",
+  "uk": "Умови використання",
+  "es": "Términos de uso"
+ },
+ "Rejestracja": {
+  "en": "Sign up",
+  "de": "Registrierung",
+  "uk": "Реєстрація",
+  "es": "Registro"
+ },
+ "Reklama": {
+  "en": "Ad",
+  "de": "Werbung",
+  "uk": "Реклама",
+  "es": "Anuncio"
+ },
+ "Resetuj": {
+  "en": "Reset",
+  "de": "Zurücksetzen",
+  "uk": "Скинути",
+  "es": "Restablecer"
+ },
+ "Romantic, Friends i Event zmieniasz przełącznikiem na górze Odkrywaj.": {
+  "en": "Romantic, Friends and Event are switched at the top of Discover.",
+  "de": "Romantic, Friends und Event wechselst du oben in Entdecken.",
+  "uk": "Romantic, Friends і Event перемикаються вгорі «Відкривай».",
+  "es": "Romantic, Friends y Event se cambian arriba en Descubrir."
+ },
+ "Rower": {
+  "en": "Cycling",
+  "de": "Radfahren",
+  "uk": "Велосипед",
+  "es": "Bici"
+ },
+ "Rozmowa": {
+  "en": "Conversation",
+  "de": "Gespräch",
+  "uk": "Розмова",
+  "es": "Conversación"
+ },
+ "Rozmowa Pro": {
+  "en": "Pro chat",
+  "de": "Pro-Gespräch",
+  "uk": "Розмова Pro",
+  "es": "Conversación Pro"
+ },
+ "Rozmowa z": {
+  "en": "Chat with",
+  "de": "Gespräch mit",
+  "uk": "Розмова з",
+  "es": "Conversación con"
+ },
+ "Rozmowa z {0} jest już aktywna.": {
+  "en": "The chat with {0} is already active.",
+  "de": "Das Gespräch mit {0} ist bereits aktiv.",
+  "uk": "Розмова з {0} уже активна.",
+  "es": "La conversación con {0} ya está activa."
+ },
+ "Rozmowy": {
+  "en": "Chats",
+  "de": "Gespräche",
+  "uk": "Розмови",
+  "es": "Conversaciones"
+ },
+ "Samorozwój": {
+  "en": "Self-development",
+  "de": "Persönlichkeitsentwicklung",
+  "uk": "Саморозвиток",
+  "es": "Desarrollo personal"
+ },
+ "Seans": {
+  "en": "Screening",
+  "de": "Vorstellung",
+  "uk": "Сеанс",
+  "es": "Sesión de cine"
+ },
+ "Seriale": {
+  "en": "TV series",
+  "de": "Serien",
+  "uk": "Серіали",
+  "es": "Series"
+ },
+ "Siłownia": {
+  "en": "Gym",
+  "de": "Fitnessstudio",
+  "uk": "Спортзал",
+  "es": "Gimnasio"
+ },
+ "Snowboard": {
+  "en": "Snowboarding",
+  "de": "Snowboarden",
+  "uk": "Сноуборд",
+  "es": "Snowboard"
+ },
+ "So": {
+  "en": "Sa",
+  "de": "Sa",
+  "uk": "Сб",
+  "es": "Sá"
+ },
+ "Spam lub reklamy": {
+  "en": "Spam or ads",
+  "de": "Spam oder Werbung",
+  "uk": "Спам або реклама",
+  "es": "Spam o publicidad"
+ },
+ "Spark - pomoc": {
+  "en": "Spark - help",
+  "de": "Spark - Hilfe",
+  "uk": "Spark - допомога",
+  "es": "Spark - ayuda"
+ },
+ "Spark - pomoc i bezpieczeństwo": {
+  "en": "Spark - help & safety",
+  "de": "Spark - Hilfe & Sicherheit",
+  "uk": "Spark - допомога й безпека",
+  "es": "Spark - ayuda y seguridad"
+ },
+ "Spark Pro aktywny": {
+  "en": "Spark Pro active",
+  "de": "Spark Pro aktiv",
+  "uk": "Spark Pro активний",
+  "es": "Spark Pro activo"
+ },
+ "Spark Pro bez odnawiania": {
+  "en": "Spark Pro without renewal",
+  "de": "Spark Pro ohne Verlängerung",
+  "uk": "Spark Pro без поновлення",
+  "es": "Spark Pro sin renovación"
+ },
+ "Spark Pro jest aktywny": {
+  "en": "Spark Pro is active",
+  "de": "Spark Pro ist aktiv",
+  "uk": "Spark Pro активний",
+  "es": "Spark Pro está activo"
+ },
+ "Spark Pro jest ponownie aktywny.": {
+  "en": "Spark Pro is active again.",
+  "de": "Spark Pro ist wieder aktiv.",
+  "uk": "Spark Pro знову активний.",
+  "es": "Spark Pro vuelve a estar activo."
+ },
+ "Spark Pro na miesiąc": {
+  "en": "Spark Pro for a month",
+  "de": "Spark Pro für einen Monat",
+  "uk": "Spark Pro на місяць",
+  "es": "Spark Pro por un mes"
+ },
+ "Spark Pro na tydzień": {
+  "en": "Spark Pro for a week",
+  "de": "Spark Pro für eine Woche",
+  "uk": "Spark Pro на тиждень",
+  "es": "Spark Pro por una semana"
+ },
+ "Spark Pro na zawsze": {
+  "en": "Spark Pro forever",
+  "de": "Spark Pro für immer",
+  "uk": "Spark Pro назавжди",
+  "es": "Spark Pro para siempre"
+ },
+ "Spark Pro odblokuje do 15 zdjęć": {
+  "en": "Spark Pro unlocks up to 15 photos",
+  "de": "Spark Pro schaltet bis zu 15 Fotos frei",
+  "uk": "Spark Pro відкриває до 15 фото",
+  "es": "Spark Pro desbloquea hasta 15 fotos"
+ },
+ "Spark Pro: limit 15 zdjęć aktywny": {
+  "en": "Spark Pro: 15-photo limit active",
+  "de": "Spark Pro: Limit von 15 Fotos aktiv",
+  "uk": "Spark Pro: ліміт 15 фото активний",
+  "es": "Spark Pro: límite de 15 fotos activo"
+ },
+ "SPARKLIKE • MATCH OD RAZU": {
+  "en": "SPARKLIKE • INSTANT MATCH",
+  "de": "SPARKLIKE • SOFORT-MATCH",
+  "uk": "SPARKLIKE • МЕТЧ ОДРАЗУ",
+  "es": "SPARKLIKE • MATCH AL INSTANTE"
+ },
+ "SPARKLIKE jest funkcją Pro. Odblokuj Pro, żeby wyróżniać profile i częściej pojawiać się na głównej.": {
+  "en": "SPARKLIKE is a Pro feature. Unlock Pro to highlight profiles and show up more often on the main feed.",
+  "de": "SPARKLIKE ist eine Pro-Funktion. Schalte Pro frei, um Profile hervorzuheben und öfter auf der Startseite zu erscheinen.",
+  "uk": "SPARKLIKE — це функція Pro. Відкрий Pro, щоб виділяти профілі й частіше з'являтися на головній.",
+  "es": "SPARKLIKE es una función Pro. Desbloquea Pro para destacar perfiles y aparecer más en la portada."
+ },
+ "SPARKLIKE połączył Cię z": {
+  "en": "SPARKLIKE connected you with",
+  "de": "SPARKLIKE hat dich verbunden mit",
+  "uk": "SPARKLIKE поєднав тебе з",
+  "es": "SPARKLIKE te ha conectado con"
+ },
+ "SPARKLIKE połączył Cię z {0}. Rozmowa jest już odblokowana.": {
+  "en": "SPARKLIKE connected you with {0}. The chat is unlocked.",
+  "de": "SPARKLIKE hat dich mit {0} verbunden. Der Chat ist freigeschaltet.",
+  "uk": "SPARKLIKE поєднав тебе з {0}. Чат уже відкрито.",
+  "es": "SPARKLIKE te ha conectado con {0}. El chat ya está desbloqueado."
+ },
+ "SparkLike zwiększa szansę, że druga osoba zauważy Cię od razu.": {
+  "en": "SparkLike makes it more likely the other person notices you right away.",
+  "de": "Mit SparkLike steigt die Chance, dass die andere Person dich sofort bemerkt.",
+  "uk": "SparkLike збільшує шанс, що інша людина одразу тебе помітить.",
+  "es": "SparkLike aumenta la probabilidad de que la otra persona se fije en ti enseguida."
+ },
+ "SPARKLIKE! Match od razu": {
+  "en": "SPARKLIKE! Instant match",
+  "de": "SPARKLIKE! Sofort-Match",
+  "uk": "SPARKLIKE! Метч одразу",
+  "es": "¡SPARKLIKE! Match al instante"
+ },
+ "Społeczność": {
+  "en": "Community",
+  "de": "Community",
+  "uk": "Спільнота",
+  "es": "Comunidad"
+ },
+ "Sport i ruch": {
+  "en": "Sport & fitness",
+  "de": "Sport & Bewegung",
+  "uk": "Спорт і рух",
+  "es": "Deporte y movimiento"
+ },
+ "Sprawdzamy osoby wybierające się na te same wydarzenia.": {
+  "en": "We're checking who's going to the same events.",
+  "de": "Wir prüfen, wer zu den gleichen Events geht.",
+  "uk": "Перевіряємо людей, які йдуть на ті самі події.",
+  "es": "Buscamos personas que vayan a los mismos eventos."
+ },
+ "Sprawdź dane wydarzenia.": {
+  "en": "Check the event details.",
+  "de": "Prüfe die Event-Daten.",
+  "uk": "Перевір дані події.",
+  "es": "Revisa los datos del evento."
+ },
+ "Sprawdź osoby, które zatrzymały się przy Twojej karcie.": {
+  "en": "See who stopped at your card.",
+  "de": "Sieh dir an, wer bei deiner Karte stehen geblieben ist.",
+  "uk": "Подивися, хто зупинився біля твоєї картки.",
+  "es": "Mira quién se detuvo en tu tarjeta."
+ },
+ "Sprawdź pocztę": {
+  "en": "Check your inbox",
+  "de": "Prüfe dein Postfach",
+  "uk": "Перевір пошту",
+  "es": "Revisa tu correo"
+ },
+ "Sprawdź połączenie i spróbuj odświeżyć listę.": {
+  "en": "Check your connection and try refreshing the list.",
+  "de": "Prüfe deine Verbindung und aktualisiere die Liste.",
+  "uk": "Перевір з'єднання й спробуй оновити список.",
+  "es": "Comprueba tu conexión y prueba a actualizar la lista."
+ },
+ "Sprawdź połączenie i spróbuj ponownie.": {
+  "en": "Check your connection and try again.",
+  "de": "Prüfe deine Verbindung und versuch es erneut.",
+  "uk": "Перевір з'єднання й спробуй ще раз.",
+  "es": "Comprueba tu conexión e inténtalo de nuevo."
+ },
+ "Sprawdź rok urodzenia.": {
+  "en": "Check your year of birth.",
+  "de": "Prüfe dein Geburtsjahr.",
+  "uk": "Перевір рік народження.",
+  "es": "Revisa tu año de nacimiento."
+ },
+ "Spróbuj innej nazwy lub miasta, także bez polskich znaków.": {
+  "en": "Try a different name or city, also without Polish characters.",
+  "de": "Versuch einen anderen Namen oder eine andere Stadt, auch ohne polnische Zeichen.",
+  "uk": "Спробуй іншу назву або місто, також без польських літер.",
+  "es": "Prueba otro nombre o ciudad, también sin caracteres polacos."
+ },
+ "Spróbuj ponownie": {
+  "en": "Try again",
+  "de": "Erneut versuchen",
+  "uk": "Спробувати ще раз",
+  "es": "Reintentar"
+ },
+ "Spróbuj ponownie.": {
+  "en": "Please try again.",
+  "de": "Versuch es erneut.",
+  "uk": "Спробуй ще раз.",
+  "es": "Inténtalo de nuevo."
+ },
+ "Spróbuj wpisać inne imię lub fragment wiadomości.": {
+  "en": "Try a different name or part of a message.",
+  "de": "Versuch einen anderen Namen oder einen Teil der Nachricht.",
+  "uk": "Спробуй ввести інше ім'я або фрагмент повідомлення.",
+  "es": "Prueba con otro nombre o parte de un mensaje."
+ },
+ "Stadion": {
+  "en": "Stadium",
+  "de": "Stadion",
+  "uk": "Стадіон",
+  "es": "Estadio"
+ },
+ "Startupy": {
+  "en": "Startups",
+  "de": "Start-ups",
+  "uk": "Стартапи",
+  "es": "Startups"
+ },
+ "Story bez nazwiska i lokalizacji": {
+  "en": "Story without last name and location",
+  "de": "Story ohne Nachnamen und Standort",
+  "uk": "Story без прізвища й локації",
+  "es": "Story sin apellido ni ubicación"
+ },
+ "Studia": {
+  "en": "University",
+  "de": "Studium",
+  "uk": "Навчання",
+  "es": "Estudios"
+ },
+ "Stwórz swój profil": {
+  "en": "Create your profile",
+  "de": "Erstelle dein Profil",
+  "uk": "Створи свій профіль",
+  "es": "Crea tu perfil"
+ },
+ "Subskrypcja": {
+  "en": "Subscription",
+  "de": "Abonnement",
+  "uk": "Підписка",
+  "es": "Suscripción"
+ },
+ "Subskrypcja odnawia się automatycznie, jeśli nie anulujesz jej co najmniej 24 godziny przed końcem okresu. Opłata zostanie pobrana z konta Apple ID. Subskrypcją możesz zarządzać w ustawieniach App Store.": {
+  "en": "The subscription renews automatically unless you cancel it at least 24 hours before the end of the period. Payment is charged to your Apple ID account. You can manage your subscription in App Store settings.",
+  "de": "Das Abo verlängert sich automatisch, wenn du es nicht mindestens 24 Stunden vor Ende des Zeitraums kündigst. Die Zahlung wird über dein Apple-ID-Konto abgerechnet. Du kannst das Abo in den App-Store-Einstellungen verwalten.",
+  "uk": "Підписка поновлюється автоматично, якщо не скасувати її щонайменше за 24 години до кінця періоду. Оплата знімається з акаунта Apple ID. Керувати підпискою можна в налаштуваннях App Store.",
+  "es": "La suscripción se renueva automáticamente si no la cancelas al menos 24 horas antes del final del periodo. El cargo se hará en tu cuenta de Apple ID. Puedes gestionar la suscripción en los ajustes del App Store."
+ },
+ "Subskrypcje": {
+  "en": "Subscriptions",
+  "de": "Abonnements",
+  "uk": "Підписки",
+  "es": "Suscripciones"
+ },
+ "Szkic zostaje zachowany po zamknięciu okna i zmianie zakładki, do czasu wylogowania lub zamknięcia aplikacji.": {
+  "en": "The draft stays saved when you close the window or switch tabs, until you sign out or close the app.",
+  "de": "Der Entwurf bleibt nach dem Schließen des Fensters und beim Wechsel des Tabs erhalten, bis du dich abmeldest oder die App schließt.",
+  "uk": "Чернетка зберігається після закриття вікна й зміни вкладки — до виходу з акаунта або закриття застосунку.",
+  "es": "El borrador se conserva al cerrar la ventana y cambiar de pestaña, hasta que cierres sesión o la app."
+ },
+ "Sztuka": {
+  "en": "Art",
+  "de": "Kunst",
+  "uk": "Мистецтво",
+  "es": "Arte"
+ },
+ "Sztuki walki": {
+  "en": "Martial arts",
+  "de": "Kampfsport",
+  "uk": "Бойові мистецтва",
+  "es": "Artes marciales"
+ },
+ "Szukaj": {
+  "en": "Search",
+  "de": "Suchen",
+  "uk": "Пошук",
+  "es": "Buscar"
+ },
+ "Szukaj po nazwie, mieście lub zainteresowaniu": {
+  "en": "Search by name, city or interest",
+  "de": "Nach Name, Stadt oder Interesse suchen",
+  "uk": "Шукай за ім'ям, містом або інтересом",
+  "es": "Busca por nombre, ciudad o interés"
+ },
+ "Szukaj, np. Łódź lub lodz": {
+  "en": "Search, e.g. Łódź or lodz",
+  "de": "Suchen, z. B. Łódź oder lodz",
+  "uk": "Пошук, напр. Łódź або lodz",
+  "es": "Buscar, p. ej. Łódź o lodz"
+ },
+ "Szukam siebie": {
+  "en": "Questioning",
+  "de": "Auf der Suche nach mir selbst",
+  "uk": "Шукаю себе",
+  "es": "Explorando"
+ },
+ "Szukamy profili": {
+  "en": "Looking for profiles",
+  "de": "Wir suchen Profile",
+  "uk": "Шукаємо профілі",
+  "es": "Buscando perfiles"
+ },
+ "Szukamy wspólnych planów": {
+  "en": "Looking for shared plans",
+  "de": "Wir suchen gemeinsame Pläne",
+  "uk": "Шукаємо спільні плани",
+  "es": "Buscando planes en común"
+ },
+ "Szukane zainteresowania": {
+  "en": "Interests you're looking for",
+  "de": "Gesuchte Interessen",
+  "uk": "Шукані інтереси",
+  "es": "Intereses que buscas"
+ },
+ "Szukane zainteresowania{0}": {
+  "en": "Interests you're looking for{0}",
+  "de": "Gesuchte Interessen{0}",
+  "uk": "Шукані інтереси{0}",
+  "es": "Intereses que buscas{0}"
+ },
+ "Szybki wybór na pierwsze spotkanie: kawa, spacer czy coś spontanicznego?": {
+  "en": "Quick pick for a first date: coffee, a walk or something spontaneous?",
+  "de": "Schnelle Wahl fürs erste Date: Kaffee, Spaziergang oder etwas Spontanes?",
+  "uk": "Швидкий вибір на перше побачення: кава, прогулянка чи щось спонтанне?",
+  "es": "Elección rápida para la primera cita: ¿café, paseo o algo espontáneo?"
+ },
+ "Śr": {
+  "en": "We",
+  "de": "Mi",
+  "uk": "Ср",
+  "es": "Mi"
+ },
+ "Ta osoba nie widzi Twojego profilu i nie może do Ciebie pisać.": {
+  "en": "This person can't see your profile and can't message you.",
+  "de": "Diese Person sieht dein Profil nicht und kann dir nicht schreiben.",
+  "uk": "Ця людина не бачить твого профілю й не може тобі писати.",
+  "es": "Esta persona no ve tu perfil y no puede escribirte."
+ },
+ "Ta prośba już czeka na akceptację.": {
+  "en": "This request is already waiting to be accepted.",
+  "de": "Diese Anfrage wartet bereits auf Annahme.",
+  "uk": "Цей запит уже чекає на прийняття.",
+  "es": "Esta solicitud ya espera ser aceptada."
+ },
+ "Ta rozmowa została wcześniej zamknięta.": {
+  "en": "This chat was closed earlier.",
+  "de": "Dieses Gespräch wurde bereits beendet.",
+  "uk": "Цю розмову вже було закрито.",
+  "es": "Esta conversación ya se cerró."
+ },
+ "Ta treść może naruszać zasady społeczności.": {
+  "en": "This content may break the community guidelines.",
+  "de": "Dieser Inhalt könnte gegen die Community-Richtlinien verstoßen.",
+  "uk": "Цей вміст може порушувати правила спільноти.",
+  "es": "Este contenido podría incumplir las normas de la comunidad."
+ },
+ "Tag LGBT+": {
+  "en": "LGBT+ tag",
+  "de": "LGBT+-Tag",
+  "uk": "Тег LGBT+",
+  "es": "Etiqueta LGBT+"
+ },
+ "Tag widzą tylko inne osoby z tagiem.": {
+  "en": "Only other people with the tag can see it.",
+  "de": "Den Tag sehen nur andere Personen mit Tag.",
+  "uk": "Тег бачать лише інші люди з тегом.",
+  "es": "Solo otras personas con la etiqueta pueden verla."
+ },
+ "Tag widzi każdy.": {
+  "en": "Everyone can see the tag.",
+  "de": "Den Tag sieht jeder.",
+  "uk": "Тег бачать усі.",
+  "es": "Todo el mundo ve la etiqueta."
+ },
+ "Tak widzą Cię inni": {
+  "en": "How others see you",
+  "de": "So sehen dich andere",
+  "uk": "Так тебе бачать інші",
+  "es": "Así te ven los demás"
+ },
+ "Tak! W MOCAK-u, polecam bardzo": {
+  "en": "Yes! At MOCAK, highly recommend",
+  "de": "Ja! Im MOCAK, sehr zu empfehlen",
+  "uk": "Так! У MOCAK, дуже раджу",
+  "es": "¡Sí! En el MOCAK, muy recomendable"
+ },
+ "Taniec": {
+  "en": "Dance",
+  "de": "Tanzen",
+  "uk": "Танці",
+  "es": "Baile"
+ },
+ "Tatuaże": {
+  "en": "Tattoos",
+  "de": "Tattoos",
+  "uk": "Тату",
+  "es": "Tatuajes"
+ },
+ "Te dane zbudują Twoją kartę. Wszystko zmienisz później w zakładce Profil.": {
+  "en": "This builds your card. You can change everything later in the Profile tab.",
+  "de": "Diese Angaben bilden deine Karte. Alles kannst du später im Tab Profil ändern.",
+  "uk": "Ці дані створять твою картку. Усе можна змінити пізніше у вкладці Профіль.",
+  "es": "Estos datos crearán tu tarjeta. Puedes cambiarlo todo después en la pestaña Perfil."
+ },
+ "Teatr": {
+  "en": "Theatre",
+  "de": "Theater",
+  "uk": "Театр",
+  "es": "Teatro"
+ },
+ "Tech i gry": {
+  "en": "Tech & games",
+  "de": "Tech & Games",
+  "uk": "Технології й ігри",
+  "es": "Tecnología y juegos"
+ },
+ "Teksty, których jeszcze nie przetłumaczyliśmy, zobaczysz po polsku.": {
+  "en": "Texts we have not translated yet will appear in Polish.",
+  "de": "Noch nicht übersetzte Texte siehst du auf Polnisch.",
+  "uk": "Тексти, які ми ще не переклали, відображатимуться польською.",
+  "es": "Los textos que aún no hemos traducido aparecerán en polaco."
+ },
+ "ten profil": {
+  "en": "this profile",
+  "de": "dieses Profil",
+  "uk": "цей профіль",
+  "es": "este perfil"
+ },
+ "Tenis": {
+  "en": "Tennis",
+  "de": "Tennis",
+  "uk": "Теніс",
+  "es": "Tenis"
+ },
+ "Też idzie:": {
+  "en": "Also going:",
+  "de": "Geht auch hin:",
+  "uk": "Теж іде:",
+  "es": "También va:"
+ },
+ "Też idzie: {0}": {
+  "en": "Also going: {0}",
+  "de": "Geht auch hin: {0}",
+  "uk": "Теж іде: {0}",
+  "es": "También va: {0}"
+ },
+ "tę osobę": {
+  "en": "this person",
+  "de": "diese Person",
+  "uk": "цю людину",
+  "es": "esta persona"
+ },
+ "To informacja wrażliwa. Pokażemy ją tylko tak, jak wybierzesz, i nigdy nie użyjemy jej do reklam. Wyłączenie tagu od razu ją usuwa.": {
+  "en": "This is sensitive information. We'll only show it the way you choose and will never use it for ads. Turning off the tag removes it right away.",
+  "de": "Das ist eine sensible Information. Wir zeigen sie nur so, wie du es wählst, und nutzen sie nie für Werbung. Wenn du den Tag ausschaltest, wird er sofort entfernt.",
+  "uk": "Це чутлива інформація. Ми покажемо її лише так, як ти вибереш, і ніколи не використаємо для реклами. Вимкнення тегу одразу її видаляє.",
+  "es": "Es información sensible. Solo la mostraremos como tú elijas y nunca la usaremos para anuncios. Al desactivar la etiqueta se elimina al instante."
+ },
+ "To konto zostało wyłączone.": {
+  "en": "This account has been disabled.",
+  "de": "Dieses Konto wurde deaktiviert.",
+  "uk": "Цей акаунт вимкнено.",
+  "es": "Esta cuenta ha sido desactivada."
+ },
+ "To match!": {
+  "en": "It's a match!",
+  "de": "Es ist ein Match!",
+  "uk": "Це метч!",
+  "es": "¡Es un match!"
+ },
+ "To może razem w weekend?": {
+  "en": "Maybe together this weekend?",
+  "de": "Vielleicht zusammen am Wochenende?",
+  "uk": "Може, разом на вихідних?",
+  "es": "¿Y si quedamos este finde?"
+ },
+ "To podpowiedź Spark, nie gwarancja relacji.": {
+  "en": "This is a Spark hint, not a relationship guarantee.",
+  "de": "Das ist ein Spark-Tipp, keine Beziehungsgarantie.",
+  "uk": "Це підказка Spark, а не гарантія стосунків.",
+  "es": "Es una pista de Spark, no una garantía de relación."
+ },
+ "To potrwa tylko chwilę.": {
+  "en": "This will only take a moment.",
+  "de": "Das dauert nur einen Moment.",
+  "uk": "Це займе лише хвилинку.",
+  "es": "Solo tardará un momento."
+ },
+ "To trwale usunie konto, profil, zdjęcia, matche i wiadomości. Usunięcie konta nie anuluje aktywnej subskrypcji Apple. Tej akcji nie można cofnąć.": {
+  "en": "This will permanently delete your account, profile, photos, matches and messages. Deleting your account doesn't cancel an active Apple subscription. This can't be undone.",
+  "de": "Damit werden Konto, Profil, Fotos, Matches und Nachrichten dauerhaft gelöscht. Das Löschen des Kontos kündigt kein aktives Apple-Abo. Diese Aktion kann nicht rückgängig gemacht werden.",
+  "uk": "Це остаточно видалить акаунт, профіль, фото, метчі й повідомлення. Видалення акаунта не скасовує активну підписку Apple. Цю дію не можна скасувати.",
+  "es": "Esto eliminará de forma permanente la cuenta, el perfil, las fotos, los matches y los mensajes. Eliminar la cuenta no cancela una suscripción activa de Apple. Esta acción no se puede deshacer."
+ },
+ "To wszystko na teraz": {
+  "en": "That's all for now",
+  "de": "Das ist erstmal alles",
+  "uk": "Поки що це все",
+  "es": "Eso es todo por ahora"
+ },
+ "To wydarzenie już się skończyło. Edytuj datę albo odrzuć zgłoszenie.": {
+  "en": "This event has already ended. Edit the date or decline the submission.",
+  "de": "Dieses Event ist bereits vorbei. Ändere das Datum oder lehne die Einreichung ab.",
+  "uk": "Ця подія вже завершилася. Зміни дату або відхили заявку.",
+  "es": "Este evento ya ha terminado. Edita la fecha o rechaza la propuesta."
+ },
+ "TRYB EVENTOWY • TWOJA EKIPA": {
+  "en": "EVENT MODE • YOUR CREW",
+  "de": "EVENT-MODUS • DEINE CREW",
+  "uk": "РЕЖИМ ПОДІЙ • ТВОЯ КОМПАНІЯ",
+  "es": "MODO EVENTO • TU GENTE"
+ },
+ "Twoja okolica": {
+  "en": "Your area",
+  "de": "Deine Umgebung",
+  "uk": "Твоя околиця",
+  "es": "Tu zona"
+ },
+ "Twoja płeć": {
+  "en": "Your gender",
+  "de": "Dein Geschlecht",
+  "uk": "Твоя стать",
+  "es": "Tu género"
+ },
+ "Twoje centrum": {
+  "en": "Your hub",
+  "de": "Deine Zentrale",
+  "uk": "Твій центр",
+  "es": "Tu centro"
+ },
+ "Twoje konto zostało zawieszone. Skontaktuj się z zespołem Spark, jeśli uważasz, że to pomyłka.": {
+  "en": "Your account has been suspended. Contact the Spark team if you think this is a mistake.",
+  "de": "Dein Konto wurde gesperrt. Kontaktiere das Spark-Team, wenn du das für einen Fehler hältst.",
+  "uk": "Твій акаунт призупинено. Зв'яжися з командою Spark, якщо вважаєш, що це помилка.",
+  "es": "Tu cuenta ha sido suspendida. Contacta con el equipo de Spark si crees que es un error."
+ },
+ "Twoje wybory są zachowane. Spróbuj ponownie.": {
+  "en": "Your choices are saved. Please try again.",
+  "de": "Deine Auswahl ist gespeichert. Versuch es erneut.",
+  "uk": "Твій вибір збережено. Спробуй ще раз.",
+  "es": "Tus elecciones están guardadas. Inténtalo de nuevo."
+ },
+ "Twoje wydarzenia": {
+  "en": "Your events",
+  "de": "Deine Events",
+  "uk": "Твої події",
+  "es": "Tus eventos"
+ },
+ "TWOJE WYDARZENIA": {
+  "en": "YOUR EVENTS",
+  "de": "DEINE EVENTS",
+  "uk": "ТВОЇ ПОДІЇ",
+  "es": "TUS EVENTOS"
+ },
+ "Twoje zgłoszenia": {
+  "en": "Your submissions",
+  "de": "Deine Einreichungen",
+  "uk": "Твої заявки",
+  "es": "Tus propuestas"
+ },
+ "Twoje zmiany są zachowane. Spróbuj ponownie.": {
+  "en": "Your changes are saved. Please try again.",
+  "de": "Deine Änderungen sind gespeichert. Versuch es erneut.",
+  "uk": "Твої зміни збережено. Спробуй ще раз.",
+  "es": "Tus cambios están guardados. Inténtalo de nuevo."
+ },
+ "Tworzenie karty...": {
+  "en": "Creating card...",
+  "de": "Karte wird erstellt...",
+  "uk": "Створюємо картку...",
+  "es": "Creando tarjeta..."
+ },
+ "Twój cel": {
+  "en": "Your goal",
+  "de": "Dein Ziel",
+  "uk": "Твоя мета",
+  "es": "Tu objetivo"
+ },
+ "Twój profil": {
+  "en": "Your profile",
+  "de": "Dein Profil",
+  "uk": "Твій профіль",
+  "es": "Tu perfil"
+ },
+ "Twój udział": {
+  "en": "Your attendance",
+  "de": "Deine Teilnahme",
+  "uk": "Твоя участь",
+  "es": "Tu asistencia"
+ },
+ "TY DECYDUJESZ": {
+  "en": "YOU DECIDE",
+  "de": "DU ENTSCHEIDEST",
+  "uk": "ТИ ВИРІШУЄШ",
+  "es": "TÚ DECIDES"
+ },
+ "Ty i": {
+  "en": "You and",
+  "de": "Du und",
+  "uk": "Ти і",
+  "es": "Tú y"
+ },
+ "Ty i {0} polubiliście się. Rozmowa jest już odblokowana.": {
+  "en": "You and {0} liked each other. The chat is unlocked.",
+  "de": "Du und {0} habt euch gegenseitig geliked. Der Chat ist freigeschaltet.",
+  "uk": "Ти і {0} вподобали одне одного. Чат уже відкрито.",
+  "es": "Tú y {0} os habéis dado like. El chat ya está desbloqueado."
+ },
+ "Tydzień": {
+  "en": "Week",
+  "de": "Woche",
+  "uk": "Тиждень",
+  "es": "Semana"
+ },
+ "Tylko osoby LGBT+": {
+  "en": "LGBT+ people only",
+  "de": "Nur LGBT+-Personen",
+  "uk": "Лише люди LGBT+",
+  "es": "Solo personas LGBT+"
+ },
+ "Tylko osoby z aktywnym Spark Pro.": {
+  "en": "Only people with active Spark Pro.",
+  "de": "Nur Personen mit aktivem Spark Pro.",
+  "uk": "Лише люди з активним Spark Pro.",
+  "es": "Solo personas con Spark Pro activo."
+ },
+ "Tylko osoby z co najmniej jednym tagiem z Twojego profilu.": {
+  "en": "Only people with at least one tag from your profile.",
+  "de": "Nur Personen mit mindestens einem Tag aus deinem Profil.",
+  "uk": "Лише люди хоча б з одним тегом з твого профілю.",
+  "es": "Solo personas con al menos una etiqueta de tu perfil."
+ },
+ "Tylko Spark Pro": {
+  "en": "Spark Pro only",
+  "de": "Nur Spark Pro",
+  "uk": "Лише Spark Pro",
+  "es": "Solo Spark Pro"
+ },
+ "Tylko Twoje konto może publikować eventy. Wydarzenie oraz wybory użytkowników zostaną usunięte godzinę po jego zakończeniu.": {
+  "en": "Only your account can publish events. The event and users' picks will be deleted an hour after it ends.",
+  "de": "Nur dein Konto kann Events veröffentlichen. Das Event und die Auswahl der Nutzer werden eine Stunde nach Ende gelöscht.",
+  "uk": "Лише твій акаунт може публікувати події. Подію та вибір користувачів буде видалено через годину після завершення.",
+  "es": "Solo tu cuenta puede publicar eventos. El evento y las elecciones de los usuarios se eliminarán una hora después de que termine."
+ },
+ "TYMCZASOWE BADGE I FILTRY": {
+  "en": "TEMPORARY BADGES AND FILTERS",
+  "de": "TEMPORÄRE BADGES UND FILTER",
+  "uk": "ТИМЧАСОВІ БЕЙДЖІ Й ФІЛЬТРИ",
+  "es": "INSIGNIAS Y FILTROS TEMPORALES"
+ },
+ "Uczestniczę": {
+  "en": "I'm going",
+  "de": "Ich nehme teil",
+  "uk": "Беру участь",
+  "es": "Voy"
+ },
+ "Uczestniczy": {
+  "en": "Going",
+  "de": "Nimmt teil",
+  "uk": "Бере участь",
+  "es": "Va"
+ },
+ "Udostępnij kartę": {
+  "en": "Share card",
+  "de": "Karte teilen",
+  "uk": "Поділитися карткою",
+  "es": "Compartir tarjeta"
+ },
+ "Udostępnij kartę Spark": {
+  "en": "Share Spark card",
+  "de": "Spark-Karte teilen",
+  "uk": "Поділитися карткою Spark",
+  "es": "Compartir tarjeta Spark"
+ },
+ "Udostępnij profil": {
+  "en": "Share profile",
+  "de": "Profil teilen",
+  "uk": "Поділитися профілем",
+  "es": "Compartir perfil"
+ },
+ "Udostępnij swoją kartę": {
+  "en": "Share your card",
+  "de": "Teile deine Karte",
+  "uk": "Поділися своєю карткою",
+  "es": "Comparte tu tarjeta"
+ },
+ "Ulepszamy Spark. Wróć za chwilę, Twoje konto i dane są bezpieczne.": {
+  "en": "We're improving Spark. Come back in a moment — your account and data are safe.",
+  "de": "Wir verbessern Spark. Komm gleich wieder, dein Konto und deine Daten sind sicher.",
+  "uk": "Ми вдосконалюємо Spark. Повернися за хвилинку, твій акаунт і дані в безпеці.",
+  "es": "Estamos mejorando Spark. Vuelve en un momento, tu cuenta y tus datos están a salvo."
+ },
+ "Uruchom Spark ponownie. Twoje konto i zapisane dane są bezpieczne.": {
+  "en": "Restart Spark. Your account and saved data are safe.",
+  "de": "Starte Spark neu. Dein Konto und deine gespeicherten Daten sind sicher.",
+  "uk": "Перезапусти Spark. Твій акаунт і збережені дані в безпеці.",
+  "es": "Reinicia Spark. Tu cuenta y tus datos guardados están a salvo."
+ },
+ "Usługa danych Spark jest chwilowo niedostępna. Spróbuj ponownie później.": {
+  "en": "Spark's data service is temporarily unavailable. Please try again later.",
+  "de": "Der Spark-Datendienst ist vorübergehend nicht verfügbar. Versuch es später erneut.",
+  "uk": "Сервіс даних Spark тимчасово недоступний. Спробуй пізніше.",
+  "es": "El servicio de datos de Spark no está disponible temporalmente. Inténtalo más tarde."
+ },
+ "Usługa wiadomości jest chwilowo niedostępna.": {
+  "en": "The messaging service is temporarily unavailable.",
+  "de": "Der Nachrichtendienst ist vorübergehend nicht verfügbar.",
+  "uk": "Сервіс повідомлень тимчасово недоступний.",
+  "es": "El servicio de mensajes no está disponible temporalmente."
+ },
+ "Ustaw osobno dla każdej wybranej kategorii.": {
+  "en": "Set separately for each selected category.",
+  "de": "Lege es für jede gewählte Kategorie separat fest.",
+  "uk": "Налаштуй окремо для кожної вибраної категорії.",
+  "es": "Configúralo por separado para cada categoría elegida."
+ },
+ "Ustawienia": {
+  "en": "Settings",
+  "de": "Einstellungen",
+  "uk": "Налаштування",
+  "es": "Ajustes"
+ },
+ "Ustawienie konta": {
+  "en": "Account setting",
+  "de": "Kontoeinstellung",
+  "uk": "Налаштування акаунта",
+  "es": "Ajuste de la cuenta"
+ },
+ "Usunąć „{0}” z katalogu i wyborów użytkowników?": {
+  "en": "Remove “{0}” from the catalogue and from users' picks?",
+  "de": "„{0}“ aus dem Katalog und der Auswahl der Nutzer entfernen?",
+  "uk": "Видалити «{0}» з каталогу та з вибору користувачів?",
+  "es": "¿Quitar «{0}» del catálogo y de las elecciones de los usuarios?"
+ },
+ "Usunąć oczekującą prośbę o chat?": {
+  "en": "Delete the pending chat request?",
+  "de": "Ausstehende Chat-Anfrage löschen?",
+  "uk": "Видалити очікуваний запит на чат?",
+  "es": "¿Eliminar la solicitud de chat pendiente?"
+ },
+ "Usunęliśmy": {
+  "en": "We removed",
+  "de": "Wir haben entfernt",
+  "uk": "Ми видалили",
+  "es": "Hemos eliminado"
+ },
+ "Usunęliśmy {0} wygasłe wydarzenie{1}.": {
+  "en": "We removed {0} expired event(s).",
+  "de": "Wir haben {0} abgelaufene Event(s) entfernt.",
+  "uk": "Видалено завершених подій: {0}.",
+  "es": "Hemos eliminado {0} evento(s) caducado(s)."
+ },
+ "Usunie konto, zdjęcia, profil, polubienia, matche i wiadomości. Minimalne dane bezpieczeństwa i rozliczeń mogą zostać zachowane zgodnie z polityką prywatności.": {
+  "en": "Deletes your account, photos, profile, likes, matches and messages. Minimal safety and billing data may be kept in line with the privacy policy.",
+  "de": "Löscht Konto, Fotos, Profil, Likes, Matches und Nachrichten. Minimale Sicherheits- und Abrechnungsdaten können gemäß der Datenschutzerklärung aufbewahrt werden.",
+  "uk": "Видалить акаунт, фото, профіль, вподобання, метчі й повідомлення. Мінімальні дані безпеки та розрахунків можуть зберігатися відповідно до політики конфіденційності.",
+  "es": "Elimina la cuenta, las fotos, el perfil, los likes, los matches y los mensajes. Pueden conservarse datos mínimos de seguridad y facturación según la política de privacidad."
+ },
+ "Usunięto": {
+  "en": "Removed",
+  "de": "Entfernt",
+  "uk": "Видалено",
+  "es": "Eliminados"
+ },
+ "Usunięto {0} wygasłe wydarzenie{1}": {
+  "en": "Removed {0} expired event(s)",
+  "de": "{0} abgelaufene Event(s) entfernt",
+  "uk": "Видалено завершених подій: {0}",
+  "es": "Eliminados {0} evento(s) caducado(s)"
+ },
+ "Usuń": {
+  "en": "Delete",
+  "de": "Löschen",
+  "uk": "Видалити",
+  "es": "Eliminar"
+ },
+ "Usuń konto": {
+  "en": "Delete account",
+  "de": "Konto löschen",
+  "uk": "Видалити акаунт",
+  "es": "Eliminar cuenta"
+ },
+ "Usuń teraz": {
+  "en": "Delete now",
+  "de": "Jetzt löschen",
+  "uk": "Видалити зараз",
+  "es": "Eliminar ahora"
+ },
+ "Usuń wydarzenie": {
+  "en": "Delete event",
+  "de": "Event löschen",
+  "uk": "Видалити подію",
+  "es": "Eliminar evento"
+ },
+ "Usuń zdjęcie": {
+  "en": "Delete photo",
+  "de": "Foto löschen",
+  "uk": "Видалити фото",
+  "es": "Eliminar foto"
+ },
+ "Utwórz konto": {
+  "en": "Create account",
+  "de": "Konto erstellen",
+  "uk": "Створити акаунт",
+  "es": "Crear cuenta"
+ },
+ "Utwórz konto i zbuduj swój profil w kilka chwil.": {
+  "en": "Create an account and build your profile in moments.",
+  "de": "Erstelle ein Konto und baue dein Profil in wenigen Augenblicken.",
+  "uk": "Створи акаунт і збудуй свій профіль за кілька хвилин.",
+  "es": "Crea una cuenta y monta tu perfil en un momento."
+ },
+ "Uwzględniaj profile bez lokalizacji": {
+  "en": "Include profiles without location",
+  "de": "Profile ohne Standort einbeziehen",
+  "uk": "Враховувати профілі без локації",
+  "es": "Incluir perfiles sin ubicación"
+ },
+ "Uzupełnij dane, opis, zdjęcie i 3 zainteresowania": {
+  "en": "Add details, a description, a photo and 3 interests",
+  "de": "Ergänze Angaben, Beschreibung, Foto und 3 Interessen",
+  "uk": "Заповни дані, опис, фото й 3 інтереси",
+  "es": "Completa tus datos, descripción, foto y 3 intereses"
+ },
+ "Uzupełnij nazwę, opis (minimum 20 znaków), prawidłową datę urodzenia, zdjęcie i co najmniej 3 zainteresowania.": {
+  "en": "Fill in your name, description (at least 20 characters), a valid date of birth, a photo and at least 3 interests.",
+  "de": "Ergänze Namen, Beschreibung (mindestens 20 Zeichen), ein gültiges Geburtsdatum, ein Foto und mindestens 3 Interessen.",
+  "uk": "Заповни ім'я, опис (щонайменше 20 символів), правильну дату народження, фото й щонайменше 3 інтереси.",
+  "es": "Completa el nombre, la descripción (mínimo 20 caracteres), una fecha de nacimiento válida, una foto y al menos 3 intereses."
+ },
+ "Uzupełnij profil": {
+  "en": "Complete your profile",
+  "de": "Profil vervollständigen",
+  "uk": "Доповни профіль",
+  "es": "Completa tu perfil"
+ },
+ "Użyj miejscowości:": {
+  "en": "Use town:",
+  "de": "Ort verwenden:",
+  "uk": "Використати населений пункт:",
+  "es": "Usar localidad:"
+ },
+ "Użyj miejscowości: {0}": {
+  "en": "Use town: {0}",
+  "de": "Ort verwenden: {0}",
+  "uk": "Використати населений пункт: {0}",
+  "es": "Usar localidad: {0}"
+ },
+ "Użyj mojej lokalizacji": {
+  "en": "Use my location",
+  "de": "Meinen Standort verwenden",
+  "uk": "Використати мою локацію",
+  "es": "Usar mi ubicación"
+ },
+ "Użyj tej wiadomości": {
+  "en": "Use this message",
+  "de": "Diese Nachricht verwenden",
+  "uk": "Використати це повідомлення",
+  "es": "Usar este mensaje"
+ },
+ "w pobliżu": {
+  "en": "nearby",
+  "de": "in der Nähe",
+  "uk": "поруч",
+  "es": "cerca"
+ },
+ "W Twoim profilu nie ma celu „Randki”. Możesz przeglądać, ale osoby szukające randek zobaczą Cię dopiero po dodaniu tego celu w profilu.": {
+  "en": "Your profile doesn't have the “Dating” goal. You can browse, but people looking for dates will only see you once you add this goal to your profile.",
+  "de": "Dein Profil hat nicht das Ziel „Dating“. Du kannst stöbern, aber Personen, die Dates suchen, sehen dich erst, wenn du dieses Ziel im Profil hinzufügst.",
+  "uk": "У твоєму профілі немає мети «Побачення». Ти можеш переглядати, але люди, які шукають побачень, побачать тебе лише після додавання цієї мети в профіль.",
+  "es": "Tu perfil no tiene el objetivo «Citas». Puedes mirar, pero quienes buscan citas solo te verán cuando añadas este objetivo a tu perfil."
+ },
+ "W Twoim profilu nie ma celu „Znajomi”. Możesz przeglądać, ale osoby szukające znajomych zobaczą Cię dopiero po dodaniu tego celu w profilu.": {
+  "en": "Your profile doesn't have the “Friends” goal. You can browse, but people looking for friends will only see you once you add this goal to your profile.",
+  "de": "Dein Profil hat nicht das Ziel „Freunde“. Du kannst stöbern, aber Personen, die Freunde suchen, sehen dich erst, wenn du dieses Ziel im Profil hinzufügst.",
+  "uk": "У твоєму профілі немає мети «Друзі». Ти можеш переглядати, але люди, які шукають друзів, побачать тебе лише після додавання цієї мети в профіль.",
+  "es": "Tu perfil no tiene el objetivo «Amigos». Puedes mirar, pero quienes buscan amistades solo te verán cuando añadas este objetivo a tu perfil."
+ },
+ "Warto się poznać": {
+  "en": "Worth meeting",
+  "de": "Lohnt sich kennenzulernen",
+  "uk": "Варто познайомитися",
+  "es": "Merece la pena conocerse"
+ },
+ "Weekend i podróże": {
+  "en": "Weekends & travel",
+  "de": "Wochenende & Reisen",
+  "uk": "Вихідні й подорожі",
+  "es": "Fin de semana y viajes"
+ },
+ "Weryfikacja": {
+  "en": "Verification",
+  "de": "Verifizierung",
+  "uk": "Верифікація",
+  "es": "Verificación"
+ },
+ "Wiadomości": {
+  "en": "Messages",
+  "de": "Nachrichten",
+  "uk": "Повідомлення",
+  "es": "Mensajes"
+ },
+ "Wiadomości odblokują się po zaakceptowaniu prośby.": {
+  "en": "Messages unlock once the request is accepted.",
+  "de": "Nachrichten werden freigeschaltet, sobald die Anfrage angenommen ist.",
+  "uk": "Повідомлення стануть доступні після прийняття запиту.",
+  "es": "Los mensajes se desbloquearán cuando se acepte la solicitud."
+ },
+ "Wiadomości są dostępne po matchu albo po zaakceptowaniu prośby.": {
+  "en": "Messages are available after a match or once a request is accepted.",
+  "de": "Nachrichten sind nach einem Match oder nach Annahme einer Anfrage verfügbar.",
+  "uk": "Повідомлення доступні після метчу або після прийняття запиту.",
+  "es": "Los mensajes están disponibles tras un match o al aceptar una solicitud."
+ },
+ "Wiadomość": {
+  "en": "Message",
+  "de": "Nachricht",
+  "uk": "Повідомлення",
+  "es": "Mensaje"
+ },
+ "Wiadomość może mieć maksymalnie 2000 znaków.": {
+  "en": "A message can be up to 2000 characters.",
+  "de": "Eine Nachricht darf maximal 2000 Zeichen haben.",
+  "uk": "Повідомлення може мати не більше 2000 символів.",
+  "es": "Un mensaje puede tener como máximo 2000 caracteres."
+ },
+ "Wiadomość musi mieć od 1 do 2000 znaków.": {
+  "en": "A message must be 1 to 2000 characters.",
+  "de": "Eine Nachricht muss 1 bis 2000 Zeichen haben.",
+  "uk": "Повідомлення має містити від 1 до 2000 символів.",
+  "es": "Un mensaje debe tener entre 1 y 2000 caracteres."
+ },
+ "Wiadomość przed matchem jest funkcją Pro. Odblokuj Pro, żeby wysłać prośbę o chat do tej osoby.": {
+  "en": "Messaging before a match is a Pro feature. Unlock Pro to send this person a chat request.",
+  "de": "Schreiben vor dem Match ist eine Pro-Funktion. Schalte Pro frei, um dieser Person eine Chat-Anfrage zu senden.",
+  "uk": "Повідомлення до метчу — функція Pro. Відкрий Pro, щоб надіслати цій людині запит на чат.",
+  "es": "Escribir antes del match es una función Pro. Desbloquea Pro para enviar a esta persona una solicitud de chat."
+ },
+ "Wiadomość zablokowana": {
+  "en": "Message blocked",
+  "de": "Nachricht blockiert",
+  "uk": "Повідомлення заблоковано",
+  "es": "Mensaje bloqueado"
+ },
+ "Widoczne po matchu": {
+  "en": "Visible after a match",
+  "de": "Sichtbar nach dem Match",
+  "uk": "Видно після метчу",
+  "es": "Visible tras el match"
+ },
+ "Widoczny status premium przy Twoim profilu.": {
+  "en": "Visible premium status on your profile.",
+  "de": "Sichtbarer Premium-Status an deinem Profil.",
+  "uk": "Видимий преміум-статус у твоєму профілі.",
+  "es": "Estado premium visible en tu perfil."
+ },
+ "Wiek": {
+  "en": "Age",
+  "de": "Alter",
+  "uk": "Вік",
+  "es": "Edad"
+ },
+ "Wiek, dystans i zainteresowania": {
+  "en": "Age, distance and interests",
+  "de": "Alter, Entfernung und Interessen",
+  "uk": "Вік, відстань та інтереси",
+  "es": "Edad, distancia e intereses"
+ },
+ "wiek: mniej": {
+  "en": "age: lower",
+  "de": "Alter: weniger",
+  "uk": "вік: менше",
+  "es": "edad: menos"
+ },
+ "wiek: więcej": {
+  "en": "age: higher",
+  "de": "Alter: mehr",
+  "uk": "вік: більше",
+  "es": "edad: más"
+ },
+ "Wiele punktów wspólnych": {
+  "en": "Lots in common",
+  "de": "Viele Gemeinsamkeiten",
+  "uk": "Багато спільного",
+  "es": "Mucho en común"
+ },
+ "więcej": {
+  "en": "more",
+  "de": "mehr",
+  "uk": "більше",
+  "es": "más"
+ },
+ "Więcej": {
+  "en": "More",
+  "de": "Mehr",
+  "uk": "Більше",
+  "es": "Más"
+ },
+ "Więcej miejsca na zdjęcia i lepszy podgląd profilu.": {
+  "en": "More room for photos and a better profile preview.",
+  "de": "Mehr Platz für Fotos und eine bessere Profilvorschau.",
+  "uk": "Більше місця для фото й кращий попередній перегляд профілю.",
+  "es": "Más espacio para fotos y una mejor vista previa del perfil."
+ },
+ "Więcej możliwości, mniej ograniczeń": {
+  "en": "More options, fewer limits",
+  "de": "Mehr Möglichkeiten, weniger Grenzen",
+  "uk": "Більше можливостей, менше обмежень",
+  "es": "Más posibilidades, menos límites"
+ },
+ "Więcej wyróżnień dla profili, które naprawdę Cię interesują.": {
+  "en": "More highlights for profiles you're really into.",
+  "de": "Mehr Hervorhebungen für Profile, die dich wirklich interessieren.",
+  "uk": "Більше виділень для профілів, які тебе справді цікавлять.",
+  "es": "Más destacados para los perfiles que de verdad te interesan."
+ },
+ "Więcej zdjęć": {
+  "en": "More photos",
+  "de": "Mehr Fotos",
+  "uk": "Більше фото",
+  "es": "Más fotos"
+ },
+ "Włącz": {
+  "en": "Turn on",
+  "de": "Aktivieren",
+  "uk": "Увімкнути",
+  "es": "Activar"
+ },
+ "Włącz lokalizację w ustawieniach": {
+  "en": "Turn on location in settings",
+  "de": "Standort in den Einstellungen aktivieren",
+  "uk": "Увімкни локацію в налаштуваннях",
+  "es": "Activa la ubicación en los ajustes"
+ },
+ "Włącz powiadomienia o matchach, prośbach i nowych wiadomościach. Możesz je później wyłączyć w ustawieniach telefonu.": {
+  "en": "Turn on notifications for matches, requests and new messages. You can turn them off later in your phone settings.",
+  "de": "Aktiviere Benachrichtigungen für Matches, Anfragen und neue Nachrichten. Du kannst sie später in den Handy-Einstellungen ausschalten.",
+  "uk": "Увімкни сповіщення про метчі, запити й нові повідомлення. Їх можна вимкнути пізніше в налаштуваннях телефона.",
+  "es": "Activa las notificaciones de matches, solicitudes y mensajes nuevos. Puedes desactivarlas más tarde en los ajustes del teléfono."
+ },
+ "Wolę nie podawać": {
+  "en": "Prefer not to say",
+  "de": "Keine Angabe",
+  "uk": "Не хочу вказувати",
+  "es": "Prefiero no decirlo"
+ },
+ "Wolontariat": {
+  "en": "Volunteering",
+  "de": "Ehrenamt",
+  "uk": "Волонтерство",
+  "es": "Voluntariado"
+ },
+ "Wróć do kart": {
+  "en": "Back to cards",
+  "de": "Zurück zu den Karten",
+  "uk": "Назад до карток",
+  "es": "Volver a las tarjetas"
+ },
+ "Wróć do osób": {
+  "en": "Back to people",
+  "de": "Zurück zu den Personen",
+  "uk": "Назад до людей",
+  "es": "Volver a las personas"
+ },
+ "Wróć do rozmów i nowych znajomości.": {
+  "en": "Get back to your chats and new connections.",
+  "de": "Zurück zu deinen Gesprächen und neuen Bekanntschaften.",
+  "uk": "Повернися до розмов і нових знайомств.",
+  "es": "Vuelve a tus conversaciones y nuevas amistades."
+ },
+ "Wróć do zwykłego feedu": {
+  "en": "Back to the regular feed",
+  "de": "Zurück zum normalen Feed",
+  "uk": "Повернутися до звичайної стрічки",
+  "es": "Volver al feed normal"
+ },
+ "Wspinaczka": {
+  "en": "Climbing",
+  "de": "Klettern",
+  "uk": "Скелелазіння",
+  "es": "Escalada"
+ },
+ "wspólne": {
+  "en": "in common",
+  "de": "gemeinsam",
+  "uk": "спільних",
+  "es": "en común"
+ },
+ "wspólne wydarzenia": {
+  "en": "shared events",
+  "de": "gemeinsame Events",
+  "uk": "спільних подій",
+  "es": "eventos en común"
+ },
+ "Wspólne wydarzenie:": {
+  "en": "Shared event:",
+  "de": "Gemeinsames Event:",
+  "uk": "Спільна подія:",
+  "es": "Evento en común:"
+ },
+ "Wspólne wydarzenie: {0}": {
+  "en": "Shared event: {0}",
+  "de": "Gemeinsames Event: {0}",
+  "uk": "Спільна подія: {0}",
+  "es": "Evento en común: {0}"
+ },
+ "Wspólne wyjazdy": {
+  "en": "Trips together",
+  "de": "Gemeinsame Reisen",
+  "uk": "Спільні поїздки",
+  "es": "Viajes juntos"
+ },
+ "Wspólne zainteresowanie": {
+  "en": "Shared interest",
+  "de": "Gemeinsames Interesse",
+  "uk": "Спільний інтерес",
+  "es": "Interés en común"
+ },
+ "wspólny cel:": {
+  "en": "shared goal:",
+  "de": "gemeinsames Ziel:",
+  "uk": "спільна мета:",
+  "es": "objetivo en común:"
+ },
+ "wspólny cel: {0}": {
+  "en": "shared goal: {0}",
+  "de": "gemeinsames Ziel: {0}",
+  "uk": "спільна мета: {0}",
+  "es": "objetivo en común: {0}"
+ },
+ "Wspólny plan ·": {
+  "en": "Shared plan ·",
+  "de": "Gemeinsamer Plan ·",
+  "uk": "Спільний план ·",
+  "es": "Plan en común ·"
+ },
+ "Wstecz": {
+  "en": "Back",
+  "de": "Zurück",
+  "uk": "Назад",
+  "es": "Atrás"
+ },
+ "Wszyscy": {
+  "en": "Everyone",
+  "de": "Alle",
+  "uk": "Усі",
+  "es": "Todos"
+ },
+ "Wszystkie": {
+  "en": "All",
+  "de": "Alle",
+  "uk": "Усі",
+  "es": "Todos"
+ },
+ "Wszystkie funkcje premium są dostępne na tym koncie.": {
+  "en": "All premium features are available on this account.",
+  "de": "Alle Premium-Funktionen sind auf diesem Konto verfügbar.",
+  "uk": "Усі преміум-функції доступні на цьому акаунті.",
+  "es": "Todas las funciones premium están disponibles en esta cuenta."
+ },
+ "Wszystkie zgłoszenia zostały obsłużone.": {
+  "en": "All reports have been handled.",
+  "de": "Alle Meldungen wurden bearbeitet.",
+  "uk": "Усі скарги опрацьовано.",
+  "es": "Todas las denuncias han sido gestionadas."
+ },
+ "Wszystko z planu miesięcznego": {
+  "en": "Everything in the monthly plan",
+  "de": "Alles aus dem Monatsplan",
+  "uk": "Усе з місячного плану",
+  "es": "Todo lo del plan mensual"
+ },
+ "Wt": {
+  "en": "Tu",
+  "de": "Di",
+  "uk": "Вт",
+  "es": "Ma"
+ },
+ "Wybierz": {
+  "en": "Choose",
+  "de": "Auswählen",
+  "uk": "Вибрати",
+  "es": "Elegir"
+ },
+ "Wybierz 3-15 tagów w kategoriach. Pierwsze wybrane pokazują się na karcie.": {
+  "en": "Pick 3-15 tags across categories. The first ones you pick show on your card.",
+  "de": "Wähle 3-15 Tags aus den Kategorien. Die zuerst gewählten erscheinen auf deiner Karte.",
+  "uk": "Вибери 3-15 тегів у категоріях. Перші вибрані показуються на картці.",
+  "es": "Elige 3-15 etiquetas de las categorías. Las primeras que elijas se muestran en tu tarjeta."
+ },
+ "Wybierz 3-15. Kategorie pomagają szybciej znaleźć swoje klimaty.": {
+  "en": "Pick 3-15. Categories help you find your vibe faster.",
+  "de": "Wähle 3-15. Kategorien helfen dir, schneller deinen Vibe zu finden.",
+  "uk": "Вибери 3-15. Категорії допоможуть швидше знайти свій вайб.",
+  "es": "Elige 3-15. Las categorías te ayudan a encontrar tu rollo más rápido."
+ },
+ "Wybierz cel": {
+  "en": "Choose a goal",
+  "de": "Ziel wählen",
+  "uk": "Вибери мету",
+  "es": "Elige un objetivo"
+ },
+ "Wybierz co najmniej jedną płeć dla tej kategorii.": {
+  "en": "Pick at least one gender for this category.",
+  "de": "Wähle für diese Kategorie mindestens ein Geschlecht.",
+  "uk": "Вибери хоча б одну стать для цієї категорії.",
+  "es": "Elige al menos un género para esta categoría."
+ },
+ "Wybierz działanie dotyczące tego profilu.": {
+  "en": "Choose an action for this profile.",
+  "de": "Wähle eine Aktion für dieses Profil.",
+  "uk": "Вибери дію щодо цього профілю.",
+  "es": "Elige una acción para este perfil."
+ },
+ "Wybierz inny tryb powyżej.": {
+  "en": "Pick another mode above.",
+  "de": "Wähle oben einen anderen Modus.",
+  "uk": "Вибери інший режим вище.",
+  "es": "Elige otro modo arriba."
+ },
+ "Wybierz jeden lub kilka eventów z oficjalnej listy Spark. Zobaczysz tylko osoby z przynajmniej jednym identycznym wyborem.": {
+  "en": "Pick one or more events from Spark's official list. You'll only see people with at least one identical pick.",
+  "de": "Wähle ein oder mehrere Events aus der offiziellen Spark-Liste. Du siehst nur Personen mit mindestens einer identischen Wahl.",
+  "uk": "Вибери одну або кілька подій з офіційного списку Spark. Ти побачиш лише людей хоча б з одним однаковим вибором.",
+  "es": "Elige uno o varios eventos de la lista oficial de Spark. Solo verás a personas con al menos una elección idéntica."
+ },
+ "Wybierz jeden lub kilka klimatów. Feed połączy wszystkie wybrane kategorie.": {
+  "en": "Pick one or more vibes. The feed combines all selected categories.",
+  "de": "Wähle einen oder mehrere Vibes. Der Feed kombiniert alle gewählten Kategorien.",
+  "uk": "Вибери один або кілька вайбів. Стрічка поєднає всі вибрані категорії.",
+  "es": "Elige uno o varios ambientes. El feed combinará todas las categorías elegidas."
+ },
+ "Wybierz lub wpisz miejscowość": {
+  "en": "Choose or type a town",
+  "de": "Ort wählen oder eingeben",
+  "uk": "Вибери або введи населений пункт",
+  "es": "Elige o escribe una localidad"
+ },
+ "Wybierz miasto lub wpisz miejscowość (2–80 znaków).": {
+  "en": "Choose a city or type a town (2–80 characters).",
+  "de": "Wähle eine Stadt oder gib einen Ort ein (2–80 Zeichen).",
+  "uk": "Вибери місто або введи населений пункт (2–80 символів).",
+  "es": "Elige una ciudad o escribe una localidad (2–80 caracteres)."
+ },
+ "Wybierz nazwę, którą inni zobaczą na Twojej karcie.": {
+  "en": "Choose the name others will see on your card.",
+  "de": "Wähle den Namen, den andere auf deiner Karte sehen.",
+  "uk": "Вибери ім'я, яке інші побачать на твоїй картці.",
+  "es": "Elige el nombre que los demás verán en tu tarjeta."
+ },
+ "Wybierz Odkrywaj i dołącz do wydarzenia.": {
+  "en": "Go to Discover and join an event.",
+  "de": "Geh zu Entdecken und tritt einem Event bei.",
+  "uk": "Відкрий «Відкривай» і приєднайся до події.",
+  "es": "Ve a Descubrir y únete a un evento."
+ },
+ "Wybierz pierwsze": {
+  "en": "Pick the first",
+  "de": "Wähle die ersten",
+  "uk": "Вибери перші",
+  "es": "Elige primero"
+ },
+ "Wybierz powód zgłoszenia:": {
+  "en": "Choose a reason for the report:",
+  "de": "Wähle den Grund der Meldung:",
+  "uk": "Вибери причину скарги:",
+  "es": "Elige el motivo de la denuncia:"
+ },
+ "Wybierz powód zgłoszenia: {0}.": {
+  "en": "Choose a reason for the report: {0}.",
+  "de": "Wähle den Grund der Meldung: {0}.",
+  "uk": "Вибери причину скарги: {0}.",
+  "es": "Elige el motivo de la denuncia: {0}."
+ },
+ "Wybierz prawdziwe imię albo nick.": {
+  "en": "Choose your real name or a nickname.",
+  "de": "Wähle deinen echten Namen oder einen Nickname.",
+  "uk": "Вибери справжнє ім'я або нікнейм.",
+  "es": "Elige tu nombre real o un apodo."
+ },
+ "Wybierz prawidłowy dzień i godzinę początku oraz końca.": {
+  "en": "Choose a valid start and end day and time.",
+  "de": "Wähle einen gültigen Tag und eine gültige Uhrzeit für Beginn und Ende.",
+  "uk": "Вибери правильні день і час початку та кінця.",
+  "es": "Elige un día y una hora válidos de inicio y fin."
+ },
+ "Wybierz termin w ciągu najbliższych 400 dni.": {
+  "en": "Choose a date within the next 400 days.",
+  "de": "Wähle einen Termin innerhalb der nächsten 400 Tage.",
+  "uk": "Вибери дату в межах найближчих 400 днів.",
+  "es": "Elige una fecha dentro de los próximos 400 días."
+ },
+ "Wybierz wydarzenia, na które idziesz": {
+  "en": "Pick the events you're going to",
+  "de": "Wähle die Events, zu denen du gehst",
+  "uk": "Вибери події, на які йдеш",
+  "es": "Elige los eventos a los que vas"
+ },
+ "Wybierz wydarzenie": {
+  "en": "Choose an event",
+  "de": "Event wählen",
+  "uk": "Вибери подію",
+  "es": "Elige un evento"
+ },
+ "WYBIERZ ZAINTERESOWANIA": {
+  "en": "CHOOSE INTERESTS",
+  "de": "INTERESSEN WÄHLEN",
+  "uk": "ВИБЕРИ ІНТЕРЕСИ",
+  "es": "ELIGE INTERESES"
+ },
+ "Wybierz, kiedy Spark może zwrócić Twoją uwagę. Zmiany obowiązują na wszystkich zarejestrowanych urządzeniach.": {
+  "en": "Choose when Spark can get your attention. Changes apply on all registered devices.",
+  "de": "Wähle, wann Spark deine Aufmerksamkeit bekommen darf. Die Änderungen gelten auf allen registrierten Geräten.",
+  "uk": "Вибери, коли Spark може привертати твою увагу. Зміни діють на всіх зареєстрованих пристроях.",
+  "es": "Elige cuándo puede Spark llamar tu atención. Los cambios se aplican en todos los dispositivos registrados."
+ },
+ "Wybrane": {
+  "en": "Selected",
+  "de": "Ausgewählt",
+  "uk": "Вибрані",
+  "es": "Elegidos"
+ },
+ "Wybrany pakiet Spark Pro jest chwilowo niedostępny.": {
+  "en": "The selected Spark Pro plan is temporarily unavailable.",
+  "de": "Das gewählte Spark-Pro-Paket ist vorübergehend nicht verfügbar.",
+  "uk": "Вибраний пакет Spark Pro тимчасово недоступний.",
+  "es": "El plan de Spark Pro elegido no está disponible temporalmente."
+ },
+ "Wycofaj zgłoszenie": {
+  "en": "Withdraw submission",
+  "de": "Einreichung zurückziehen",
+  "uk": "Відкликати заявку",
+  "es": "Retirar propuesta"
+ },
+ "Wyczyść wyszukiwanie": {
+  "en": "Clear search",
+  "de": "Suche löschen",
+  "uk": "Очистити пошук",
+  "es": "Borrar búsqueda"
+ },
+ "Wydarzenia": {
+  "en": "Events",
+  "de": "Events",
+  "uk": "Події",
+  "es": "Eventos"
+ },
+ "Wydarzenie": {
+  "en": "Event",
+  "de": "Event",
+  "uk": "Подія",
+  "es": "Evento"
+ },
+ "Wydarzenie musi kończyć się w przyszłości.": {
+  "en": "The event must end in the future.",
+  "de": "Das Event muss in der Zukunft enden.",
+  "uk": "Подія має завершуватися в майбутньому.",
+  "es": "El evento debe terminar en el futuro."
+ },
+ "Wydarzenie, miasto, miejsce…": {
+  "en": "Event, city, venue…",
+  "de": "Event, Stadt, Ort…",
+  "uk": "Подія, місто, місце…",
+  "es": "Evento, ciudad, lugar…"
+ },
+ "wygasłe wydarzenie": {
+  "en": "expired event",
+  "de": "abgelaufenes Event",
+  "uk": "завершена подія",
+  "es": "evento caducado"
+ },
+ "Wygląd": {
+  "en": "Appearance",
+  "de": "Darstellung",
+  "uk": "Вигляд",
+  "es": "Apariencia"
+ },
+ "Wyjazd": {
+  "en": "Trip",
+  "de": "Ausflug",
+  "uk": "Поїздка",
+  "es": "Escapada"
+ },
+ "Wyjazdy": {
+  "en": "Trips",
+  "de": "Ausflüge",
+  "uk": "Поїздки",
+  "es": "Escapadas"
+ },
+ "Wyjątkowa zgodność": {
+  "en": "Exceptional match",
+  "de": "Außergewöhnliche Übereinstimmung",
+  "uk": "Винятковий збіг",
+  "es": "Compatibilidad excepcional"
+ },
+ "Wyjścia i kultura": {
+  "en": "Going out & culture",
+  "de": "Ausgehen & Kultur",
+  "uk": "Виходи й культура",
+  "es": "Salidas y cultura"
+ },
+ "Wylogowanie": {
+  "en": "Sign out",
+  "de": "Abmelden",
+  "uk": "Вихід",
+  "es": "Cerrar sesión"
+ },
+ "Wyloguj": {
+  "en": "Sign out",
+  "de": "Abmelden",
+  "uk": "Вийти",
+  "es": "Cerrar sesión"
+ },
+ "Wyloguj się": {
+  "en": "Sign out",
+  "de": "Abmelden",
+  "uk": "Вийти",
+  "es": "Cerrar sesión"
+ },
+ "Wymagaj wspólnego zainteresowania": {
+  "en": "Require a shared interest",
+  "de": "Gemeinsames Interesse erforderlich",
+  "uk": "Вимагати спільного інтересу",
+  "es": "Exigir un interés en común"
+ },
+ "wyników": {
+  "en": "results",
+  "de": "Ergebnisse",
+  "uk": "результатів",
+  "es": "resultados"
+ },
+ "Wyróżnij profil, który naprawdę Cię interesuje": {
+  "en": "Highlight a profile you're really into",
+  "de": "Hebe ein Profil hervor, das dich wirklich interessiert",
+  "uk": "Виділи профіль, який тебе справді цікавить",
+  "es": "Destaca un perfil que de verdad te interesa"
+ },
+ "Wysłaliśmy link do ustawienia nowego hasła.": {
+  "en": "We've sent you a link to set a new password.",
+  "de": "Wir haben dir einen Link zum Festlegen eines neuen Passworts gesendet.",
+  "uk": "Ми надіслали посилання для встановлення нового пароля.",
+  "es": "Te hemos enviado un enlace para establecer una nueva contraseña."
+ },
+ "Wysłał(a) Ci SparkLike": {
+  "en": "Sent you a SparkLike",
+  "de": "Hat dir ein SparkLike gesendet",
+  "uk": "Надіслав(-ла) тобі SparkLike",
+  "es": "Te ha enviado un SparkLike"
+ },
+ "Wysłana": {
+  "en": "Sent",
+  "de": "Gesendet",
+  "uk": "Надіслано",
+  "es": "Enviada"
+ },
+ "Wysłana, czeka na akceptację": {
+  "en": "Sent, awaiting acceptance",
+  "de": "Gesendet, wartet auf Annahme",
+  "uk": "Надіслано, чекає на прийняття",
+  "es": "Enviada, esperando aceptación"
+ },
+ "Wysłano prośbę do": {
+  "en": "Request sent to",
+  "de": "Anfrage gesendet an",
+  "uk": "Запит надіслано до",
+  "es": "Solicitud enviada a"
+ },
+ "Wysłano prośbę do {0}. Pozostało dziś: {1}.": {
+  "en": "Request sent to {0}. Left today: {1}.",
+  "de": "Anfrage an {0} gesendet. Heute übrig: {1}.",
+  "uk": "Запит надіслано до {0}. Залишилося сьогодні: {1}.",
+  "es": "Solicitud enviada a {0}. Quedan hoy: {1}."
+ },
+ "Wyślij krótką prośbę o chat i zacznij rozmowę bez czekania na wzajemne polubienie.": {
+  "en": "Send a short chat request and start talking without waiting for a mutual like.",
+  "de": "Sende eine kurze Chat-Anfrage und beginne das Gespräch, ohne auf ein gegenseitiges Like zu warten.",
+  "uk": "Надішли короткий запит на чат і почни розмову, не чекаючи взаємного вподобання.",
+  "es": "Envía una breve solicitud de chat y empieza a hablar sin esperar un like mutuo."
+ },
+ "Wyślij link do aplikacji": {
+  "en": "Send the app link",
+  "de": "App-Link senden",
+  "uk": "Надіслати посилання на застосунок",
+  "es": "Enviar enlace de la app"
+ },
+ "Wyślij link do Spark": {
+  "en": "Send a Spark link",
+  "de": "Spark-Link senden",
+  "uk": "Надіслати посилання на Spark",
+  "es": "Enviar enlace de Spark"
+ },
+ "Wyślij prośbę o chat przed matchem": {
+  "en": "Send a chat request before a match",
+  "de": "Chat-Anfrage vor dem Match senden",
+  "uk": "Надіслати запит на чат до метчу",
+  "es": "Enviar solicitud de chat antes del match"
+ },
+ "Wyślij SparkLike": {
+  "en": "Send SparkLike",
+  "de": "SparkLike senden",
+  "uk": "Надіслати SparkLike",
+  "es": "Enviar SparkLike"
+ },
+ "Wyślij zgłoszenie": {
+  "en": "Send report",
+  "de": "Meldung senden",
+  "uk": "Надіслати скаргу",
+  "es": "Enviar denuncia"
+ },
+ "WZAJEMNE POLUBIENIE": {
+  "en": "MUTUAL LIKE",
+  "de": "GEGENSEITIGES LIKE",
+  "uk": "ВЗАЄМНЕ ВПОДОБАННЯ",
+  "es": "LIKE MUTUO"
+ },
+ "ZAAKCEPTOWANE": {
+  "en": "ACCEPTED",
+  "de": "ANGENOMMEN",
+  "uk": "ПРИЙНЯТО",
+  "es": "ACEPTADO"
+ },
+ "Zaakceptuj prośbę, żeby zacząć pisać.": {
+  "en": "Accept the request to start chatting.",
+  "de": "Nimm die Anfrage an, um zu schreiben.",
+  "uk": "Прийми запит, щоб почати писати.",
+  "es": "Acepta la solicitud para empezar a escribir."
+ },
+ "Zablokowane osoby": {
+  "en": "Blocked people",
+  "de": "Blockierte Personen",
+  "uk": "Заблоковані люди",
+  "es": "Personas bloqueadas"
+ },
+ "Zablokowane osoby nie widzą Twojego profilu i nie mogą wysyłać Ci wiadomości. Nadal możesz je zgłosić.": {
+  "en": "Blocked people can't see your profile or send you messages. You can still report them.",
+  "de": "Blockierte Personen sehen dein Profil nicht und können dir keine Nachrichten senden. Du kannst sie trotzdem melden.",
+  "uk": "Заблоковані люди не бачать твого профілю й не можуть надсилати тобі повідомлення. Ти й далі можеш на них поскаржитися.",
+  "es": "Las personas bloqueadas no ven tu perfil ni pueden enviarte mensajes. Aun así puedes denunciarlas."
+ },
+ "Zablokowany": {
+  "en": "Blocked",
+  "de": "Blockiert",
+  "uk": "Заблоковано",
+  "es": "Bloqueado"
+ },
+ "Zablokuj": {
+  "en": "Block",
+  "de": "Blockieren",
+  "uk": "Заблокувати",
+  "es": "Bloquear"
+ },
+ "Zablokuj profil": {
+  "en": "Block profile",
+  "de": "Profil blockieren",
+  "uk": "Заблокувати профіль",
+  "es": "Bloquear perfil"
+ },
+ "Zacznij rozmowę": {
+  "en": "Start a conversation",
+  "de": "Gespräch beginnen",
+  "uk": "Почни розмову",
+  "es": "Empieza la conversación"
+ },
+ "Zainteresowania": {
+  "en": "Interests",
+  "de": "Interessen",
+  "uk": "Інтереси",
+  "es": "Intereses"
+ },
+ "zainteresowań": {
+  "en": "interests",
+  "de": "Interessen",
+  "uk": "інтересів",
+  "es": "intereses"
+ },
+ "zainteresowań.": {
+  "en": "interests.",
+  "de": "Interessen.",
+  "uk": "інтересів.",
+  "es": "intereses."
+ },
+ "Zakończ sesję na tym urządzeniu": {
+  "en": "Sign out on this device",
+  "de": "Auf diesem Gerät abmelden",
+  "uk": "Завершити сеанс на цьому пристрої",
+  "es": "Cerrar sesión en este dispositivo"
+ },
+ "Zakup jednorazowy": {
+  "en": "One-time purchase",
+  "de": "Einmalkauf",
+  "uk": "Одноразова покупка",
+  "es": "Compra única"
+ },
+ "Zakup nieudany": {
+  "en": "Purchase failed",
+  "de": "Kauf fehlgeschlagen",
+  "uk": "Покупка не вдалася",
+  "es": "Error en la compra"
+ },
+ "Zakup zakończony, ale produkt nie aktywował dostępu {0}. Sprawdź przypisanie produktu do entitlementu w RevenueCat.": {
+  "en": "Purchase completed, but the product didn't activate {0} access. Check the product's entitlement mapping in RevenueCat.",
+  "de": "Kauf abgeschlossen, aber das Produkt hat den Zugang {0} nicht aktiviert. Prüfe die Entitlement-Zuordnung in RevenueCat.",
+  "uk": "Покупку завершено, але продукт не активував доступ {0}. Перевір прив'язку продукту до entitlement у RevenueCat.",
+  "es": "Compra completada, pero el producto no activó el acceso {0}. Revisa la asignación del producto al entitlement en RevenueCat."
+ },
+ "Zakup został anulowany.": {
+  "en": "Purchase cancelled.",
+  "de": "Kauf abgebrochen.",
+  "uk": "Покупку скасовано.",
+  "es": "Compra cancelada."
+ },
+ "Zakupy przywrócone": {
+  "en": "Purchases restored",
+  "de": "Käufe wiederhergestellt",
+  "uk": "Покупки відновлено",
+  "es": "Compras restauradas"
+ },
+ "Zalogowano demo i dodano gotowy match oraz prośbę o chat.": {
+  "en": "Demo signed in with a ready match and a chat request added.",
+  "de": "Demo angemeldet, ein fertiges Match und eine Chat-Anfrage wurden hinzugefügt.",
+  "uk": "Демо ввійшло, додано готовий метч і запит на чат.",
+  "es": "Demo iniciada; se han añadido un match listo y una solicitud de chat."
+ },
+ "Zaloguj": {
+  "en": "Sign in",
+  "de": "Anmelden",
+  "uk": "Увійти",
+  "es": "Iniciar sesión"
+ },
+ "Zaloguj się ponownie, aby utworzyć match.": {
+  "en": "Sign in again to create a match.",
+  "de": "Melde dich erneut an, um ein Match zu erstellen.",
+  "uk": "Увійди ще раз, щоб створити метч.",
+  "es": "Vuelve a iniciar sesión para crear un match."
+ },
+ "Zaloguj się ponownie, aby wysłać prośbę.": {
+  "en": "Sign in again to send the request.",
+  "de": "Melde dich erneut an, um die Anfrage zu senden.",
+  "uk": "Увійди ще раз, щоб надіслати запит.",
+  "es": "Vuelve a iniciar sesión para enviar la solicitud."
+ },
+ "Zaloguj się ponownie, aby wysłać wiadomość.": {
+  "en": "Sign in again to send a message.",
+  "de": "Melde dich erneut an, um eine Nachricht zu senden.",
+  "uk": "Увійди ще раз, щоб надіслати повідомлення.",
+  "es": "Vuelve a iniciar sesión para enviar un mensaje."
+ },
+ "Zaloguj się ponownie, aby wysłać zgłoszenie.": {
+  "en": "Sign in again to send the report.",
+  "de": "Melde dich erneut an, um die Meldung zu senden.",
+  "uk": "Увійди ще раз, щоб надіслати скаргу.",
+  "es": "Vuelve a iniciar sesión para enviar la denuncia."
+ },
+ "Zamknij listę": {
+  "en": "Close list",
+  "de": "Liste schließen",
+  "uk": "Закрити список",
+  "es": "Cerrar lista"
+ },
+ "Zapisywanie tagu…": {
+  "en": "Saving tag…",
+  "de": "Tag wird gespeichert…",
+  "uk": "Зберігаємо тег…",
+  "es": "Guardando etiqueta…"
+ },
+ "Zapisywanie...": {
+  "en": "Saving...",
+  "de": "Wird gespeichert...",
+  "uk": "Збереження...",
+  "es": "Guardando..."
+ },
+ "Zapisywanie…": {
+  "en": "Saving…",
+  "de": "Wird gespeichert…",
+  "uk": "Збереження…",
+  "es": "Guardando…"
+ },
+ "Zapisz profil i zaczynamy": {
+  "en": "Save profile and let's go",
+  "de": "Profil speichern und los geht's",
+  "uk": "Зберегти профіль і почати",
+  "es": "Guardar perfil y empezar"
+ },
+ "Zapisz udział": {
+  "en": "Save attendance",
+  "de": "Teilnahme speichern",
+  "uk": "Зберегти участь",
+  "es": "Guardar asistencia"
+ },
+ "Zapisz udział ({0})": {
+  "en": "Save attendance ({0})",
+  "de": "Teilnahme speichern ({0})",
+  "uk": "Зберегти участь ({0})",
+  "es": "Guardar asistencia ({0})"
+ },
+ "Zapisz ustawienia": {
+  "en": "Save settings",
+  "de": "Einstellungen speichern",
+  "uk": "Зберегти налаштування",
+  "es": "Guardar ajustes"
+ },
+ "Zapisz zmiany": {
+  "en": "Save changes",
+  "de": "Änderungen speichern",
+  "uk": "Зберегти зміни",
+  "es": "Guardar cambios"
+ },
+ "Zaproszenie": {
+  "en": "Invitation",
+  "de": "Einladung",
+  "uk": "Запрошення",
+  "es": "Invitación"
+ },
+ "Zaproś znajomych": {
+  "en": "Invite friends",
+  "de": "Freunde einladen",
+  "uk": "Запроси друзів",
+  "es": "Invita a amigos"
+ },
+ "Zarządzaj": {
+  "en": "Manage",
+  "de": "Verwalten",
+  "uk": "Керувати",
+  "es": "Gestionar"
+ },
+ "Zarządzaj bezpieczeństwem i widocznością profili.": {
+  "en": "Manage safety and profile visibility.",
+  "de": "Verwalte Sicherheit und Sichtbarkeit von Profilen.",
+  "uk": "Керуй безпекою та видимістю профілів.",
+  "es": "Gestiona la seguridad y la visibilidad de los perfiles."
+ },
+ "Zarządzaj subskrypcją": {
+  "en": "Manage subscription",
+  "de": "Abo verwalten",
+  "uk": "Керувати підпискою",
+  "es": "Gestionar suscripción"
+ },
+ "Zarządzaj wydarzeniami": {
+  "en": "Manage events",
+  "de": "Events verwalten",
+  "uk": "Керувати подіями",
+  "es": "Gestionar eventos"
+ },
+ "Zasady społeczności": {
+  "en": "Community guidelines",
+  "de": "Community-Richtlinien",
+  "uk": "Правила спільноти",
+  "es": "Normas de la comunidad"
+ },
+ "Zastosuj": {
+  "en": "Apply",
+  "de": "Anwenden",
+  "uk": "Застосувати",
+  "es": "Aplicar"
+ },
+ "Zatwierdź": {
+  "en": "Approve",
+  "de": "Bestätigen",
+  "uk": "Затвердити",
+  "es": "Aprobar"
+ },
+ "Zatwierdź po zmianach": {
+  "en": "Approve with changes",
+  "de": "Nach Änderungen bestätigen",
+  "uk": "Затвердити після змін",
+  "es": "Aprobar con cambios"
+ },
+ "Zawiesić konto?": {
+  "en": "Suspend account?",
+  "de": "Konto sperren?",
+  "uk": "Призупинити акаунт?",
+  "es": "¿Suspender la cuenta?"
+ },
+ "Zawieś": {
+  "en": "Suspend",
+  "de": "Sperren",
+  "uk": "Призупинити",
+  "es": "Suspender"
+ },
+ "Zaznacz przynajmniej jedną kategorię.": {
+  "en": "Select at least one category.",
+  "de": "Wähle mindestens eine Kategorie.",
+  "uk": "Познач хоча б одну категорію.",
+  "es": "Marca al menos una categoría."
+ },
+ "Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.": {
+  "en": "Too many attempts. Wait a moment and try again.",
+  "de": "Zu viele Versuche. Warte kurz und versuch es erneut.",
+  "uk": "Забагато спроб. Зачекай трохи й спробуй ще раз.",
+  "es": "Demasiados intentos. Espera un momento e inténtalo de nuevo."
+ },
+ "zdjęcia": {
+  "en": "photos",
+  "de": "Fotos",
+  "uk": "фото",
+  "es": "fotos"
+ },
+ "Zdjęcia": {
+  "en": "Photos",
+  "de": "Fotos",
+  "uk": "Фото",
+  "es": "Fotos"
+ },
+ "Zdjęcia profilu": {
+  "en": "Profile photos",
+  "de": "Profilfotos",
+  "uk": "Фото профілю",
+  "es": "Fotos de perfil"
+ },
+ "Zdjęcia, dane i zainteresowania": {
+  "en": "Photos, details and interests",
+  "de": "Fotos, Angaben und Interessen",
+  "uk": "Фото, дані й інтереси",
+  "es": "Fotos, datos e intereses"
+ },
+ "Zdjęcie": {
+  "en": "Photo",
+  "de": "Foto",
+  "uk": "Фото",
+  "es": "Foto"
+ },
+ "Zdjęcie jest za duże. Wybierz plik poniżej 8 MB.": {
+  "en": "The photo is too large. Choose a file under 8 MB.",
+  "de": "Das Foto ist zu groß. Wähle eine Datei unter 8 MB.",
+  "uk": "Фото завелике. Вибери файл менше 8 МБ.",
+  "es": "La foto es demasiado grande. Elige un archivo de menos de 8 MB."
+ },
+ "zdjęć - format 4:5": {
+  "en": "photos - 4:5 format",
+  "de": "Fotos - Format 4:5",
+  "uk": "фото - формат 4:5",
+  "es": "fotos - formato 4:5"
+ },
+ "Zdrowe jedzenie": {
+  "en": "Healthy food",
+  "de": "Gesunde Ernährung",
+  "uk": "Здорова їжа",
+  "es": "Comida sana"
+ },
+ "Ze względów bezpieczeństwa wyloguj się, zaloguj ponownie i wtedy usuń konto.": {
+  "en": "For security, sign out, sign in again and then delete your account.",
+  "de": "Melde dich aus Sicherheitsgründen ab, melde dich erneut an und lösche dann das Konto.",
+  "uk": "З міркувань безпеки вийди, увійди знову, а потім видали акаунт.",
+  "es": "Por seguridad, cierra sesión, vuelve a iniciarla y luego elimina la cuenta."
+ },
+ "Zero reklam": {
+  "en": "Zero ads",
+  "de": "Null Werbung",
+  "uk": "Нуль реклами",
+  "es": "Cero anuncios"
+ },
+ "Zgadzam się": {
+  "en": "I agree",
+  "de": "Ich stimme zu",
+  "uk": "Погоджуюся",
+  "es": "Acepto"
+ },
+ "Zgłoszenia do akceptacji ({0})": {
+  "en": "Submissions to review ({0})",
+  "de": "Einreichungen zur Prüfung ({0})",
+  "uk": "Заявки на розгляд ({0})",
+  "es": "Propuestas por revisar ({0})"
+ },
+ "Zgłoszenia, blokady i zasady": {
+  "en": "Reports, blocks and rules",
+  "de": "Meldungen, Blockierungen und Regeln",
+  "uk": "Скарги, блокування й правила",
+  "es": "Denuncias, bloqueos y normas"
+ },
+ "Zgłoszenie": {
+  "en": "Report",
+  "de": "Meldung",
+  "uk": "Скарга",
+  "es": "Denuncia"
+ },
+ "Zgłoszenie wysłane": {
+  "en": "Report sent",
+  "de": "Meldung gesendet",
+  "uk": "Скаргу надіслано",
+  "es": "Denuncia enviada"
+ },
+ "Zgłoś": {
+  "en": "Report",
+  "de": "Melden",
+  "uk": "Поскаржитися",
+  "es": "Denunciar"
+ },
+ "Zgłoś profil": {
+  "en": "Report profile",
+  "de": "Profil melden",
+  "uk": "Поскаржитися на профіль",
+  "es": "Denunciar perfil"
+ },
+ "Zgłoś wydarzenie": {
+  "en": "Submit event",
+  "de": "Event vorschlagen",
+  "uk": "Запропонувати подію",
+  "es": "Proponer evento"
+ },
+ "Zgodność": {
+  "en": "Match",
+  "de": "Übereinstimmung",
+  "uk": "Збіг",
+  "es": "Compatibilidad"
+ },
+ "Zgody reklamowe": {
+  "en": "Ad consents",
+  "de": "Werbe-Einwilligungen",
+  "uk": "Згоди на рекламу",
+  "es": "Consentimientos publicitarios"
+ },
+ "Zmiany są już widoczne w Twoim profilu.": {
+  "en": "Changes are already visible on your profile.",
+  "de": "Die Änderungen sind bereits in deinem Profil sichtbar.",
+  "uk": "Зміни вже видно у твоєму профілі.",
+  "es": "Los cambios ya se ven en tu perfil."
+ },
+ "Zmień filtr czasu albo wpisaną frazę.": {
+  "en": "Change the time filter or search phrase.",
+  "de": "Ändere den Zeitfilter oder den Suchbegriff.",
+  "uk": "Зміни фільтр часу або введену фразу.",
+  "es": "Cambia el filtro de tiempo o la búsqueda."
+ },
+ "Zmień wydarzenia": {
+  "en": "Change events",
+  "de": "Events ändern",
+  "uk": "Змінити події",
+  "es": "Cambiar eventos"
+ },
+ "Znajomi": {
+  "en": "Friends",
+  "de": "Freunde",
+  "uk": "Друзі",
+  "es": "Amigos"
+ },
+ "znaków": {
+  "en": "characters",
+  "de": "Zeichen",
+  "uk": "символів",
+  "es": "caracteres"
+ },
+ "Znasz koncert, mecz albo wystawę? Wyślij zgłoszenie. Po akceptacji pojawi się w Event Friends, a my damy Ci znać powiadomieniem.": {
+  "en": "Know a concert, game or exhibition? Send a submission. Once approved, it will appear in Event Friends and we'll notify you.",
+  "de": "Kennst du ein Konzert, Spiel oder eine Ausstellung? Schick einen Vorschlag. Nach der Annahme erscheint es in Event Friends und wir benachrichtigen dich.",
+  "uk": "Знаєш концерт, матч чи виставку? Надішли заявку. Після прийняття вона з'явиться в Event Friends, а ми повідомимо тебе.",
+  "es": "¿Conoces un concierto, un partido o una exposición? Envía una propuesta. Cuando se apruebe, aparecerá en Event Friends y te avisaremos."
+ },
+ "Zobacz": {
+  "en": "View",
+  "de": "Ansehen",
+  "uk": "Переглянути",
+  "es": "Ver"
+ },
+ "Zobacz profil": {
+  "en": "View profile",
+  "de": "Profil ansehen",
+  "uk": "Переглянути профіль",
+  "es": "Ver perfil"
+ },
+ "Zobacz wydarzenia": {
+  "en": "See events",
+  "de": "Events ansehen",
+  "uk": "Переглянути події",
+  "es": "Ver eventos"
+ },
+ "Zobacz, jak widzą Cię inni": {
+  "en": "See how others see you",
+  "de": "Sieh, wie andere dich sehen",
+  "uk": "Подивися, як тебе бачать інші",
+  "es": "Mira cómo te ven los demás"
+ },
+ "Zobacz, kto Cię polubił": {
+  "en": "See who liked you",
+  "de": "Sieh, wer dich geliked hat",
+  "uk": "Подивися, хто тебе вподобав",
+  "es": "Mira a quién le gustas"
+ },
+ "Zobacz, kto ogląda Twój profil": {
+  "en": "See who views your profile",
+  "de": "Sieh, wer dein Profil ansieht",
+  "uk": "Подивися, хто переглядає твій профіль",
+  "es": "Mira quién ve tu perfil"
+ },
+ "Zobacz, kto polubił Twój profil": {
+  "en": "See who liked your profile",
+  "de": "Sieh, wer dein Profil geliked hat",
+  "uk": "Подивися, хто вподобав твій профіль",
+  "es": "Mira a quién le gustó tu perfil"
+ },
+ "Zostań": {
+  "en": "Stay",
+  "de": "Bleiben",
+  "uk": "Залишитися",
+  "es": "Quedarme"
+ },
+ "Zrezygnować z wydarzenia?": {
+  "en": "Leave the event?",
+  "de": "Vom Event abmelden?",
+  "uk": "Відмовитися від події?",
+  "es": "¿Dejar el evento?"
+ },
+ "Zrezygnuj": {
+  "en": "Leave",
+  "de": "Abmelden",
+  "uk": "Відмовитися",
+  "es": "Dejar"
+ },
+ "Zrezygnuj z": {
+  "en": "Leave",
+  "de": "Abmelden von",
+  "uk": "Відмовитися від",
+  "es": "Dejar"
+ },
+ "Zweryfikowane": {
+  "en": "Verified",
+  "de": "Verifiziert",
+  "uk": "Підтверджено",
+  "es": "Verificado"
+ },
+ "ZWERYFIKOWANY": {
+  "en": "VERIFIED",
+  "de": "VERIFIZIERT",
+  "uk": "ПІДТВЕРДЖЕНО",
+  "es": "VERIFICADO"
+ },
+ "Zwiększ widoczność, odkrywaj zainteresowane osoby i korzystaj ze Spark bez reklam.": {
+  "en": "Boost your visibility, discover interested people and use Spark without ads.",
+  "de": "Steigere deine Sichtbarkeit, entdecke interessierte Personen und nutze Spark ohne Werbung.",
+  "uk": "Збільш видимість, відкривай зацікавлених людей і користуйся Spark без реклами.",
+  "es": "Aumenta tu visibilidad, descubre a personas interesadas y usa Spark sin anuncios."
+ },
+ "Zwolnij": {
+  "en": "Slow down",
+  "de": "Langsamer",
+  "uk": "Повільніше",
+  "es": "Más despacio"
+ }
+}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Text, TextInput } from "../i18n/Text";
 import { useThemeState } from "../theme";
 import { dateText } from "./event-form-model";
 

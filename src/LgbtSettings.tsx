@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import { Text } from "./i18n/Text";
 import type { LgbtSettings } from "./firestore";
 import { LGBT_LABELS } from "./discover/DiscoverParts";
 import { palettes, useThemeState, type Palette } from "./theme";

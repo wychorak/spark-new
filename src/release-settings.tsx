@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Text } from "./i18n/Text";
 import { loadNotificationPreferences, listModerationReports, resolveModerationReport, saveNotificationPreferences, type ModerationReport } from "./firestore";
 import { defaultNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 import { setActiveNotificationPreferences } from "./notifications";

@@ -3,7 +3,8 @@ import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { memo, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { Text } from "../i18n/Text";
 import { palettes, useThemeState, type Palette } from "../theme";
 /** Discover context used for accents and badges (Romantic / Friends / Event). */
 export type DiscoverMode = "romantic" | "friends" | "event";

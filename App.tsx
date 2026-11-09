@@ -32,11 +32,10 @@ import {
   Share as NativeShare,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
   useWindowDimensions,
   View
 } from "react-native";
+import { Text, TextInput } from "./src/i18n/Text";
 import { captureRef } from "react-native-view-shot";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { currentUserUsesAppleSignIn, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
@@ -130,6 +129,7 @@ import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
 import { LgbtSettingsPanel } from "./src/LgbtSettings";
+import { languageOptions, setLanguage, useLanguage } from "./src/i18n";
 import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeBadge, ModeFilter, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
   defaultSparkReleaseConfig,
@@ -4012,7 +4012,7 @@ function ProfileBioInput({ value, onChangeText }: { value: string; onChangeText:
         multiline
         maxLength={300}
         textAlignVertical="top"
-        placeholder="Napisz kilka zda\u0144 o sobie, swoich pasjach i osobach, kt\u00f3re chcesz pozna\u0107."
+        placeholder="Napisz kilka zdań o sobie, swoich pasjach i osobach, które chcesz poznać."
         placeholderTextColor={colors.muted}
         selectionColor="rgba(255,45,141,0.35)"
         cursorColor={colors.primary}
@@ -4189,7 +4189,7 @@ function OnboardingScreen({
                 {photo && (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Usu\u0144 zdj\u0119cie"
+                    accessibilityLabel="Usuń zdjęcie"
                     onPress={(event) => {
                       event.stopPropagation();
                       removePhoto(index);
@@ -4604,7 +4604,7 @@ function DiscoverScreen({
             <View style={styles.reportSheetHeader}>
               <View style={styles.fill}>
                 <Text style={styles.reportTitle} selectable>Zgłoś profil</Text>
-                <Text style={styles.reportSubtitle} selectable>{profile.name} {profile.surname} - zg\u0142oszenie trafi bezpo\u015brednio do moderacji</Text>
+                <Text style={styles.reportSubtitle} selectable>{profile.name} {profile.surname} - zgłoszenie trafi bezpośrednio do moderacji</Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => setReportOpen(false)} style={styles.reportCloseButton}>
                 <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
@@ -6792,7 +6792,7 @@ function ChatConversationModal({
                   ? <Image source={activeConversation.profile.image} style={local.messageAvatar} contentFit="cover" />
                   : <View style={local.messageAvatarSpacer} />)}
                 <View style={[local.bubble, isMine ? local.bubbleMe : local.bubbleThem]}>
-                  <Text style={[local.bubbleText, isMine && local.bubbleTextMe]} selectable>{message.text}</Text>
+                  <Text style={[local.bubbleText, isMine && local.bubbleTextMe]} selectable noTranslate>{message.text}</Text>
                   <Text style={[local.bubbleTime, isMine && local.bubbleTimeMe]}>{message.time}</Text>
                 </View>
               </View>
@@ -7873,7 +7873,7 @@ function ProfileScreen({
                 {image && (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Usu\u0144 zdj\u0119cie"
+                    accessibilityLabel="Usuń zdjęcie"
                     onPress={(event) => {
                       event.stopPropagation();
                       confirmRemovePhoto(index);
@@ -8429,6 +8429,43 @@ function BlockedProfilesModal({
   );
 }
 
+function LanguagePickerModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors, styles } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const language = useLanguage();
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: "flex-end" }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }]} />
+        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 14 }}>
+          <View style={{ alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: colors.fillStronger }} />
+          <Text style={[styles.mxTitle, { fontSize: 28, lineHeight: 34 }]}>Język</Text>
+          <View style={styles.mxGroup}>
+            {languageOptions.map((option, index) => {
+              const active = option.code === language;
+              return (
+                <React.Fragment key={option.code}>
+                  {index > 0 && <View style={[styles.pfDivider, { marginLeft: 16 }]} />}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => { setLanguage(option.code); onClose(); }}
+                    style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}
+                  >
+                    <Text style={[styles.pfRowLabel, styles.fill]}>{option.label}</Text>
+                    {active ? <MaterialCommunityIcons name="check" size={20} color={colors.primary} /> : null}
+                  </Pressable>
+                </React.Fragment>
+              );
+            })}
+          </View>
+          <Text style={styles.stFooter}>Teksty, których jeszcze nie przetłumaczyliśmy, zobaczysz po polsku.</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function SafetyCenter({
   userUid,
   canManageModeration,
@@ -8450,6 +8487,8 @@ function SafetyCenter({
   const [blockedListOpen, setBlockedListOpen] = useState(false);
   const [notificationPreferencesOpen, setNotificationPreferencesOpen] = useState(false);
   const [moderationQueueOpen, setModerationQueueOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const language = useLanguage();
 
   const manageAdPrivacy = async () => {
     try {
@@ -8467,6 +8506,7 @@ function SafetyCenter({
     {
       title: "Konto",
       rows: [
+        { icon: "translate", tint: "#007aff", label: "Język", value: languageOptions.find((option) => option.code === language)?.label, onPress: () => setLanguageOpen(true) },
         { icon: "bell-outline", tint: "#ff3b30", label: "Powiadomienia", onPress: () => setNotificationPreferencesOpen(true) },
         { icon: "account-cancel-outline", tint: "#8e8e93", label: "Zablokowane osoby", value: blockedProfileKeys.length > 0 ? String(blockedProfileKeys.length) : "Brak", onPress: () => setBlockedListOpen(true) }
       ]
@@ -8533,6 +8573,7 @@ function SafetyCenter({
 
       <BlockedProfilesModal visible={blockedListOpen} blockedProfileKeys={blockedProfileKeys} onClose={() => setBlockedListOpen(false)} onUnblock={onUnblock} onReport={onReport} />
       <NotificationPreferencesModal visible={notificationPreferencesOpen} uid={userUid} onClose={() => setNotificationPreferencesOpen(false)} />
+      <LanguagePickerModal visible={languageOpen} onClose={() => setLanguageOpen(false)} />
       {canManageModeration && <ModerationQueueModal visible={moderationQueueOpen} onClose={() => setModerationQueueOpen(false)} />}
     </View>
   );
@@ -8896,6 +8937,8 @@ function DevEventPreview({ themeName }: { themeName: string | null }) {
 
 export default function App() {
   const params = __DEV__ && Platform.OS === "web" && typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const previewLanguage = params?.get("lang");
+  if (previewLanguage && languageOptions.some((option) => option.code === previewLanguage)) setLanguage(previewLanguage as Parameters<typeof setLanguage>[0]);
   return (
     <SafeAreaProvider>
       <ThemeProvider>
