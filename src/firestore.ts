@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   documentId,
   getDoc,
@@ -37,6 +38,7 @@ import { httpsCallable } from "firebase/functions";
 import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
 import { isSparkOwnerAccount } from "./access";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
+import { recordSparkError } from "./telemetry";
 import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 
 export type ProfileVerificationStatus = "none" | "pending" | "verified";
@@ -424,16 +426,60 @@ export async function registerDevicePushToken(uid: string, token: string, platfo
   );
 }
 
+/**
+ * Owner-rule checks validate the whole users doc, so one legacy value (an
+ * old goal label, gender or empty gender list) would reject every later
+ * write. Returns fields that bring such values back to the valid shape.
+ */
+async function repairedOwnerFields(uid: string) {
+  const snapshot = await getDoc(doc(requireDb(), "users", uid));
+  if (!snapshot.exists()) return {};
+  const data = snapshot.data();
+  const repairs: Record<string, unknown> = {};
+  for (const key of ["intents", "desiredIntents"] as const) {
+    if (!(key in data)) continue;
+    const normalized = normalizeSparkIntents(data[key]);
+    const unchanged = Array.isArray(data[key]) && data[key].length === normalized.length && normalized.every((value, index) => data[key][index] === value);
+    if (!unchanged) repairs[key] = normalized.length ? normalized : deleteField();
+  }
+  if ("gender" in data && normalizeProfileGender(data.gender) !== data.gender) repairs.gender = normalizeProfileGender(data.gender);
+  if ("desiredGendersByIntent" in data) {
+    const normalized = normalizeGenderPreferences(data.desiredGendersByIntent);
+    if (JSON.stringify(normalized) !== JSON.stringify(data.desiredGendersByIntent)) repairs.desiredGendersByIntent = normalized;
+  }
+  return repairs;
+}
+
 export async function updateUserDiscoveryPreferences(uid: string, preferences: DiscoveryPreferencesDocument) {
   requireCurrentUserUid(uid);
   const currentDb = requireDb();
+  const desiredIntents = normalizeSparkIntents(preferences.desiredIntents);
 
   await setDoc(
     doc(currentDb, "users", uid),
-    { ...preferences, updatedAt: serverTimestamp() },
+    {
+      ...(await repairedOwnerFields(uid)),
+      ...preferences,
+      desiredIntents: desiredIntents.length ? desiredIntents : deleteField(),
+      desiredGendersByIntent: normalizeGenderPreferences(preferences.desiredGendersByIntent),
+      updatedAt: serverTimestamp()
+    },
     { merge: true }
   );
-  await syncPublicUserProfile(uid);
+  // The preferences are saved; a failed public refresh must not undo that
+  // (it is retried on the next profile save or app start).
+  await syncPublicUserProfile(uid).catch((error) => recordSparkError(error, "public_profile_sync"));
+}
+
+/** Romantic / Friends switch: only the private desired goals change. */
+export async function updateUserDiscoveryLens(uid: string, desiredIntentsInput: string[]) {
+  requireCurrentUserUid(uid);
+  const desiredIntents = normalizeSparkIntents(desiredIntentsInput);
+  await setDoc(
+    doc(requireDb(), "users", uid),
+    { ...(await repairedOwnerFields(uid)), desiredIntents: desiredIntents.length ? desiredIntents : deleteField(), updatedAt: serverTimestamp() },
+    { merge: true }
+  );
 }
 
 export async function updateUserActiveEvents(uid: string, events: SparkEvent[]) {

@@ -93,6 +93,7 @@ import {
   unblockUser,
   updateUserActiveEvents,
   updateUserDiscoveryPreferences,
+  updateUserDiscoveryLens,
   updateUserLgbt,
   getLgbtCommunityTags,
   type LgbtSettings,
@@ -2529,7 +2530,12 @@ function AppContent() {
     }
     setDiscoverMode("people");
     if (next !== discoverLens || discoverFilters.targetIntents.join("|") !== lensIntentsFor(next).join("|")) {
-      void saveDiscoveryPreferences({ ...discoverFilters, targetIntents: lensIntentsFor(next) });
+      // Switch right away; saving only remembers the choice for next time.
+      const targetIntents = lensIntentsFor(next);
+      setDiscoverFilters((current) => ({ ...current, targetIntents }));
+      setFeedExpansionLevel(0);
+      setProfileReloadKey((value) => value + 1);
+      if (appUser) void updateUserDiscoveryLens(appUser.uid, targetIntents).catch((error) => recordSparkError(error, "discover_lens_save"));
     }
     trackSparkEvent("discover_mode_changed", { mode: next });
     const ownGoalMissing = next === "romantic" ? !intents.includes("Randki") : !intents.includes("Znajomi") && !intents.includes("LGBT+ / Społeczność");
