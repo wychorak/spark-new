@@ -1301,3 +1301,10 @@ export async function reviewEventProposal(proposalId: string, status: "approved"
     updatedAt: serverTimestamp()
   });
 }
+
+/** App Review demo: seeded test profiles like this account (server decides who). */
+export async function prepareReviewDemo() {
+  requireCurrentUserUid();
+  const callable = httpsCallable<Record<string, never>, { liked: number }>(requireCloudFunctions(), "prepareReviewDemo");
+  return (await callable({})).data;
+}

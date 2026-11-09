@@ -1065,3 +1065,39 @@ export const notifyEventProposalReviewed = onDocumentUpdated(
       : { category: "events", title: "Zgłoszenie wydarzenia", body: "Nie dodaliśmy „" + eventName + "” do Event Friends. Możesz zgłosić je ponownie z poprawionymi danymi.", data: { route: "eventFriends" } });
   }
 );
+
+// ─── App Review demo ───────────────────────────────────────────────────────
+// Seeded test profiles "like" the demo account (and the owner), so a liked
+// test profile becomes a match right away and the reviewer can try chat,
+// reporting and blocking without buying Pro. No effect for anyone else.
+const reviewDemoEmails = new Set(["agnessa79@o2.pl", "wychor234@gmail.com"]);
+
+export const prepareReviewDemo = onCall(
+  { region, timeoutSeconds: 20 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    const email = stringValue(request.auth?.token?.email).toLowerCase();
+    if (!uid || !reviewDemoEmails.has(email)) return { liked: 0 };
+
+    const [testProfiles, blocks] = await Promise.all([
+      db.collection("publicProfiles").where("isTestProfile", "==", true).limit(10).get(),
+      db.collection("users").doc(uid).collection("blocks").get()
+    ]);
+    const blocked = new Set(blocks.docs.map((block) => block.id));
+    const resetAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
+    const results = await Promise.all(testProfiles.docs
+      .filter((profile) => profile.id !== uid && !blocked.has(profile.id))
+      .map((profile) => db.collection("swipes").doc(profile.id + "_" + uid).create({
+        fromUid: profile.id,
+        toProfileKey: uid,
+        direction: "like",
+        status: "liked",
+        matchScore: null,
+        eventContext: null,
+        resetAt,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }).then(() => true, () => false)));
+    return { liked: results.filter(Boolean).length };
+  }
+);

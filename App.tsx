@@ -70,6 +70,7 @@ import {
   observeRecentProfileViews,
   observeSparkEvents,
   observeUserChats,
+  prepareReviewDemo,
   publishSparkEvent,
   listMyEventProposals,
   listPendingEventProposals,
@@ -1263,6 +1264,12 @@ function AppContent() {
     setTab("premium");
   }
   const canViewTestProfiles = __DEV__ || configuredTestProfileViewerEmails.includes(email.trim().toLowerCase());
+  const isReviewDemoAccount = builtInTestProfileViewerEmails.includes((appUser?.email ?? "").trim().toLowerCase());
+
+  useEffect(() => {
+    if (!appUser?.uid || !onboarded || !isReviewDemoAccount) return;
+    void prepareReviewDemo().catch(() => undefined);
+  }, [appUser?.uid, onboarded, isReviewDemoAccount]);
   const canManageSparkEvents = (appUser?.email ?? email).trim().toLowerCase() === sparkEventAdminEmail;
 
   async function loadEventProposals() {
