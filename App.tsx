@@ -148,10 +148,13 @@ const legalLinks = {
   community: process.env.EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL || "https://spark-new-legal.vercel.app/community-guidelines"
 };
 const showDemoLogin = __DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN === "true";
-const configuredTestProfileViewerEmails = (process.env.EXPO_PUBLIC_TEST_PROFILE_VIEWER_EMAILS || "wychor234@gmail.com")
-  .split(",")
-  .map((value: string) => value.trim().toLowerCase())
-  .filter(Boolean);
+// Owner + the App Review demo account always see test profiles, so a
+// reviewer never lands on an empty feed; the env list can add more testers.
+const builtInTestProfileViewerEmails = ["wychor234@gmail.com", "agnessa79@o2.pl"];
+const configuredTestProfileViewerEmails = Array.from(new Set([
+  ...builtInTestProfileViewerEmails,
+  ...(process.env.EXPO_PUBLIC_TEST_PROFILE_VIEWER_EMAILS || "").split(",")
+].map((value: string) => value.trim().toLowerCase()).filter(Boolean)));
 const sparkEventAdminEmail = "wychor234@gmail.com";
 
 function formatBadgeCount(count: number) {
