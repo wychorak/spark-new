@@ -6438,73 +6438,79 @@ function MessagesScreen({
       setTimeout(() => setSelectedChatKey(returnKey), 40);
     }
   }
+  const presentModes = (["romantic", "friends", "event"] as const).filter((mode) => modeCounts[mode] > 0).length;
+
   return (
     <View style={styles.gapLg}>
-      <TopBar eyebrow="Wiadomości" title="Rozmowy" left="message-text-outline" right="account-group-outline" />
-      <View style={styles.chatToggleRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Pokaż aktywne chaty" accessibilityState={{ selected: messageView === "chats" }} onPress={() => selectMessageView("chats")} style={[styles.chatToggleButton, messageView === "chats" && styles.chatToggleButtonActive]}>
-          <MaterialCommunityIcons name="message-text" size={18} color={messageView === "chats" ? colors.ink : colors.muted} />
-          <Text style={[styles.chatToggleText, messageView === "chats" && styles.chatToggleTextActive]} selectable>Chaty</Text>
-          <Text style={[styles.chatToggleCount, messageView === "chats" && styles.chatToggleCountActive]} selectable>{unreadChatsCount > 0 ? formatBadgeCount(unreadChatsCount) : chatConversations.length}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Pokaż oczekujące prośby" accessibilityState={{ selected: messageView === "requests" }} onPress={() => selectMessageView("requests")} style={[styles.chatToggleButton, messageView === "requests" && styles.chatToggleButtonActive]}>
-          <MaterialCommunityIcons name="email-heart-outline" size={18} color={messageView === "requests" ? colors.ink : colors.muted} />
-          <Text style={[styles.chatToggleText, messageView === "requests" && styles.chatToggleTextActive]} selectable>Prośby</Text>
-          <Text style={[styles.chatToggleCount, messageView === "requests" && styles.chatToggleCountActive]} selectable>{requestConversations.length}</Text>
-        </Pressable>
+      <View style={styles.mxHeader}>
+        <Text style={styles.mxTitle}>Czat</Text>
       </View>
-      <View style={styles.chatMiniInfo}>
-        <Text style={styles.chatMiniInfoText} selectable>
-          {messageView === "chats" ? (unreadChatsCount > 0 ? formatUnreadLabel(unreadChatsCount) : chatConversations.length + " aktywne") : requestConversations.length + " oczekujące"}
-        </Text>
+      <View style={styles.cxSegment} accessibilityRole="tablist">
+        {([["chats", "Rozmowy", unreadChatsCount], ["requests", "Prośby", requestConversations.length]] as const).map(([view, label, count]) => {
+          const active = messageView === view;
+          return (
+            <Pressable key={view} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={label + (count > 0 ? ", " + count : "")} onPress={() => selectMessageView(view)} style={[styles.cxSegmentItem, active && styles.cxSegmentItemActive]}>
+              <Text style={[styles.cxSegmentText, active && styles.cxSegmentTextActive]}>{label}</Text>
+              {count > 0 && <View style={styles.cxSegmentBadge}><Text style={styles.cxSegmentBadgeText}>{formatBadgeCount(count)}</Text></View>}
+            </Pressable>
+          );
+        })}
       </View>
-      <View style={styles.searchField}>
-        <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
+      <View style={styles.cxSearch}>
+        <MaterialCommunityIcons name="magnify" size={19} color={colors.muted} />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
-          placeholder={messageView === "chats" ? "Szukaj chatów" : "Szukaj pr\u00f3\u015bb"}
+          placeholder="Szukaj"
           placeholderTextColor={colors.muted}
-          style={styles.searchInput}
+          style={styles.cxSearchInput}
         />
         {searchQuery.length > 0 && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Wyczy\u015b\u0107 wyszukiwanie" onPress={() => setSearchQuery("")}>
-            <MaterialCommunityIcons name="close-circle" size={19} color={colors.muted} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Wyczyść wyszukiwanie" onPress={() => setSearchQuery("")} hitSlop={8}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={colors.muted} />
           </Pressable>
         )}
       </View>
-      {sourceConversations.length > 0 && <ModeFilter value={modeFilter} onChange={setModeFilter} counts={modeCounts} />}
+      {presentModes > 1 && <ModeFilter value={modeFilter} onChange={setModeFilter} counts={modeCounts} />}
       {visibleConversations.length === 0 ? (
-        <View style={styles.emptyStateCard}>
-          <View style={styles.emptyStateIcon}><MaterialCommunityIcons name="message-outline" size={27} color={colors.primary} /></View>
-          <Text style={styles.emptyStateTitle} selectable>{emptyTitle}</Text>
-          <Text style={styles.emptyStateText} selectable>{emptyText}</Text>
+        <View style={styles.mxEmpty}>
+          <MaterialCommunityIcons name="message-outline" size={34} color={colors.muted} />
+          <Text style={styles.mxEmptyTitle}>{emptyTitle}</Text>
+          <Text style={styles.mxEmptyText}>{emptyText}</Text>
         </View>
       ) : (
-        <View style={styles.chatList}>
-          {visibleConversations.map((conversation, index) => (
-            <React.Fragment key={conversation.key}>
-              <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (conversation.unreadCount > 0 ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={styles.chatItem}>
-                <Image source={conversation.profile.image} style={styles.chatAvatar} contentFit="cover" />
-                <View style={styles.fill}>
-                  <View style={styles.chatNameRow}>
-                    <Text style={[styles.chatName, conversation.unreadCount > 0 && styles.chatNameUnread]} numberOfLines={1} selectable>{conversation.name}</Text>
-                    <ModeBadge mode={conversation.mode} eventTitle={conversation.eventTitle} />
-                  </View>
-                  <Text style={[styles.chatMessage, conversation.unreadCount > 0 && styles.chatMessageUnread]} numberOfLines={2} selectable>{conversation.message}</Text>
-                </View>
-                <View style={styles.chatMetaColumn}>
-                  <Text style={styles.chatTime} selectable>{conversation.time}</Text>
-                  {conversation.unreadCount > 0 && <Text style={styles.unreadPill} selectable>{conversation.unreadCount}</Text>}
-                </View>
-              </Pressable>
-              {showChatListAd && messageView === "chats" && !normalizedQuery && visibleConversations.length >= 2 && index === Math.min(2, visibleConversations.length - 1) && (
-                <SparkAdBanner enabled placement="messages-list" tone={colors.name === "dark" ? "dark" : "light"} />
-              )}
-            </React.Fragment>
-          ))}
-        </View>
+        <>
+          <View style={styles.mxGroup}>
+            {visibleConversations.map((conversation, index) => {
+              const unread = conversation.unreadCount > 0;
+              return (
+                <React.Fragment key={conversation.key}>
+                  {index > 0 && <View style={styles.cxDivider} />}
+                  <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (unread ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={({ pressed }) => [styles.cxRow, pressed && { backgroundColor: colors.fill }]}>
+                    <Image source={conversation.profile.image} style={styles.cxAvatar} contentFit="cover" />
+                    <View style={styles.fill}>
+                      <View style={styles.cxTopLine}>
+                        <View style={[styles.mxNameRow, styles.fill]}>
+                          <Text style={[styles.mxName, unread && styles.cxNameUnread]} numberOfLines={1}>{conversation.name}</Text>
+                          <View style={[styles.mxDot, { backgroundColor: colors[conversation.mode] }]} />
+                        </View>
+                        <Text style={[styles.cxTime, unread && styles.cxTimeUnread]}>{conversation.time}</Text>
+                      </View>
+                      <View style={styles.cxBottomLine}>
+                        <Text style={[styles.cxMessage, unread && styles.cxMessageUnread]} numberOfLines={2}>{conversation.message}</Text>
+                        {unread && <View style={styles.cxUnread}><Text style={styles.cxUnreadText}>{formatBadgeCount(conversation.unreadCount)}</Text></View>}
+                      </View>
+                    </View>
+                  </Pressable>
+                </React.Fragment>
+              );
+            })}
+          </View>
+          {showChatListAd && messageView === "chats" && !normalizedQuery && visibleConversations.length >= 2 && (
+            <SparkAdBanner enabled placement="messages-list" tone={colors.name === "dark" ? "dark" : "light"} />
+          )}
+        </>
       )}
 
       <ChatConversationModal
@@ -6570,49 +6576,46 @@ function ChatConversationModal({
   const canMessage = conversation?.status === "matched";
   const local = useMemo(() => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
-    header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
-    back: { width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.07)" },
-    avatar: { width: 42, height: 42, borderRadius: 14, borderCurve: "continuous" },
-    identityButton: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 3 },
-    name: { color: colors.ink, fontSize: 15, fontWeight: "900" },
-    status: { marginTop: 2, color: colors.green, fontSize: 10, fontWeight: "800" },
-    profileHint: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "700" },
-    headerActions: { flexDirection: "row", gap: 7 },
-    headerAction: { width: 38, height: 38, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
-    eventBanner: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 12, marginTop: 10, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.1)", borderWidth: 1, borderColor: "rgba(255,45,141,0.22)" },
-    eventBannerIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-    eventBannerTitle: { color: colors.ink, fontSize: 11, fontWeight: "900" },
-    eventBannerMeta: { marginTop: 2, color: colors.muted, fontSize: 9, fontWeight: "800" },
-    messages: { flexGrow: 1, justifyContent: messages.length === 0 ? "center" : "flex-end", gap: 9, paddingHorizontal: 14, paddingVertical: 18 },
-    empty: { alignItems: "center", gap: 9, padding: 24 },
-    emptyIcon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
-    emptyTitle: { color: colors.ink, fontSize: 17, fontWeight: "900", textAlign: "center" },
-    emptyText: { maxWidth: 300, color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "700" },
-    starterLead: { marginTop: 8, color: colors.primaryDeep, fontSize: 10, fontWeight: "900", letterSpacing: 0.8, textTransform: "uppercase" },
-    starterList: { width: "100%", gap: 8, marginTop: 4 },
-    starterChip: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16, backgroundColor: "rgba(255,45,141,0.08)", borderWidth: 1, borderColor: "rgba(255,45,141,0.18)" },
-    starterChipText: { flex: 1, color: "#f5dce7", fontSize: 11, lineHeight: 16, fontWeight: "800" },
-    messageRow: { width: "100%", flexDirection: "row", alignItems: "flex-end", gap: 7 },
+    header: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.fillStronger },
+    iconButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+    identityButton: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.photoPlaceholder },
+    name: { color: colors.ink, fontSize: 16, fontWeight: "600" },
+    status: { marginTop: 1, color: colors.muted, fontSize: 12 },
+    eventLine: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 8 },
+    eventLineText: { flexShrink: 1, color: colors.muted, fontSize: 12, fontWeight: "500" },
+    messages: { flexGrow: 1, justifyContent: messages.length === 0 ? "center" : "flex-end", gap: 6, paddingHorizontal: 12, paddingVertical: 16 },
+    empty: { alignItems: "center", gap: 8, padding: 24 },
+    emptyTitle: { marginTop: 4, color: colors.ink, fontSize: 18, fontWeight: "700", textAlign: "center" },
+    emptyText: { maxWidth: 300, color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" },
+    starterLead: { marginTop: 14, alignSelf: "flex-start", color: colors.muted, fontSize: 13, fontWeight: "600" },
+    starterList: { width: "100%", gap: 8, marginTop: 2 },
+    starterChip: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 16, backgroundColor: colors.fill },
+    starterChipText: { color: colors.ink, fontSize: 14, lineHeight: 19 },
+    messageRow: { width: "100%", flexDirection: "row", alignItems: "flex-end", gap: 6 },
     messageRowMine: { justifyContent: "flex-end" },
-    messageAvatar: { width: 28, height: 28, borderRadius: 10, borderCurve: "continuous", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-    messageAvatarSpacer: { width: 28, height: 28 },
-    bubble: { maxWidth: "78%", paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18 },
-    bubbleMe: { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 6 },
-    bubbleThem: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.08)", borderBottomLeftRadius: 6 },
-    bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20, fontWeight: "600" },
-    bubbleTime: { marginTop: 4, color: "rgba(255,255,255,0.64)", fontSize: 9, fontWeight: "700", textAlign: "right" },
-    pending: { margin: 14, gap: 5, padding: 14, borderRadius: 18, backgroundColor: "rgba(255,45,141,0.09)", borderWidth: 1, borderColor: "rgba(255,45,141,0.16)" },
-    pendingTitle: { color: colors.ink, fontSize: 13, fontWeight: "900" },
-    pendingText: { color: colors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
-    pendingActions: { flexDirection: "row", gap: 8, marginTop: 8 },
-    acceptButton: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.primary },
-    rejectButton: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "rgba(255,255,255,0.08)" },
-    requestButtonText: { color: "#fff", fontSize: 12, fontWeight: "900" },
-    composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)", backgroundColor: colors.scrim },
-    input: { flex: 1, minHeight: 46, maxHeight: 110, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, color: colors.ink, backgroundColor: "rgba(255,255,255,0.07)", fontSize: 14 },
-    send: { width: 46, height: 46, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
-    sendDisabled: { opacity: 0.4 }
-  }), [messages.length === 0]);
+    messageAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.photoPlaceholder },
+    messageAvatarSpacer: { width: 26, height: 26 },
+    bubble: { maxWidth: "76%", paddingHorizontal: 13, paddingTop: 8, paddingBottom: 6, borderRadius: 19 },
+    bubbleMe: { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 5 },
+    bubbleThem: { alignSelf: "flex-start", backgroundColor: colors.surfaceStrong, borderBottomLeftRadius: 5 },
+    bubbleText: { color: colors.ink, fontSize: 16, lineHeight: 21 },
+    bubbleTextMe: { color: colors.onPrimary },
+    bubbleTime: { marginTop: 2, color: colors.muted, fontSize: 10, textAlign: "right", fontVariant: ["tabular-nums"] },
+    bubbleTimeMe: { color: "rgba(255,255,255,0.72)" },
+    pending: { margin: 12, gap: 6, padding: 16, borderRadius: 18, backgroundColor: colors.surfaceStrong },
+    pendingTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
+    pendingText: { color: colors.muted, fontSize: 14, lineHeight: 19 },
+    pendingActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+    acceptButton: { flex: 1, height: 46, alignItems: "center", justifyContent: "center", borderRadius: 23, backgroundColor: colors.primary },
+    rejectButton: { flex: 1, height: 46, alignItems: "center", justifyContent: "center", borderRadius: 23, backgroundColor: colors.fill },
+    acceptText: { color: colors.onPrimary, fontSize: 16, fontWeight: "600" },
+    rejectText: { color: colors.ink, fontSize: 16, fontWeight: "600" },
+    composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.fillStronger, backgroundColor: colors.background },
+    input: { flex: 1, minHeight: 40, maxHeight: 120, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, borderRadius: 20, color: colors.ink, backgroundColor: colors.fill, fontSize: 16 },
+    send: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+    sendDisabled: { opacity: 0.35 }
+  }), [colors, messages.length === 0]);
 
   if (!conversation) {
     return null;
@@ -6666,29 +6669,24 @@ function ChatConversationModal({
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} style={local.back}>
-            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} hitSlop={6} style={local.iconButton}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={colors.primary} />
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`Otwórz profil ${activeConversation.name}`} onPress={onOpenProfile} style={local.identityButton}>
             <Image source={activeConversation.profile.image} style={local.avatar} contentFit="cover" />
             <View style={styles.fill}>
-              <Text style={local.name} selectable>{activeConversation.name}</Text>
-              <Text style={local.status} selectable>{canMessage ? "Match aktywny" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
-              <Text style={local.profileHint}>Dotknij, aby zobaczyć profil</Text>
+              <Text style={local.name} numberOfLines={1}>{activeConversation.name}</Text>
+              <Text style={local.status} numberOfLines={1}>{canMessage ? "Zobacz profil" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
           </Pressable>
-          <View style={local.headerActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Opcje rozmowy" onPress={openSafetyMenu} style={local.headerAction}>
-              <MaterialCommunityIcons name="dots-horizontal" size={20} color={colors.primaryDeep} />
-            </Pressable>
-          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Opcje rozmowy" onPress={openSafetyMenu} hitSlop={6} style={local.iconButton}>
+            <MaterialCommunityIcons name="dots-horizontal-circle-outline" size={24} color={colors.primary} />
+          </Pressable>
         </View>
         {thread?.eventContext && (
-          <View style={local.eventBanner}>
-            <View style={local.eventBannerIcon}><MaterialCommunityIcons name={thread.eventContext.icon as any} size={18} color="#fff" /></View>
-            <View style={styles.fill}><Text style={local.eventBannerTitle} numberOfLines={1}>{thread.eventContext.name}</Text><Text style={local.eventBannerMeta}>{formatEventDateRange(thread.eventContext)} · {thread.eventContext.city}</Text></View>
-            <Text style={local.eventBannerMeta}>Wspólny plan</Text>
+          <View style={local.eventLine}>
+            <MaterialCommunityIcons name={thread.eventContext.icon as any} size={14} color={colors.muted} />
+            <Text style={local.eventLineText} numberOfLines={1}>{thread.eventContext.name} · {formatEventDateRange(thread.eventContext)}</Text>
           </View>
         )}
 
@@ -6706,26 +6704,24 @@ function ChatConversationModal({
                   ? <Image source={activeConversation.profile.image} style={local.messageAvatar} contentFit="cover" />
                   : <View style={local.messageAvatarSpacer} />)}
                 <View style={[local.bubble, isMine ? local.bubbleMe : local.bubbleThem]}>
-                  <Text style={local.bubbleText} selectable>{message.text}</Text>
-                  <Text style={local.bubbleTime}>{message.time}</Text>
+                  <Text style={[local.bubbleText, isMine && local.bubbleTextMe]} selectable>{message.text}</Text>
+                  <Text style={[local.bubbleTime, isMine && local.bubbleTimeMe]}>{message.time}</Text>
                 </View>
               </View>
             );
           }}
           ListEmptyComponent={
             <View style={local.empty}>
-              <View style={local.emptyIcon}><MaterialCommunityIcons name="message-outline" size={28} color={colors.primary} /></View>
-              <Text style={local.emptyTitle} selectable>{canMessage ? "Zacznij rozmow\u0119" : "Pro\u015bba oczekuje"}</Text>
-              <Text style={local.emptyText} selectable>{canMessage ? "Zacznij od czego\u015b, co naprawd\u0119 Was \u0142\u0105czy." : "Wiadomo\u015bci odblokuj\u0105 si\u0119 po zaakceptowaniu pro\u015bby."}</Text>
+              <Image source={activeConversation.profile.image} style={{ width: 72, height: 72, borderRadius: 36 }} contentFit="cover" />
+              <Text style={local.emptyTitle}>{canMessage ? "Zacznij rozmowę" : "Prośba oczekuje"}</Text>
+              <Text style={local.emptyText}>{canMessage ? "Napisz o czymś, co naprawdę Was łączy." : "Wiadomości odblokują się po zaakceptowaniu prośby."}</Text>
               {canMessage && (
                 <>
-                  <Text style={local.starterLead}>Wybierz pierwszą iskrę</Text>
+                  <Text style={local.starterLead}>Na dobry początek</Text>
                   <View style={local.starterList}>
                     {conversationStarters.map((starter) => (
-                      <Pressable key={starter} accessibilityRole="button" onPress={() => { void Haptics.selectionAsync(); setDraft(starter); }} style={local.starterChip}>
-                        <MaterialCommunityIcons name="creation" size={16} color={colors.primary} />
+                      <Pressable key={starter} accessibilityRole="button" accessibilityHint="Wstawia tekst do pola wiadomości" onPress={() => { void Haptics.selectionAsync(); setDraft(starter); }} style={({ pressed }) => [local.starterChip, pressed && styles.controlPressed]}>
                         <Text style={local.starterChipText} numberOfLines={3}>{starter}</Text>
-                        <MaterialCommunityIcons name="arrow-bottom-right" size={16} color={colors.primaryDeep} />
                       </Pressable>
                     ))}
                   </View>
@@ -6745,31 +6741,31 @@ function ChatConversationModal({
 
         {!canMessage ? (
           <View style={[local.pending, { marginBottom: Math.max(insets.bottom, 12) }]}>
-            <Text style={local.pendingTitle} selectable>Rozmowa jeszcze zablokowana</Text>
-            <Text style={local.pendingText} selectable>{thread?.requestDirection === "incoming" ? "Ta osoba chce rozpocząć rozmowę z Tobą." : "Druga osoba musi zaakceptować prośbę albo odwzajemnić polubienie."}</Text>
+            <Text style={local.pendingTitle}>{thread?.requestDirection === "incoming" ? "Chce z Tobą porozmawiać" : "Czekamy na odpowiedź"}</Text>
+            <Text style={local.pendingText}>{thread?.requestDirection === "incoming" ? "Zaakceptuj prośbę, żeby zacząć pisać." : "Druga osoba musi zaakceptować prośbę albo odwzajemnić polubienie."}</Text>
             {thread?.requestDirection === "incoming" && (
               <View style={local.pendingActions}>
-                <Pressable onPress={() => onReject(activeConversation.key)} style={local.rejectButton}><Text style={local.requestButtonText}>Odrzuć</Text></Pressable>
-                <Pressable onPress={() => onAccept(activeConversation.key)} style={local.acceptButton}><Text style={local.requestButtonText}>Akceptuj</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => onReject(activeConversation.key)} style={({ pressed }) => [local.rejectButton, pressed && styles.controlPressed]}><Text style={local.rejectText}>Odrzuć</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => onAccept(activeConversation.key)} style={({ pressed }) => [local.acceptButton, pressed && styles.controlPressed]}><Text style={local.acceptText}>Akceptuj</Text></Pressable>
               </View>
             )}
           </View>
         ) : (
-          <View style={[local.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <View style={[local.composer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
             <TextInput
               value={draft}
               onChangeText={setDraft}
               multiline
               autoCorrect
               maxLength={2000}
-              placeholder="Napisz wiadomość..."
+              placeholder="Wiadomość"
               placeholderTextColor={colors.muted}
               accessibilityLabel="Treść wiadomości"
               editable={!sending}
               style={local.input}
             />
-            <Pressable accessibilityRole="button" accessibilityLabel="Wy\u015blij" disabled={!draft.trim() || sending} onPress={() => { void send(); }} style={[local.send, (!draft.trim() || sending) && local.sendDisabled]}>
-              {sending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialCommunityIcons name="send" size={20} color="#fff" />}
+            <Pressable accessibilityRole="button" accessibilityLabel="Wyślij" disabled={!draft.trim() || sending} onPress={() => { void send(); }} style={[local.send, (!draft.trim() || sending) && local.sendDisabled]}>
+              {sending ? <ActivityIndicator size="small" color={colors.onPrimary} /> : <MaterialCommunityIcons name="arrow-up" size={22} color={colors.onPrimary} />}
             </Pressable>
           </View>
         )}
@@ -8651,6 +8647,48 @@ class SparkErrorBoundary extends React.Component<
   }
 }
 
+/** Development only (web, `?preview=chat&theme=dark[&open=1]`): the chat list / a conversation with demo data. */
+function DevChatPreview({ themeName, openFirst }: { themeName: string | null; openFirst: boolean }) {
+  const { colors, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  const keys = matchProfiles.map(getProfileKey);
+  const [selected, setSelected] = useState<string | null>(openFirst ? keys[0] : null);
+  const threads: Record<string, ChatThread> = {
+    [keys[0]]: { profileKey: keys[0], status: "matched", unreadCount: 0, messages: [
+      { id: "1", from: "them", text: "Hej! Widzę, że też lubisz sztukę 🙂", time: "18:02" },
+      { id: "2", from: "them", text: "Byłaś ostatnio na jakiejś wystawie?", time: "18:02" },
+      { id: "3", from: "me", text: "Tak! W MOCAK-u, polecam bardzo", time: "18:05" },
+      { id: "4", from: "them", text: "To może razem w weekend?", time: "18:06" }
+    ] },
+    [keys[1]]: { profileKey: keys[1], status: "matched", unreadCount: 2, lastMessageText: "Jutro koncert, idziesz?", lastMessageAtMs: Date.now() - 3600000, messages: [] },
+    [keys[2]]: { profileKey: keys[2], status: "requested", requestDirection: "incoming", introMessage: "Cześć! Chcesz pogadać o planszówkach?", messages: [] }
+  };
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>
+      <MessagesScreen
+        profiles={matchProfiles}
+        matchedProfileKeys={keys.slice(0, 2)}
+        chatRequestKeys={[keys[2]]}
+        chatThreads={threads}
+        selectedChatKey={selected}
+        setSelectedChatKey={setSelected}
+        pendingMessageDraft={null}
+        onPendingMessageDraftConsumed={() => undefined}
+        onSendMessage={async () => true}
+        onAcceptRequest={() => undefined}
+        onRejectRequest={() => undefined}
+        onBlockProfile={() => undefined}
+        onReportProfile={() => undefined}
+        viewerInterests={["Sztuka"]}
+        viewerIntents={["Randki", "Znajomi"]}
+        showChatListAd={false}
+      />
+    </ScrollView>
+  );
+}
+
 /** Development only (web, `?preview=matches&theme=dark`): the Matches screen with demo data. */
 function DevMatchesPreview({ themeName }: { themeName: string | null }) {
   const { colors, theme } = useAppTheme();
@@ -8764,7 +8802,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <SparkErrorBoundary>
-          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : <AppContent />}
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
         </SparkErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
@@ -11208,6 +11246,27 @@ function createStyles(colors: Palette) {
   mxSub: { marginTop: 2, color: colors.muted, fontSize: 13 },
   mxLikeBack: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
   mxQuiet: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  cxSegment: { flexDirection: "row", padding: 3, borderRadius: 12, backgroundColor: colors.fill },
+  cxSegmentItem: { flex: 1, height: 34, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 9 },
+  cxSegmentItemActive: { backgroundColor: colors.name === "dark" ? colors.fillStronger : colors.surfaceStrong, boxShadow: "0 1px 4px rgba(0,0,0,0.12)" },
+  cxSegmentText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
+  cxSegmentTextActive: { color: colors.ink },
+  cxSegmentBadge: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  cxSegmentBadgeText: { color: colors.onPrimary, fontSize: 11, fontWeight: "700" },
+  cxSearch: { height: 38, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, borderRadius: 12, backgroundColor: colors.fill },
+  cxSearchInput: { flex: 1, height: 38, color: colors.ink, fontSize: 16 },
+  cxDivider: { height: StyleSheet.hairlineWidth, marginLeft: 80, backgroundColor: colors.fillStronger },
+  cxRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  cxAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.photoPlaceholder },
+  cxTopLine: { flexDirection: "row", alignItems: "center", gap: 8 },
+  cxBottomLine: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  cxNameUnread: { fontWeight: "700" },
+  cxTime: { color: colors.muted, fontSize: 13, fontVariant: ["tabular-nums"] },
+  cxTimeUnread: { color: colors.primary, fontWeight: "600" },
+  cxMessage: { flex: 1, color: colors.muted, fontSize: 14, lineHeight: 19 },
+  cxMessageUnread: { color: colors.ink, fontWeight: "500" },
+  cxUnread: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  cxUnreadText: { color: colors.onPrimary, fontSize: 11, fontWeight: "700" },
   mxEmpty: { alignItems: "center", gap: 8, paddingVertical: 48, paddingHorizontal: 24 },
   mxEmptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "700" },
   mxEmptyText: { maxWidth: 300, color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" },
