@@ -1350,23 +1350,26 @@ function AppContent() {
         .filter((profile) => profile.age >= discoverFilters.ageMin && profile.age <= discoverFilters.ageMax)
 
         .filter((profile) => {
+          // "Bez lokalizacji" off = the distance limit is absolute and is never widened.
+          // Without the viewer location no distance can be checked at all.
+          if (!userLocation) return true;
           const distance = getDistanceKm(userLocation, profile);
-          return distance === null
-            ? discoverFilters.includeProfilesWithoutLocation || feedExpansionLevel > 0
-            : distance <= (
-                feedExpansionLevel >= 2
-                  ? Number.POSITIVE_INFINITY
-                  : feedExpansionLevel === 1
-                    ? Math.max(250, discoverFilters.maxDistanceKm)
-                    : discoverFilters.maxDistanceKm
-              );
+          if (distance === null) return discoverFilters.includeProfilesWithoutLocation;
+          const strict = !discoverFilters.includeProfilesWithoutLocation;
+          return distance <= (
+            strict || feedExpansionLevel === 0
+              ? discoverFilters.maxDistanceKm
+              : feedExpansionLevel === 1
+                ? Math.max(250, discoverFilters.maxDistanceKm)
+                : Number.POSITIVE_INFINITY
+          );
         })
         .map((profile) => (profile.lgbtTag || !profile.id || !communityTags[profile.id] ? profile : { ...profile, lgbtTag: communityTags[profile.id] }))
         .filter((profile) => !discoverFilters.lgbtOnly || Boolean(profile.lgbtTag?.length))
         .filter((profile) => getProfileIntents(profile).some((profileIntent) => activeLensIntents.includes(profileIntent)))
         .filter((profile) => genderPreferenceMatches(profile, gender, discoverFilters.targetGendersByIntent, activeLensIntents))
-        .filter((profile) => feedExpansionLevel > 0 || discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
-        .filter((profile) => feedExpansionLevel > 0 || !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
+        .filter((profile) => discoverFilters.targetInterests.length === 0 || profile.interests.some((interest) => discoverFilters.targetInterests.includes(interest)))
+        .filter((profile) => !discoverFilters.requireCommonInterests || profile.interests.some((interest) => selectedInterests.includes(interest)))
         .filter((profile) => userAge >= (profile.desiredAgeMin ?? 18) && userAge <= (profile.desiredAgeMax ?? 99))
         .filter((profile) => !discoverFilters.proOnly || Boolean(profile.premium))
         .map((profile) => {
@@ -1395,7 +1398,7 @@ function AppContent() {
           const scoreDifference = (right.matchScore ?? 0) - (left.matchScore ?? 0);
           return tierDifference || scoreDifference || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0) || getProfileKey(left).localeCompare(getProfileKey(right));
         }),
-    [appUser?.uid, availableProfiles, blockedProfileKeys, discoverFilters, feedExpansionLevel, gender, intents, selectedInterests, userAge, userCity, userLocation]
+    [activeLensIntents, appUser?.uid, availableProfiles, blockedProfileKeys, communityTags, discoverFilters, feedExpansionLevel, gender, intents, selectedInterests, userAge, userCity, userLocation]
   );
   const discoverProfiles = sortedProfiles.filter((profile) => {
     const key = getProfileKey(profile);
@@ -1451,6 +1454,7 @@ function AppContent() {
   useEffect(() => {
     if (
       !releaseConfig.emptyFeedAutoExpand ||
+      !discoverFilters.includeProfilesWithoutLocation ||
       discoverMode !== "people" ||
       profilesLoading ||
       profilesLoadingMore ||
@@ -1465,7 +1469,7 @@ function AppContent() {
       trackSparkEvent("feed_auto_expanded", { level: feedExpansionLevel + 1 });
     }, 650);
     return () => clearTimeout(timeout);
-  }, [availableProfiles.length, discoverMode, discoverProfiles.length, feedExpansionLevel, profileFeedError, profilesLoading, profilesLoadingMore, releaseConfig.emptyFeedAutoExpand]);
+  }, [availableProfiles.length, discoverFilters.includeProfilesWithoutLocation, discoverMode, discoverProfiles.length, feedExpansionLevel, profileFeedError, profilesLoading, profilesLoadingMore, releaseConfig.emptyFeedAutoExpand]);
 
   const activeProfile = currentDiscoverProfiles[0] ?? null;
   const nextProfile = currentDiscoverProfiles[1] ?? null;
@@ -4069,7 +4073,7 @@ function GenderPreferencesEditor({ intents, value, onChange, compact = false }: 
                 return (
                   <Pressable key={genderValue} accessibilityRole="checkbox" accessibilityState={{ checked: active }} onPress={() => toggle(intent, genderValue)} style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: 43, alignItems: "center", justifyContent: "center", gap: 3, borderRadius: 13, borderWidth: 1, borderColor: active ? "rgba(255,45,141,0.42)" : "rgba(255,255,255,0.08)", backgroundColor: active ? colors.primarySoft : "rgba(255,255,255,0.025)" }, pressed && styles.controlPressed]}>
                     <MaterialCommunityIcons name={genderOption.icon} size={17} color={active ? colors.primary : colors.muted} />
-                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={{ color: active ? colors.ink : colors.muted, fontSize: 9, fontWeight: "900" }}>{genderOption.label.replace("Osoba ", "")}</Text>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={{ color: active ? colors.ink : colors.muted, fontSize: 9, fontWeight: "900" }}>{genderOption.label.replace("Osoba niebinarna", "Niebinarna")}</Text>
                   </Pressable>
                 );
               })}
@@ -4463,7 +4467,7 @@ function DiscoverScreen({
       {mode === "people" && feedExpansionLevel > 0 && (
         <Pressable accessibilityRole="button" onPress={() => setPreferencesOpen(true)} style={styles.feedExpansionNotice}>
           <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={colors.primaryDeep} />
-          <Text style={styles.feedExpansionNoticeText}>{"Poszerzony feed: dalsze profile i lu\u017aniejsze zainteresowania"}</Text>
+          <Text style={styles.feedExpansionNoticeText}>Blisko nikogo nie ma — pokazujemy też dalsze profile</Text>
           <MaterialCommunityIcons name="tune-variant" size={16} color={colors.muted} />
         </Pressable>
       )}
@@ -4622,9 +4626,22 @@ function toDeckCard(profile: MatchProfile, viewerInterests: string[]): DeckCardD
 
 function AgeRangeControl({ min, max, onChange }: { min: number; max: number; onChange: (min: number, max: number) => void }) {
   const { colors, styles } = useAppTheme();
+  const latest = useRef({ min, max });
+  latest.current = { min, max };
+  const repeat = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (repeat.current) clearInterval(repeat.current); }, []);
   function adjust(side: "min" | "max", delta: number) {
-    if (side === "min") onChange(Math.max(18, Math.min(max, min + delta)), max);
-    else onChange(min, Math.min(99, Math.max(min, max + delta)));
+    const current = latest.current;
+    if (side === "min") onChange(Math.max(18, Math.min(current.max, current.min + delta)), current.max);
+    else onChange(current.min, Math.min(99, Math.max(current.min, current.max + delta)));
+  }
+  function startRepeat(side: "min" | "max", delta: number) {
+    if (repeat.current) clearInterval(repeat.current);
+    repeat.current = setInterval(() => adjust(side, delta), 70);
+  }
+  function stopRepeat() {
+    if (repeat.current) clearInterval(repeat.current);
+    repeat.current = null;
   }
 
   return (
@@ -4633,9 +4650,9 @@ function AgeRangeControl({ min, max, onChange }: { min: number; max: number; onC
         <View key={side} style={styles.ageRangeSide}>
           <Text style={styles.fieldLabel}>{label}</Text>
           <View style={styles.ageRangeButtons}>
-            <Pressable onPress={() => adjust(side, -1)} style={styles.ageRangeButton}><MaterialCommunityIcons name="minus" size={18} color={colors.ink} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={label + " wiek: mniej"} onPress={() => adjust(side, -1)} onLongPress={() => startRepeat(side, -1)} onPressOut={stopRepeat} delayLongPress={300} style={styles.ageRangeButton}><MaterialCommunityIcons name="minus" size={18} color={colors.ink} /></Pressable>
             <Text style={styles.ageRangeValue}>{value}</Text>
-            <Pressable onPress={() => adjust(side, 1)} style={styles.ageRangeButton}><MaterialCommunityIcons name="plus" size={18} color={colors.ink} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={label + " wiek: więcej"} onPress={() => adjust(side, 1)} onLongPress={() => startRepeat(side, 1)} onPressOut={stopRepeat} delayLongPress={300} style={styles.ageRangeButton}><MaterialCommunityIcons name="plus" size={18} color={colors.ink} /></Pressable>
           </View>
         </View>
       ))}
@@ -4806,103 +4823,101 @@ function DiscoveryPreferencesModal({
     if (saved) onClose();
   }
 
+  // Reset filters, but keep the Romantic / Friends choice from the big switch.
+  function resetFilters() {
+    tap();
+    setDraft((current) => ({ ...createDefaultDiscoverFilters(), targetIntents: current.targetIntents }));
+  }
+
+  const toggleRow = (label: string, hint: string, value: boolean, onChange: (value: boolean) => void) => (
+    <Pressable accessibilityRole="switch" accessibilityState={{ checked: value }} onPress={() => onChange(!value)} style={styles.fpRow}>
+      <View style={styles.fill}>
+        <Text style={styles.pfRowLabel}>{label}</Text>
+        <Text style={styles.pfRowSub}>{hint}</Text>
+      </View>
+      <Switch pointerEvents="none" value={value} trackColor={{ false: colors.fillStronger, true: colors.primary }} thumbColor="#fff" />
+    </Pressable>
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={onClose}>
       <View style={[styles.discoveryModalRoot, styles.discoveryFilterModalRoot, { paddingTop: Math.max(insets.top + 4, 12) }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij preferencje" onPress={onClose} style={styles.discoveryModalBackdrop} />
-        <View style={[styles.discoveryFilterSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij filtry" onPress={onClose} style={styles.discoveryModalBackdrop} />
+        <View style={[styles.fpSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <View style={styles.discoverySheetHandle} />
-          <View style={styles.discoveryFilterHeader}>
-            <View style={styles.fill}>
-              <Text style={styles.discoveryFilterEyebrow}>DOPASUJ FEED</Text>
-              <Text style={styles.discoveryFilterTitle}>Kogo chcesz poznać?</Text>
-              <Text style={styles.discoveryFilterSubtitle}>Zmiany zobaczysz dopiero po ich zastosowaniu.</Text>
-            </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij preferencje" onPress={onClose} style={styles.discoveryDrawerClose}>
-              <MaterialCommunityIcons name="close" size={21} color={colors.ink} />
+          <View style={styles.fpHeader}>
+            <Pressable accessibilityRole="button" onPress={resetFilters} disabled={saving} hitSlop={8} style={styles.fpHeaderSide}>
+              <Text style={[styles.fpHeaderAction, activeFilters === 0 && { color: colors.muted }]}>Resetuj</Text>
+            </Pressable>
+            <Text style={styles.fpTitle}>Filtry</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij filtry" onPress={onClose} hitSlop={8} style={[styles.fpHeaderSide, { alignItems: "flex-end" }]}>
+              <View style={styles.fpClose}><MaterialCommunityIcons name="close" size={18} color={colors.inkSoft} /></View>
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.discoveryFilterScroll} keyboardShouldPersistTaps="handled">
-            <View style={styles.discoveryFilterSection}>
-              <View style={styles.discoveryFilterSectionHeader}>
-                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="account-heart-outline" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Kogo pokazywać</Text><Text style={styles.discoveryFilterSectionHint}>Tryb Romantic / Friends / Event wybierasz przełącznikiem na górze Odkrywaj.</Text></View>
-              </View>
-              <View style={styles.settingRow}>
-                <View style={styles.fill}>
-                  <Text style={styles.discoveryFilterSectionTitle}>🏳️‍🌈 Tylko osoby LGBT+</Text>
-                  <Text style={styles.discoveryFilterSectionHint}>Pokazuje osoby z tagiem LGBT+. Tagi widoczne tylko dla społeczności zobaczysz po włączeniu własnego tagu w profilu.</Text>
-                </View>
-                <Switch value={draft.lgbtOnly} onValueChange={(lgbtOnly) => setDraft((current) => ({ ...current, lgbtOnly }))} trackColor={{ true: colors.primary }} />
-              </View>
-              <View style={{ marginTop: 4, gap: 7 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.fpScroll} keyboardShouldPersistTaps="handled">
+            <View style={styles.stGroupWrap}>
+              <Text style={styles.stGroupTitle}>Kogo pokazywać</Text>
+              <View style={[styles.mxGroup, { padding: 14, gap: 10 }]}>
                 <GenderPreferencesEditor compact intents={lensIntentsFor(lensFromIntents(draft.targetIntents, []))} value={draft.targetGendersByIntent} onChange={(targetGendersByIntent) => setDraft((current) => ({ ...current, targetGendersByIntent }))} />
               </View>
+              <View style={styles.mxGroup}>
+                {toggleRow("Tylko osoby LGBT+", "Osoby z tagiem LGBT+. Tagi widoczne tylko dla społeczności zobaczysz po włączeniu własnego tagu.", draft.lgbtOnly, (lgbtOnly) => setDraft((current) => ({ ...current, lgbtOnly })))}
+              </View>
+              <Text style={styles.stFooter}>Romantic, Friends i Event zmieniasz przełącznikiem na górze Odkrywaj.</Text>
             </View>
 
-            <View style={styles.discoveryFilterSection}>
-              <View style={styles.discoveryFilterSectionHeader}>
-                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="calendar-range" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Przedział wieku</Text><Text style={styles.discoveryFilterSectionHint}>Wybierz osobno dolną i górną granicę.</Text></View>
+            <View style={styles.stGroupWrap}>
+              <Text style={styles.stGroupTitle}>Wiek</Text>
+              <View style={[styles.mxGroup, { padding: 14 }]}>
+                <AgeRangeControl min={draft.ageMin} max={draft.ageMax} onChange={(ageMin, ageMax) => setDraft((current) => ({ ...current, ageMin, ageMax }))} />
               </View>
-              <AgeRangeControl min={draft.ageMin} max={draft.ageMax} onChange={(ageMin, ageMax) => setDraft((current) => ({ ...current, ageMin, ageMax }))} />
+              <Text style={styles.stFooter}>Przytrzymaj + lub −, żeby zmieniać szybciej.</Text>
             </View>
 
-            <View style={styles.discoveryFilterSection}>
-              <View style={styles.discoveryFilterSectionHeader}>
-                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="map-marker-radius" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Maksymalna odległość</Text><Text style={styles.discoveryFilterSectionHint}>Sam decydujesz, czy pokazać profile bez dokładnego dystansu.</Text></View>
+            <View style={styles.stGroupWrap}>
+              <Text style={styles.stGroupTitle}>Odległość</Text>
+              <View style={[styles.mxGroup, { padding: 12 }]}>
+                <View style={styles.fpChips}>
+                  {distanceOptions.map((distance) => {
+                    const selected = draft.maxDistanceKm === distance;
+                    return (
+                      <Pressable key={distance} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => setDraft((current) => ({ ...current, maxDistanceKm: distance }))} style={[styles.fpChip, selected && styles.fpChipActive]}>
+                        <Text style={[styles.fpChipText, selected && styles.fpChipTextActive]}>{distance === 500 ? "Cały kraj" : `${distance} km`}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-              <View style={styles.discoveryDistanceGrid}>
-                {distanceOptions.map((distance) => {
-                  const selected = draft.maxDistanceKm === distance;
-                  return (
-                    <Pressable key={distance} accessibilityRole="button" onPress={() => setDraft((current) => ({ ...current, maxDistanceKm: distance }))} style={({ pressed }) => [styles.discoveryDistanceOption, selected && styles.discoveryDistanceOptionActive, pressed && styles.controlPressed]}>
-                      <Text style={[styles.discoveryDistanceText, selected && styles.discoveryDistanceTextActive]}>{distance === 500 ? "Cały kraj" : `${distance} km`}</Text>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.mxGroup}>
+                {toggleRow("Uwzględniaj profile bez lokalizacji", draft.includeProfilesWithoutLocation ? "Gdy w pobliżu nikogo nie ma, pokażemy też dalsze profile." : "Limit odległości jest ścisły — nigdy go nie poszerzamy.", draft.includeProfilesWithoutLocation, (includeProfilesWithoutLocation) => setDraft((current) => ({ ...current, includeProfilesWithoutLocation })))}
               </View>
-              <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.includeProfilesWithoutLocation }} onPress={() => setDraft((current) => ({ ...current, includeProfilesWithoutLocation: !current.includeProfilesWithoutLocation }))} style={({ pressed }) => [styles.discoveryFilterToggleRow, pressed && styles.controlPressed]}>
-                <View style={styles.fill}><Text style={styles.discoveryFilterToggleTitle}>Uwzględniaj profile bez lokalizacji</Text><Text style={styles.discoveryFilterToggleHint}>Wyłącz, jeśli limit kilometrów ma być bezwzględny.</Text></View>
-                <Switch pointerEvents="none" value={draft.includeProfilesWithoutLocation} trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.primary }} thumbColor="#fff" />
-              </Pressable>
             </View>
 
-            <View style={styles.discoveryFilterSection}>
-              <View style={styles.discoveryFilterSectionHeader}>
-                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="tune-vertical" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Sposób dopasowania</Text><Text style={styles.discoveryFilterSectionHint}>Opcjonalne filtry zawężające wyniki.</Text></View>
+            <View style={styles.stGroupWrap}>
+              <Text style={styles.stGroupTitle}>Dopasowanie</Text>
+              <View style={styles.mxGroup}>
+                {toggleRow("Wspólne zainteresowanie", "Tylko osoby z co najmniej jednym tagiem z Twojego profilu.", draft.requireCommonInterests, (requireCommonInterests) => setDraft((current) => ({ ...current, requireCommonInterests })))}
+                <View style={styles.pfDivider} />
+                {toggleRow("Tylko Spark Pro", "Tylko osoby z aktywnym Spark Pro.", draft.proOnly, (proOnly) => setDraft((current) => ({ ...current, proOnly })))}
               </View>
-              <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.requireCommonInterests }} onPress={() => setDraft((current) => ({ ...current, requireCommonInterests: !current.requireCommonInterests }))} style={({ pressed }) => [styles.discoveryFilterToggleRow, pressed && styles.controlPressed]}>
-                <View style={styles.fill}><Text style={styles.discoveryFilterToggleTitle}>Wymagaj wspólnego zainteresowania</Text><Text style={styles.discoveryFilterToggleHint}>Pokaż osoby z przynajmniej jednym wspólnym tagiem.</Text></View>
-                <Switch pointerEvents="none" value={draft.requireCommonInterests} trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.primary }} thumbColor="#fff" />
-              </Pressable>
-              <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.proOnly }} onPress={() => setDraft((current) => ({ ...current, proOnly: !current.proOnly }))} style={({ pressed }) => [styles.discoveryFilterToggleRow, pressed && styles.controlPressed]}>
-                <View style={styles.fill}><Text style={styles.discoveryFilterToggleTitle}>Tylko profile Spark Pro</Text><Text style={styles.discoveryFilterToggleHint}>Zawęź feed do aktywnych kont premium.</Text></View>
-                <Switch pointerEvents="none" value={draft.proOnly} trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.primary }} thumbColor="#fff" />
-              </Pressable>
             </View>
 
-            <View style={styles.discoveryFilterSection}>
-              <View style={styles.discoveryFilterSectionHeader}>
-                <View style={styles.discoveryFilterSectionIcon}><MaterialCommunityIcons name="tag-heart" size={19} color={colors.primary} /></View>
-                <View style={styles.fill}><Text style={styles.discoveryFilterSectionTitle}>Szukane zainteresowania</Text><Text style={styles.discoveryFilterSectionHint}>{draft.targetInterests.length ? `${draft.targetInterests.length}/10 wybranych` : "Opcjonalne. Zacznij od popularnych tematów."}</Text></View>
+            <View style={styles.stGroupWrap}>
+              <Text style={styles.stGroupTitle}>Szukane zainteresowania{draft.targetInterests.length ? ` · ${draft.targetInterests.length}/10` : ""}</Text>
+              <View style={[styles.mxGroup, { padding: 12 }]}>
+                <CategorizedInterestPicker selected={draft.targetInterests} onToggle={(item) => setDraft((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
               </View>
-              <CategorizedInterestPicker selected={draft.targetInterests} onToggle={(item) => setDraft((current) => ({ ...current, targetInterests: toggleListItem(current.targetInterests, item) }))} maxSelected={10} />
+              <Text style={styles.stFooter}>Opcjonalne. Pokażemy tylko osoby z przynajmniej jednym z wybranych tagów.</Text>
             </View>
           </ScrollView>
 
-          <View style={styles.discoveryFilterFooter}>
-            <Pressable accessibilityRole="button" disabled={saving} onPress={() => setDraft(createDefaultDiscoverFilters())} style={({ pressed }) => [styles.discoveryResetButton, pressed && styles.controlPressed]}>
-              <MaterialCommunityIcons name="backup-restore" size={18} color={colors.ink} />
-              <Text style={styles.discoveryResetText}>Resetuj</Text>
+          <View style={styles.fpFooter}>
+            <Pressable accessibilityRole="button" disabled={saving} onPress={() => void applyFilters()} style={({ pressed }) => [styles.fpApply, saving && styles.primaryButtonDisabled, pressed && styles.controlPressed]}>
+              {saving ? <ActivityIndicator size="small" color={colors.onPrimary} /> : null}
+              <Text style={styles.fpApplyText}>{saving ? "Zapisywanie…" : "Zastosuj"}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={saving} onPress={() => void applyFilters()} style={({ pressed }) => [styles.discoveryApplyButton, saving && styles.primaryButtonDisabled, pressed && styles.controlPressed]}>
-              {saving ? <ActivityIndicator size="small" color="#fff" /> : <MaterialCommunityIcons name="check" size={19} color="#fff" />}
-              <Text style={styles.discoveryApplyText}>{saving ? "Zapisywanie" : activeFilters ? `Pokaż profile (${activeFilters})` : "Pokaż profile"}</Text>
-            </Pressable>
+            <Text style={styles.fpCaption}>{activeFilters === 0 ? "Bez dodatkowych filtrów" : activeFilters === 1 ? "1 aktywny filtr" : activeFilters < 5 ? `${activeFilters} aktywne filtry` : `${activeFilters} aktywnych filtrów`}</Text>
           </View>
         </View>
       </View>
@@ -5951,7 +5966,7 @@ function DiscoverEmptyState({
         </View>
         <Text style={styles.discoverEmptyTitle} selectable>{loading ? "Szukamy profili" : error ? "Nie udało się pobrać profili" : "To wszystko na teraz"}</Text>
         <Text style={styles.discoverEmptyText} selectable>
-          {loading ? "Dopasowujemy osoby do Twoich zainteresowań i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : feedExpansionLevel > 0 ? "Poszerzyliśmy kryteria, ale obecnie nie ma kolejnych profili. Możesz przywrócić pominięte karty lub wrócić później." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
+          {loading ? "Dopasowujemy osoby do Twoich zainteresowań i preferencji." : error ? "Sprawdź połączenie i spróbuj odświeżyć listę." : feedExpansionLevel > 0 ? "Poszerzyliśmy zasięg, ale nie ma kolejnych profili. Zmień filtry, przywróć pominięte karty albo wróć później." : "Nie pokazujemy ponownie profili, które już oceniłeś. Wróć później albo przywróć pominięte karty."}
         </Text>
         {!loading && likedCount > 0 && (
           <View style={styles.discoverEmptyStat}>
@@ -11290,6 +11305,23 @@ function createStyles(colors: Palette) {
   stGroupWrap: { gap: 7 },
   stGroupTitle: { paddingHorizontal: 16, color: colors.muted, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.2 },
   stFooter: { paddingHorizontal: 16, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  fpSheet: { width: "100%", maxHeight: "94%", zIndex: 2, paddingTop: 8, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: colors.background, overflow: "hidden", boxShadow: `0 -16px 40px ${colors.shadow}` },
+  fpHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 },
+  fpHeaderSide: { width: 90 },
+  fpHeaderAction: { color: colors.primary, fontSize: 16 },
+  fpTitle: { flex: 1, textAlign: "center", color: colors.ink, fontSize: 17, fontWeight: "600" },
+  fpClose: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.fill },
+  fpScroll: { gap: 22, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20 },
+  fpRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  fpChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  fpChip: { height: 36, paddingHorizontal: 14, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.fill },
+  fpChipActive: { backgroundColor: colors.primary },
+  fpChipText: { color: colors.ink, fontSize: 14, fontWeight: "500" },
+  fpChipTextActive: { color: colors.onPrimary, fontWeight: "600" },
+  fpFooter: { gap: 6, paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.fillStronger },
+  fpApply: { height: 52, borderRadius: 26, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary },
+  fpApplyText: { color: colors.onPrimary, fontSize: 17, fontWeight: "600" },
+  fpCaption: { textAlign: "center", color: colors.muted, fontSize: 12 },
   mxEmpty: { alignItems: "center", gap: 8, paddingVertical: 48, paddingHorizontal: 24 },
   mxEmptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "700" },
   mxEmptyText: { maxWidth: 300, color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" },
