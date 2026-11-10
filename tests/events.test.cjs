@@ -44,3 +44,21 @@ test("catalogue schema, deterministic IDs and event expiry remain compatible wit
   assert.equal(getSharedActiveEvents([event], [event], now).length, 1);
   assert.equal(sanitizeActiveEvents([event], Date.parse("2026-11-09T22:00:00Z")).length, 0);
 });
+
+test("city suggestions follow the country and include the person's own cities", () => {
+  assert.ok(matchingCities("new", 12, "US").includes("New York"));
+  assert.ok(!matchingCities("", 200, "US").includes("Warszawa"));
+  assert.ok(matchingCities("lond", 12, "GB").includes("London"));
+  assert.deepEqual(matchingCities("", 3, "FR", ["Paris", "paris", "Lyon"]), ["Paris", "Lyon"]);
+  assert.ok(matchingCities("lodz").includes("Łódź"));
+});
+
+test("date and time formatting follows the configured locale and clock", () => {
+  const { formatDate, formatTime, setFormatResolver } = require("../src/i18n/format.ts");
+  const at = new Date(2026, 10, 20, 19, 5);
+  setFormatResolver(() => ({ locale: "en-US", hour12: true }));
+  assert.match(formatTime(at), /7:05\s?PM/);
+  assert.match(formatDate(at), /Nov 20/);
+  setFormatResolver(() => ({ locale: "pl-PL", hour12: false }));
+  assert.equal(formatTime(at), "19:05");
+});

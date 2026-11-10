@@ -27,9 +27,10 @@ function deviceLanguage(): Language {
       if (supported.has(code)) return code as Language;
     }
   } catch {
-    // Unknown device locale: keep Polish.
+    // Unknown device locale: fall through to English.
   }
-  return "pl";
+  // Any other language worldwide gets English; Polish phones match "pl" above.
+  return "en";
 }
 
 let current: Language = deviceLanguage();

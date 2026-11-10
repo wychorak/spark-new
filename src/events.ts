@@ -1,3 +1,5 @@
+import { formatDate, formatTime } from "./i18n/format";
+
 export const eventCategoryIds = ["music", "cinema", "sport", "games", "city", "travel"] as const;
 
 export type EventCategoryId = typeof eventCategoryIds[number];
@@ -152,7 +154,7 @@ export function formatEventDate(dateOrEvent: string | SparkEvent) {
     ? new Date(dateOrEvent.length === 10 ? dateOrEvent + "T12:00:00" : dateOrEvent)
     : new Date(dateOrEvent.startsAt);
   return Number.isFinite(date.getTime())
-    ? date.toLocaleDateString("pl-PL", { day: "numeric", month: "short" })
+    ? formatDate(date)
     : typeof dateOrEvent === "string" ? dateOrEvent : dateOrEvent.date;
 }
 
@@ -161,10 +163,10 @@ export function formatEventDateRange(event: SparkEvent) {
   const end = new Date(event.endsAt);
   if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return event.date;
   const sameDay = start.toDateString() === end.toDateString();
-  const startLabel = start.toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
-  const startTime = start.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
-  const endLabel = sameDay ? "" : end.toLocaleDateString("pl-PL", { day: "numeric", month: "short" }) + ", ";
-  const endTime = end.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  const startLabel = formatDate(start);
+  const startTime = formatTime(start);
+  const endLabel = sameDay ? "" : formatDate(end) + ", ";
+  const endTime = formatTime(end);
   return `${startLabel}, ${startTime} – ${endLabel}${endTime}`;
 }
 

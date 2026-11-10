@@ -6,6 +6,7 @@ import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebas
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { pushLanguage, renderPush, type PushLanguage, type PushTextKey } from "./push-text";
 
 // Hard cap per function: a traffic spike or a runaway trigger cannot scale costs without limit.
 setGlobalOptions({ maxInstances: 20 });
@@ -18,8 +19,8 @@ const region = "europe-west1";
 type NotificationCategory = "messages" | "matches" | "requests" | "events";
 
 type NotificationPayload = {
-  title: string;
-  body: string;
+  text: PushTextKey;
+  vars?: { name?: string; event?: string; text?: string };
   category: NotificationCategory;
   data: Record<string, string>;
 };
@@ -27,6 +28,8 @@ type NotificationPayload = {
 type PushRegistration = {
   token: string;
   sound: boolean;
+  language: PushLanguage;
+  countryCode: string;
   ref: FirebaseFirestore.DocumentReference;
 };
 
@@ -87,8 +90,10 @@ function pushRegistration(document: FirebaseFirestore.QueryDocumentSnapshot, cat
   const data = document.data();
   const token = data.enabled === true ? stringValue(data.token) : "";
   const preference = notificationPreference(data, category);
+  // Registrations from before the language/country fields are Polish installs.
+  const countryCode = typeof data.countryCode === "string" && /^[A-Z]{2}$/.test(data.countryCode) ? data.countryCode : "PL";
   return token && preference.allowed
-    ? { token, sound: preference.sound, ref: document.ref } satisfies PushRegistration
+    ? { token, sound: preference.sound, language: pushLanguage(data.language), countryCode, ref: document.ref } satisfies PushRegistration
     : null;
 }
 
@@ -105,12 +110,11 @@ async function getPushTokens(uid: string, category: NotificationCategory) {
 async function sendPushToTokens(registrations: PushRegistration[], payload: NotificationPayload) {
   for (let offset = 0; offset < registrations.length; offset += 100) {
     const chunk = registrations.slice(offset, offset + 100);
-    const messages = chunk.map(({ token: to, sound }) => ({
+    const messages = chunk.map(({ token: to, sound, language }) => ({
       to,
       sound: sound ? "default" : undefined,
       badge: 1,
-      title: payload.title,
-      body: payload.body,
+      ...renderPush(payload.text, language, payload.vars),
       data: { ...payload.data, category: payload.category },
       priority: "high"
     }));
@@ -135,12 +139,12 @@ async function sendPush(uid: string, payload: NotificationPayload) {
 
 async function getProfileName(uid: string) {
   const snapshot = await db.collection("publicProfiles").doc(uid).get();
-  if (!snapshot.exists) return "Ktoś";
+  if (!snapshot.exists) return "";
   const profile = snapshot.data() ?? {};
   if (profile.profileNameMode === "nickname" && typeof profile.nickname === "string" && profile.nickname.trim()) {
     return profile.nickname.trim();
   }
-  return typeof profile.firstName === "string" && profile.firstName.trim() ? profile.firstName.trim() : "Ktoś";
+  return typeof profile.firstName === "string" && profile.firstName.trim() ? profile.firstName.trim() : "";
 }
 
 const premiumEntitlementId = "Sparknew Pro";
@@ -264,8 +268,7 @@ export const resolveModerationReport = onCall(
     if (action === "warn" && targetUid) {
       await sendPush(targetUid, {
         category: "requests",
-        title: "Wiadomo\u015b\u0107 od zespo\u0142u Spark",
-        body: "Otrzymali\u015bmy zg\u0142oszenie dotycz\u0105ce Twojego konta. Sprawd\u017a zasady spo\u0142eczno\u015bci.",
+        text: "moderationWarning",
         data: { route: "matches" }
       }).catch((error) => console.error("Moderation warning push failed", error));
     }
@@ -861,8 +864,8 @@ export const notifyNewMatch = onDocumentCreated(
     const requested = match.status === "requested";
     await sendPush(recipientUid, {
       category: requested ? "requests" : "matches",
-      title: requested ? "Nowa prośba o rozmowę" : "Nowy match w Spark",
-      body: requested ? senderName + " chce rozpocząć rozmowę." : "Ty i " + senderName + " polubiliście się nawzajem.",
+      text: requested ? "chatRequest" : "newMatch",
+      vars: { name: senderName },
       data: { route: requested ? "messages" : "matches", threadId: event.params.matchId }
     });
   }
@@ -880,8 +883,8 @@ export const notifyAcceptedRequest = onDocumentUpdated(
     const name = await getProfileName(acceptedByUid);
     await sendPush(recipientUid, {
       category: "requests",
-      title: "Prośba zaakceptowana",
-      body: name + " zaakceptował(a) Twoją prośbę. Możecie już pisać.",
+      text: "requestAccepted",
+      vars: { name },
       data: { route: "messages", threadId: event.params.matchId }
     });
   }
@@ -903,11 +906,11 @@ export const notifyNewMessage = onDocumentCreated(
     if (!recipientUid) return;
 
     const senderName = await getProfileName(senderUid);
-    const text = typeof message.text === "string" ? message.text.trim().slice(0, 120) : "Nowa wiadomość";
+    const text = typeof message.text === "string" ? message.text.trim().slice(0, 120) : "";
     await sendPush(recipientUid, {
       category: "messages",
-      title: senderName,
-      body: text,
+      text: "newMessage",
+      vars: { name: senderName, text },
       data: { route: "messages", threadId: event.params.threadId, senderUid }
     });
   }
@@ -945,7 +948,8 @@ export const notifyNewSparkEvent = onDocumentCreated(
   async (event) => {
     if (!event.data || !(await claimEvent(event.id))) return;
     const eventData = event.data.data();
-    const eventName = stringValue(eventData.name) || "nowe wydarzenie";
+    const eventName = stringValue(eventData.name) || "Spark";
+    const eventCountryCode = typeof eventData.countryCode === "string" && /^[A-Z]{2}$/.test(eventData.countryCode) ? eventData.countryCode : "PL";
     const seenTokens = new Set<string>();
     let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
@@ -961,15 +965,16 @@ export const notifyNewSparkEvent = onDocumentCreated(
         const registrations: PushRegistration[] = [];
         devices.docs.forEach((document) => {
           const registration = pushRegistration(document, "events");
-          if (registration && !seenTokens.has(registration.token)) {
+          // Announce an event only in its own country (legacy events are Polish).
+          if (registration && registration.countryCode === eventCountryCode && !seenTokens.has(registration.token)) {
             seenTokens.add(registration.token);
             registrations.push(registration);
           }
         });
         await sendPushToTokens(registrations, {
           category: "events",
-          title: "Nowe wydarzenie w aplikacji Spark!",
-          body: "Teraz mo\u017cecie razem i\u015b\u0107 na popularne eventy. Kliknij, aby zobaczy\u0107: " + eventName + ".",
+          text: "newEvent",
+          vars: { event: eventName },
           data: { route: "eventFriends", eventId: event.params.eventId }
         });
 
@@ -1063,10 +1068,10 @@ export const notifyEventProposalReviewed = onDocumentUpdated(
     if (!(await claimEvent(event.id))) return;
     const author = stringValue(after.createdByUid);
     if (!author) return;
-    const eventName = stringValue(after.event?.name) || "Twoje wydarzenie";
+    const eventName = stringValue(after.event?.name) || "Event Friends";
     await sendPush(author, after.status === "approved"
-      ? { category: "events", title: "Wydarzenie zaakceptowane", body: "„" + eventName + "” jest już w Event Friends. Zaznacz, że idziesz, i poznaj ekipę.", data: { route: "eventFriends", eventId: stringValue(after.event?.id) } }
-      : { category: "events", title: "Zgłoszenie wydarzenia", body: "Nie dodaliśmy „" + eventName + "” do Event Friends. Możesz zgłosić je ponownie z poprawionymi danymi.", data: { route: "eventFriends" } });
+      ? { category: "events", text: "proposalApproved", vars: { event: eventName }, data: { route: "eventFriends", eventId: stringValue(after.event?.id) } }
+      : { category: "events", text: "proposalRejected", vars: { event: eventName }, data: { route: "eventFriends" } });
   }
 );
 

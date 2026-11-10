@@ -143,6 +143,12 @@
   "uk": "{0} хв тому",
   "es": "hace {0} min"
  },
+ "{0} od Ciebie": {
+  "en": "{0} away",
+  "de": "{0} entfernt",
+  "uk": "{0} від тебе",
+  "es": "a {0}"
+ },
  "{0} osób • {1} wizyt": {
   "en": "{0} people • {1} visits",
   "de": "{0} Personen • {1} Besuche",
@@ -395,6 +401,12 @@
   "uk": "Немає активних чатів",
   "es": "No hay chats activos"
  },
+ "Brak dostępu do moderacji.": {
+  "en": "No access to moderation.",
+  "de": "Kein Zugriff auf die Moderation.",
+  "uk": "Немає доступу до модерації.",
+  "es": "No tienes acceso a la moderación."
+ },
  "Brak nowych próśb": {
   "en": "No new requests",
   "de": "Keine neuen Anfragen",
@@ -454,6 +466,12 @@
   "de": "Ganzes Land",
   "uk": "Уся країна",
   "es": "Todo el país"
+ },
+ "Cały kraj ({0})": {
+  "en": "Whole country ({0})",
+  "de": "Ganzes Land ({0})",
+  "uk": "Уся країна ({0})",
+  "es": "Todo el país ({0})"
  },
  "cel profilu:": {
   "en": "profile goal:",
@@ -814,6 +832,12 @@
   "de": "Danke. Das Moderationsteam prüft die Meldung mit dem verfügbaren Kontext.",
   "uk": "Дякуємо. Команда модерації перевірить скаргу з урахуванням доступного контексту.",
   "es": "Gracias. El equipo de moderación revisará la denuncia con el contexto disponible."
+ },
+ "Dzisiejszy limit 10 próśb o chat został wykorzystany.": {
+  "en": "You've used today's 10 chat requests.",
+  "de": "Du hast heute deine 10 Chat-Anfragen aufgebraucht.",
+  "uk": "Ти використав(-ла) 10 запитів на чат сьогодні.",
+  "es": "Has usado tus 10 solicitudes de chat de hoy."
  },
  "Dźwięk": {
   "en": "Sound",
@@ -1535,6 +1559,12 @@
   "uk": "LGBT+ / Спільнота",
   "es": "LGBT+ / Comunidad"
  },
+ "Limit 20 wiadomości na minutę został wykorzystany.": {
+  "en": "You've hit the limit of 20 messages per minute.",
+  "de": "Du hast das Limit von 20 Nachrichten pro Minute erreicht.",
+  "uk": "Досягнуто ліміту 20 повідомлень на хвилину.",
+  "es": "Has alcanzado el límite de 20 mensajes por minuto."
+ },
  "Limit odległości jest ścisły — nigdy go nie poszerzamy.": {
   "en": "The distance limit is strict — we never widen it.",
   "de": "Das Entfernungslimit ist strikt — wir erweitern es nie.",
@@ -1727,6 +1757,12 @@
   "uk": "Місяць",
   "es": "Mes"
  },
+ "Miesięczny limit 10 SparkLike został wykorzystany.": {
+  "en": "You've used your 10 SparkLikes for this month.",
+  "de": "Du hast deine 10 SparkLikes für diesen Monat aufgebraucht.",
+  "uk": "Ти використав(-ла) 10 SparkLike цього місяця.",
+  "es": "Has usado tus 10 SparkLikes de este mes."
+ },
  "Miesięczny limit SparkLike został wykorzystany.": {
   "en": "Monthly SparkLike limit reached.",
   "de": "Monatliches SparkLike-Limit erreicht.",
@@ -1835,6 +1871,12 @@
   "uk": "Можна вибрати максимум {0} інтересів.",
   "es": "Puedes elegir como máximo {0} intereses."
  },
+ "Możesz wybrać maksymalnie 4 wydarzenia.": {
+  "en": "You can pick up to 4 events.",
+  "de": "Du kannst höchstens 4 Events auswählen.",
+  "uk": "Можна вибрати не більше 4 подій.",
+  "es": "Puedes elegir hasta 4 eventos."
+ },
  "Musisz być zalogowany, aby usunąć konto.": {
   "en": "You must be signed in to delete your account.",
   "de": "Du musst angemeldet sein, um dein Konto zu löschen.",
@@ -1907,11 +1949,23 @@
   "uk": "Найновіші",
   "es": "Más recientes"
  },
+ "Najpierw dokończ profil, aby dołączyć do wydarzenia.": {
+  "en": "Finish your profile first to join an event.",
+  "de": "Vervollständige zuerst dein Profil, um einem Event beizutreten.",
+  "uk": "Спершу заверши профіль, щоб приєднатися до події.",
+  "es": "Completa primero tu perfil para unirte a un evento."
+ },
  "Najpierw sprawdzaj groźby, nękanie i podszywanie się.": {
   "en": "Check threats, harassment and impersonation first.",
   "de": "Prüfe zuerst Drohungen, Belästigung und Identitätsbetrug.",
   "uk": "Спершу перевіряй погрози, цькування та видавання себе за інших.",
   "es": "Revisa primero amenazas, acoso y suplantación de identidad."
+ },
+ "Najpierw utwórz profil Spark.": {
+  "en": "Create your Spark profile first.",
+  "de": "Erstelle zuerst dein Spark-Profil.",
+  "uk": "Спершу створи профіль Spark.",
+  "es": "Primero crea tu perfil de Spark."
  },
  "Napisz": {
   "en": "Message",
@@ -2069,6 +2123,12 @@
   "uk": "Таких подій немає",
   "es": "No hay eventos así"
  },
+ "Nie masz dostępu do tej rozmowy.": {
+  "en": "You don't have access to this conversation.",
+  "de": "Du hast keinen Zugriff auf diese Unterhaltung.",
+  "uk": "У тебе немає доступу до цієї розмови.",
+  "es": "No tienes acceso a esta conversación."
+ },
  "Nie masz jeszcze wybranych tagów.": {
   "en": "You haven't picked any tags yet.",
   "de": "Du hast noch keine Tags ausgewählt.",
@@ -2080,6 +2140,24 @@
   "de": "Du hast derzeit niemanden blockiert.",
   "uk": "Наразі ти нікого не заблокував(-ла).",
   "es": "Ahora mismo no tienes a nadie bloqueado."
+ },
+ "Nie możesz usunąć tej relacji.": {
+  "en": "You can't remove this connection.",
+  "de": "Du kannst diese Verbindung nicht entfernen.",
+  "uk": "Ти не можеш видалити цей зв’язок.",
+  "es": "No puedes eliminar esta conexión."
+ },
+ "Nie możesz wysłać prośby do tego profilu.": {
+  "en": "You can't send a request to this profile.",
+  "de": "Du kannst diesem Profil keine Anfrage senden.",
+  "uk": "Не можна надіслати запит цьому профілю.",
+  "es": "No puedes enviar una solicitud a este perfil."
+ },
+ "Nie możesz wysłać SparkLike do tego profilu.": {
+  "en": "You can't send a SparkLike to this profile.",
+  "de": "Du kannst diesem Profil kein SparkLike senden.",
+  "uk": "Не можна надіслати SparkLike цьому профілю.",
+  "es": "No puedes enviar un SparkLike a este perfil."
  },
  "Nie można otworzyć dokumentu. Kontakt: {0}": {
   "en": "Can't open the document. Contact: {0}",
@@ -2549,6 +2627,24 @@
   "uk": "Неприйнятний профіль або повідомлення",
   "es": "Perfil o mensaje inapropiado"
  },
+ "Nieprawidłowa akcja moderacji.": {
+  "en": "Invalid moderation action.",
+  "de": "Ungültige Moderationsaktion.",
+  "uk": "Неправильна дія модерації.",
+  "es": "Acción de moderación no válida."
+ },
+ "Nieprawidłowa lista profili.": {
+  "en": "Invalid profile list.",
+  "de": "Ungültige Profilliste.",
+  "uk": "Неправильний список профілів.",
+  "es": "Lista de perfiles no válida."
+ },
+ "Nieprawidłowa relacja.": {
+  "en": "Invalid connection.",
+  "de": "Ungültige Verbindung.",
+  "uk": "Неправильний зв’язок.",
+  "es": "Conexión no válida."
+ },
  "Nieprawidłowe dane wydarzenia.": {
   "en": "Invalid event details.",
   "de": "Ungültige Event-Daten.",
@@ -2561,11 +2657,23 @@
   "uk": "Неправильний email або пароль.",
   "es": "Correo o contraseña incorrectos."
  },
+ "Nieprawidłowy identyfikator rozmowy.": {
+  "en": "Invalid conversation ID.",
+  "de": "Ungültige Unterhaltungs-ID.",
+  "uk": "Неправильний ідентифікатор розмови.",
+  "es": "ID de conversación no válido."
+ },
  "Nieprawidłowy profil do odblokowania.": {
   "en": "Invalid profile to unblock.",
   "de": "Ungültiges Profil zum Entsperren.",
   "uk": "Неправильний профіль для розблокування.",
   "es": "Perfil no válido para desbloquear."
+ },
+ "Nieprawidłowy profil odbiorcy.": {
+  "en": "Invalid recipient profile.",
+  "de": "Ungültiges Empfängerprofil.",
+  "uk": "Неправильний профіль отримувача.",
+  "es": "Perfil de destinatario no válido."
  },
  "nieprzeczytane wiadomości": {
   "en": "unread messages",
@@ -2628,16 +2736,16 @@
   "es": "Perfil nuevo en Spark. Conoceos a través de intereses comunes."
  },
  "np. Open'er Festival": {
-  "en": "e.g. Open'er Festival",
-  "de": "z. B. Open'er Festival",
+  "en": "e.g. Coachella",
+  "de": "z. B. Rock am Ring",
   "uk": "напр. Open'er Festival",
-  "es": "p. ej. Open'er Festival"
+  "es": "p. ej. Primavera Sound"
  },
  "np. Tauron Arena, ul. Lema 7": {
-  "en": "e.g. Tauron Arena, 7 Lema St",
-  "de": "z. B. Tauron Arena, ul. Lema 7",
+  "en": "e.g. Madison Square Garden, 4 Pennsylvania Plaza",
+  "de": "z. B. Mercedes-Benz Arena, Mercedes-Platz 1",
   "uk": "напр. Tauron Arena, вул. Лема 7",
-  "es": "p. ej. Tauron Arena, ul. Lema 7"
+  "es": "p. ej. WiZink Center, Av. Felipe II"
  },
  "O mnie": {
   "en": "About me",
@@ -3113,6 +3221,12 @@
   "uk": "Показує лише людей з тегом LGBT+.",
   "es": "Muestra solo personas con la etiqueta LGBT+."
  },
+ "Pokazujemy wydarzenia z całego kraju. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.": {
+  "en": "Showing events from across the country. Add your city to your profile to see nearby events first.",
+  "de": "Wir zeigen Events aus dem ganzen Land. Füge deine Stadt im Profil hinzu, um zuerst Events in deiner Nähe zu sehen.",
+  "uk": "Показуємо події з усієї країни. Додай місто в профілі, щоб спершу бачити події поруч.",
+  "es": "Mostramos eventos de todo el país. Añade tu ciudad en el perfil para ver primero los de tu zona."
+ },
  "Pokazujemy wydarzenia z całej Polski. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.": {
   "en": "Showing events from all of Poland. Add your city to your profile to see the ones near you first.",
   "de": "Wir zeigen Events aus ganz Polen. Füge deine Stadt im Profil hinzu, um zuerst die in deiner Nähe zu sehen.",
@@ -3124,6 +3238,12 @@
   "de": "Ganz Polen anzeigen",
   "uk": "Показати всю Польщу",
   "es": "Mostrar toda Polonia"
+ },
+ "Pokaż cały kraj": {
+  "en": "Show the whole country",
+  "de": "Ganzes Land anzeigen",
+  "uk": "Показати всю країну",
+  "es": "Mostrar todo el país"
  },
  "Pokaż mniej": {
   "en": "Show less",
@@ -3713,6 +3833,12 @@
   "uk": "Розмова",
   "es": "Conversación"
  },
+ "Rozmowa nie ma prawidłowego odbiorcy.": {
+  "en": "This conversation has no valid recipient.",
+  "de": "Diese Unterhaltung hat keinen gültigen Empfänger.",
+  "uk": "У цій розмові немає правильного отримувача.",
+  "es": "Esta conversación no tiene un destinatario válido."
+ },
  "Rozmowa Pro": {
   "en": "Pro chat",
   "de": "Pro-Gespräch",
@@ -3832,6 +3958,12 @@
   "de": "Spark Pro für immer",
   "uk": "Spark Pro назавжди",
   "es": "Spark Pro para siempre"
+ },
+ "Spark Pro nie jest jeszcze aktywny po stronie serwera. Odśwież dostęp Pro i spróbuj ponownie za chwilę.": {
+  "en": "Spark Pro isn't active on the server yet. Refresh Pro access and try again in a moment.",
+  "de": "Spark Pro ist auf dem Server noch nicht aktiv. Aktualisiere den Pro-Zugang und versuche es gleich noch einmal.",
+  "uk": "Spark Pro ще не активний на сервері. Онови доступ Pro і спробуй ще раз за мить.",
+  "es": "Spark Pro aún no está activo en el servidor. Actualiza el acceso Pro y vuelve a intentarlo en un momento."
  },
  "Spark Pro odblokuje do 15 zdjęć": {
   "en": "Spark Pro unlocks up to 15 photos",
@@ -3965,6 +4097,12 @@
   "uk": "Стадіон",
   "es": "Estadio"
  },
+ "Stan relacji zmienił się. Spróbuj ponownie.": {
+  "en": "The connection changed. Try again.",
+  "de": "Die Verbindung hat sich geändert. Versuche es erneut.",
+  "uk": "Стан зв’язку змінився. Спробуй ще раз.",
+  "es": "La conexión ha cambiado. Inténtalo de nuevo."
+ },
  "Startupy": {
   "en": "Startups",
   "de": "Start-ups",
@@ -4031,6 +4169,12 @@
   "uk": "Пошук",
   "es": "Buscar"
  },
+ "Szukaj miejscowości": {
+  "en": "Search for a city",
+  "de": "Stadt suchen",
+  "uk": "Пошук міста",
+  "es": "Buscar ciudad"
+ },
  "Szukaj po nazwie, mieście lub zainteresowaniu": {
   "en": "Search by name, city or interest",
   "de": "Nach Name, Stadt oder Interesse suchen",
@@ -4096,6 +4240,12 @@
   "de": "Diese Anfrage wartet bereits auf Annahme.",
   "uk": "Цей запит уже чекає на прийняття.",
   "es": "Esta solicitud ya espera ser aceptada."
+ },
+ "Ta relacja została wcześniej zamknięta.": {
+  "en": "This connection was closed earlier.",
+  "de": "Diese Verbindung wurde bereits beendet.",
+  "uk": "Цей зв’язок уже було закрито.",
+  "es": "Esta conexión se cerró anteriormente."
  },
  "Ta rozmowa została wcześniej zamknięta.": {
   "en": "This chat was closed earlier.",
@@ -4169,6 +4319,12 @@
   "uk": "Технології й ігри",
   "es": "Tecnología y juegos"
  },
+ "Tej relacji nie można teraz usunąć.": {
+  "en": "This connection can't be removed right now.",
+  "de": "Diese Verbindung kann gerade nicht entfernt werden.",
+  "uk": "Цей зв’язок зараз не можна видалити.",
+  "es": "Esta conexión no se puede eliminar ahora mismo."
+ },
  "Teksty, których jeszcze nie przetłumaczyliśmy, zobaczysz po polsku.": {
   "en": "Texts we have not translated yet will appear in Polish.",
   "de": "Noch nicht übersetzte Texte siehst du auf Polnisch.",
@@ -4180,6 +4336,12 @@
   "de": "dieses Profil",
   "uk": "цей профіль",
   "es": "este perfil"
+ },
+ "Ten profil nie jest już dostępny.": {
+  "en": "This profile is no longer available.",
+  "de": "Dieses Profil ist nicht mehr verfügbar.",
+  "uk": "Цей профіль більше недоступний.",
+  "es": "Este perfil ya no está disponible."
  },
  "Tenis": {
   "en": "Tennis",
@@ -4210,6 +4372,24 @@
   "de": "Das ist eine sensible Information. Wir zeigen sie nur so, wie du es wählst, und nutzen sie nie für Werbung. Wenn du den Tag ausschaltest, wird er sofort entfernt.",
   "uk": "Це чутлива інформація. Ми покажемо її лише так, як ти вибереш, і ніколи не використаємо для реклами. Вимкнення тегу одразу її видаляє.",
   "es": "Es información sensible. Solo la mostraremos como tú elijas y nunca la usaremos para anuncios. Al desactivar la etiqueta se elimina al instante."
+ },
+ "To konto nie może teraz aktualizować wydarzeń.": {
+  "en": "This account can't update events right now.",
+  "de": "Dieses Konto kann Events gerade nicht aktualisieren.",
+  "uk": "Цей акаунт зараз не може оновлювати події.",
+  "es": "Esta cuenta no puede actualizar eventos ahora mismo."
+ },
+ "To konto nie może teraz wysyłać próśb.": {
+  "en": "This account can't send requests right now.",
+  "de": "Dieses Konto kann gerade keine Anfragen senden.",
+  "uk": "Цей акаунт зараз не може надсилати запити.",
+  "es": "Esta cuenta no puede enviar solicitudes ahora mismo."
+ },
+ "To konto nie może teraz wysyłać SparkLike.": {
+  "en": "This account can't send SparkLikes right now.",
+  "de": "Dieses Konto kann gerade keine SparkLikes senden.",
+  "uk": "Цей акаунт зараз не може надсилати SparkLike.",
+  "es": "Esta cuenta no puede enviar SparkLikes ahora mismo."
  },
  "To konto zostało wyłączone.": {
   "en": "This account has been disabled.",
@@ -4661,6 +4841,12 @@
   "uk": "Повідомлення стануть доступні після прийняття запиту.",
   "es": "Los mensajes se desbloquearán cuando se acepte la solicitud."
  },
+ "Wiadomości są dostępne dopiero po aktywnym matchu.": {
+  "en": "Messages unlock after an active match.",
+  "de": "Nachrichten sind erst nach einem aktiven Match möglich.",
+  "uk": "Повідомлення доступні лише після активного метчу.",
+  "es": "Los mensajes se desbloquean tras un match activo."
+ },
  "Wiadomości są dostępne po matchu albo po zaakceptowaniu prośby.": {
   "en": "Messages are available after a match or once a request is accepted.",
   "de": "Nachrichten sind nach einem Match oder nach Annahme einer Anfrage verfügbar.",
@@ -4679,11 +4865,23 @@
   "uk": "Повідомлення може мати не більше 2000 символів.",
   "es": "Un mensaje puede tener como máximo 2000 caracteres."
  },
+ "Wiadomość musi mieć od 1 do 2000 znaków i przestrzegać zasad Spark.": {
+  "en": "A message must be 1–2000 characters and follow Spark's rules.",
+  "de": "Eine Nachricht muss 1–2000 Zeichen lang sein und den Spark-Regeln entsprechen.",
+  "uk": "Повідомлення має містити від 1 до 2000 символів і відповідати правилам Spark.",
+  "es": "Un mensaje debe tener entre 1 y 2000 caracteres y cumplir las normas de Spark."
+ },
  "Wiadomość musi mieć od 1 do 2000 znaków.": {
   "en": "A message must be 1 to 2000 characters.",
   "de": "Eine Nachricht muss 1 bis 2000 Zeichen haben.",
   "uk": "Повідомлення має містити від 1 до 2000 символів.",
   "es": "Un mensaje debe tener entre 1 y 2000 caracteres."
+ },
+ "Wiadomość otwierająca musi mieć od 1 do 500 znaków i przestrzegać zasad Spark.": {
+  "en": "The opening message must be 1–500 characters and follow Spark's rules.",
+  "de": "Die erste Nachricht muss 1–500 Zeichen lang sein und den Spark-Regeln entsprechen.",
+  "uk": "Перше повідомлення має містити від 1 до 500 символів і відповідати правилам Spark.",
+  "es": "El primer mensaje debe tener entre 1 y 500 caracteres y cumplir las normas de Spark."
  },
  "Wiadomość przed matchem jest funkcją Pro. Odblokuj Pro, żeby wysłać prośbę o chat do tej osoby.": {
   "en": "Messaging before a match is a Pro feature. Unlock Pro to send this person a chat request.",
@@ -5381,6 +5579,30 @@
   "uk": "Увійти",
   "es": "Iniciar sesión"
  },
+ "Zaloguj się ponownie, aby otworzyć rozmowę.": {
+  "en": "Sign in again to open the conversation.",
+  "de": "Melde dich erneut an, um die Unterhaltung zu öffnen.",
+  "uk": "Увійди ще раз, щоб відкрити розмову.",
+  "es": "Vuelve a iniciar sesión para abrir la conversación."
+ },
+ "Zaloguj się ponownie, aby przywrócić pominięte profile.": {
+  "en": "Sign in again to restore skipped profiles.",
+  "de": "Melde dich erneut an, um übersprungene Profile wiederherzustellen.",
+  "uk": "Увійди ще раз, щоб відновити пропущені профілі.",
+  "es": "Vuelve a iniciar sesión para recuperar los perfiles omitidos."
+ },
+ "Zaloguj się ponownie, aby usunąć konto.": {
+  "en": "Sign in again to delete your account.",
+  "de": "Melde dich erneut an, um dein Konto zu löschen.",
+  "uk": "Увійди ще раз, щоб видалити акаунт.",
+  "es": "Vuelve a iniciar sesión para eliminar tu cuenta."
+ },
+ "Zaloguj się ponownie, aby usunąć polubienie.": {
+  "en": "Sign in again to remove the like.",
+  "de": "Melde dich erneut an, um das Like zu entfernen.",
+  "uk": "Увійди ще раз, щоб прибрати вподобання.",
+  "es": "Vuelve a iniciar sesión para quitar el like."
+ },
  "Zaloguj się ponownie, aby utworzyć match.": {
   "en": "Sign in again to create a match.",
   "de": "Melde dich erneut an, um ein Match zu erstellen.",
@@ -5393,6 +5615,12 @@
   "uk": "Увійди ще раз, щоб надіслати запит.",
   "es": "Vuelve a iniciar sesión para enviar la solicitud."
  },
+ "Zaloguj się ponownie, aby wysłać SparkLike.": {
+  "en": "Sign in again to send a SparkLike.",
+  "de": "Melde dich erneut an, um ein SparkLike zu senden.",
+  "uk": "Увійди ще раз, щоб надіслати SparkLike.",
+  "es": "Vuelve a iniciar sesión para enviar un SparkLike."
+ },
  "Zaloguj się ponownie, aby wysłać wiadomość.": {
   "en": "Sign in again to send a message.",
   "de": "Melde dich erneut an, um eine Nachricht zu senden.",
@@ -5404,6 +5632,18 @@
   "de": "Melde dich erneut an, um die Meldung zu senden.",
   "uk": "Увійди ще раз, щоб надіслати скаргу.",
   "es": "Vuelve a iniciar sesión para enviar la denuncia."
+ },
+ "Zaloguj się ponownie, aby zapisać wydarzenia.": {
+  "en": "Sign in again to save events.",
+  "de": "Melde dich erneut an, um Events zu speichern.",
+  "uk": "Увійди ще раз, щоб зберегти події.",
+  "es": "Vuelve a iniciar sesión para guardar eventos."
+ },
+ "Zaloguj się ponownie.": {
+  "en": "Sign in again.",
+  "de": "Melde dich erneut an.",
+  "uk": "Увійди ще раз.",
+  "es": "Vuelve a iniciar sesión."
  },
  "Zamknij listę": {
   "en": "Close list",
@@ -5627,6 +5867,12 @@
   "uk": "Скарга",
   "es": "Denuncia"
  },
+ "Zgłoszenie nie istnieje.": {
+  "en": "The report doesn't exist.",
+  "de": "Die Meldung existiert nicht.",
+  "uk": "Скарги не існує.",
+  "es": "La denuncia no existe."
+ },
  "Zgłoszenie wysłane": {
   "en": "Report sent",
   "de": "Meldung gesendet",
@@ -5722,6 +5968,12 @@
   "de": "Sieh dir Events in ganz Polen an oder füge eigene hinzu.",
   "uk": "Переглянь події по всій Польщі або додай власну.",
   "es": "Mira eventos en toda Polonia o añade el tuyo."
+ },
+ "Zobacz wydarzenia w całym kraju albo dodaj własne.": {
+  "en": "See events across the country or add your own.",
+  "de": "Sieh dir Events im ganzen Land an oder füge eigene hinzu.",
+  "uk": "Переглянь події по всій країні або додай власну.",
+  "es": "Mira eventos de todo el país o añade el tuyo."
  },
  "Zobacz, jak widzą Cię inni": {
   "en": "See how others see you",

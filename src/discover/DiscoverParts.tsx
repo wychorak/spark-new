@@ -5,6 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import { Text } from "../i18n/Text";
+import { formatDate, formatTime } from "../i18n/format";
 import { palettes, useThemeState, type Palette } from "../theme";
 /** Discover context used for accents and badges (Romantic / Friends / Event). */
 export type DiscoverMode = "romantic" | "friends" | "event";
@@ -51,8 +52,8 @@ export const LGBT_LABELS: Record<string, string> = {
 
 export function formatEventDate(ms: number) {
   const date = new Date(ms);
-  const day = date.toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "short" });
-  const time = date.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  const day = formatDate(date, { weekday: "short", day: "numeric", month: "short" });
+  const time = formatTime(date);
   return `${day} · ${time}`;
 }
 

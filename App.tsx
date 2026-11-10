@@ -99,6 +99,7 @@ import {
   type LgbtSettings,
   upsertUserProfile,
   upsertUserPrivateSettings,
+  updateDeviceLanguage,
   type DiscoveryCursor,
   type ProfileVerificationStatus
 } from "./src/firestore";
@@ -130,6 +131,7 @@ import { ModerationQueueModal, NotificationPreferencesModal } from "./src/releas
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
 import { LgbtSettingsPanel } from "./src/LgbtSettings";
 import { languageOptions, setLanguage, useLanguage } from "./src/i18n";
+import { distanceLimitLabel, formatDate, formatDistance, formatHeight, formatTime, getDeviceCountryCode, usesImperialDistance } from "./src/i18n/region";
 import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeBadge, ModeFilter, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
   defaultSparkReleaseConfig,
@@ -936,7 +938,7 @@ function degreesToRadians(value: number) {
 function getApproxDistanceLabel(userLocation: UserLocation | null, profile: MatchProfile) {
   const distanceKm = getDistanceKm(userLocation, profile);
   if (distanceKm === null) return [profile.city, profile.country].filter(Boolean).join(", ") || "Lokalizacja ukryta";
-  return Math.max(1, Math.round(distanceKm)) + " km";
+  return formatDistance(distanceKm);
 }
 
 function getDistanceKm(userLocation: UserLocation | null, profile: MatchProfile): number | null {
@@ -1006,7 +1008,7 @@ function scoreProfileMatch(params: {
   const reasons = [
     sharedIntentCount > 0 ? "wspólny cel: " + sharedIntents.join(" + ") : profileIntents[0] ? "cel profilu: " + profileIntents[0] : "otwarty profil",
     interestMatchPercent + "% zgodności zainteresowań",
-    distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : Math.max(1, Math.round(distanceKm)) + " km od Ciebie"
+    distanceKm === null ? [params.profile.city, params.profile.country].filter(Boolean).join(", ") || "lokalizacja ukryta" : formatDistance(distanceKm) + " od Ciebie"
   ];
   return { score, compatibilityScore, reasons, sharedInterests, interestMatchPercent, recommendationTier };
 }
@@ -1193,6 +1195,7 @@ function AppContent() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [userCity, setUserCity] = useState("");
   const [userCountry, setUserCountry] = useState("");
+  const [userCountryCode, setUserCountryCode] = useState(() => getDeviceCountryCode() ?? "");
   const [locationStatus, setLocationStatus] = useState<"idle" | "granted" | "denied">("idle");
   const [locationBusy, setLocationBusy] = useState(false);
   const [userAge, setUserAge] = useState(18);
@@ -1619,6 +1622,7 @@ function AppContent() {
             setUserAge(privateSettings?.birthDate ? calculateAge(privateSettings.birthDate) ?? profile.age ?? 18 : profile.age ?? 18);
             setUserCity(profile.city ?? "");
             setUserCountry(profile.country ?? "");
+            setUserCountryCode(typeof profile.countryCode === "string" && /^[A-Z]{2}$/.test(profile.countryCode) ? profile.countryCode : getDeviceCountryCode() ?? "");
             setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, targetGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent), requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly), lgbtOnly: profile.lgbtOnly === true }));
             setLgbt(profile.lgbt ?? null);
             lgbtSaved.current = profile.lgbt ?? null;
@@ -1715,6 +1719,7 @@ function AppContent() {
       setUserLocation(coordinates);
       setUserCity(place?.city || place?.subregion || place?.region || "");
       setUserCountry(place?.country || "");
+      if (place?.isoCountryCode && /^[A-Za-z]{2}$/.test(place.isoCountryCode)) setUserCountryCode(place.isoCountryCode.toUpperCase());
       return true;
     } catch {
       setLocationStatus("denied");
@@ -1731,6 +1736,13 @@ function AppContent() {
     if (!authDone || userLocation) return;
     void updateCurrentLocation(false);
   }, [authDone, userLocation]);
+
+  // Push texts are rendered server-side in the device's app language.
+  const appLanguage = useLanguage();
+  useEffect(() => {
+    if (!appUser?.uid) return;
+    void updateDeviceLanguage(appUser.uid).catch(() => undefined);
+  }, [appLanguage, appUser?.uid]);
 
   useEffect(() => {
     if (!authDone || !onboarded || !appUser) return;
@@ -2059,7 +2071,7 @@ function AppContent() {
               id: message.id,
               from: message.senderUid === appUser.uid ? "me" : "them",
               text: message.text,
-              time: message.createdAtMs ? new Date(message.createdAtMs).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "teraz"
+              time: message.createdAtMs ? formatTime(message.createdAtMs) : "teraz"
             }))
           }
         } : current);
@@ -2442,6 +2454,7 @@ function AppContent() {
         includeProfilesWithoutLocation: discoverFilters.includeProfilesWithoutLocation,
         city: userCity,
         country: userCountry,
+        ...(userCountryCode ? { countryCode: userCountryCode } : {}),
         location: getApproximatePublicLocation(userLocation),
         privateProfile: false,
         onboardingComplete: true,
@@ -2937,7 +2950,7 @@ function AppContent() {
       id: optimisticId,
       from: "me" as const,
       text: message,
-      time: new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })
+      time: formatTime(Date.now())
     };
     sendingMessageKeysRef.current.add(profileKey);
     setChatThreads((threads) => threads[profileKey] ? {
@@ -3557,6 +3570,8 @@ function AppContent() {
         events={activeEvents}
         availableEvents={sparkEvents}
         userCity={userCity}
+        userCountry={userCountry}
+        userCountryCode={userCountryCode || "PL"}
         expiredCount={expiredEventsCount}
         canManage={canManageSparkEvents}
         catalogLoading={sparkEventsLoading}
@@ -4836,7 +4851,8 @@ function DiscoveryPreferencesModal({
   const [draft, setDraft] = useState<DiscoverFilters>(() => ({ ...filters, targetInterests: [...filters.targetInterests], targetIntents: [...filters.targetIntents], targetGendersByIntent: normalizeGenderPreferences(filters.targetGendersByIntent) }));
   const [saving, setSaving] = useState(false);
   const activeFilters = countActiveDiscoverFilters(draft);
-  const distanceOptions = [25, 50, 100, 250, 500];
+  // Stored in km; imperial regions get round mile steps (10, 25, 50, 100 mi).
+  const distanceOptions = usesImperialDistance() ? [16, 40, 80, 161, 500] : [25, 50, 100, 250, 500];
 
   useEffect(() => {
     if (visible) {
@@ -4924,7 +4940,7 @@ function DiscoveryPreferencesModal({
                     const selected = draft.maxDistanceKm === distance;
                     return (
                       <Pressable key={distance} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => setDraft((current) => ({ ...current, maxDistanceKm: distance }))} style={[styles.fpChip, selected && styles.fpChipActive]}>
-                        <Text style={[styles.fpChipText, selected && styles.fpChipTextActive]}>{distance === 500 ? "Cały kraj" : `${distance} km`}</Text>
+                        <Text style={[styles.fpChipText, selected && styles.fpChipTextActive]}>{distance === 500 ? "Cały kraj" : distanceLimitLabel(distance)}</Text>
                       </Pressable>
                     );
                   })}
@@ -5130,7 +5146,7 @@ function ProfilePreviewSheet({
   }, [isOwnProfile, profile]);
 
   const genderLabel = genderOptions.find((option) => option.value === profile.gender)?.label;
-  const facts = [genderLabel, locationLabel || "Lokalizacja ukryta", secondaryDistance, profile.heightCm ? profile.heightCm + " cm" : null].filter(Boolean).join(" · ");
+  const facts = [genderLabel, locationLabel || "Lokalizacja ukryta", secondaryDistance, profile.heightCm ? formatHeight(profile.heightCm) : null].filter(Boolean).join(" · ");
   const orderedInterests = [...visibleInterests].sort((left, right) => Number(sharedInterests.includes(right)) - Number(sharedInterests.includes(left)));
   const hairline = StyleSheet.hairlineWidth;
   const infoRows: Array<{ key: string; icon: string; tint?: string; label: string; sub?: string; value?: string; onPress?: () => void }> = [];
@@ -5468,6 +5484,8 @@ function EventFriendsManagerModal({
   events,
   availableEvents,
   userCity,
+  userCountry = "",
+  userCountryCode = "PL",
   expiredCount,
   canManage,
   catalogLoading,
@@ -5499,6 +5517,8 @@ function EventFriendsManagerModal({
   events: SparkEvent[];
   availableEvents: SparkEvent[];
   userCity: string;
+  userCountry?: string;
+  userCountryCode?: string;
   expiredCount: number;
   canManage: boolean;
   catalogLoading: boolean;
@@ -5533,19 +5553,23 @@ function EventFriendsManagerModal({
   const createInFlight = useRef(false);
   const saveInFlight = useRef(false);
   const wasVisible = useRef(false);
-  // Odkrywaj shows the user's city first; "Cała Polska" widens it to every event.
+  // Odkrywaj shows the user's city first; the country scope widens it to every
+  // event in the user's country. Events from before country codes are Polish.
   const cityKey = searchKey(userCity.trim());
   const [scope, setScope] = useState<"city" | "country">("city");
   const effectiveScope = cityKey ? scope : "country";
+  const inUserCountry = (event: SparkEvent) => (eventDetails[event.id]?.countryCode ?? "PL") === userCountryCode;
+  const countryEvents = availableEvents.filter(inUserCountry);
+  const countryLabel = userCountry.trim() || "Cały kraj";
   const inUserCity = (event: SparkEvent) => {
     const eventCityKey = searchKey(event.city);
     if (!cityKey || !eventCityKey) return false;
     return eventCityKey === cityKey || (Math.min(eventCityKey.length, cityKey.length) >= 4 && (eventCityKey.includes(cityKey) || cityKey.includes(eventCityKey)));
   };
-  const cityEventCount = availableEvents.filter(inUserCity).length;
+  const cityEventCount = countryEvents.filter(inUserCity).length;
   const visibleEvents = availableEvents
     .filter((event) => (view !== "mine" || draftEvents.some((item) => item.id === event.id))
-      && (view !== "discover" || effectiveScope === "country" || inUserCity(event))
+      && (view !== "discover" || (inUserCountry(event) && (effectiveScope === "country" || inUserCity(event))))
       && searchKey(`${event.name} ${event.city} ${eventDetails[event.id]?.venue ?? ""}`).includes(searchKey(query)))
     .sort((a, b) => Number(inUserCity(b)) - Number(inUserCity(a)));
   const local = StyleSheet.create({
@@ -5675,7 +5699,9 @@ function EventFriendsManagerModal({
     }
     createInFlight.current = true; setCreating(true); setFormError(null);
     try {
-      const details: EventDetails = { venue, description };
+      // New events belong to the author's country; the catalog and push
+      // announcements are scoped by it.
+      const details: EventDetails = { venue, description, countryCode: editingProposal?.details.countryCode ?? userCountryCode };
       const created = editingProposal
         ? await onReviewProposal(editingProposal, "approved", event, details)
         : canManage ? await onCreate(event, details) : await onPropose(event, details);
@@ -5807,14 +5833,14 @@ function EventFriendsManagerModal({
           <Text style={local.sectionTitle}>{view === "mine" ? "Twój udział" : "Aktualne wydarzenia"}</Text>
           {view === "discover" && (cityKey ? (
             <View style={local.segment}>
-              {([["city", `${userCity.trim()} (${cityEventCount})`], ["country", `Cała Polska (${availableEvents.length})`]] as const).map(([key, label]) => (
+              {([["city", `${userCity.trim()} (${cityEventCount})`], ["country", `${countryLabel} (${countryEvents.length})`]] as const).map(([key, label]) => (
                 <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: effectiveScope === key }} onPress={() => setScope(key)} style={[local.segmentButton, effectiveScope === key && local.segmentActive]}>
                   <Text style={[local.segmentText, effectiveScope === key && local.segmentTextActive]} numberOfLines={1}>{label}</Text>
                 </Pressable>
               ))}
             </View>
           ) : (
-            <Text style={local.intro}>Pokazujemy wydarzenia z całej Polski. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.</Text>
+            <Text style={local.intro}>Pokazujemy wydarzenia z całego kraju. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.</Text>
           ))}
           <TextInput accessibilityLabel="Szukaj wydarzenia lub miasta" value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
           {!!query && <Pressable accessibilityRole="button" onPress={() => setQuery("")} style={local.proposalButton}><Text style={local.proposalButtonText}>Wyczyść wyszukiwanie</Text></Pressable>}
@@ -5826,11 +5852,11 @@ function EventFriendsManagerModal({
             <View style={local.emptyWrap}>
               <EventEmptyAnimation />
               <Text style={local.emptyTitle}>{query ? "Nie ma takich wydarzeń" : view === "mine" ? "Jeszcze bez planów?" : effectiveScope === "city" ? `Brak wydarzeń: ${userCity.trim()}` : "Brak aktualnych wydarzeń"}</Text>
-              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : effectiveScope === "city" ? "Zobacz wydarzenia w całej Polsce albo dodaj własne." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
-              {view === "discover" && effectiveScope === "city" && availableEvents.length > 0 && (
+              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : effectiveScope === "city" ? "Zobacz wydarzenia w całym kraju albo dodaj własne." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
+              {view === "discover" && effectiveScope === "city" && countryEvents.length > 0 && (
                 <Pressable accessibilityRole="button" onPress={() => setScope("country")} style={[local.proposalButton, { paddingHorizontal: 16, marginTop: 12, flex: 0, minHeight: 44 }]}>
                   <MaterialCommunityIcons name="map-outline" size={17} color={colors.ink} />
-                  <Text style={local.proposalButtonText}>Pokaż całą Polskę</Text>
+                  <Text style={local.proposalButtonText}>Pokaż cały kraj</Text>
                 </Pressable>
               )}
             </View>
@@ -5899,7 +5925,7 @@ function EventFriendsManagerModal({
               </View>}
               <Text style={local.fieldLabel}>Nazwa wydarzenia</Text>
               <TextInput accessibilityLabel="Nazwa wydarzenia" value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
-              <EventCityField value={city} onChange={(value) => { setCity(value); setFormError(null); }} />
+              <EventCityField value={city} countryCode={editingProposal?.details.countryCode ?? userCountryCode} extraCities={[userCity, ...availableEvents.filter((item) => (eventDetails[item.id]?.countryCode ?? "PL") === userCountryCode).map((item) => item.city)]} onChange={(value) => { setCity(value); setFormError(null); }} />
               <Text style={local.fieldLabel}>Miejsce (opcjonalnie)</Text>
               <TextInput accessibilityLabel="Miejsce wydarzenia" value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Opis (opcjonalnie)</Text>
@@ -6471,7 +6497,7 @@ function MessagesScreen({
       const isBlocked = thread?.status === "blocked";
       const latestMessage = thread?.messages[thread.messages.length - 1];
       const latestMessageText = latestMessage?.text ?? thread?.lastMessageText;
-      const latestMessageTime = latestMessage?.time ?? (thread?.lastMessageAtMs ? new Date(thread.lastMessageAtMs).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : undefined);
+      const latestMessageTime = latestMessage?.time ?? (thread?.lastMessageAtMs ? formatTime(thread.lastMessageAtMs) : undefined);
       const unreadCount = Math.max(0, thread?.unreadCount ?? 0);
 
       return {
@@ -7137,7 +7163,7 @@ function formatProfileViewTime(timestamp: number | null | undefined) {
   if (hours < 24) return String(hours) + ' godz. temu';
   const days = Math.floor(hours / 24);
   if (days < 7) return String(days) + ' dni temu';
-  return new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "short" }).format(new Date(timestamp));
+  return formatDate(timestamp);
 }
 
 function createProfileViewerStyles(colors: Palette) {
@@ -8918,16 +8944,21 @@ function DevEventPreview({ themeName }: { themeName: string | null }) {
       make("dev-mata", "Koncert Maty", "Warszawa", "music", "microphone-variant"),
       make("dev-kino", "Maraton filmowy", "Kraków", "cinema", "movie-open-outline"),
       make("dev-plansz", "Planszówki w Hali Koszyki", "Warszawa", "games", "dice-multiple"),
-      make("dev-mecz", "Lech – Legia", "Poznań", "sport", "soccer")
+      make("dev-mecz", "Lech – Legia", "Poznań", "sport", "soccer"),
+      make("dev-nyc-show", "Brooklyn Rooftop Show", "New York", "music", "music-note"),
+      make("dev-nyc-game", "Knicks Watch Party", "New York", "sport", "stadium-outline"),
+      make("dev-la-film", "Hollywood Movie Night", "Los Angeles", "cinema", "popcorn")
     ];
   });
+  const previewCountryCode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("country") ?? "PL" : "PL";
+  const previewDetails: Record<string, EventDetails> = { "dev-nyc-show": { countryCode: "US", venue: "Williamsburg" }, "dev-nyc-game": { countryCode: "US" }, "dev-la-film": { countryCode: "US" } };
   const [selected, setSelected] = useState<SparkEvent[]>([]);
   const [proposals, setProposals] = useState<EventProposal[]>([]);
   const failNextSave = useRef(typeof window !== "undefined" && new URLSearchParams(window.location.search).has("failOnce"));
   useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
   return <View style={{ flex: 1, backgroundColor: theme.palette.background, paddingTop: 40 }}>
     <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: theme.palette.ink }}>Otwórz wydarzenia</Text></Pressable>
-    <EventFriendsManagerModal visible={open} events={selected} availableEvents={events} userCity={previewCity} expiredCount={0} canManage={false} catalogLoading={false} catalogError={null} eventDetails={{}} proposals={proposals} proposalsLoading={false} proposalsError={null} onReloadCatalog={() => undefined} onReloadProposals={() => undefined} onClose={() => setOpen(false)} onSave={async (next) => { setSelected(next); return true; }} onCreate={async (event) => { setEvents((current) => [...current, event]); return true; }} onDelete={async (event) => { setEvents((current) => current.filter((item) => item.id !== event.id)); return true; }} onPropose={async (event, details) => {
+    <EventFriendsManagerModal visible={open} events={selected} availableEvents={events} userCity={previewCity} userCountry={previewCountryCode === "US" ? "United States" : "Polska"} userCountryCode={previewCountryCode} expiredCount={0} canManage={false} catalogLoading={false} catalogError={null} eventDetails={previewDetails} proposals={proposals} proposalsLoading={false} proposalsError={null} onReloadCatalog={() => undefined} onReloadProposals={() => undefined} onClose={() => setOpen(false)} onSave={async (next) => { setSelected(next); return true; }} onCreate={async (event) => { setEvents((current) => [...current, event]); return true; }} onDelete={async (event) => { setEvents((current) => current.filter((item) => item.id !== event.id)); return true; }} onPropose={async (event, details) => {
       if (failNextSave.current) { failNextSave.current = false; return false; }
       setProposals((current) => [...current, { id: event.id, event, details, status: "pending", createdByUid: "preview", createdAtMs: Date.now(), reviewedAtMs: null }]);
       return true;

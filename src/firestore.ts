@@ -25,18 +25,21 @@ export type MatchModeContext = "romantic" | "friends" | "event";
 const matchModeContexts: MatchModeContext[] = ["romantic", "friends", "event"];
 
 /** Optional catalog extras: where exactly and a few words about it. */
-export type EventDetails = { venue?: string; description?: string };
+export type EventDetails = { venue?: string; description?: string; countryCode?: string };
 
 function cleanEventDetails(value: unknown): EventDetails {
   const source = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
   const venue = typeof source.venue === "string" ? source.venue.replace(/\s+/g, " ").trim().slice(0, 120) : "";
   const description = typeof source.description === "string" ? source.description.trim().slice(0, 500) : "";
-  return { ...(venue ? { venue } : {}), ...(description ? { description } : {}) };
+  const countryCode = typeof source.countryCode === "string" && /^[A-Z]{2}$/.test(source.countryCode) ? source.countryCode : "";
+  return { ...(venue ? { venue } : {}), ...(description ? { description } : {}), ...(countryCode ? { countryCode } : {}) };
 }
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
 import { isSparkOwnerAccount } from "./access";
+import { getLanguage } from "./i18n";
+import { getDeviceCountryCode } from "./i18n/region";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
 import { recordSparkError } from "./telemetry";
 import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
@@ -72,6 +75,8 @@ export type UserProfileDocument = {
   lastLoginAt?: unknown;
   city?: string;
   country?: string;
+  /** ISO 3166 alpha-2, from location or the phone region. */
+  countryCode?: string;
   desiredAgeMin?: number;
   desiredAgeMax?: number;
   maxDistanceKm?: number;
@@ -409,10 +414,24 @@ export async function registerDevicePushToken(uid: string, token: string, platfo
       platform,
       enabled: true,
       notificationPreferences: normalized,
+      // Push texts are rendered server-side in this language; event
+      // announcements go only to devices in the event's country.
+      language: getLanguage(),
+      ...(getDeviceCountryCode() ? { countryCode: getDeviceCountryCode() } : {}),
       updatedAt: serverTimestamp()
     },
     { merge: true }
   );
+}
+
+/** Keep push texts in the language the person switched the app to. */
+export async function updateDeviceLanguage(uid: string) {
+  requireCurrentUserUid(uid);
+  const devices = await getDocs(collection(requireDb(), "users", uid, "devices"));
+  const language = getLanguage();
+  await Promise.all(devices.docs
+    .filter((device) => device.data().language !== language)
+    .map((device) => updateDoc(device.ref, { language, updatedAt: serverTimestamp() })));
 }
 
 /**
@@ -487,7 +506,7 @@ export function observeSparkEvents(
   onChange: (events: SparkEvent[], details: Record<string, EventDetails>) => void,
   onError: (error: Error) => void
 ) {
-  const eventsQuery = query(collection(requireDb(), "sparkEvents"), orderBy("startsAt", "asc"), limit(50));
+  const eventsQuery = query(collection(requireDb(), "sparkEvents"), orderBy("startsAt", "asc"), limit(150));
   return onSnapshot(
     eventsQuery,
     (snapshot) => onChange(

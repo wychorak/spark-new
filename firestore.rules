@@ -134,7 +134,8 @@ service cloud.firestore {
     // Optional extras shown in the catalog (never copied into profiles).
     function validEventDetails(details) {
       return details is map
-        && details.keys().hasOnly(['venue', 'description'])
+        && details.keys().hasOnly(['venue', 'description', 'countryCode'])
+        && (!('countryCode' in details) || (details.countryCode is string && details.countryCode.matches('^[A-Z]{2}$')))
         && (!('venue' in details) || (details.venue is string && details.venue.size() <= 120 && allowedUserText(details.venue)))
         && (!('description' in details) || (details.description is string && details.description.size() <= 500 && allowedUserText(details.description)));
     }
@@ -398,7 +399,9 @@ service cloud.firestore {
       match /devices/{deviceId} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)
-          && request.resource.data.keys().hasOnly(['token', 'platform', 'enabled', 'notificationPreferences', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['token', 'platform', 'enabled', 'notificationPreferences', 'language', 'countryCode', 'updatedAt'])
+          && (!('language' in request.resource.data) || request.resource.data.language in ['pl', 'en', 'de', 'uk', 'es'])
+          && (!('countryCode' in request.resource.data) || (request.resource.data.countryCode is string && request.resource.data.countryCode.matches('^[A-Z]{2}$')))
           && request.resource.data.token is string
           && request.resource.data.token.size() >= 20
           && request.resource.data.token.size() <= 250
@@ -451,8 +454,9 @@ service cloud.firestore {
       allow create: if isEventAdmin()
         && request.resource.data.keys().hasOnly([
           'id', 'category', 'name', 'city', 'date', 'kind', 'icon', 'startsAt', 'endsAt',
-          'venue', 'description', 'createdByUid', 'deleteAt', 'createdAt', 'updatedAt'
+          'venue', 'description', 'countryCode', 'createdByUid', 'deleteAt', 'createdAt', 'updatedAt'
         ])
+        && (!('countryCode' in request.resource.data) || (request.resource.data.countryCode is string && request.resource.data.countryCode.matches('^[A-Z]{2}$')))
         && validEventFields(request.resource.data)
         && (!('venue' in request.resource.data) || validEventDetails({ 'venue': request.resource.data.venue }))
         && (!('description' in request.resource.data) || validEventDetails({ 'description': request.resource.data.description }))
