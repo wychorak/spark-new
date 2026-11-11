@@ -62,7 +62,7 @@ check(app.ios?.infoPlist?.NSPhotoLibraryUsageDescription?.length > 20, 'iOS phot
 check(app.ios?.infoPlist?.NSLocationWhenInUseUsageDescription?.length > 20, 'iOS location usage description is missing.');
 check(app.ios?.infoPlist?.NSMotionUsageDescription?.length > 20, 'iOS motion usage description is missing.');
 check(!appConfigSource.includes('delete plist.NSMotionUsageDescription'), 'iOS config must preserve the motion usage description.');
-check(app.ios.infoPlist.NSLocationWhenInUseUsageDescription.includes('u\u017cywa') && app.ios.infoPlist.NSPhotoLibraryUsageDescription.includes('zdj\u0119'), 'iOS permission descriptions contain broken Polish text.');
+check(app.ios.infoPlist.NSLocationWhenInUseUsageDescription.includes('approximate distance') && app.ios.infoPlist.NSPhotoLibraryUsageDescription.includes('photos') && ['en', 'pl', 'de', 'uk', 'es'].every((language) => { const strings = JSON.parse(read('locales/' + language + '.json')); return app.locales[language] === './locales/' + language + '.json' && ['NSLocationWhenInUseUsageDescription', 'NSPhotoLibraryUsageDescription', 'NSMotionUsageDescription'].every((key) => typeof strings[key] === 'string' && strings[key].length > 20); }) && JSON.parse(read('locales/pl.json')).NSLocationWhenInUseUsageDescription.includes('używa'), 'iOS permission descriptions must be English by default and localized for every app language.');
 check(app.ios?.privacyManifests?.NSPrivacyTracking === false, 'iOS privacy manifest must declare tracking disabled.');
 check(Array.isArray(app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes), 'iOS collected-data privacy manifest is missing.');
 const privacyTypes = app.ios?.privacyManifests?.NSPrivacyCollectedDataTypes?.map((item) => item.NSPrivacyCollectedDataType) ?? [];
@@ -206,6 +206,13 @@ check(appSource.includes('getSharedInterestInsights') && appSource.includes('for
 check(appSource.includes('compatibilityInterestScore') && appSource.includes('visibilityBoostScore') && appSource.includes('profile.compatibilityScore ?? interestMatchPercent'), 'Visible compatibility must stay separate from paid feed visibility and rotation ranking.');
 check(functionsSource.includes('syncProfileVerification = onCall') && functionsSource.includes('provider.providerId === "google.com" || provider.providerId === "apple.com"') && firestoreSource.includes('"syncProfileVerification"'), 'Verified profile status must come from a trusted Google or Apple Firebase provider.');
 check(rulesSource.includes("'isVerified'") && rulesSource.includes("request.resource.data.get('isVerified', false) == resource.data.get('isVerified', false)") && firestoreSource.includes('isVerified: existingData.isVerified === true'), 'Clients must not be able to forge the verified-profile badge.');
+
+// On the CI build machine (Codemagic) the store build must carry the production
+// RevenueCat key: without it the paywall cannot load products and review fails.
+if (process.env.CM_BUILD_ID) {
+  const revenueCatKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || '';
+  check(revenueCatKey.startsWith('appl_'), 'EXPO_PUBLIC_REVENUECAT_API_KEY (appl_...) is missing from the Codemagic "spark keys" group.');
+}
 
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);

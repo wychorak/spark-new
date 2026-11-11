@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Spark",
+  "NSLocationWhenInUseUsageDescription": "Spark використовує геолокацію, щоб показувати приблизну відстань до профілів поруч.",
+  "NSPhotoLibraryUsageDescription": "Spark дає змогу вибрати фото, які ти хочеш додати до свого профілю.",
+  "NSMotionUsageDescription": "Spark використовує дані про рух пристрою для жестів і плавної анімації карток профілів."
+}

@@ -540,7 +540,17 @@ service cloud.firestore {
         && request.resource.data.get('lastMessageSenderUid', null) == null
         && request.resource.data.get('lastMessageText', null) == null
         && validMatchCreation(request.resource.data, matchId);
-      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+      // The app looks a thread up before creating it, so a member must be able to
+      // read a match that does not exist yet. Only ids built from the reader's own
+      // uid qualify: nobody can probe whether two other people matched.
+      allow get: if signedIn() && (
+        resource == null
+          ? (matchId.size() > request.auth.uid.size()
+              && (matchId[0:request.auth.uid.size() + 1] == request.auth.uid + '_'
+                || matchId[matchId.size() - request.auth.uid.size() - 1:matchId.size()] == '_' + request.auth.uid))
+          : request.auth.uid in resource.data.memberUids
+      );
+      allow list: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow update: if signedIn()
         && request.auth.uid in resource.data.memberUids
         && validMatch(request.resource.data)

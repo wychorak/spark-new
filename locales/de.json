@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Spark",
+  "NSLocationWhenInUseUsageDescription": "Spark verwendet deinen Standort, um die ungefähre Entfernung zu Profilen in deiner Nähe anzuzeigen.",
+  "NSPhotoLibraryUsageDescription": "Mit Spark kannst du die Fotos auswählen, die du zu deinem Profil hinzufügen möchtest.",
+  "NSMotionUsageDescription": "Spark verwendet Bewegungsdaten des Geräts für Gesten und flüssige Animationen der Profilkarten."
+}

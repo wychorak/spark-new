@@ -130,7 +130,7 @@ import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
 import { LgbtSettingsPanel } from "./src/LgbtSettings";
-import { languageOptions, setLanguage, useLanguage } from "./src/i18n";
+import { getLanguage, languageOptions, setLanguage, useLanguage } from "./src/i18n";
 import { distanceLimitLabel, formatDate, formatDistance, formatHeight, formatTime, getDeviceCountryCode, usesImperialDistance } from "./src/i18n/region";
 import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeBadge, ModeFilter, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
@@ -199,7 +199,12 @@ function openLegalDocument(title: string, url: string, envName: string) {
     return;
   }
 
-  WebBrowser.openBrowserAsync(url).catch(() => {
+  // The legal site has Polish pages at the root and English ones under /en/.
+  const legalOrigin = "https://spark-new-legal.vercel.app/";
+  const localizedUrl = getLanguage() !== "pl" && url.startsWith(legalOrigin) && !url.startsWith(legalOrigin + "en/")
+    ? legalOrigin + "en/" + url.slice(legalOrigin.length)
+    : url;
+  WebBrowser.openBrowserAsync(localizedUrl).catch(() => {
     Alert.alert(title, `Nie można otworzyć dokumentu. Kontakt: ${supportEmail}`);
   });
 }

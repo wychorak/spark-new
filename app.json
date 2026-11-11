@@ -2,7 +2,7 @@
   "expo": {
     "name": "Spark",
     "slug": "sparknew",
-    "version": "0.1.1",
+    "version": "1.0",
     "orientation": "portrait",
     "icon": "./assets/app-icon.png",
     "scheme": [
@@ -10,15 +10,24 @@
       "rc-c14d769c6c"
     ],
     "userInterfaceStyle": "automatic",
+    "locales": {
+      "en": "./locales/en.json",
+      "pl": "./locales/pl.json",
+      "de": "./locales/de.json",
+      "uk": "./locales/uk.json",
+      "es": "./locales/es.json"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.sparknew.connect",
       "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Spark używa lokalizacji, aby pokazywać przybliżoną odległość do profili w pobliżu.",
-        "NSPhotoLibraryUsageDescription": "Spark umożliwia wybranie zdjęć, które chcesz dodać do swojego profilu.",
-        "NSMotionUsageDescription": "Spark używa danych ruchu urządzenia do obsługi gestów i płynnych animacji kart profili."
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleAllowMixedLocalizations": true,
+        "NSLocationWhenInUseUsageDescription": "Spark uses your location to show the approximate distance to profiles near you.",
+        "NSPhotoLibraryUsageDescription": "Spark lets you choose the photos you want to add to your profile.",
+        "NSMotionUsageDescription": "Spark uses device motion for gestures and smooth profile card animations."
       },
       "googleServicesFile": "./GoogleService-Info.plist",
       "privacyManifests": {
@@ -200,13 +209,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Spark używa lokalizacji, aby pokazywać przybliżoną odległość do profili w pobliżu."
+          "locationWhenInUsePermission": "Spark uses your location to show the approximate distance to profiles near you."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Spark używa wybranych przez Ciebie zdjęć do utworzenia profilu.",
+          "photosPermission": "Spark lets you choose the photos you want to add to your profile.",
           "cameraPermission": false,
           "microphonePermission": false
         }
