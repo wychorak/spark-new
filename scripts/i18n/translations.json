@@ -3881,6 +3881,12 @@
   "uk": "Профіль",
   "es": "Perfil"
  },
+ "Profil Collab": {
+  "en": "Collab profile",
+  "de": "Collab-Profil",
+  "uk": "Профіль Collab",
+  "es": "Perfil Collab"
+ },
  "Profil możesz zgłosić lub zablokować z jego karty albo z rozmowy. Blokada od razu ukrywa profil i przerywa kontakt.": {
   "en": "You can report or block a profile from its card or from a chat. Blocking hides the profile immediately and ends contact.",
   "de": "Du kannst ein Profil über seine Karte oder aus dem Chat melden oder blockieren. Blockieren verbirgt das Profil sofort und beendet den Kontakt.",

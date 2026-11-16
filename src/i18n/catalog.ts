@@ -649,6 +649,7 @@ export const catalog: Record<string, ReadonlyArray<string | null>> = {
   "Producent muzyczny": ["Music producer", "Musikproduzent/in", "Музичний продюсер", "Productor musical"],
   "Product manager": ["Product manager", "Produktmanager/in", "Продакт-менеджер", "Product manager"],
   "Profil": ["Profile", "Profil", "Профіль", "Perfil"],
+  "Profil Collab": ["Collab profile", "Collab-Profil", "Профіль Collab", "Perfil Collab"],
   "Profil możesz zgłosić lub zablokować z jego karty albo z rozmowy. Blokada od razu ukrywa profil i przerywa kontakt.": ["You can report or block a profile from its card or from a chat. Blocking hides the profile immediately and ends contact.", "Du kannst ein Profil über seine Karte oder aus dem Chat melden oder blockieren. Blockieren verbirgt das Profil sofort und beendet den Kontakt.", "Профіль можна поскаржити або заблокувати з його картки чи з розмови. Блокування одразу приховує профіль і припиняє контакт.", "Puedes denunciar o bloquear un perfil desde su tarjeta o desde la conversación. El bloqueo oculta el perfil al instante y corta el contacto."],
   "Profil musi mieć co najmniej jedno zdjęcie.": ["Your profile needs at least one photo.", "Dein Profil braucht mindestens ein Foto.", "Профіль має містити щонайменше одне фото.", "El perfil debe tener al menos una foto."],
   "Profil niedostępny": ["Profile unavailable", "Profil nicht verfügbar", "Профіль недоступний", "Perfil no disponible"],

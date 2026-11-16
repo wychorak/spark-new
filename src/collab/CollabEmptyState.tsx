@@ -5,10 +5,9 @@ import { Text } from "../i18n/Text";
 import { palettes, useThemeState, type Palette } from "../theme";
 import { collabLabel } from "../collab";
 
-/** Collab feed with nobody to show: not set up yet, loading, error or no match. */
-export function CollabEmptyState({ modeSwitch, screenMinHeight, ready, looking, loading, error, onEdit, onRetry }: {
-  modeSwitch: React.ReactNode;
-  screenMinHeight: number;
+/** Body of the Collab feed with nobody to show: not set up, loading, error or no match.
+ *  Rendered inside the standard empty Discover screen, so the header and menu stay. */
+export function CollabEmptyState({ ready, looking, loading, error, onEdit, onRetry }: {
   ready: boolean;
   looking: string[];
   loading: boolean;
@@ -25,8 +24,7 @@ export function CollabEmptyState({ modeSwitch, screenMinHeight, ready, looking, 
     : loading ? "" : error ? error
       : "Nikt w okolicy nie oferuje teraz tego, czego szukasz. Dodaj więcej rzeczy w „Kogo szukasz” albo włącz współpracę zdalną.";
   return (
-    <View style={[styles.root, { minHeight: screenMinHeight }]}>
-      {modeSwitch}
+    <View style={styles.root}>
       <View style={styles.card}>
         <View style={styles.icon}>
           {loading && ready ? <ActivityIndicator color={c.collab} /> : <MaterialCommunityIcons name="handshake-outline" size={34} color={c.collab} />}
@@ -51,7 +49,7 @@ export function CollabEmptyState({ modeSwitch, screenMinHeight, ready, looking, 
 
 function createStyles(c: Palette) {
   return StyleSheet.create({
-    root: { gap: 16 },
+    root: { flex: 1, justifyContent: "center", paddingTop: 12 },
     card: { alignItems: "center", gap: 12, padding: 24, borderRadius: 24, backgroundColor: c.fill, borderWidth: 1, borderColor: c.fillStrong },
     icon: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", backgroundColor: c.surfaceStrong },
     title: { color: c.ink, fontSize: 20, fontWeight: "900", textAlign: "center" },

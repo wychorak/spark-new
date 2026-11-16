@@ -97,8 +97,16 @@ export const ModeSwitch = memo(function ModeSwitch({ mode, onChange }: { mode: D
             onPress={() => onChange(item.id)}
             style={styles.switchItem}
           >
-            <MaterialCommunityIcons name={item.icon as any} size={15} color={active ? palette.onPrimary : palette.muted} />
-            <Text style={[styles.switchText, active && styles.switchTextActive]} numberOfLines={1}>{item.label}</Text>
+            <MaterialCommunityIcons name={item.icon as any} size={16} color={active ? palette.onPrimary : palette.muted} />
+            <Text
+              style={[styles.switchText, active && styles.switchTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              maxFontSizeMultiplier={1.2}
+            >
+              {item.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -471,8 +479,9 @@ function createStyles(c: Palette) {
       borderWidth: 1, borderColor: c.glassBorder
     },
     switchIndicator: { position: "absolute", top: 3, left: 3, bottom: 3, borderRadius: 19 },
-    switchItem: { flex: 1, minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 4 },
-    switchText: { color: c.muted, fontSize: 14, fontWeight: "700", letterSpacing: 0.1 },
+    // Icon above the label: four modes fit on a 320 pt phone without truncation.
+    switchItem: { flex: 1, minHeight: 46, alignItems: "center", justifyContent: "center", gap: 2, paddingHorizontal: 2, paddingVertical: 4 },
+    switchText: { color: c.muted, fontSize: 12, fontWeight: "800", letterSpacing: 0.1, textAlign: "center" },
     switchTextActive: { color: c.onPrimary },
 
     eventStrip: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 30 },

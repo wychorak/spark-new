@@ -3523,6 +3523,7 @@ function AppContent() {
             }}
             onBackToPeople={() => setDiscoverMode("people")}
             onManageEvents={() => setEventManagerOpen(true)}
+            onEditCollab={() => setCollabEditorOpen(true)}
             onChromeHiddenChange={setBottomNavHidden}
             sponsored={sponsoredCard === "idle" ? null : (
               <SponsoredDeckCard
@@ -3547,15 +3548,41 @@ function AppContent() {
           />
         )}
         {tab === "discover" && !activeProfile && discoverMode === "collab" && (
-          <CollabEmptyState
+          <DiscoverEmptyState
             modeSwitch={discoverModeSwitch}
             screenMinHeight={discoverMinHeight}
-            ready={collabReady}
-            looking={collabProfile.looking}
+            activeEventCount={activeEvents.length}
+            feedExpansionLevel={0}
+            likedCount={0}
             loading={collabProfilesLoading}
             error={collabProfilesError}
-            onEdit={() => setCollabEditorOpen(true)}
-            onRetry={() => setCollabReloadKey((value) => value + 1)}
+            onRefresh={() => setCollabReloadKey((value) => value + 1)}
+            onOpenMatches={() => setTab("matches")}
+            onOpenMessages={() => setTab("messages")}
+            messageNotificationCount={messageAttentionCount}
+            onOpenProfile={() => setTab("profile")}
+            onOpenPremium={openPremium}
+            onOpenSafety={() => setTab("safety")}
+            onSignOut={confirmSignOut}
+            onInvite={() => { void shareSparkInvite(); }}
+            discoverFilters={discoverFilters}
+            onSavePreferences={saveDiscoveryPreferences}
+            onOpenEventFriends={() => {
+              if (activeEvents.length === 0) setEventManagerOpen(true);
+              else setDiscoverMode("events");
+            }}
+            onChromeHiddenChange={setBottomNavHidden}
+            headerActions={[{ icon: "account-edit-outline", label: "Profil Collab", onPress: () => setCollabEditorOpen(true) }]}
+            body={
+              <CollabEmptyState
+                ready={collabReady}
+                looking={collabProfile.looking}
+                loading={collabProfilesLoading}
+                error={collabProfilesError}
+                onEdit={() => setCollabEditorOpen(true)}
+                onRetry={() => setCollabReloadKey((value) => value + 1)}
+              />
+            }
           />
         )}
         {tab === "discover" && !activeProfile && discoverMode === "people" && (
@@ -4416,8 +4443,10 @@ function DiscoverScreen({
   onBackToPeople,
   onManageEvents,
   onChromeHiddenChange,
-  sponsored
+  sponsored,
+  onEditCollab
 }: {
+  onEditCollab?: () => void;
   sponsored?: React.ReactNode;
   modeSwitch: React.ReactNode;
   deckMode: DeckMode;
@@ -4643,7 +4672,7 @@ function DiscoverScreen({
         left={mode === "events"
           ? { icon: "chevron-left", label: "Wróć do osób", onPress: onBackToPeople }
           : { icon: "menu", label: "Menu", onPress: () => setMenuOpen(true), dot: messageNotificationCount > 0 }}
-        actions={mode === "events" ? [{ icon: "calendar-edit", label: "Twoje wydarzenia", onPress: onManageEvents }] : []}
+        actions={mode === "events" ? [{ icon: "calendar-edit", label: "Twoje wydarzenia", onPress: onManageEvents }] : mode === "collab" && onEditCollab ? [{ icon: "account-edit-outline", label: "Profil Collab", onPress: onEditCollab }] : []}
         onFilters={mode === "events" ? undefined : () => setPreferencesOpen(true)}
         filtersActive={countActiveDiscoverFilters(discoverFilters) > 0}
       />
@@ -6221,8 +6250,13 @@ function DiscoverEmptyState({
   discoverFilters,
   onSavePreferences,
   onOpenEventFriends,
-  onChromeHiddenChange
+  onChromeHiddenChange,
+  body,
+  headerActions
 }: {
+  /** Replaces the default "nobody left" body (used by Collab). */
+  body?: React.ReactNode;
+  headerActions?: { icon: string; label: string; onPress: () => void }[];
   screenMinHeight: number;
   activeEventCount: number;
   feedExpansionLevel: number;
@@ -6257,9 +6291,9 @@ function DiscoverEmptyState({
 
   return (
     <View style={[styles.discoverScreen, styles.discoverEmptyScreen, { minHeight: screenMinHeight }]}>
-      <DiscoverHeader left={{ icon: "menu", label: "Menu", onPress: () => setMenuOpen(true), dot: messageNotificationCount > 0 }} onFilters={() => setPreferencesOpen(true)} filtersActive={countActiveDiscoverFilters(discoverFilters) > 0} />
+      <DiscoverHeader left={{ icon: "menu", label: "Menu", onPress: () => setMenuOpen(true), dot: messageNotificationCount > 0 }} actions={headerActions} onFilters={() => setPreferencesOpen(true)} filtersActive={countActiveDiscoverFilters(discoverFilters) > 0} />
       {modeSwitch}
-      <View style={styles.discoverEmptyBody}>
+      {body ?? <View style={styles.discoverEmptyBody}>
         <View style={styles.discoverEmptyIcon}>
           {loading ? <ActivityIndicator color={colors.primary} size="large" /> : <MaterialCommunityIcons name="cards-heart-outline" size={38} color={colors.primary} />}
         </View>
@@ -6284,7 +6318,7 @@ function DiscoverEmptyState({
             </Pressable>
           </>
         )}
-      </View>
+      </View>}
 
       <DiscoveryMenuModal
         visible={menuOpen}
@@ -9161,7 +9195,8 @@ function DevCollabPreview({ themeName }: { themeName: string | null }) {
   useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
   return <View style={{ flex: 1, backgroundColor: theme.palette.background, paddingTop: 40 }}>
     <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: theme.palette.ink }}>Otwórz Collab</Text></Pressable>
-    <CollabEmptyState modeSwitch={<ModeSwitch mode="collab" onChange={() => undefined} />} screenMinHeight={500} ready={isCollabReady(value)} looking={value.looking} loading={false} error={null} onEdit={() => setOpen(true)} onRetry={() => undefined} />
+    <ModeSwitch mode="collab" onChange={() => undefined} />
+    <CollabEmptyState ready={isCollabReady(value)} looking={value.looking} loading={false} error={null} onEdit={() => setOpen(true)} onRetry={() => undefined} />
     <CollabEditorModal visible={open} value={value} onClose={() => setOpen(false)} onSave={async (next) => { setValue(next); return true; }} />
   </View>;
 }
