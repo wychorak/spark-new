@@ -100,6 +100,8 @@ import {
   upsertUserProfile,
   upsertUserPrivateSettings,
   updateDeviceLanguage,
+  updateUserCollab,
+  findProfilesByCollabSkills,
   type DiscoveryCursor,
   type ProfileVerificationStatus
 } from "./src/firestore";
@@ -130,7 +132,13 @@ import { registerPositiveMatchForReview } from "./src/store-review";
 import { ModerationQueueModal, NotificationPreferencesModal } from "./src/release-settings";
 import { ThemeProvider, palettes, useThemeState, type Palette } from "./src/theme";
 import { LgbtSettingsPanel } from "./src/LgbtSettings";
-import { getLanguage, languageOptions, setLanguage, useLanguage } from "./src/i18n";
+import { collabFit, collabLabel, isCollabReady, normalizeCollabProfile, type CollabFit, type CollabProfile } from "./src/collab";
+import { CollabEditorModal } from "./src/collab/CollabEditor";
+import { CollabEmptyState } from "./src/collab/CollabEmptyState";
+
+/** Skill label in the app language; lists are joined after translating each label. */
+const collabText = (id: string) => tr(collabLabel(id));
+import { getLanguage, languageOptions, setLanguage, tr, useLanguage } from "./src/i18n";
 import { distanceLimitLabel, formatDate, formatDistance, formatHeight, formatTime, getDeviceCountryCode, usesImperialDistance } from "./src/i18n/region";
 import { DeckBackdrop, DeckCard, DiscoverHeader, GlassActionBar, GlassSurface, ModeBadge, ModeFilter, ModeSwitch, type ActionItem, type DeckCardData, type DiscoverMode as DeckMode } from "./src/discover/DiscoverParts";
 import {
@@ -333,7 +341,7 @@ function formatSocialHandle(value: string) {
 }
 
 type Tab = "discover" | "matches" | "messages" | "premium" | "profile" | "safety";
-type DiscoverMode = "people" | "events";
+type DiscoverMode = "people" | "events" | "collab";
 type PremiumEntrySource = "navigation" | "spark_like" | "chat_request" | "profile_views" | "photos";
 type SparkIntent = "Randki" | "Znajomi" | "LGBT+ / Społeczność";
 const sparkIntentOptions: ReadonlyArray<{ label: SparkIntent; displayLabel: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; rainbow?: boolean }> = [
@@ -380,7 +388,8 @@ function countByMode(modes: DeckMode[]): Record<DeckMode | "all", number> {
     all: modes.length,
     romantic: modes.filter((mode) => mode === "romantic").length,
     friends: modes.filter((mode) => mode === "friends").length,
-    event: modes.filter((mode) => mode === "event").length
+    event: modes.filter((mode) => mode === "event").length,
+    collab: modes.filter((mode) => mode === "collab").length
   };
 }
 
@@ -512,6 +521,9 @@ type MatchProfile = {
   gender?: ProfileGender;
   desiredGendersByIntent?: GenderPreferencesByIntent;
   updatedAtMs?: number;
+  /** Collab mode: what they do, whom they look for, pitch, remote work, portfolio link. */
+  collab?: CollabProfile;
+  collabFit?: CollabFit;
 };
 
 type UserLocation = {
@@ -905,7 +917,8 @@ function mapRemoteProfile(item: Record<string, unknown>): MatchProfile | null {
     gender: normalizeProfileGender(testOverride?.gender ?? item.gender),
     desiredGendersByIntent: normalizeGenderPreferences(item.desiredGendersByIntent),
     activeEvents,
-    updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined
+    updatedAtMs: typeof updatedAt?.toMillis === "function" ? updatedAt.toMillis() : undefined,
+    collab: normalizeCollabProfile(item)
   };
 }
 function formatBirthDateInput(value: string) {
@@ -1130,6 +1143,12 @@ function AppContent() {
   const proposalLoadSequence = useRef(0);
   const [eventProfiles, setEventProfiles] = useState<MatchProfile[]>([]);
   const [eventManagerOpen, setEventManagerOpen] = useState(false);
+  const [collabProfile, setCollabProfile] = useState<CollabProfile>(() => normalizeCollabProfile(null));
+  const [collabEditorOpen, setCollabEditorOpen] = useState(false);
+  const [collabProfiles, setCollabProfiles] = useState<MatchProfile[]>([]);
+  const [collabProfilesLoading, setCollabProfilesLoading] = useState(false);
+  const [collabProfilesError, setCollabProfilesError] = useState<string | null>(null);
+  const [collabReloadKey, setCollabReloadKey] = useState(0);
   const [eventProfilesLoading, setEventProfilesLoading] = useState(false);
   const [eventProfilesError, setEventProfilesError] = useState<string | null>(null);
   const [expiredEventsCount, setExpiredEventsCount] = useState(0);
@@ -1236,7 +1255,9 @@ function AppContent() {
   );
   const discoverLens = lensFromIntents(discoverFilters.targetIntents, intents);
   const activeLensIntents = useMemo(() => lensIntentsFor(discoverLens), [discoverLens]);
-  const deckMode: DeckMode = discoverMode === "events" ? "event" : discoverLens;
+  const deckMode: DeckMode = discoverMode === "events" ? "event" : discoverMode === "collab" ? "collab" : discoverLens;
+  const collabReady = isCollabReady(collabProfile);
+  const collabLookingKey = collabProfile.looking.join("|");
   const profileQueryKey = [...profileLookupInterests, ...activeLensIntents, userCity.trim().toLocaleLowerCase("pl-PL")].slice().sort().join("|");
   const activeEventIdsKey = activeEvents.map((event) => event.id).sort().join("|");
   const availableProfiles = useMemo(
@@ -1445,9 +1466,37 @@ function AppContent() {
   });
   const eventProfileSource = useMemo(() => {
     const profiles = new Map<string, MatchProfile>();
-    [...availableProfiles, ...eventProfiles].forEach((profile) => profiles.set(getProfileKey(profile), profile));
+    [...availableProfiles, ...eventProfiles, ...collabProfiles].forEach((profile) => profiles.set(getProfileKey(profile), profile));
     return Array.from(profiles.values());
-  }, [availableProfiles, eventProfiles]);
+  }, [availableProfiles, eventProfiles, collabProfiles]);
+  // Collab: people offering what the viewer looks for; mutual needs first.
+  // Distance applies unless either side works remotely.
+  const collabDiscoverProfiles = useMemo(() => {
+    if (!collabReady) return [];
+    return collabProfiles
+      .filter((profile) => getProfileKey(profile) !== appUser?.uid)
+      .filter((profile) => !blockedProfileKeys.includes(getProfileKey(profile)))
+      .map((profile) => ({ profile, fit: collabFit(collabProfile, profile.collab ?? normalizeCollabProfile(null)) }))
+      .filter(({ fit }) => fit.theyHaveWhatIWant.length > 0)
+      .filter(({ profile }) => {
+        if (collabProfile.remote || profile.collab?.remote || !userLocation) return true;
+        const distance = getDistanceKm(userLocation, profile);
+        return distance === null ? discoverFilters.includeProfilesWithoutLocation : distance <= discoverFilters.maxDistanceKm;
+      })
+      .filter(({ profile }) => {
+        const key = getProfileKey(profile);
+        return !likedProfileKeys.includes(key) && !passedProfileKeys.includes(key) && !matchedProfileKeys.includes(key) && !chatRequestKeys.includes(key);
+      })
+      .map(({ profile, fit }) => ({
+        ...profile,
+        collabFit: fit,
+        distance: getApproxDistanceLabel(userLocation, profile),
+        matchScore: fit.score,
+        interestMatchPercent: undefined,
+        matchReasons: [fit.theyHaveWhatIWant.map(collabText).join(", ")]
+      }))
+      .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0) || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0));
+  }, [appUser?.uid, blockedProfileKeys, chatRequestKeys, collabProfile, collabProfiles, collabReady, discoverFilters.includeProfilesWithoutLocation, discoverFilters.maxDistanceKm, likedProfileKeys, matchedProfileKeys, passedProfileKeys, userLocation]);
   const eventDiscoverProfiles = useMemo(() =>
     eventProfileSource
       .filter((profile) => getProfileKey(profile) !== appUser?.uid)
@@ -1483,7 +1532,7 @@ function AppContent() {
       .sort((left, right) => right.eventRank - left.eventRank || (right.matchScore ?? 0) - (left.matchScore ?? 0) || (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0)),
     [activeEvents, appUser?.uid, blockedProfileKeys, chatRequestKeys, discoverFilters.ageMax, discoverFilters.ageMin, eventProfileSource, likedProfileKeys, matchedProfileKeys, passedProfileKeys, userAge]
   );
-  const currentDiscoverProfiles = discoverMode === "events" ? eventDiscoverProfiles : discoverProfiles;
+  const currentDiscoverProfiles = discoverMode === "events" ? eventDiscoverProfiles : discoverMode === "collab" ? collabDiscoverProfiles : discoverProfiles;
 
   useEffect(() => {
     if (
@@ -1630,6 +1679,7 @@ function AppContent() {
             setUserCountryCode(typeof profile.countryCode === "string" && /^[A-Z]{2}$/.test(profile.countryCode) ? profile.countryCode : getDeviceCountryCode() ?? "");
             setDiscoverFilters((current) => ({ ...current, ageMin: profile.desiredAgeMin ?? current.ageMin, ageMax: profile.desiredAgeMax ?? current.ageMax, maxDistanceKm: profile.maxDistanceKm ?? current.maxDistanceKm, targetInterests: Array.isArray(profile.desiredInterests) ? profile.desiredInterests : current.targetInterests, targetIntents: normalizeSparkIntents(profile.desiredIntents).length ? normalizeSparkIntents(profile.desiredIntents) : nextIntents, targetGendersByIntent: normalizeGenderPreferences(profile.desiredGendersByIntent), requireCommonInterests: Boolean(profile.requireCommonInterests), includeProfilesWithoutLocation: profile.includeProfilesWithoutLocation !== false, proOnly: Boolean(profile.proOnly), lgbtOnly: profile.lgbtOnly === true }));
             setLgbt(profile.lgbt ?? null);
+            setCollabProfile(normalizeCollabProfile(profile as unknown as Record<string, unknown>));
             lgbtSaved.current = profile.lgbt ?? null;
             setSelectedInterests(Array.isArray(profile.interests) ? profile.interests.map(repairLegacyText) : []);
             const storedEvents = Array.isArray(profile.activeEvents) ? profile.activeEvents : [];
@@ -1914,6 +1964,33 @@ function AppContent() {
     );
     return unsubscribe;
   }, [appUser, authDone, onboarded, eventCatalogReload]);
+
+  useEffect(() => {
+    if (!appUser || !authDone || !onboarded || discoverMode !== "collab" || !collabReady) {
+      setCollabProfilesLoading(false);
+      return;
+    }
+    let mounted = true;
+    setCollabProfilesLoading(true);
+    setCollabProfilesError(null);
+    void findProfilesByCollabSkills(collabProfile.looking)
+      .then((documents) => {
+        if (!mounted) return;
+        setCollabProfiles(documents
+          .filter((item) => item.id !== appUser.uid && (canViewTestProfiles || (item as Record<string, unknown>).isTestProfile !== true))
+          .map((item) => mapRemoteProfile(item as Record<string, unknown>))
+          .filter((profile): profile is MatchProfile => Boolean(profile)));
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        recordSparkError(error, "collab_feed");
+        setCollabProfilesError("Nie udało się pobrać osób do współpracy.");
+      })
+      .finally(() => {
+        if (mounted) setCollabProfilesLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [appUser, authDone, onboarded, discoverMode, collabReady, collabLookingKey, collabReloadKey, canViewTestProfiles]);
 
   useEffect(() => {
     if (!appUser || !authDone || !onboarded || activeEvents.length === 0) {
@@ -2574,6 +2651,12 @@ function AppContent() {
 
   function changeDiscoverMode(next: DeckMode) {
     tap();
+    if (next === "collab") {
+      setDiscoverMode("collab");
+      if (!collabReady) setCollabEditorOpen(true);
+      trackSparkEvent("discover_mode_changed", { mode: "collab" });
+      return;
+    }
     if (next === "event") {
       setDiscoverMode("events");
       if (activeEvents.length === 0) setEventManagerOpen(true);
@@ -2599,6 +2682,19 @@ function AppContent() {
           : "W Twoim profilu nie ma celu „Znajomi”. Możesz przeglądać, ale osoby szukające znajomych zobaczą Cię dopiero po dodaniu tego celu w profilu.",
         [{ text: "Później", style: "cancel" }, { text: "Otwórz profil", onPress: () => setTab("profile") }]
       );
+    }
+  }
+  async function saveCollabProfile(next: CollabProfile) {
+    if (!appUser) return false;
+    try {
+      const saved = await updateUserCollab(appUser.uid, next);
+      setCollabProfile(saved);
+      setCollabReloadKey((value) => value + 1);
+      trackSparkEvent("collab_profile_saved", { skills: saved.skills.length, looking: saved.looking.length, remote: saved.remote });
+      return true;
+    } catch (error) {
+      recordSparkError(error, "collab_profile_save");
+      return false;
     }
   }
   const discoverModeSwitch = <ModeSwitch mode={deckMode} onChange={changeDiscoverMode} />;
@@ -2694,7 +2790,7 @@ function AppContent() {
           targetUid: targetKey,
           matchScore: targetProfile.matchScore,
           eventId: eventContext?.id,
-          modeContext: discoverLens
+          modeContext: discoverMode === "collab" ? "collab" : discoverLens
         });
         setSuperlikesRemaining(result.superlikesRemaining);
       } catch (error) {
@@ -2872,7 +2968,7 @@ function AppContent() {
         targetUid: activeProfileKey,
         introMessage,
         eventContext,
-        modeContext: discoverLens
+        modeContext: discoverMode === "collab" ? "collab" : discoverLens
       });
       if (requestResult.status === "matched") {
         setChatRequestKeys((keys) => keys.filter((key) => key !== activeProfileKey));
@@ -3433,6 +3529,18 @@ function AppContent() {
             onManage={() => setEventManagerOpen(true)}
           />
         )}
+        {tab === "discover" && !activeProfile && discoverMode === "collab" && (
+          <CollabEmptyState
+            modeSwitch={discoverModeSwitch}
+            screenMinHeight={discoverMinHeight}
+            ready={collabReady}
+            looking={collabProfile.looking}
+            loading={collabProfilesLoading}
+            error={collabProfilesError}
+            onEdit={() => setCollabEditorOpen(true)}
+            onRetry={() => setCollabReloadKey((value) => value + 1)}
+          />
+        )}
         {tab === "discover" && !activeProfile && discoverMode === "people" && (
           <DiscoverEmptyState
             modeSwitch={discoverModeSwitch}
@@ -3564,11 +3672,19 @@ function AppContent() {
             lgbt={lgbt}
             lgbtBusy={lgbtBusy}
             onChangeLgbt={(value) => void changeLgbt(value)}
+            collab={collabProfile}
+            onOpenCollab={() => setCollabEditorOpen(true)}
             verificationStatus={profileVerificationStatus}
           />
         )}
         <SparkAdBanner enabled={showCurrentBanner} placement={tab} tone={colors.name === "dark" ? "dark" : "light"} />
       </ScrollView>
+      <CollabEditorModal
+        visible={collabEditorOpen}
+        value={collabProfile}
+        onClose={() => setCollabEditorOpen(false)}
+        onSave={saveCollabProfile}
+      />
       <EventFriendsManagerModal
         key={appUser?.uid ?? "signed-out"}
         visible={eventManagerOpen}
@@ -4537,7 +4653,7 @@ function DiscoverScreen({
         <DeckBackdrop />
         {nextProfile && (
           <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.deckLayer, { transform: [{ scale: nextScale }] }]}>
-            <DeckCard data={toDeckCard(nextProfile, selectedInterests)} mode={deckMode} />
+            <DeckCard data={toDeckCard(nextProfile, selectedInterests, deckMode)} mode={deckMode} />
           </Animated.View>
         )}
         <Animated.View
@@ -4555,7 +4671,7 @@ function DiscoverScreen({
           }}
           style={[styles.deckLayer, { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate: swipeRotate }] }]}
         >
-          <DeckCard data={toDeckCard(profile, selectedInterests)} mode={deckMode} stamps={stamps} onOpenDetails={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
+          <DeckCard data={toDeckCard(profile, selectedInterests, deckMode)} mode={deckMode} stamps={stamps} onOpenDetails={() => setPreviewOpen(true)} onReport={() => setReportOpen(true)} />
         </Animated.View>
         <View pointerEvents="box-none" style={styles.deckActionDock}>
           <GlassActionBar
@@ -4650,7 +4766,26 @@ function DiscoverScreen({
   );
 }
 /** Everything the Discover card shows, derived from a profile. */
-function toDeckCard(profile: MatchProfile, viewerInterests: string[]): DeckCardData {
+function toDeckCard(profile: MatchProfile, viewerInterests: string[], mode?: DeckMode): DeckCardData {
+  if (mode === "collab" && profile.collab) {
+    const fit = profile.collabFit;
+    return {
+      key: getProfileKey(profile),
+      name: [profile.name, profile.surname].filter(Boolean).join(" "),
+      age: profile.age,
+      place: [profile.city, profile.distance && profile.distance !== profile.city ? profile.distance : null].filter(Boolean).join(" · "),
+      photos: getProfileGallery(profile),
+      chips: profile.collab.skills.map(collabText),
+      verified: profile.verified === true,
+      premium: profile.premium === true,
+      lgbt: profile.lgbtTag ?? null,
+      note: profile.collab.pitch || null,
+      meta: profile.collab.remote ? "Collab · zdalnie" : "Collab",
+      highlight: fit?.mutual
+        ? { icon: "handshake-outline", label: "Szuka: " + fit.iHaveWhatTheyWant.map(collabText).join(", ") }
+        : fit && fit.theyHaveWhatIWant.length > 0 ? { icon: "star-four-points-outline", label: fit.theyHaveWhatIWant.map(collabText).join(", ") } : null
+    };
+  }
   const insight = getSharedInterestInsights(profile.interests, viewerInterests)[0];
   const interestMatchPercent = Math.max(0, Math.min(100, profile.interestMatchPercent ?? 0));
   const compatibility = getCompatibilityPresentation(profile.compatibilityScore ?? interestMatchPercent);
@@ -5334,6 +5469,44 @@ function ProfilePreviewSheet({
               {profile.interests.length > visibleInterests.length && (
                 <Text style={local.caption}>i {profile.interests.length - visibleInterests.length} więcej</Text>
               )}
+            </View>
+          )}
+
+          {profile.collab && isCollabReady(profile.collab) && (
+            <View style={local.section}>
+              <View style={local.sectionHeader}>
+                <Text style={local.sectionTitle}>Collab</Text>
+                {profile.collab.remote && <Text style={local.caption}>Także zdalnie</Text>}
+              </View>
+              {!!profile.collab.pitch && <Text style={local.caption}>{profile.collab.pitch}</Text>}
+              <View style={local.group}>
+                <View style={local.row}>
+                  <MaterialCommunityIcons name="star-four-points-outline" size={18} color={colors.collab} />
+                  <Text style={[local.rowLabel, styles.fill]} numberOfLines={3}>{profile.collab.skills.map(collabText).join(", ")}</Text>
+                </View>
+                <View style={local.divider} />
+                <View style={local.row}>
+                  <MaterialCommunityIcons name="account-search-outline" size={18} color={colors.collab} />
+                  <Text style={[local.rowLabel, styles.fill]} numberOfLines={3}>{"Szuka: " + profile.collab.looking.map(collabText).join(", ")}</Text>
+                </View>
+                {!!profile.collab.portfolio && (
+                  <>
+                    <View style={local.divider} />
+                    <Pressable
+                      accessibilityRole="link"
+                      disabled={!canViewSocials}
+                      onPress={() => { void WebBrowser.openBrowserAsync(profile.collab?.portfolio ?? "").catch(() => undefined); }}
+                      style={local.row}
+                    >
+                      <MaterialCommunityIcons name="link-variant" size={18} color={colors.collab} />
+                      <Text style={[local.rowLabel, styles.fill]}>Portfolio</Text>
+                      {canViewSocials
+                        ? <Text style={local.rowValue} numberOfLines={1}>{profile.collab.portfolio.replace(/^https:\/\//, "")}</Text>
+                        : <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
+                    </Pressable>
+                  </>
+                )}
+              </View>
             </View>
           )}
 
@@ -6557,7 +6730,7 @@ function MessagesScreen({
       setTimeout(() => setSelectedChatKey(returnKey), 40);
     }
   }
-  const presentModes = (["romantic", "friends", "event"] as const).filter((mode) => modeCounts[mode] > 0).length;
+  const presentModes = (["romantic", "friends", "event", "collab"] as const).filter((mode) => modeCounts[mode] > 0).length;
 
   return (
     <View style={styles.gapLg}>
@@ -7481,8 +7654,12 @@ function ProfileScreen({
   verificationStatus,
   lgbt,
   lgbtBusy,
-  onChangeLgbt
+  onChangeLgbt,
+  collab,
+  onOpenCollab
 }: {
+  collab?: CollabProfile;
+  onOpenCollab?: () => void;
   lgbt: LgbtSettings | null;
   lgbtBusy: boolean;
   onChangeLgbt: (value: LgbtSettings) => void;
@@ -7862,6 +8039,18 @@ function ProfileScreen({
         </View>
         <IntentMultiSelect selected={intents} onChange={setIntents} />
         <LgbtSettingsPanel value={lgbt} onChange={onChangeLgbt} />
+        {onOpenCollab && (
+          <Pressable accessibilityRole="button" onPress={onOpenCollab} style={({ pressed }) => [styles.collabEntry, pressed && styles.controlPressed]}>
+            <MaterialCommunityIcons name="handshake-outline" size={22} color={colors.collab} />
+            <View style={styles.fill}>
+              <Text style={styles.collabEntryTitle}>Collab</Text>
+              <Text style={styles.profileDescription} numberOfLines={2}>
+                {collab && isCollabReady(collab) ? collab.skills.map(collabText).join(", ") : "Szukasz ludzi do wspólnego projektu? Ustaw profil współpracy."}
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
+          </Pressable>
+        )}
         <Text style={styles.profileDescription}>{lgbtBusy ? "Zapisywanie tagu…" : "Kogo widzisz w Odkrywaj (płeć, wiek, odległość) ustawiasz w Filtrach na ekranie Odkrywaj."}</Text>
       </View>
 
@@ -8937,6 +9126,18 @@ function DevPreview({ themeName }: { themeName: string | null }) {
   );
 }
 
+function DevCollabPreview({ themeName }: { themeName: string | null }) {
+  const theme = useThemeState();
+  const [open, setOpen] = useState(true);
+  const [value, setValue] = useState<CollabProfile>(() => normalizeCollabProfile({ collabSkills: ["music.rapper"], collabLooking: ["music.producer", "video.director"], collabPitch: "Szukam producenta do EP-ki", collabRemote: true }));
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  return <View style={{ flex: 1, backgroundColor: theme.palette.background, paddingTop: 40 }}>
+    <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={{ minHeight: 48, padding: 16 }}><Text style={{ color: theme.palette.ink }}>Otwórz Collab</Text></Pressable>
+    <CollabEmptyState modeSwitch={<ModeSwitch mode="collab" onChange={() => undefined} />} screenMinHeight={500} ready={isCollabReady(value)} looking={value.looking} loading={false} error={null} onEdit={() => setOpen(true)} onRetry={() => undefined} />
+    <CollabEditorModal visible={open} value={value} onClose={() => setOpen(false)} onSave={async (next) => { setValue(next); return true; }} />
+  </View>;
+}
+
 function DevEventPreview({ themeName }: { themeName: string | null }) {
   const theme = useThemeState();
   const [open, setOpen] = useState(true);
@@ -8979,7 +9180,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <SparkErrorBoundary>
-          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "settings" ? <DevSettingsPreview themeName={params.get("theme")} /> : params?.get("preview") === "profile" ? <DevProfilePreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "collab" ? <DevCollabPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "settings" ? <DevSettingsPreview themeName={params.get("theme")} /> : params?.get("preview") === "profile" ? <DevProfilePreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
         </SparkErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
@@ -12359,6 +12560,21 @@ function createStyles(colors: Palette) {
     color: colors.inkSoft,
     fontSize: 15,
     lineHeight: 23
+  },
+  collabEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: colors.fill,
+    borderWidth: 1,
+    borderColor: colors.fillStrong
+  },
+  collabEntryTitle: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: "700"
   },
   statsRow: {
     flexDirection: "row",

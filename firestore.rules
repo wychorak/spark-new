@@ -161,7 +161,7 @@ service cloud.firestore {
         && (data.get('lastMessageText', null) == null || (data.lastMessageText is string && data.lastMessageText.size() <= 240 && allowedUserText(data.lastMessageText)))
         && (data.get('resetAt', null) == null || data.resetAt is timestamp)
         && (data.get('eventContext', null) == null || validEvent(data.eventContext))
-        && (data.get('modeContext', null) == null || data.modeContext in ['romantic', 'friends', 'event'])
+        && (data.get('modeContext', null) == null || data.modeContext in ['romantic', 'friends', 'event', 'collab'])
         && (data.get('introMessage', null) == null || (data.introMessage is string && data.introMessage.size() <= 500 && allowedUserText(data.introMessage)));
     }
 
@@ -446,6 +446,25 @@ service cloud.firestore {
         // Event badges are written only by the updateActiveEvents function.
         && request.resource.data.activeEvents == resource.data.get('activeEvents', [])
         && request.resource.data.activeEventIds == resource.data.get('activeEventIds', []);
+      allow delete: if isOwner(uid);
+    }
+
+    // Collab mode lives in its own small collection so the public-profile rule
+    // stays well under Firestore's 1000-expression limit. Skill ids are checked
+    // in the app; the rules bound sizes and shapes.
+    match /collabProfiles/{uid} {
+      allow read: if activeUser();
+      allow create, update: if isOwner(uid)
+        && activeUser()
+        && request.resource.data.keys().hasOnly(['uid', 'skills', 'looking', 'pitch', 'remote', 'portfolio', 'updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.skills is list && request.resource.data.skills.size() >= 1 && request.resource.data.skills.size() <= 5
+        && request.resource.data.looking is list && request.resource.data.looking.size() >= 1 && request.resource.data.looking.size() <= 5
+        && request.resource.data.pitch is string && request.resource.data.pitch.size() <= 150 && allowedUserText(request.resource.data.pitch)
+        && request.resource.data.remote is bool
+        && request.resource.data.portfolio is string && request.resource.data.portfolio.size() <= 300
+        && (request.resource.data.portfolio == '' || request.resource.data.portfolio.matches('^https://[^ ]+$'))
+        && request.resource.data.updatedAt == request.time;
       allow delete: if isOwner(uid);
     }
 

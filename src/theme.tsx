@@ -40,6 +40,7 @@ export type Palette = {
   romantic: string;
   friends: string;
   event: string;
+  collab: string;
   statusBar: "light" | "dark";
   blurTint: "light" | "dark";
 };
@@ -74,6 +75,7 @@ const dark: Palette = {
   romantic: "#ff2d8d",
   friends: "#2ed47a",
   event: "#9b6bff",
+  collab: "#22c3ee",
   statusBar: "light",
   blurTint: "dark"
 };
@@ -109,6 +111,7 @@ const light: Palette = {
   romantic: "#ff1f8e",
   friends: "#16b867",
   event: "#7b4dff",
+  collab: "#0891b2",
   statusBar: "dark",
   blurTint: "light"
 };

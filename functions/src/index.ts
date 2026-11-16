@@ -393,7 +393,7 @@ export const sendSparkLike = onCall(
     const data = request.data && typeof request.data === "object" ? request.data as Record<string, unknown> : {};
     const targetUid = stringValue(data.targetUid);
     const eventId = stringValue(data.eventId);
-    const requestedMode = ["romantic", "friends"].includes(stringValue(data.modeContext)) ? stringValue(data.modeContext) : null;
+    const requestedMode = ["romantic", "friends", "collab"].includes(stringValue(data.modeContext)) ? stringValue(data.modeContext) : null;
     validateTargetUid(uid, targetUid);
     if (!(await hasVerifiedPro(uid, request.auth?.token ?? {}))) {
       throw new HttpsError("permission-denied", "Spark Pro nie jest jeszcze aktywny po stronie serwera. Odśwież dostęp Pro i spróbuj ponownie za chwilę.");
@@ -526,7 +526,7 @@ export const createPremiumChatRequest = onCall(
     const targetUid = stringValue(data.targetUid);
     const introMessage = stringValue(data.introMessage);
     const eventId = stringValue(data.eventId);
-    const requestedMode = ["romantic", "friends"].includes(stringValue(data.modeContext)) ? stringValue(data.modeContext) : null;
+    const requestedMode = ["romantic", "friends", "collab"].includes(stringValue(data.modeContext)) ? stringValue(data.modeContext) : null;
 
     if (!targetUid || targetUid.length > 128 || targetUid.includes("/") || targetUid === uid) {
       throw new HttpsError("invalid-argument", "Nieprawidłowy profil odbiorcy.");
@@ -836,6 +836,7 @@ export const deleteSparkAccount = onCall(  { region, timeoutSeconds: 540, memory
       db.recursiveDelete(db.collection("users").doc(uid)),
       db.recursiveDelete(db.collection("privateProfiles").doc(uid)),
       db.recursiveDelete(db.collection("publicProfiles").doc(uid)),
+      db.recursiveDelete(db.collection("collabProfiles").doc(uid)),
       ...[0, 1, 2].map((slot) => db.collection("eventProposals").doc(uid + "_" + slot).delete()),
       db.recursiveDelete(db.collection("revenuecat_customers").doc(uid)),
       deleteQueryDocuments(db.collection("revenuecat_events").where("app_user_id", "==", uid)),

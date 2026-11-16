@@ -8,18 +8,19 @@ import { Text } from "../i18n/Text";
 import { formatDate, formatTime } from "../i18n/format";
 import { palettes, useThemeState, type Palette } from "../theme";
 /** Discover context used for accents and badges (Romantic / Friends / Event). */
-export type DiscoverMode = "romantic" | "friends" | "event";
+export type DiscoverMode = "romantic" | "friends" | "event" | "collab";
 export type EventIcon = "music" | "festival" | "party" | "sport" | "culture" | "food" | "outdoor" | "other";
 
 // ─── Modes ───────────────────────────────────────────────────────────────
 export const DISCOVER_MODES: readonly { id: DiscoverMode; label: string; icon: string }[] = [
   { id: "romantic", label: "Romantic", icon: "heart" },
   { id: "friends", label: "Friends", icon: "account-group" },
-  { id: "event", label: "Event", icon: "ticket-confirmation" }
+  { id: "event", label: "Event", icon: "ticket-confirmation" },
+  { id: "collab", label: "Collab", icon: "handshake-outline" }
 ];
 
 export function modeAccent(palette: Palette, mode: DiscoverMode) {
-  return mode === "friends" ? palette.friends : mode === "event" ? palette.event : palette.romantic;
+  return mode === "friends" ? palette.friends : mode === "event" ? palette.event : mode === "collab" ? palette.collab : palette.romantic;
 }
 
 export const EVENT_ICON_NAMES: Record<EventIcon, string> = {

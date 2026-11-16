@@ -62,3 +62,27 @@ test("date and time formatting follows the configured locale and clock", () => {
   setFormatResolver(() => ({ locale: "pl-PL", hour12: false }));
   assert.equal(formatTime(at), "19:05");
 });
+
+test("collab catalog, normalization and matching", () => {
+  const { collabCategories, normalizeCollabIds, normalizeCollabPortfolio, normalizeCollabProfile, collabFit, isCollabReady, collabLabel } = require("../src/collab.ts");
+  const ids = collabCategories.flatMap((category) => category.items.map((item) => item.id));
+  assert.equal(new Set(ids).size, ids.length, "subcategory ids are unique");
+  assert.ok(collabCategories.length >= 10 && ids.length >= 50);
+  assert.deepEqual(normalizeCollabIds(["music.rapper", "nope", "music.producer", "music.rapper"], 5), ["music.producer", "music.rapper"]);
+  assert.equal(normalizeCollabIds(ids, 5).length, 5);
+  assert.equal(normalizeCollabPortfolio("soundcloud.com/alex"), "https://soundcloud.com/alex");
+  assert.equal(normalizeCollabPortfolio("http://behance.net/x"), "https://behance.net/x");
+  assert.equal(normalizeCollabPortfolio("javascript:alert(1)"), "");
+  assert.equal(normalizeCollabPortfolio("not a link"), "");
+  assert.equal(collabLabel("music.producer"), "Producent muzyczny");
+  const viewer = normalizeCollabProfile({ collabSkills: ["music.rapper"], collabLooking: ["music.producer"] });
+  const producer = normalizeCollabProfile({ collabSkills: ["music.producer"], collabLooking: ["music.rapper"] });
+  const designer = normalizeCollabProfile({ collabSkills: ["design.graphic"], collabLooking: ["music.rapper"] });
+  assert.ok(isCollabReady(viewer));
+  assert.ok(!isCollabReady(normalizeCollabProfile({ collabSkills: ["music.rapper"] })));
+  const mutual = collabFit(viewer, producer);
+  assert.ok(mutual.mutual && mutual.theyHaveWhatIWant.includes("music.producer"));
+  const oneWay = collabFit(viewer, designer);
+  assert.equal(oneWay.theyHaveWhatIWant.length, 0);
+  assert.ok(mutual.score > oneWay.score);
+});

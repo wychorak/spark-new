@@ -251,6 +251,12 @@
   "uk": "7 днів",
   "es": "7 días"
  },
+ "AI / ML": {
+  "en": "AI / ML",
+  "de": "KI / ML",
+  "uk": "ШІ / ML",
+  "es": "IA / ML"
+ },
  "Akceptuj": {
   "en": "Accept",
   "de": "Annehmen",
@@ -262,6 +268,12 @@
   "de": "Ich akzeptiere die Spark-Regeln:",
   "uk": "Приймаю правила Spark:",
   "es": "Acepto las normas de Spark:"
+ },
+ "Aktor / aktorka": {
+  "en": "Actor",
+  "de": "Schauspieler/in",
+  "uk": "Актор / акторка",
+  "es": "Actor / actriz"
  },
  "Aktualne wydarzenia": {
   "en": "Current events",
@@ -299,6 +311,12 @@
   "uk": "Скасувати запит до",
   "es": "Cancelar solicitud a"
  },
+ "Aplikacje mobilne": {
+  "en": "Mobile apps",
+  "de": "Mobile Apps",
+  "uk": "Мобільні застосунки",
+  "es": "Apps móviles"
+ },
  "Apple nie zwrócił danych potrzebnych do usunięcia konta.": {
   "en": "Apple didn't return the data needed to delete the account.",
   "de": "Apple hat die zum Löschen des Kontos nötigen Daten nicht geliefert.",
@@ -317,6 +335,24 @@
   "uk": "Архітектура",
   "es": "Arquitectura"
  },
+ "Artysta wizualny": {
+  "en": "Visual artist",
+  "de": "Bildende/r Künstler/in",
+  "uk": "Візуальний митець",
+  "es": "Artista visual"
+ },
+ "Autor tekstów": {
+  "en": "Lyricist",
+  "de": "Songtexter/in",
+  "uk": "Автор текстів",
+  "es": "Letrista"
+ },
+ "Backend": {
+  "en": "Backend",
+  "de": "Backend",
+  "uk": "Бекенд",
+  "es": "Backend"
+ },
  "Bardzo wysoka zgodność": {
   "en": "Very high match",
   "de": "Sehr hohe Übereinstimmung",
@@ -328,6 +364,12 @@
   "de": "Schwimmen",
   "uk": "Басейн",
   "es": "Piscina"
+ },
+ "Beatmaker": {
+  "en": "Beatmaker",
+  "de": "Beatmaker",
+  "uk": "Бітмейкер",
+  "es": "Beatmaker"
  },
  "Bez dodatkowych filtrów": {
   "en": "No extra filters",
@@ -358,6 +400,12 @@
   "de": "Laufen",
   "uk": "Біг",
   "es": "Correr"
+ },
+ "Biznes i startupy": {
+  "en": "Business & startups",
+  "de": "Business & Startups",
+  "uk": "Бізнес і стартапи",
+  "es": "Negocios y startups"
  },
  "Blisko nikogo nie ma — pokazujemy też dalsze profile": {
   "en": "Nobody nearby — showing profiles further away too",
@@ -449,6 +497,12 @@
   "uk": "Немає користувача, що ввійшов.",
   "es": "No hay ningún usuario con sesión iniciada."
  },
+ "Branding / logo": {
+  "en": "Branding / logo",
+  "de": "Branding / Logo",
+  "uk": "Брендинг / логотип",
+  "es": "Branding / logo"
+ },
  "Byłaś ostatnio na jakiejś wystawie?": {
   "en": "Been to any exhibition lately?",
   "de": "Warst du in letzter Zeit auf einer Ausstellung?",
@@ -521,6 +575,12 @@
   "uk": "Що не так із профілем {0}?",
   "es": "¿Qué pasa con el perfil de {0}?"
  },
+ "Co robisz?": {
+  "en": "What do you do?",
+  "de": "Was machst du?",
+  "uk": "Що ти робиш?",
+  "es": "¿Qué haces?"
+ },
  "Co zyskujesz": {
   "en": "What you get",
   "de": "Deine Vorteile",
@@ -544,6 +604,24 @@
   "de": "Profil-Like zurücknehmen",
   "uk": "Скасувати вподобання профілю",
   "es": "Deshacer like al perfil"
+ },
+ "Collab": {
+  "en": "Collab",
+  "de": "Collab",
+  "uk": "Collab",
+  "es": "Collab"
+ },
+ "Collab · zdalnie": {
+  "en": "Collab · remote",
+  "de": "Collab · remote",
+  "uk": "Collab · дистанційно",
+  "es": "Collab · en remoto"
+ },
+ "Copywriter": {
+  "en": "Copywriter",
+  "de": "Texter/in",
+  "uk": "Копірайтер",
+  "es": "Redactor publicitario"
  },
  "Coś poszło nie tak": {
   "en": "Something went wrong",
@@ -652,6 +730,12 @@
   "de": "Event-Datum",
   "uk": "Дата події",
   "es": "Fecha del evento"
+ },
+ "DJ": {
+  "en": "DJ",
+  "de": "DJ",
+  "uk": "DJ",
+  "es": "DJ"
  },
  "Dla bezpieczeństwa możesz wysłać maksymalnie 20 wiadomości na minutę.": {
   "en": "For safety, you can send up to 20 messages per minute.",
@@ -815,6 +899,12 @@
   "uk": "Інша людина має прийняти запит або відповісти вподобанням.",
   "es": "La otra persona tiene que aceptar la solicitud o devolverte el like."
  },
+ "Dziennikarz": {
+  "en": "Journalist",
+  "de": "Journalist/in",
+  "uk": "Журналіст",
+  "es": "Periodista"
+ },
  "Dzięki reklamom Spark może być darmowy.": {
   "en": "Ads keep Spark free.",
   "de": "Dank Werbung kann Spark kostenlos sein.",
@@ -863,6 +953,12 @@
   "uk": "Редагувати профіль",
   "es": "Editar perfil"
  },
+ "Edytuj profil Collab": {
+  "en": "Edit collab profile",
+  "de": "Collab-Profil bearbeiten",
+  "uk": "Редагувати профіль Collab",
+  "es": "Editar perfil Collab"
+ },
  "Edytujesz zgłoszenie": {
   "en": "You're editing a submission",
   "de": "Du bearbeitest eine Einreichung",
@@ -893,6 +989,12 @@
   "uk": "Фільтри",
   "es": "Filtros"
  },
+ "Finanse": {
+  "en": "Finance",
+  "de": "Finanzen",
+  "uk": "Фінанси",
+  "es": "Finanzas"
+ },
  "Foto": {
   "en": "Photo",
   "de": "Foto",
@@ -904,6 +1006,18 @@
   "de": "Foto {0}{1}",
   "uk": "Фото {0}{1}",
   "es": "Foto {0}{1}"
+ },
+ "Foto i wideo": {
+  "en": "Photo & video",
+  "de": "Foto & Video",
+  "uk": "Фото і відео",
+  "es": "Foto y vídeo"
+ },
+ "Fotograf": {
+  "en": "Photographer",
+  "de": "Fotograf/in",
+  "uk": "Фотограф",
+  "es": "Fotógrafo"
  },
  "Fotografia": {
   "en": "Photography",
@@ -917,17 +1031,41 @@
   "uk": "Плівкова фотографія, гори й недільні бранчі. Найбільше любить людей, які перепитують.",
   "es": "Fotografía analógica, montañas y brunch de domingo. Le gusta la gente que pregunta dos veces."
  },
+ "Founder / co-founder": {
+  "en": "Founder / co-founder",
+  "de": "Gründer/in / Mitgründer/in",
+  "uk": "Засновник / співзасновник",
+  "es": "Fundador / cofundador"
+ },
  "Free ma limit 3 zdjęcia. Premium odblokuje 15.": {
   "en": "Free has a 3-photo limit. Premium unlocks 15.",
   "de": "Free hat ein Limit von 3 Fotos. Premium schaltet 15 frei.",
   "uk": "У Free ліміт 3 фото. Premium відкриває 15.",
   "es": "Free tiene un límite de 3 fotos. Premium desbloquea 15."
  },
+ "Frontend": {
+  "en": "Frontend",
+  "de": "Frontend",
+  "uk": "Фронтенд",
+  "es": "Frontend"
+ },
  "Galeria": {
   "en": "Gallery",
   "de": "Galerie",
   "uk": "Галерея",
   "es": "Galería"
+ },
+ "Gamedev": {
+  "en": "Game dev",
+  "de": "Game Dev",
+  "uk": "Геймдев",
+  "es": "Desarrollo de juegos"
+ },
+ "Gaming i e-sport": {
+  "en": "Gaming & esports",
+  "de": "Gaming & E-Sport",
+  "uk": "Геймінг і кіберспорт",
+  "es": "Gaming y esports"
  },
  "Gaming i planszówki": {
   "en": "Gaming & board games",
@@ -1018,6 +1156,30 @@
   "de": "Berge",
   "uk": "Гори",
   "es": "Montaña"
+ },
+ "Gracz do składu": {
+  "en": "Player for a team",
+  "de": "Spieler/in fürs Team",
+  "uk": "Гравець у команду",
+  "es": "Jugador para el equipo"
+ },
+ "Grafik": {
+  "en": "Graphic designer",
+  "de": "Grafikdesigner/in",
+  "uk": "Графічний дизайнер",
+  "es": "Diseñador gráfico"
+ },
+ "Grafika 3D": {
+  "en": "3D graphics",
+  "de": "3D-Grafik",
+  "uk": "3D-графіка",
+  "es": "Gráficos 3D"
+ },
+ "Grafika i design": {
+  "en": "Graphics & design",
+  "de": "Grafik & Design",
+  "uk": "Графіка і дизайн",
+  "es": "Gráfica y diseño"
  },
  "Gry": {
   "en": "Games",
@@ -1127,6 +1289,12 @@
   "uk": "Іконка події",
   "es": "Icono del evento"
  },
+ "Ilustrator": {
+  "en": "Illustrator",
+  "de": "Illustrator/in",
+  "uk": "Ілюстратор",
+  "es": "Ilustrador"
+ },
  "Imię": {
   "en": "First name",
   "de": "Vorname",
@@ -1139,11 +1307,23 @@
   "uk": "Ім'я та прізвище",
   "es": "Nombre y apellido"
  },
+ "Influencer / twórca": {
+  "en": "Influencer / creator",
+  "de": "Influencer / Creator",
+  "uk": "Інфлюенсер / автор",
+  "es": "Influencer / creador"
+ },
  "Inne pasje": {
   "en": "Other passions",
   "de": "Andere Leidenschaften",
   "uk": "Інші захоплення",
   "es": "Otras pasiones"
+ },
+ "Instrumentalista": {
+  "en": "Instrumentalist",
+  "de": "Instrumentalist/in",
+  "uk": "Інструменталіст",
+  "es": "Instrumentista"
  },
  "Interseks": {
   "en": "Intersex",
@@ -1174,6 +1354,12 @@
   "de": "Hell",
   "uk": "Світла",
   "es": "Claro"
+ },
+ "Jeden link, np. SoundCloud, Spotify, YouTube, Behance albo GitHub. Widoczny dopiero po matchu.": {
+  "en": "One link, e.g. SoundCloud, Spotify, YouTube, Behance or GitHub. Visible only after a match.",
+  "de": "Ein Link, z. B. SoundCloud, Spotify, YouTube, Behance oder GitHub. Erst nach einem Match sichtbar.",
+  "uk": "Одне посилання, напр. SoundCloud, Spotify, YouTube, Behance або GitHub. Видно лише після метчу.",
+  "es": "Un enlace, p. ej. SoundCloud, Spotify, YouTube, Behance o GitHub. Visible solo después de un match."
  },
  "Jedna prośba o chat do": {
   "en": "One chat request to",
@@ -1343,6 +1529,12 @@
   "uk": "Кого показувати",
   "es": "A quién mostrar"
  },
+ "Kogo szukasz?": {
+  "en": "Who are you looking for?",
+  "de": "Wen suchst du?",
+  "uk": "Кого шукаєш?",
+  "es": "¿A quién buscas?"
+ },
  "Kogo widzisz w Odkrywaj (płeć, wiek, odległość) ustawiasz w Filtrach na ekranie Odkrywaj.": {
   "en": "Who you see in Discover (gender, age, distance) is set in Filters on the Discover screen.",
   "de": "Wen du in Entdecken siehst (Geschlecht, Alter, Entfernung), stellst du in den Filtern auf dem Entdecken-Bildschirm ein.",
@@ -1361,11 +1553,29 @@
   "uk": "Черга скарг",
   "es": "Cola de denuncias"
  },
+ "Kolorysta": {
+  "en": "Colorist",
+  "de": "Colorist/in",
+  "uk": "Колорист",
+  "es": "Colorista"
+ },
+ "Komik": {
+  "en": "Comedian",
+  "de": "Comedian",
+  "uk": "Комік",
+  "es": "Cómico"
+ },
  "Komiksy": {
   "en": "Comics",
   "de": "Comics",
   "uk": "Комікси",
   "es": "Cómics"
+ },
+ "Kompozytor": {
+  "en": "Composer",
+  "de": "Komponist/in",
+  "uk": "Композитор",
+  "es": "Compositor"
  },
  "Koncert": {
   "en": "Concert",
@@ -1583,6 +1793,18 @@
   "uk": "Ліміт повідомлень",
   "es": "Límite de mensajes"
  },
+ "Link do portfolio": {
+  "en": "Portfolio link",
+  "de": "Portfolio-Link",
+  "uk": "Посилання на портфоліо",
+  "es": "Enlace al portfolio"
+ },
+ "Link do portfolio wygląda na nieprawidłowy. Wklej pełny adres strony.": {
+  "en": "The portfolio link doesn't look right. Paste the full web address.",
+  "de": "Der Portfolio-Link sieht falsch aus. Füge die vollständige Webadresse ein.",
+  "uk": "Посилання на портфоліо виглядає неправильним. Встав повну адресу сторінки.",
+  "es": "El enlace del portfolio no parece correcto. Pega la dirección completa."
+ },
  "Lista jest pusta": {
   "en": "The list is empty",
   "de": "Die Liste ist leer",
@@ -1667,6 +1889,12 @@
   "uk": "Вас об'єднує: {0}",
   "es": "Os une: {0}"
  },
+ "Makijaż": {
+  "en": "Makeup",
+  "de": "Make-up",
+  "uk": "Макіяж",
+  "es": "Maquillaje"
+ },
  "Mam już konto — Zaloguj się": {
   "en": "I already have an account — Sign in",
   "de": "Ich habe schon ein Konto — Anmelden",
@@ -1678,6 +1906,12 @@
   "de": "Wir haben ein Match, also schnelle Wahl: Kaffee, Spaziergang oder ein langes Gespräch?",
   "uk": "У нас метч, тож швидкий вибір: кава, прогулянка чи довга розмова?",
   "es": "Tenemos match, así que elige rápido: ¿café, paseo o una charla larga?"
+ },
+ "Marketing / growth": {
+  "en": "Marketing / growth",
+  "de": "Marketing / Growth",
+  "uk": "Маркетинг / growth",
+  "es": "Marketing / growth"
  },
  "Masz już 3 zgłoszenia czekające na akceptację. Poczekaj na decyzję.": {
   "en": "You already have 3 submissions waiting for review. Wait for a decision.",
@@ -1799,6 +2033,12 @@
   "uk": "Щонайменше 20 символів",
   "es": "Mínimo 20 caracteres"
  },
+ "Mix i mastering": {
+  "en": "Mixing & mastering",
+  "de": "Mixing & Mastering",
+  "uk": "Зведення і мастеринг",
+  "es": "Mezcla y masterización"
+ },
  "Mniej": {
   "en": "Less",
   "de": "Weniger",
@@ -1817,6 +2057,18 @@
   "uk": "Мода",
   "es": "Moda"
  },
+ "Moda i uroda": {
+  "en": "Fashion & beauty",
+  "de": "Mode & Beauty",
+  "uk": "Мода і краса",
+  "es": "Moda y belleza"
+ },
+ "Model / modelka": {
+  "en": "Model",
+  "de": "Model",
+  "uk": "Модель",
+  "es": "Modelo"
+ },
  "Moderacja": {
   "en": "Moderation",
   "de": "Moderation",
@@ -1834,6 +2086,18 @@
   "de": "Meine",
   "uk": "Мої",
   "es": "Míos"
+ },
+ "Montażysta": {
+  "en": "Video editor",
+  "de": "Videoeditor/in",
+  "uk": "Монтажер",
+  "es": "Editor de vídeo"
+ },
+ "Motion design": {
+  "en": "Motion design",
+  "de": "Motion Design",
+  "uk": "Моушн-дизайн",
+  "es": "Motion design"
  },
  "Możesz korzystać ze Spark bez lokalizacji. Aby pokazywać przybliżoną odległość, włącz dostęp w ustawieniach.": {
   "en": "You can use Spark without location. To show approximate distance, enable access in settings.",
@@ -1918,6 +2182,12 @@
   "de": "Zum Testen",
   "uk": "На пробу",
   "es": "De prueba"
+ },
+ "Na razie nikogo nie ma": {
+  "en": "Nobody here yet",
+  "de": "Noch niemand da",
+  "uk": "Поки нікого немає",
+  "es": "Todavía no hay nadie"
  },
  "Na zawsze": {
   "en": "Forever",
@@ -2291,6 +2561,12 @@
   "uk": "Не вдалося визначити локацію. Спробуй ще раз або перевір налаштування Spark.",
   "es": "No se pudo obtener la ubicación. Inténtalo de nuevo o revisa los ajustes de Spark."
  },
+ "Nie udało się pobrać osób do współpracy.": {
+  "en": "Couldn't load people to collaborate with.",
+  "de": "Personen für eine Zusammenarbeit konnten nicht geladen werden.",
+  "uk": "Не вдалося завантажити людей для співпраці.",
+  "es": "No se pudieron cargar personas para colaborar."
+ },
  "Nie udało się pobrać profili": {
   "en": "Couldn't load profiles",
   "de": "Profile konnten nicht geladen werden",
@@ -2422,6 +2698,12 @@
   "de": "Das Bild konnte nicht erstellt werden. Versuch es erneut, wenn das Foto vollständig geladen ist.",
   "uk": "Не вдалося створити зображення. Спробуй ще раз після повного завантаження фото.",
   "es": "No se pudo crear la imagen. Inténtalo de nuevo cuando la foto haya cargado del todo."
+ },
+ "Nie udało się wczytać": {
+  "en": "Couldn't load",
+  "de": "Laden fehlgeschlagen",
+  "uk": "Не вдалося завантажити",
+  "es": "No se pudo cargar"
  },
  "Nie udało się wczytać wydarzeń": {
   "en": "Couldn't load events",
@@ -2585,6 +2867,12 @@
   "uk": "Не вдалося зберегти події. Перевір з'єднання й спробуй ще раз.",
   "es": "No se pudieron guardar los eventos. Comprueba tu conexión e inténtalo de nuevo."
  },
+ "Nie udało się zapisać. Spróbuj ponownie.": {
+  "en": "Couldn't save. Try again.",
+  "de": "Speichern fehlgeschlagen. Versuche es erneut.",
+  "uk": "Не вдалося зберегти. Спробуй ще раз.",
+  "es": "No se pudo guardar. Inténtalo de nuevo."
+ },
  "Nie udało się zapisać. Szkic jest zachowany — spróbuj ponownie.": {
   "en": "Couldn't save. Your draft is saved — please try again.",
   "de": "Speichern fehlgeschlagen. Der Entwurf ist gespeichert — versuch es erneut.",
@@ -2687,6 +2975,18 @@
   "uk": "непрочитаних повідомлень",
   "es": "mensajes sin leer"
  },
+ "Nikt w okolicy nie oferuje teraz tego, czego szukasz. Dodaj więcej rzeczy w „Kogo szukasz” albo włącz współpracę zdalną.": {
+  "en": "Nobody nearby offers what you're looking for right now. Add more to “Who are you looking for” or turn on remote collaboration.",
+  "de": "Gerade bietet niemand in der Nähe, was du suchst. Füge mehr unter „Wen suchst du?“ hinzu oder aktiviere die Remote-Zusammenarbeit.",
+  "uk": "Зараз ніхто поруч не пропонує того, що ти шукаєш. Додай більше в «Кого шукаєш» або увімкни дистанційну співпрацю.",
+  "es": "Ahora nadie cerca ofrece lo que buscas. Añade más en «¿A quién buscas?» o activa la colaboración en remoto."
+ },
+ "No-code": {
+  "en": "No-code",
+  "de": "No-Code",
+  "uk": "No-code",
+  "es": "No-code"
+ },
  "Nocne spacery": {
   "en": "Night walks",
   "de": "Nächtliche Spaziergänge",
@@ -2740,6 +3040,12 @@
   "de": "z. B. Rock am Ring",
   "uk": "напр. Open'er Festival",
   "es": "p. ej. Primavera Sound"
+ },
+ "np. Szukam rapera do EP-ki, nagrywamy w Warszawie": {
+  "en": "e.g. Looking for a rapper for an EP, recording in Brooklyn",
+  "de": "z. B. Suche Rapper/in für eine EP, Aufnahme in Berlin",
+  "uk": "напр. Шукаю репера для EP, записуємо в Києві",
+  "es": "p. ej. Busco rapero para un EP, grabamos en Madrid"
  },
  "np. Tauron Arena, ul. Lema 7": {
   "en": "e.g. Madison Square Garden, 4 Pennsylvania Plaza",
@@ -2903,6 +3209,18 @@
   "uk": "Необов'язково. Приховає профілі без спільних тегів.",
   "es": "Opcional. Oculta perfiles sin etiquetas en común."
  },
+ "Operator drona": {
+  "en": "Drone pilot",
+  "de": "Drohnenpilot/in",
+  "uk": "Оператор дрона",
+  "es": "Piloto de dron"
+ },
+ "Operator kamery": {
+  "en": "Camera operator",
+  "de": "Kameramann/-frau",
+  "uk": "Оператор",
+  "es": "Operador de cámara"
+ },
  "Opis (opcjonalnie)": {
   "en": "Description (optional)",
   "de": "Beschreibung (optional)",
@@ -2920,6 +3238,12 @@
   "de": "Profilbeschreibung",
   "uk": "Опис профілю",
   "es": "Descripción del perfil"
+ },
+ "Opis projektu": {
+  "en": "Project description",
+  "de": "Projektbeschreibung",
+  "uk": "Опис проєкту",
+  "es": "Descripción del proyecto"
  },
  "Opisz problem trochę dokładniej.": {
   "en": "Describe the problem in a bit more detail.",
@@ -3191,6 +3515,12 @@
   "uk": "Вкажи правильну адресу email.",
   "es": "Introduce un correo electrónico válido."
  },
+ "Podcaster": {
+  "en": "Podcaster",
+  "de": "Podcaster/in",
+  "uk": "Подкастер",
+  "es": "Podcaster"
+ },
  "Podróże": {
   "en": "Travel",
   "de": "Reisen",
@@ -3274,6 +3604,12 @@
   "de": "Zeig, dass du zur Community gehörst.",
   "uk": "Покажи, що ти частина спільноти.",
   "es": "Muestra que formas parte de la comunidad."
+ },
+ "Pokażemy Cię także osobom spoza Twojej okolicy.": {
+  "en": "We'll also show you to people outside your area.",
+  "de": "Wir zeigen dich auch Leuten außerhalb deiner Umgebung.",
+  "uk": "Ми покажемо тебе й людям поза твоїм районом.",
+  "es": "También te mostraremos a personas fuera de tu zona."
  },
  "Polityka prywatności": {
   "en": "Privacy policy",
@@ -3419,6 +3755,12 @@
   "uk": "Популярний",
   "es": "Popular"
  },
+ "Portfolio": {
+  "en": "Portfolio",
+  "de": "Portfolio",
+  "uk": "Портфоліо",
+  "es": "Portfolio"
+ },
  "Poszerzyliśmy zasięg, ale nie ma kolejnych profili. Zmień filtry, przywróć pominięte karty albo wróć później.": {
   "en": "We widened the range, but there are no more profiles. Change filters, restore skipped cards or come back later.",
   "de": "Wir haben den Radius erweitert, aber es gibt keine weiteren Profile. Ändere die Filter, hol übersprungene Karten zurück oder komm später wieder.",
@@ -3436,6 +3778,12 @@
   "de": "Benachrichtigungen kommen an, ohne deine Ruhe zu stören.",
   "uk": "Сповіщення надходитимуть, не порушуючи відпочинку.",
   "es": "Las notificaciones llegarán sin interrumpir tu descanso."
+ },
+ "Powiedz, co robisz i kogo szukasz. Pokażemy Ci producentów, raperów, grafików, programistów i innych twórców do wspólnego projektu.": {
+  "en": "Tell us what you do and who you're looking for. We'll show you producers, rappers, designers, developers and other creators to build a project with.",
+  "de": "Sag uns, was du machst und wen du suchst. Wir zeigen dir Produzent/innen, Rapper/innen, Designer/innen, Entwickler/innen und andere Kreative für ein gemeinsames Projekt.",
+  "uk": "Розкажи, що ти робиш і кого шукаєш. Ми покажемо продюсерів, реперів, дизайнерів, програмістів та інших авторів для спільного проєкту.",
+  "es": "Cuéntanos qué haces y a quién buscas. Te mostraremos productores, raperos, diseñadores, programadores y otros creadores para un proyecto común."
  },
  "Powód zgłoszenia": {
   "en": "Reason for report",
@@ -3508,6 +3856,18 @@
   "de": "Premium für immer aktiv",
   "uk": "Premium активний назавжди",
   "es": "Premium activo para siempre"
+ },
+ "Producent muzyczny": {
+  "en": "Music producer",
+  "de": "Musikproduzent/in",
+  "uk": "Музичний продюсер",
+  "es": "Productor musical"
+ },
+ "Product manager": {
+  "en": "Product manager",
+  "de": "Produktmanager/in",
+  "uk": "Продакт-менеджер",
+  "es": "Product manager"
  },
  "Profil": {
   "en": "Profile",
@@ -3604,6 +3964,18 @@
   "de": "Programmieren",
   "uk": "Програмування",
   "es": "Programación"
+ },
+ "Programowanie i tech": {
+  "en": "Programming & tech",
+  "de": "Programmierung & Tech",
+  "uk": "Програмування і техніка",
+  "es": "Programación y tecnología"
+ },
+ "Projektant/ka mody": {
+  "en": "Fashion designer",
+  "de": "Modedesigner/in",
+  "uk": "Дизайнер одягу",
+  "es": "Diseñador de moda"
  },
  "Projektantka, łowczyni ukrytych kawiarni i galerii. Szuka kogoś do rozmów bez pośpiechu.": {
   "en": "Designer and hunter of hidden cafés and galleries. Looking for someone to talk to without rushing.",
@@ -3785,6 +4157,12 @@
   "uk": "Польський реп",
   "es": "Rap polaco"
  },
+ "Raper": {
+  "en": "Rapper",
+  "de": "Rapper/in",
+  "uk": "Репер",
+  "es": "Rapero"
+ },
  "Razem na": {
   "en": "Together at",
   "de": "Zusammen bei",
@@ -3814,6 +4192,12 @@
   "de": "Zurücksetzen",
   "uk": "Скинути",
   "es": "Restablecer"
+ },
+ "Reżyser teledysków": {
+  "en": "Music video director",
+  "de": "Musikvideo-Regisseur/in",
+  "uk": "Режисер кліпів",
+  "es": "Director de videoclips"
  },
  "Romantic, Friends i Event zmieniasz przełącznikiem na górze Odkrywaj.": {
   "en": "Romantic, Friends and Event are switched at the top of Discover.",
@@ -3869,6 +4253,18 @@
   "uk": "Саморозвиток",
   "es": "Desarrollo personal"
  },
+ "Scena i sztuka": {
+  "en": "Stage & art",
+  "de": "Bühne & Kunst",
+  "uk": "Сцена і мистецтво",
+  "es": "Escena y arte"
+ },
+ "Scenarzysta": {
+  "en": "Screenwriter",
+  "de": "Drehbuchautor/in",
+  "uk": "Сценарист",
+  "es": "Guionista"
+ },
  "Seans": {
   "en": "Screening",
   "de": "Vorstellung",
@@ -3898,6 +4294,18 @@
   "de": "Sa",
   "uk": "Сб",
   "es": "Sá"
+ },
+ "Social media i marketing": {
+  "en": "Social media & marketing",
+  "de": "Social Media & Marketing",
+  "uk": "Соцмережі і маркетинг",
+  "es": "Redes sociales y marketing"
+ },
+ "Social media manager": {
+  "en": "Social media manager",
+  "de": "Social-Media-Manager/in",
+  "uk": "SMM-менеджер",
+  "es": "Social media manager"
  },
  "Spam lub reklamy": {
   "en": "Spam or ads",
@@ -4091,6 +4499,12 @@
   "uk": "Спробуй ввести інше ім'я або фрагмент повідомлення.",
   "es": "Prueba con otro nombre o parte de un mensaje."
  },
+ "Sprzedaż": {
+  "en": "Sales",
+  "de": "Vertrieb",
+  "uk": "Продажі",
+  "es": "Ventas"
+ },
  "Stadion": {
   "en": "Stadium",
   "de": "Stadion",
@@ -4115,6 +4529,12 @@
   "uk": "Story без прізвища й локації",
   "es": "Story sin apellido ni ubicación"
  },
+ "Streamer": {
+  "en": "Streamer",
+  "de": "Streamer/in",
+  "uk": "Стример",
+  "es": "Streamer"
+ },
  "Studia": {
   "en": "University",
   "de": "Studium",
@@ -4126,6 +4546,12 @@
   "de": "Erstelle dein Profil",
   "uk": "Створи свій профіль",
   "es": "Crea tu perfil"
+ },
+ "Stylista / stylistka": {
+  "en": "Stylist",
+  "de": "Stylist/in",
+  "uk": "Стиліст",
+  "es": "Estilista"
  },
  "Subskrypcja": {
   "en": "Subscription",
@@ -4163,6 +4589,18 @@
   "uk": "Бойові мистецтва",
   "es": "Artes marciales"
  },
+ "Szuka:": {
+  "en": "Looking for:",
+  "de": "Sucht:",
+  "uk": "Шукає:",
+  "es": "Busca:"
+ },
+ "Szuka: {0}": {
+  "en": "Looking for: {0}",
+  "de": "Sucht: {0}",
+  "uk": "Шукає: {0}",
+  "es": "Busca: {0}"
+ },
  "Szukaj": {
   "en": "Search",
   "de": "Suchen",
@@ -4193,6 +4631,12 @@
   "uk": "Шукаю себе",
   "es": "Explorando"
  },
+ "Szukamy osób do współpracy": {
+  "en": "Finding people to collaborate with",
+  "de": "Wir suchen Leute für eine Zusammenarbeit",
+  "uk": "Шукаємо людей для співпраці",
+  "es": "Buscando personas para colaborar"
+ },
  "Szukamy profili": {
   "en": "Looking for profiles",
   "de": "Wir suchen Profile",
@@ -4216,6 +4660,12 @@
   "de": "Gesuchte Interessen{0}",
   "uk": "Шукані інтереси{0}",
   "es": "Intereses que buscas{0}"
+ },
+ "Szukasz ludzi do wspólnego projektu? Ustaw profil współpracy.": {
+  "en": "Looking for people to work on a project with? Set up your collab profile.",
+  "de": "Suchst du Leute für ein gemeinsames Projekt? Richte dein Collab-Profil ein.",
+  "uk": "Шукаєш людей для спільного проєкту? Налаштуй профіль співпраці.",
+  "es": "¿Buscas gente para un proyecto? Configura tu perfil de colaboración."
  },
  "Szybki wybór na pierwsze spotkanie: kawa, spacer czy coś spontanicznego?": {
   "en": "Quick pick for a first date: coffee, a walk or something spontaneous?",
@@ -4289,11 +4739,29 @@
   "uk": "Так! У MOCAK, дуже раджу",
   "es": "¡Sí! En el MOCAK, muy recomendable"
  },
+ "Także zdalnie": {
+  "en": "Remote too",
+  "de": "Auch remote",
+  "uk": "Також дистанційно",
+  "es": "También en remoto"
+ },
+ "Tancerz / tancerka": {
+  "en": "Dancer",
+  "de": "Tänzer/in",
+  "uk": "Танцюрист / танцюристка",
+  "es": "Bailarín / bailarina"
+ },
  "Taniec": {
   "en": "Dance",
   "de": "Tanzen",
   "uk": "Танці",
   "es": "Baile"
+ },
+ "Tatuaż": {
+  "en": "Tattoo",
+  "de": "Tattoo",
+  "uk": "Тату",
+  "es": "Tatuaje"
  },
  "Tatuaże": {
   "en": "Tattoos",
@@ -4367,6 +4835,18 @@
   "uk": "цю людину",
   "es": "esta persona"
  },
+ "TikTok / Reels": {
+  "en": "TikTok / Reels",
+  "de": "TikTok / Reels",
+  "uk": "TikTok / Reels",
+  "es": "TikTok / Reels"
+ },
+ "Tłumacz": {
+  "en": "Translator",
+  "de": "Übersetzer/in",
+  "uk": "Перекладач",
+  "es": "Traductor"
+ },
  "To informacja wrażliwa. Pokażemy ją tylko tak, jak wybierzesz, i nigdy nie użyjemy jej do reklam. Wyłączenie tagu od razu ją usuwa.": {
   "en": "This is sensitive information. We'll only show it the way you choose and will never use it for ads. Turning off the tag removes it right away.",
   "de": "Das ist eine sensible Information. Wir zeigen sie nur so, wie du es wählst, und nutzen sie nie für Werbung. Wenn du den Tag ausschaltest, wird er sofort entfernt.",
@@ -4438,6 +4918,12 @@
   "de": "Dieses Event ist bereits vorbei. Ändere das Datum oder lehne die Einreichung ab.",
   "uk": "Ця подія вже завершилася. Зміни дату або відхили заявку.",
   "es": "Este evento ya ha terminado. Edita la fecha o rechaza la propuesta."
+ },
+ "Treści i media": {
+  "en": "Content & media",
+  "de": "Content & Medien",
+  "uk": "Контент і медіа",
+  "es": "Contenido y medios"
  },
  "TRYB EVENTOWY • TWOJA EKIPA": {
   "en": "EVENT MODE • YOUR CREW",
@@ -4517,11 +5003,29 @@
   "uk": "Твій профіль",
   "es": "Tu perfil"
  },
+ "Twój profil współpracy": {
+  "en": "Your collab profile",
+  "de": "Dein Collab-Profil",
+  "uk": "Твій профіль співпраці",
+  "es": "Tu perfil de colaboración"
+ },
+ "Twój projekt w jednym zdaniu": {
+  "en": "Your project in one sentence",
+  "de": "Dein Projekt in einem Satz",
+  "uk": "Твій проєкт одним реченням",
+  "es": "Tu proyecto en una frase"
+ },
  "Twój udział": {
   "en": "Your attendance",
   "de": "Deine Teilnahme",
   "uk": "Твоя участь",
   "es": "Tu asistencia"
+ },
+ "Twórca gier": {
+  "en": "Game creator",
+  "de": "Spieleentwickler/in",
+  "uk": "Розробник ігор",
+  "es": "Creador de juegos"
  },
  "TY DECYDUJESZ": {
   "en": "YOU DECIDE",
@@ -4619,6 +5123,12 @@
   "uk": "Поділися своєю карткою",
   "es": "Comparte tu tarjeta"
  },
+ "UI/UX": {
+  "en": "UI/UX",
+  "de": "UI/UX",
+  "uk": "UI/UX",
+  "es": "UI/UX"
+ },
  "Ulepszamy Spark. Wróć za chwilę, Twoje konto i dane są bezpieczne.": {
   "en": "We're improving Spark. Come back in a moment — your account and data are safe.",
   "de": "Wir verbessern Spark. Komm gleich wieder, dein Konto und deine Daten sind sicher.",
@@ -4648,6 +5158,18 @@
   "de": "Lege es für jede gewählte Kategorie separat fest.",
   "uk": "Налаштуй окремо для кожної вибраної категорії.",
   "es": "Configúralo por separado para cada categoría elegida."
+ },
+ "Ustaw profil Collab": {
+  "en": "Set up collab profile",
+  "de": "Collab-Profil einrichten",
+  "uk": "Налаштувати профіль Collab",
+  "es": "Configurar perfil Collab"
+ },
+ "Ustaw swój profil Collab": {
+  "en": "Set up your collab profile",
+  "de": "Richte dein Collab-Profil ein",
+  "uk": "Налаштуй свій профіль Collab",
+  "es": "Configura tu perfil Collab"
  },
  "Ustawienia": {
   "en": "Settings",
@@ -4991,6 +5513,12 @@
   "uk": "Увімкни сповіщення про метчі, запити й нові повідомлення. Їх можна вимкнути пізніше в налаштуваннях телефона.",
   "es": "Activa las notificaciones de matches, solicitudes y mensajes nuevos. Puedes desactivarlas más tarde en los ajustes del teléfono."
  },
+ "Wokal / śpiew": {
+  "en": "Vocals / singing",
+  "de": "Gesang",
+  "uk": "Вокал / спів",
+  "es": "Voz / canto"
+ },
  "Wolę nie podawać": {
   "en": "Prefer not to say",
   "de": "Keine Angabe",
@@ -5087,6 +5615,12 @@
   "uk": "Спільний план ·",
   "es": "Plan en común ·"
  },
+ "Współpraca zdalna": {
+  "en": "Remote collaboration",
+  "de": "Remote-Zusammenarbeit",
+  "uk": "Дистанційна співпраця",
+  "es": "Colaboración en remoto"
+ },
  "Wstecz": {
   "en": "Back",
   "de": "Zurück",
@@ -5158,6 +5692,24 @@
   "de": "Wähle für diese Kategorie mindestens ein Geschlecht.",
   "uk": "Вибери хоча б одну стать для цієї категорії.",
   "es": "Elige al menos un género para esta categoría."
+ },
+ "Wybierz co najmniej jedną rzecz, którą robisz, i jedną, której szukasz.": {
+  "en": "Choose at least one thing you do and one you're looking for.",
+  "de": "Wähle mindestens eine Sache, die du machst, und eine, die du suchst.",
+  "uk": "Вибери щонайменше одне, що ти робиш, і одне, що шукаєш.",
+  "es": "Elige al menos una cosa que haces y una que buscas."
+ },
+ "Wybierz do {0} umiejętności.": {
+  "en": "Choose up to {0} skills.",
+  "de": "Wähle bis zu {0} Fähigkeiten.",
+  "uk": "Вибери до {0} навичок.",
+  "es": "Elige hasta {0} habilidades."
+ },
+ "Wybierz do {0}. Według tego dobieramy osoby w Collab.": {
+  "en": "Choose up to {0}. We use this to find people in Collab.",
+  "de": "Wähle bis zu {0}. Danach suchen wir Leute in Collab aus.",
+  "uk": "Вибери до {0}. За цим ми підбираємо людей у Collab.",
+  "es": "Elige hasta {0}. Con esto elegimos a las personas en Collab."
  },
  "Wybierz działanie dotyczące tego profilu.": {
   "en": "Choose an action for this profile.",
@@ -5368,6 +5920,12 @@
   "de": "Abmelden",
   "uk": "Вийти",
   "es": "Cerrar sesión"
+ },
+ "Wyłącz Collab i ukryj mnie w tym trybie": {
+  "en": "Turn off Collab and hide me in this mode",
+  "de": "Collab ausschalten und mich in diesem Modus ausblenden",
+  "uk": "Вимкнути Collab і приховати мене в цьому режимі",
+  "es": "Desactivar Collab y ocultarme en este modo"
  },
  "Wymagaj wspólnego zainteresowania": {
   "en": "Require a shared interest",
@@ -5645,6 +6203,12 @@
   "uk": "Увійди ще раз.",
   "es": "Vuelve a iniciar sesión."
  },
+ "Zamknij": {
+  "en": "Close",
+  "de": "Schließen",
+  "uk": "Закрити",
+  "es": "Cerrar"
+ },
  "Zamknij listę": {
   "en": "Close list",
   "de": "Liste schließen",
@@ -5668,6 +6232,12 @@
   "de": "Wird gespeichert…",
   "uk": "Збереження…",
   "es": "Guardando…"
+ },
+ "Zapisz profil Collab": {
+  "en": "Save collab profile",
+  "de": "Collab-Profil speichern",
+  "uk": "Зберегти профіль Collab",
+  "es": "Guardar perfil Collab"
  },
  "Zapisz profil i zaczynamy": {
   "en": "Save profile and let's go",
@@ -5926,6 +6496,12 @@
   "de": "Events ändern",
   "uk": "Змінити події",
   "es": "Cambiar eventos"
+ },
+ "Znajdź ludzi do wspólnego projektu: muzyki, klipu, aplikacji, sesji zdjęciowej. W trybie Collab zobaczysz osoby, które robią to, czego szukasz.": {
+  "en": "Find people to build a project with: music, a video, an app, a photo shoot. In Collab you'll see people who do what you're looking for.",
+  "de": "Finde Leute für ein gemeinsames Projekt: Musik, ein Video, eine App, ein Fotoshooting. In Collab siehst du Leute, die machen, was du suchst.",
+  "uk": "Знайди людей для спільного проєкту: музики, кліпу, застосунку, фотосесії. У Collab ти побачиш людей, які роблять те, що ти шукаєш.",
+  "es": "Encuentra gente para un proyecto común: música, un vídeo, una app, una sesión de fotos. En Collab verás a quienes hacen lo que buscas."
  },
  "Znajomi": {
   "en": "Friends",

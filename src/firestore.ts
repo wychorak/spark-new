@@ -21,8 +21,8 @@ import {
 } from "firebase/firestore";
 
 /** Discover mode a match started in (badge + chat filter). */
-export type MatchModeContext = "romantic" | "friends" | "event";
-const matchModeContexts: MatchModeContext[] = ["romantic", "friends", "event"];
+export type MatchModeContext = "romantic" | "friends" | "event" | "collab";
+const matchModeContexts: MatchModeContext[] = ["romantic", "friends", "event", "collab"];
 
 /** Optional catalog extras: where exactly and a few words about it. */
 export type EventDetails = { venue?: string; description?: string; countryCode?: string };
@@ -41,6 +41,7 @@ import { isSparkOwnerAccount } from "./access";
 import { getLanguage } from "./i18n";
 import { getDeviceCountryCode } from "./i18n/region";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
+import { isCollabReady, normalizeCollabIds, normalizeCollabProfile, type CollabProfile } from "./collab";
 import { recordSparkError } from "./telemetry";
 import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 
@@ -92,6 +93,12 @@ export type UserProfileDocument = {
     geohash?: string;
   } | null;
   socials?: Record<string, string>;
+  /** Collab mode: skill ids, wanted skill ids, a short pitch, remote work, one portfolio link. */
+  collabSkills?: string[];
+  collabLooking?: string[];
+  collabPitch?: string;
+  collabRemote?: boolean;
+  collabPortfolio?: string;
   premiumPlan?: string;
   isPro?: boolean;
   profilePhotoLimit?: number;
@@ -716,6 +723,54 @@ export async function findProfilesByInterest(interests: string[], cursor: Discov
   };
 }
 
+/** Saves the Collab profile (empty skills = leave Collab) in the user doc and the Collab collection. */
+export async function updateUserCollab(uid: string, value: CollabProfile) {
+  requireCurrentUserUid(uid);
+  const collab = normalizeCollabProfile({
+    collabSkills: value.skills, collabLooking: value.looking, collabPitch: value.pitch, collabRemote: value.remote, collabPortfolio: value.portfolio
+  });
+  const ready = isCollabReady(collab);
+  const currentDb = requireDb();
+  const collabRef = doc(currentDb, "collabProfiles", uid);
+  if (ready) {
+    await setDoc(collabRef, {
+      uid, skills: collab.skills, looking: collab.looking, pitch: collab.pitch, remote: collab.remote, portfolio: collab.portfolio, updatedAt: serverTimestamp()
+    });
+  } else {
+    await deleteDoc(collabRef);
+  }
+  await setDoc(doc(currentDb, "users", uid), {
+    ...(await repairedOwnerFields(uid)),
+    collabSkills: ready ? collab.skills : deleteField(),
+    collabLooking: ready ? collab.looking : deleteField(),
+    collabPitch: ready && collab.pitch ? collab.pitch : deleteField(),
+    collabRemote: ready ? collab.remote : deleteField(),
+    collabPortfolio: ready && collab.portfolio ? collab.portfolio : deleteField(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return collab;
+}
+
+/** Public profiles of people offering any of the wanted skills, with their Collab fields. */
+export async function findProfilesByCollabSkills(skillIds: string[]) {
+  const wanted = normalizeCollabIds(skillIds, 30);
+  if (wanted.length === 0) return [];
+  const collabSnapshot = await getDocs(
+    query(collection(requireDb(), "collabProfiles"), where("skills", "array-contains-any", wanted), limit(60))
+  );
+  const collabByUid = new Map(collabSnapshot.docs.map((item) => [item.id, item.data()]));
+  const profiles = await getPublicProfiles(Array.from(collabByUid.keys()));
+  return profiles
+    .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile) && profile?.moderationStatus !== "suspended")
+    .map((profile) => {
+      const collab = collabByUid.get(profile.id) ?? {};
+      return {
+        ...profile,
+        collabSkills: collab.skills, collabLooking: collab.looking, collabPitch: collab.pitch, collabRemote: collab.remote, collabPortfolio: collab.portfolio
+      };
+    });
+}
+
 export async function findProfilesByActiveEvents(eventIds: string[]) {
   const normalizedIds = Array.from(new Set(eventIds.filter((value) => typeof value === "string" && value.length > 0))).slice(0, 10);
   if (normalizedIds.length === 0) return [];
@@ -958,11 +1013,11 @@ export async function createPremiumChatRequest(params: {
   targetUid: string;
   introMessage: string;
   eventContext?: SparkEvent;
-  modeContext?: "romantic" | "friends";
+  modeContext?: "romantic" | "friends" | "collab";
 }) {
   requireCurrentUserUid();
   const callable = httpsCallable<
-    { targetUid: string; introMessage: string; eventId?: string; modeContext?: "romantic" | "friends" },
+    { targetUid: string; introMessage: string; eventId?: string; modeContext?: "romantic" | "friends" | "collab" },
     PremiumChatRequestResponse
   >(requireCloudFunctions(), "createPremiumChatRequest");
 
@@ -1200,10 +1255,10 @@ export async function cancelProfileLike(targetUid: string) {
   }
 }
 
-export async function sendSparkLike(params: { targetUid: string; matchScore?: number; eventId?: string; modeContext?: "romantic" | "friends" }) {
+export async function sendSparkLike(params: { targetUid: string; matchScore?: number; eventId?: string; modeContext?: "romantic" | "friends" | "collab" }) {
   const uid = requireCurrentUserUid();
   const callable = httpsCallable<
-    { targetUid: string; matchScore?: number; eventId?: string; modeContext?: "romantic" | "friends" },
+    { targetUid: string; matchScore?: number; eventId?: string; modeContext?: "romantic" | "friends" | "collab" },
     { status: "matched"; threadId: string; superlikesRemaining: number }
   >(requireCloudFunctions(), "sendSparkLike");
   try {
