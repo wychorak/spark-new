@@ -472,6 +472,7 @@ export const sendSparkLike = onCall(
         status: "liked",
         matchScore: typeof data.matchScore === "number" ? Math.max(0, Math.min(100, data.matchScore)) : null,
         eventContext,
+        modeContext: eventContext ? "event" : requestedMode,
         resetAt,
         createdAt: canonicalSwipe.exists ? canonicalSwipe.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
@@ -837,6 +838,7 @@ export const deleteSparkAccount = onCall(  { region, timeoutSeconds: 540, memory
       db.recursiveDelete(db.collection("privateProfiles").doc(uid)),
       db.recursiveDelete(db.collection("publicProfiles").doc(uid)),
       db.recursiveDelete(db.collection("collabProfiles").doc(uid)),
+      db.recursiveDelete(db.collection("collabPortfolios").doc(uid)),
       ...[0, 1, 2].map((slot) => db.collection("eventProposals").doc(uid + "_" + slot).delete()),
       db.recursiveDelete(db.collection("revenuecat_customers").doc(uid)),
       deleteQueryDocuments(db.collection("revenuecat_events").where("app_user_id", "==", uid)),

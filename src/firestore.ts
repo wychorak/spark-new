@@ -17,7 +17,8 @@ import {
   startAfter,
   Timestamp,
   updateDoc,
-  where
+  where,
+  writeBatch
 } from "firebase/firestore";
 
 /** Discover mode a match started in (badge + chat filter). */
@@ -41,7 +42,7 @@ import { isSparkOwnerAccount } from "./access";
 import { getLanguage } from "./i18n";
 import { getDeviceCountryCode } from "./i18n/region";
 import { normalizeSparkEvent, sanitizeActiveEvents, type SparkEvent } from "./events";
-import { isCollabReady, normalizeCollabIds, normalizeCollabProfile, type CollabProfile } from "./collab";
+import { isCollabReady, likeModesCompatible, normalizeCollabIds, normalizeCollabProfile, type CollabProfile } from "./collab";
 import { recordSparkError } from "./telemetry";
 import { defaultNotificationPreferences, normalizeNotificationPreferences, type NotificationPreferences } from "./notification-preferences";
 
@@ -723,7 +724,8 @@ export async function findProfilesByInterest(interests: string[], cursor: Discov
   };
 }
 
-/** Saves the Collab profile (empty skills = leave Collab) in the user doc and the Collab collection. */
+/** Saves the Collab profile (empty skills = leave Collab) in one batch: the user doc,
+ *  the public Collab doc and the portfolio link, which only matches can read. */
 export async function updateUserCollab(uid: string, value: CollabProfile) {
   requireCurrentUserUid(uid);
   const collab = normalizeCollabProfile({
@@ -731,16 +733,21 @@ export async function updateUserCollab(uid: string, value: CollabProfile) {
   });
   const ready = isCollabReady(collab);
   const currentDb = requireDb();
+  const repairs = await repairedOwnerFields(uid);
+  const batch = writeBatch(currentDb);
   const collabRef = doc(currentDb, "collabProfiles", uid);
+  const portfolioRef = doc(currentDb, "collabPortfolios", uid);
   if (ready) {
-    await setDoc(collabRef, {
-      uid, skills: collab.skills, looking: collab.looking, pitch: collab.pitch, remote: collab.remote, portfolio: collab.portfolio, updatedAt: serverTimestamp()
+    batch.set(collabRef, {
+      uid, skills: collab.skills, looking: collab.looking, pitch: collab.pitch, remote: collab.remote, hasPortfolio: Boolean(collab.portfolio), updatedAt: serverTimestamp()
     });
   } else {
-    await deleteDoc(collabRef);
+    batch.delete(collabRef);
   }
-  await setDoc(doc(currentDb, "users", uid), {
-    ...(await repairedOwnerFields(uid)),
+  if (ready && collab.portfolio) batch.set(portfolioRef, { uid, url: collab.portfolio, updatedAt: serverTimestamp() });
+  else batch.delete(portfolioRef);
+  batch.set(doc(currentDb, "users", uid), {
+    ...repairs,
     collabSkills: ready ? collab.skills : deleteField(),
     collabLooking: ready ? collab.looking : deleteField(),
     collabPitch: ready && collab.pitch ? collab.pitch : deleteField(),
@@ -748,7 +755,31 @@ export async function updateUserCollab(uid: string, value: CollabProfile) {
     collabPortfolio: ready && collab.portfolio ? collab.portfolio : deleteField(),
     updatedAt: serverTimestamp()
   }, { merge: true });
+  await batch.commit();
   return collab;
+}
+
+/** Portfolio link of a matched person (rules allow it only after a match). */
+export async function getCollabPortfolio(uid: string) {
+  requireCurrentUserUid();
+  const snapshot = await getDoc(doc(requireDb(), "collabPortfolios", uid));
+  const url = snapshot.exists() ? snapshot.data().url : "";
+  return typeof url === "string" && url.startsWith("https://") ? url : "";
+}
+
+/** Collab fields of given people (e.g. Collab matches), batched by 30. */
+export async function getCollabProfiles(uids: string[]) {
+  const unique = Array.from(new Set(uids.filter((uid) => typeof uid === "string" && uid.length > 0 && !uid.includes("/"))));
+  if (unique.length === 0) return {} as Record<string, Record<string, unknown>>;
+  const batches = Array.from({ length: Math.ceil(unique.length / 30) }, (_, index) => unique.slice(index * 30, index * 30 + 30));
+  const snapshots = await Promise.all(batches.map((batch) => getDocs(query(collection(requireDb(), "collabProfiles"), where(documentId(), "in", batch)))));
+  const result: Record<string, Record<string, unknown>> = {};
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => { result[item.id] = collabDocToFields(item.data()); }));
+  return result;
+}
+
+function collabDocToFields(data: Record<string, unknown>) {
+  return { collabSkills: data.skills, collabLooking: data.looking, collabPitch: data.pitch, collabRemote: data.remote, collabHasPortfolio: data.hasPortfolio === true };
 }
 
 /** Public profiles of people offering any of the wanted skills, with their Collab fields. */
@@ -763,11 +794,7 @@ export async function findProfilesByCollabSkills(skillIds: string[]) {
   return profiles
     .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile) && profile?.moderationStatus !== "suspended")
     .map((profile) => {
-      const collab = collabByUid.get(profile.id) ?? {};
-      return {
-        ...profile,
-        collabSkills: collab.skills, collabLooking: collab.looking, collabPitch: collab.pitch, collabRemote: collab.remote, collabPortfolio: collab.portfolio
-      };
+      return { ...profile, ...collabDocToFields(collabByUid.get(profile.id) ?? {}) };
     });
 }
 
@@ -793,7 +820,8 @@ export async function findIncomingProfileLikes(toUid: string) {
         id: item.id,
         fromUid: String(data.fromUid ?? ""),
         direction: data.direction === "superlike" ? "superlike" as const : "like" as const,
-        status: String(data.status ?? "")
+        status: String(data.status ?? ""),
+        modeContext: matchModeContexts.includes(data.modeContext) ? data.modeContext as MatchModeContext : null
       };
     })
     .filter((item) => item.fromUid && item.status === "liked");
@@ -871,6 +899,7 @@ export async function recordProfileSwipe(params: {
   matchScore?: number;
   eventContext?: SparkEvent;
   resetAtMs?: number;
+  modeContext?: MatchModeContext;
 }) {
   requireCurrentUserUid(params.fromUid);
   const currentDb = requireDb();
@@ -884,6 +913,7 @@ export async function recordProfileSwipe(params: {
     matchScore: params.matchScore ?? null,
     eventContext: params.eventContext ? sanitizeActiveEvents([params.eventContext])[0] ?? null : null,
     resetAt: params.resetAtMs ? new Date(params.resetAtMs) : null,
+    modeContext: params.modeContext && matchModeContexts.includes(params.modeContext) ? params.modeContext : null,
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp()
   };
@@ -933,6 +963,8 @@ export async function hasIncomingProfileLike(params: {
   swipeId: string;
   fromUid: string;
   toUid: string;
+  /** Mode the viewer is liking in; a Collab like only pairs with a Collab like. */
+  modeContext?: MatchModeContext;
 }) {
   const currentDb = requireDb();
   const snapshot = await getDoc(doc(currentDb, "swipes", params.swipeId));
@@ -942,7 +974,8 @@ export async function hasIncomingProfileLike(params: {
   }
 
   const data = snapshot.data();
-  return data.fromUid === params.fromUid && data.toProfileKey === params.toUid && data.status === "liked";
+  return data.fromUid === params.fromUid && data.toProfileKey === params.toUid && data.status === "liked"
+    && likeModesCompatible(data.modeContext, params.modeContext);
 }
 
 export async function findOutgoingProfileSwipes(fromUid: string) {

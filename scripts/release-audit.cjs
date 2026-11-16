@@ -214,6 +214,15 @@ if (process.env.CM_BUILD_ID) {
   check(revenueCatKey.startsWith('appl_'), 'EXPO_PUBLIC_REVENUECAT_API_KEY (appl_...) is missing from the Codemagic "spark keys" group.');
 }
 
+{
+  const collabSource = read('src/collab.ts');
+  const catalogIds = [...collabSource.matchAll(/\{ id: "([a-z]+\.[a-z0-9]+)"/g)].map((match) => match[1]);
+  const rulesList = (rulesSource.match(/function validCollabIds[\s\S]*?hasOnly\(\[([^\]]*)\]/) || [])[1] || '';
+  const ruleIds = [...rulesList.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  check(catalogIds.length > 0 && catalogIds.length === ruleIds.length && catalogIds.every((id) => ruleIds.includes(id)), 'Collab roles in firestore.rules must match src/collab.ts.');
+  check(rulesSource.includes('match /collabPortfolios/{uid}') && rulesSource.includes('allow list: if false;'), 'Collab portfolio links must stay readable only after a match.');
+}
+
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
   failures.forEach((failure) => console.error(`- ${failure}`));

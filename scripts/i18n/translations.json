@@ -1805,6 +1805,12 @@
   "uk": "Посилання на портфоліо виглядає неправильним. Встав повну адресу сторінки.",
   "es": "El enlace del portfolio no parece correcto. Pega la dirección completa."
  },
+ "Link jest teraz niedostępny.": {
+  "en": "The link isn't available right now.",
+  "de": "Der Link ist gerade nicht verfügbar.",
+  "uk": "Посилання зараз недоступне.",
+  "es": "El enlace no está disponible ahora mismo."
+ },
  "Lista jest pusta": {
   "en": "The list is empty",
   "de": "Die Liste ist leer",

@@ -102,6 +102,8 @@ import {
   updateDeviceLanguage,
   updateUserCollab,
   findProfilesByCollabSkills,
+  getCollabProfiles,
+  getCollabPortfolio,
   type DiscoveryCursor,
   type ProfileVerificationStatus
 } from "./src/firestore";
@@ -524,6 +526,8 @@ type MatchProfile = {
   /** Collab mode: what they do, whom they look for, pitch, remote work, portfolio link. */
   collab?: CollabProfile;
   collabFit?: CollabFit;
+  /** Mode of their like on you (Pro "who liked you"). */
+  incomingLikeMode?: DeckMode;
 };
 
 type UserLocation = {
@@ -1149,6 +1153,8 @@ function AppContent() {
   const [collabProfilesLoading, setCollabProfilesLoading] = useState(false);
   const [collabProfilesError, setCollabProfilesError] = useState<string | null>(null);
   const [collabReloadKey, setCollabReloadKey] = useState(0);
+  const collabFieldsLoadedRef = useRef(new Set<string>());
+  const collabFieldsCacheRef = useRef<Record<string, Record<string, unknown>>>({});
   const [eventProfilesLoading, setEventProfilesLoading] = useState(false);
   const [eventProfilesError, setEventProfilesError] = useState<string | null>(null);
   const [expiredEventsCount, setExpiredEventsCount] = useState(0);
@@ -1205,6 +1211,7 @@ function AppContent() {
   const [matchCelebrationKind, setMatchCelebrationKind] = useState<"mutual" | "sparkLike">("mutual");
   const [chatRequestKeys, setChatRequestKeys] = useState<string[]>([]);
   const [incomingLikeKinds, setIncomingLikeKinds] = useState<Record<string, "like" | "superlike">>({});
+  const [incomingLikeModes, setIncomingLikeModes] = useState<Record<string, DeckMode>>({});
   const [blockedProfileKeys, setBlockedProfileKeys] = useState<string[]>([]);
   const [chatThreads, setChatThreads] = useState<Record<string, ChatThread>>({});
   const sendingMessageKeysRef = useRef(new Set<string>());
@@ -2066,6 +2073,7 @@ function AppContent() {
         if (!mounted) return;
 
         setIncomingLikeKinds(Object.fromEntries(uniqueLikes.map((like) => [like.fromUid, like.direction])));
+        setIncomingLikeModes(Object.fromEntries(uniqueLikes.filter((like) => like.modeContext).map((like) => [like.fromUid, like.modeContext as DeckMode])));
         const profiles = documents
           .map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null)
           .filter((profile): profile is MatchProfile => Boolean(profile));
@@ -2127,8 +2135,13 @@ function AppContent() {
       setChatRequestKeys(requestedKeys);
 
       const conversationProfileKeys = Array.from(new Set([...matchedKeys, ...requestedKeys]));
-      void getPublicProfiles(conversationProfileKeys).then((documents) => {
-        const profiles = documents.map((document) => document ? mapRemoteProfile(document as Record<string, unknown>) : null).filter((profile): profile is MatchProfile => Boolean(profile));
+      const collabKeys = conversationProfileKeys.filter((key) => nextThreads[key]?.modeContext === "collab" && !collabFieldsLoadedRef.current.has(key));
+      void Promise.all([getPublicProfiles(conversationProfileKeys), collabKeys.length ? getCollabProfiles(collabKeys).catch(() => ({})) : Promise.resolve({})]).then(([documents, collabFields]) => {
+        collabKeys.forEach((key) => collabFieldsLoadedRef.current.add(key));
+        Object.assign(collabFieldsCacheRef.current, collabFields);
+        const profiles = documents
+          .map((document) => document ? mapRemoteProfile({ ...(document as Record<string, unknown>), ...(collabFieldsCacheRef.current[document.id] ?? {}) }) : null)
+          .filter((profile): profile is MatchProfile => Boolean(profile));
         setRemoteProfiles((current) => {
           const profileMap = new Map(current.map((profile) => [getProfileKey(profile), profile]));
           profiles.forEach((profile) => profileMap.set(getProfileKey(profile), profile));
@@ -2758,7 +2771,8 @@ function AppContent() {
           direction: action,
           matchScore: targetProfile.matchScore,
           eventContext,
-          resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined
+          resetAtMs: targetProfile.isTestProfile ? Date.now() + 24 * 60 * 60 * 1000 : undefined,
+          modeContext: deckMode
         });
         if (typeof swipeResult.superlikesRemaining === "number") {
           setSuperlikesRemaining(swipeResult.superlikesRemaining);
@@ -2828,7 +2842,8 @@ function AppContent() {
         isMutualMatch = await hasIncomingProfileLike({
           swipeId: getThreadId(targetKey, appUser.uid),
           fromUid: targetKey,
-          toUid: appUser.uid
+          toUid: appUser.uid,
+          modeContext: deckMode
         });
       } catch {
         isMutualMatch = false;
@@ -2886,6 +2901,7 @@ function AppContent() {
     const profile = availableProfiles.find((item) => getProfileKey(item) === profileKey);
     if (!profile) return;
     const eventContext = getSharedActiveEvents(activeEvents, profile.activeEvents ?? [])[0];
+    const likeMode: DeckMode = incomingLikeModes[profileKey] === "collab" ? "collab" : relationMode(eventContext ? { eventContext } : undefined, profile, intents);
 
     try {
       await recordProfileSwipe({
@@ -2894,7 +2910,8 @@ function AppContent() {
         toProfileKey: profileKey,
         direction: "like",
         matchScore: profile.matchScore,
-        eventContext
+        eventContext,
+        modeContext: likeMode
       });
       await createMatchThread({
         matchId: getConversationId(appUser.uid, profileKey),
@@ -2902,7 +2919,7 @@ function AppContent() {
         createdByUid: appUser.uid,
         source: "mutual-like",
         eventContext,
-        modeContext: relationMode(eventContext ? { eventContext } : undefined, profile, intents)
+        modeContext: likeMode
       });
 
       setIncomingLikeKinds((current) => {
@@ -3574,6 +3591,7 @@ function AppContent() {
             matchedProfileKeys={matchedProfileKeys}
             likedProfileKeys={likedProfileKeys}
             incomingLikeKinds={incomingLikeKinds}
+            incomingLikeModes={incomingLikeModes}
             chatRequestKeys={chatRequestKeys}
             chatThreads={chatThreads}
             hasPro={revenueCat.isPro}
@@ -5489,19 +5507,24 @@ function ProfilePreviewSheet({
                   <MaterialCommunityIcons name="account-search-outline" size={18} color={colors.collab} />
                   <Text style={[local.rowLabel, styles.fill]} numberOfLines={3}>{"Szuka: " + profile.collab.looking.map(collabText).join(", ")}</Text>
                 </View>
-                {!!profile.collab.portfolio && (
+                {profile.collab.hasPortfolio && (
                   <>
                     <View style={local.divider} />
                     <Pressable
                       accessibilityRole="link"
                       disabled={!canViewSocials}
-                      onPress={() => { void WebBrowser.openBrowserAsync(profile.collab?.portfolio ?? "").catch(() => undefined); }}
+                      onPress={() => {
+                        // One read per tap; the rules release the link only after a match.
+                        void getCollabPortfolio(getProfileKey(profile))
+                          .then(async (url) => { if (url) await WebBrowser.openBrowserAsync(url); else Alert.alert("Portfolio", "Link jest teraz niedostępny."); })
+                          .catch(() => Alert.alert("Portfolio", "Link jest teraz niedostępny."));
+                      }}
                       style={local.row}
                     >
                       <MaterialCommunityIcons name="link-variant" size={18} color={colors.collab} />
                       <Text style={[local.rowLabel, styles.fill]}>Portfolio</Text>
                       {canViewSocials
-                        ? <Text style={local.rowValue} numberOfLines={1}>{profile.collab.portfolio.replace(/^https:\/\//, "")}</Text>
+                        ? <MaterialCommunityIcons name="open-in-new" size={16} color={colors.collab} />
                         : <MaterialCommunityIcons name="lock" size={16} color={colors.muted} />}
                     </Pressable>
                   </>
@@ -6406,6 +6429,7 @@ function MatchesScreen({
   matchedProfileKeys,
   likedProfileKeys,
   incomingLikeKinds,
+  incomingLikeModes,
   chatRequestKeys,
   chatThreads,
   hasPro,
@@ -6421,6 +6445,7 @@ function MatchesScreen({
   profiles: MatchProfile[];
   matchedProfileKeys: string[];
   likedProfileKeys: string[];
+  incomingLikeModes?: Record<string, DeckMode>;
   incomingLikeKinds: Record<string, "like" | "superlike">;
   chatRequestKeys: string[];
   chatThreads: Record<string, ChatThread>;
@@ -6437,7 +6462,10 @@ function MatchesScreen({
   const { colors, styles } = useAppTheme();
   const [previewProfile, setPreviewProfile] = useState<MatchProfile | null>(null);
   const [modeFilter, setModeFilter] = useState<DeckMode | "all">("all");
-  const modeOf = (profile: MatchProfile) => relationMode(chatThreads[getProfileKey(profile)], profile, viewerIntents);
+  const modeOf = (profile: MatchProfile) => {
+    const key = getProfileKey(profile);
+    return chatThreads[key] ? relationMode(chatThreads[key], profile, viewerIntents) : incomingLikeModes?.[key] ?? relationMode(undefined, profile, viewerIntents);
+  };
   const relatedProfiles = profiles.filter((profile) => {
     const key = getProfileKey(profile);
     return matchedProfileKeys.includes(key) || likedProfileKeys.includes(key) || chatRequestKeys.includes(key) || (hasPro && Boolean(incomingLikeKinds[key]));

@@ -114,6 +114,12 @@ service cloud.firestore {
         );
     }
 
+    // Keep in sync with src/collab.ts (the release audit checks it).
+    function validCollabIds(list) {
+      return list is list && list.size() >= 1 && list.size() <= 5
+        && list.hasOnly(['music.producer', 'music.beatmaker', 'music.rapper', 'music.vocals', 'music.lyrics', 'music.mixing', 'music.dj', 'music.instrument', 'music.composer', 'design.graphic', 'design.illustration', 'design.uiux', 'design.branding', 'design.motion', 'design.3d', 'design.tattoo', 'video.photographer', 'video.camera', 'video.editor', 'video.colorist', 'video.director', 'video.drone', 'tech.frontend', 'tech.backend', 'tech.mobile', 'tech.gamedev', 'tech.ai', 'tech.nocode', 'social.creator', 'social.shortvideo', 'social.manager', 'social.copywriter', 'social.growth', 'fashion.model', 'fashion.stylist', 'fashion.makeup', 'fashion.designer', 'business.founder', 'business.sales', 'business.product', 'business.finance', 'media.screenwriter', 'media.podcaster', 'media.journalist', 'media.translator', 'stage.actor', 'stage.dancer', 'stage.artist', 'stage.comedian', 'gaming.streamer', 'gaming.player', 'gaming.creator']);
+    }
+
     function validEventFields(event) {
       return event is map
         && event.id is string && event.id.size() >= 8 && event.id.size() <= 220
@@ -184,6 +190,18 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.status == 'liked';
     }
 
+    // A Collab like only pairs with a Collab like, and a Collab match only comes
+    // from two Collab likes. The swipe docs are already read by hasLike, so this
+    // adds no billed reads.
+    function swipeIsCollab(fromUid, toUid) {
+      return get(/databases/$(database)/documents/swipes/$(fromUid + '_' + toUid)).data.get('modeContext', '') == 'collab';
+    }
+
+    function sameLikeFamily(uid, otherUid, data) {
+      return swipeIsCollab(uid, otherUid) == swipeIsCollab(otherUid, uid)
+        && (data.get('modeContext', null) == 'collab') == swipeIsCollab(uid, otherUid);
+    }
+
     function validMatchCreation(data, matchId) {
       let otherUid = otherMember(data);
       return request.auth.uid in data.memberUids
@@ -203,13 +221,15 @@ service cloud.firestore {
           )
         )
         && (
-          (data.source == 'mutual-like' && data.status == 'matched' && hasLike(request.auth.uid, otherUid) && hasLike(otherUid, request.auth.uid)) ||
+          (data.source == 'mutual-like' && data.status == 'matched' && hasLike(request.auth.uid, otherUid) && hasLike(otherUid, request.auth.uid)
+            && sameLikeFamily(request.auth.uid, otherUid, data)) ||
           (data.source == 'superlike' && data.status == 'matched' && hasSuperlike(request.auth.uid, otherUid))
         );
     }
 
     function validSwipe(data, swipeId) {
-      return data.keys().hasOnly(['fromUid', 'toProfileKey', 'direction', 'status', 'matchScore', 'eventContext', 'resetAt', 'updatedAt', 'createdAt'])
+      return data.keys().hasOnly(['fromUid', 'toProfileKey', 'direction', 'status', 'matchScore', 'eventContext', 'resetAt', 'modeContext', 'updatedAt', 'createdAt'])
+        && (data.get('modeContext', null) == null || data.modeContext in ['romantic', 'friends', 'event', 'collab'])
         && data.fromUid == request.auth.uid
         && data.toProfileKey is string
         && data.toProfileKey != request.auth.uid
@@ -456,14 +476,31 @@ service cloud.firestore {
       allow read: if activeUser();
       allow create, update: if isOwner(uid)
         && activeUser()
-        && request.resource.data.keys().hasOnly(['uid', 'skills', 'looking', 'pitch', 'remote', 'portfolio', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'skills', 'looking', 'pitch', 'remote', 'hasPortfolio', 'updatedAt'])
         && request.resource.data.uid == uid
-        && request.resource.data.skills is list && request.resource.data.skills.size() >= 1 && request.resource.data.skills.size() <= 5
-        && request.resource.data.looking is list && request.resource.data.looking.size() >= 1 && request.resource.data.looking.size() <= 5
+        && validCollabIds(request.resource.data.skills)
+        && validCollabIds(request.resource.data.looking)
         && request.resource.data.pitch is string && request.resource.data.pitch.size() <= 150 && allowedUserText(request.resource.data.pitch)
         && request.resource.data.remote is bool
-        && request.resource.data.portfolio is string && request.resource.data.portfolio.size() <= 300
-        && (request.resource.data.portfolio == '' || request.resource.data.portfolio.matches('^https://[^ ]+$'))
+        && request.resource.data.hasPortfolio is bool
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isOwner(uid);
+    }
+
+    // The portfolio link is private until a match: only the owner and people
+    // with an active match (thread id = the two uids sorted) can read it.
+    match /collabPortfolios/{uid} {
+      allow get: if isOwner(uid) || (
+        activeUser()
+        && get(/databases/$(database)/documents/matches/$(request.auth.uid < uid ? request.auth.uid + '_' + uid : uid + '_' + request.auth.uid)).data.status == 'matched'
+      );
+      allow list: if false;
+      allow create, update: if isOwner(uid)
+        && activeUser()
+        && request.resource.data.keys().hasOnly(['uid', 'url', 'updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.url is string && request.resource.data.url.size() <= 300
+        && request.resource.data.url.matches('^https://[^ ]+$')
         && request.resource.data.updatedAt == request.time;
       allow delete: if isOwner(uid);
     }

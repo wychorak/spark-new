@@ -303,6 +303,7 @@ export const catalog: Record<string, ReadonlyArray<string | null>> = {
   "Limit wiadomości": ["Message limit", "Nachrichtenlimit", "Ліміт повідомлень", "Límite de mensajes"],
   "Link do portfolio": ["Portfolio link", "Portfolio-Link", "Посилання на портфоліо", "Enlace al portfolio"],
   "Link do portfolio wygląda na nieprawidłowy. Wklej pełny adres strony.": ["The portfolio link doesn't look right. Paste the full web address.", "Der Portfolio-Link sieht falsch aus. Füge die vollständige Webadresse ein.", "Посилання на портфоліо виглядає неправильним. Встав повну адресу сторінки.", "El enlace del portfolio no parece correcto. Pega la dirección completa."],
+  "Link jest teraz niedostępny.": ["The link isn't available right now.", "Der Link ist gerade nicht verfügbar.", "Посилання зараз недоступне.", "El enlace no está disponible ahora mismo."],
   "Lista jest pusta": ["The list is empty", "Die Liste ist leer", "Список порожній", "La lista está vacía"],
   "Logowanie": ["Sign in", "Anmelden", "Вхід", "Iniciar sesión"],
   "Logowanie Apple jest dostępne na iPhonie.": ["Sign in with Apple is available on iPhone.", "Die Anmeldung mit Apple ist auf dem iPhone verfügbar.", "Вхід через Apple доступний на iPhone.", "El inicio de sesión con Apple está disponible en iPhone."],

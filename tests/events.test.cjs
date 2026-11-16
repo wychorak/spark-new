@@ -86,3 +86,15 @@ test("collab catalog, normalization and matching", () => {
   assert.equal(oneWay.theyHaveWhatIWant.length, 0);
   assert.ok(mutual.score > oneWay.score);
 });
+
+test("collab likes only pair with collab likes; portfolio flag", () => {
+  const { likeModesCompatible, normalizeCollabProfile } = require("../src/collab.ts");
+  assert.ok(likeModesCompatible("collab", "collab"));
+  assert.ok(likeModesCompatible("romantic", "friends"));
+  assert.ok(likeModesCompatible(null, "romantic"), "legacy likes count as dating/friends");
+  assert.ok(!likeModesCompatible("collab", "romantic"));
+  assert.ok(!likeModesCompatible(null, "collab"));
+  assert.equal(normalizeCollabProfile({ collabHasPortfolio: true }).hasPortfolio, true);
+  assert.equal(normalizeCollabProfile({ collabPortfolio: "https://x.io/a" }).hasPortfolio, true);
+  assert.equal(normalizeCollabProfile({}).hasPortfolio, false);
+});

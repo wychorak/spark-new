@@ -72,7 +72,7 @@ export function CollabEditorModal({ visible, value, onClose, onSave }: {
 
   async function leave() {
     setSaving(true);
-    const ok = await onSave({ skills: [], looking: [], pitch: "", remote: false, portfolio: "" });
+    const ok = await onSave({ skills: [], looking: [], pitch: "", remote: false, portfolio: "", hasPortfolio: false });
     setSaving(false);
     if (ok) onClose();
     else setError("Nie udało się zapisać. Spróbuj ponownie.");

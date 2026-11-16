@@ -137,7 +137,8 @@ export function normalizeCollabPortfolio(value: unknown): string {
   return text;
 }
 
-export type CollabProfile = { skills: string[]; looking: string[]; pitch: string; remote: boolean; portfolio: string };
+/** portfolio is only known for your own profile; others expose hasPortfolio and the link is read after a match. */
+export type CollabProfile = { skills: string[]; looking: string[]; pitch: string; remote: boolean; portfolio: string; hasPortfolio: boolean };
 
 export function normalizeCollabProfile(source: Record<string, unknown> | null | undefined): CollabProfile {
   return {
@@ -145,8 +146,18 @@ export function normalizeCollabProfile(source: Record<string, unknown> | null | 
     looking: normalizeCollabIds(source?.collabLooking, collabMaxLooking),
     pitch: normalizeCollabPitch(source?.collabPitch),
     remote: source?.collabRemote === true,
-    portfolio: normalizeCollabPortfolio(source?.collabPortfolio)
+    portfolio: normalizeCollabPortfolio(source?.collabPortfolio),
+    hasPortfolio: source?.collabHasPortfolio === true || Boolean(normalizeCollabPortfolio(source?.collabPortfolio))
   };
+}
+
+/** Collab likes never pair with likes from the dating/friends modes. */
+export function isCollabMode(mode: unknown): boolean {
+  return mode === "collab";
+}
+
+export function likeModesCompatible(theirs: unknown, mine: unknown): boolean {
+  return isCollabMode(theirs) === isCollabMode(mine);
 }
 
 /** Someone shows up in Collab once they say what they do and whom they look for. */
