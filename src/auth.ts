@@ -194,16 +194,4 @@ export async function getRevenueCatEntitlements(forceRefresh = false) {
     : [];
 }
 
-export async function ensureRecentLoginForAccountDeletion() {
-  const currentUser = requireAuth().currentUser;
-  if (!currentUser) {
-    throw new Error("Brak zalogowanego użytkownika.");
-  }
 
-  const token = await currentUser.getIdTokenResult();
-  const authenticatedAt = Date.parse(token.authTime);
-  const fourMinutes = 4 * 60 * 1000;
-  if (!Number.isFinite(authenticatedAt) || Date.now() - authenticatedAt > fourMinutes) {
-    throw new Error("Ze względów bezpieczeństwa wyloguj się, zaloguj ponownie i wtedy usuń konto.");
-  }
-}

@@ -38,7 +38,7 @@ import {
 import { Text, TextInput } from "./src/i18n/Text";
 import { captureRef } from "react-native-view-shot";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { currentUserUsesAppleSignIn, ensureRecentLoginForAccountDeletion, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
+import { currentUserUsesAppleSignIn, getRevenueCatEntitlements, observeAuthState, reauthenticateAndRevokeApple, requestPasswordReset, signInWithAppleIdToken, signInWithEmail, signInWithGoogleIdToken, signOutUser, signUpWithEmail, type AppAuthUser } from "./src/auth";
 import { firebaseConfigStatus, isFirebaseConfigured } from "./src/firebase";
 import { isSparkOwnerAccount } from "./src/access";
 import { findModerationViolation } from "./src/content-moderation";
@@ -3200,7 +3200,7 @@ function AppContent() {
     }
   }
 
-  async function blockProfile(profileKey: string) {
+  async function blockProfile(profileKey: string, note = "") {
     if (appUser) {
       try {
         await blockUser({ blockerUid: appUser.uid, blockedUid: profileKey, threadId: chatThreads[profileKey]?.threadId });
@@ -3208,6 +3208,8 @@ function AppContent() {
         Alert.alert("Blokada", "Nie uda\u0142o si\u0119 zablokowa\u0107 profilu. Spr\u00f3buj ponownie.");
         return;
       }
+      // Every block also reaches the moderation queue (App Store guideline 1.2).
+      void reportProfile(profileKey, ("Zablokowano użytkownika" + (note.trim() ? ": " + note.trim() : "")).slice(0, 200), true);
     }
 
     setBlockedProfileKeys((keys) => (keys.includes(profileKey) ? keys : [...keys, profileKey]));
@@ -3225,6 +3227,7 @@ function AppContent() {
     if (selectedChatKey === profileKey) {
       setSelectedChatKey(null);
     }
+    Alert.alert("Zablokowano", "Ta osoba zniknęła z Twojego feedu i nie może się z Tobą kontaktować. Zgłoszenie trafiło do moderacji.");
   }
 
   async function unblockProfile(profileKey: string): Promise<boolean> {
@@ -3243,8 +3246,9 @@ function AppContent() {
       return false;
     }
   }
-  async function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomo\u015b\u0107"): Promise<boolean> {
+  async function reportProfile(profileKey: string, reason = "Nieodpowiedni profil lub wiadomo\u015b\u0107", silent = false): Promise<boolean> {
     if (!appUser) {
+      if (silent) return false;
       Alert.alert("Zg\u0142oszenie", "Zaloguj si\u0119 ponownie, aby wys\u0142a\u0107 zg\u0142oszenie.");
       return false;
     }
@@ -3273,7 +3277,7 @@ function AppContent() {
       });
       return true;
     } catch {
-      Alert.alert("Zg\u0142oszenie", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 zg\u0142oszenia. Spr\u00f3buj ponownie.");
+      if (!silent) Alert.alert("Zg\u0142oszenie", "Nie uda\u0142o si\u0119 wys\u0142a\u0107 zg\u0142oszenia. Spr\u00f3buj ponownie.");
       return false;
     }
   }
@@ -3318,9 +3322,9 @@ function AppContent() {
           rawNonce,
           authorizationCode: credential.authorizationCode
         });
-      } else {
-        await ensureRecentLoginForAccountDeletion();
       }
+      // Email and Google accounts: the confirmed request is enough; the server deletes the
+      // Firebase account itself, so no "sign in again first" step can block the user.
       await requestAccountDeletionAndDeleteProfile({
         uid: appUser.uid
       });
@@ -3522,6 +3526,7 @@ function AppContent() {
             discoverFilters={discoverFilters}
             screenMinHeight={discoverMinHeight}
             onReportProfile={async (reason) => activeProfileKey ? reportProfile(activeProfileKey, reason) : false}
+            onBlockProfile={(note) => { if (activeProfileKey) void blockProfile(activeProfileKey, note); }}
             onRefresh={refreshDiscovery}
             onSavePreferences={saveDiscoveryPreferences}
             onOpenEventFriends={() => {
@@ -3720,6 +3725,7 @@ function AppContent() {
             openSafety={() => setTab("safety")}
             onSave={saveProfileToFirestore}
             onSignOut={confirmSignOut}
+            onDeleteAccount={confirmDeleteAccount}
             onInvite={() => { void shareSparkInvite(); }}
             lgbt={lgbt}
             lgbtBusy={lgbtBusy}
@@ -4046,9 +4052,17 @@ function AuthScreen({
   onDemoAccount: () => void;
 }) {
   const { colors, styles } = useAppTheme();
+  // Terms (EULA) must be accepted before signing in or creating an account, by any method.
   const [legalAccepted, setLegalAccepted] = useState(false);
-  const submitDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
-  const socialDisabled = !firebaseReady || authBusy || (authMode === "register" && !legalAccepted);
+  useEffect(() => {
+    AsyncStorage.getItem("spark.legalAccepted").then((value) => { if (value === "1") setLegalAccepted(true); }).catch(() => undefined);
+  }, []);
+  const toggleLegal = () => setLegalAccepted((value) => {
+    AsyncStorage.setItem("spark.legalAccepted", value ? "0" : "1").catch(() => undefined);
+    return !value;
+  });
+  const submitDisabled = !firebaseReady || authBusy || !legalAccepted;
+  const socialDisabled = !firebaseReady || authBusy || !legalAccepted;
   return (
     <View style={styles.authShell}>
       <View style={styles.authHero}>
@@ -4088,23 +4102,24 @@ function AuthScreen({
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" />
         <TextField label="Hasło" value={password} onChangeText={setPassword} secureTextEntry passwordMode={authMode === "register" ? "new-password" : "current-password"} />
         {authMode === "register" && (
-          <>
-            <TextField label="Powtórz hasło" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry passwordMode="new-password" />
-            <View style={styles.legalConsent}>
-              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: legalAccepted }} onPress={() => setLegalAccepted((value) => !value)} style={[styles.legalCheckbox, legalAccepted && styles.legalCheckboxActive]}>
-                {legalAccepted && <MaterialCommunityIcons name="check" size={16} color="#fff" />}
-              </Pressable>
-              <View style={styles.legalConsentCopy}>
-                <Text style={styles.legalConsentText}>Akceptuje zasady Spark:</Text>
-                <View style={styles.legalLinkRow}>
-                  <Pressable onPress={() => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")}><Text style={styles.legalLink}>Regulamin</Text></Pressable>
-                  <Text style={styles.legalConsentText}>i</Text>
-                  <Pressable onPress={() => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")}><Text style={styles.legalLink}>Politykę prywatności</Text></Pressable>
-                </View>
-              </View>
-            </View>
-          </>
+          <TextField label="Powtórz hasło" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry passwordMode="new-password" />
         )}
+        <View style={styles.legalConsent}>
+          <Pressable accessibilityRole="checkbox" accessibilityLabel={tr("Akceptuję Regulamin (EULA), Politykę prywatności i Zasady społeczności")} accessibilityState={{ checked: legalAccepted }} onPress={toggleLegal} hitSlop={8} style={[styles.legalCheckbox, legalAccepted && styles.legalCheckboxActive]}>
+            {legalAccepted && <MaterialCommunityIcons name="check" size={16} color="#fff" />}
+          </Pressable>
+          <View style={styles.legalConsentCopy}>
+            <Text style={styles.legalConsentText}>Akceptuję:</Text>
+            <View style={styles.legalLinkRow}>
+              <Pressable onPress={() => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL")}><Text style={styles.legalLink}>Regulamin (EULA)</Text></Pressable>
+              <Text style={styles.legalConsentText}>,</Text>
+              <Pressable onPress={() => openLegalDocument("Polityka prywatności", legalLinks.privacy, "EXPO_PUBLIC_PRIVACY_POLICY_URL")}><Text style={styles.legalLink}>Politykę prywatności</Text></Pressable>
+              <Text style={styles.legalConsentText}>i</Text>
+              <Pressable onPress={() => openLegalDocument("Zasady społeczności", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL")}><Text style={styles.legalLink}>Zasady społeczności</Text></Pressable>
+            </View>
+            <Text style={styles.legalConsentText}>Spark nie toleruje obraźliwych treści ani nękania. Profile można zgłaszać i blokować.</Text>
+          </View>
+        </View>
         <Pressable accessibilityRole="button" disabled={submitDisabled} onPress={onContinue} style={[styles.primaryButton, submitDisabled && styles.primaryButtonDisabled]}>
           <Text style={styles.primaryButtonText}>{authBusy ? "Łączenie..." : authMode === "login" ? "Zaloguj" : "Utwórz konto"}</Text>
         </Pressable>
@@ -4160,9 +4175,9 @@ function AuthScreen({
       {showDemoLogin && (
         <Pressable
           accessibilityRole="button"
-          disabled={!firebaseReady || authBusy}
+          disabled={submitDisabled}
           onPress={onDemoAccount}
-          style={[styles.secondaryButtonWide, (!firebaseReady || authBusy) && styles.socialLoginButtonDisabled]}
+          style={[styles.secondaryButtonWide, submitDisabled && styles.socialLoginButtonDisabled]}
         >
           <Text style={styles.secondaryButtonText}>Konto testowe: tester@spark.app</Text>
         </Pressable>
@@ -4447,6 +4462,7 @@ function DiscoverScreen({
   discoverFilters,
   screenMinHeight,
   onReportProfile,
+  onBlockProfile,
   onRefresh,
   onSavePreferences,
   onOpenEventFriends,
@@ -4483,6 +4499,7 @@ function DiscoverScreen({
   discoverFilters: DiscoverFilters;
   screenMinHeight: number;
   onReportProfile: (reason?: string) => Promise<boolean>;
+  onBlockProfile?: (note?: string) => void;
   onRefresh: () => void;
   onSavePreferences: (nextFilters: DiscoverFilters) => Promise<boolean>;
   onOpenEventFriends: () => void;
@@ -4796,7 +4813,7 @@ function DiscoverScreen({
           <View style={styles.reportSheet}>
             <View style={styles.reportSheetHeader}>
               <View style={styles.fill}>
-                <Text style={styles.reportTitle} selectable>Zgłoś profil</Text>
+                <Text style={styles.reportTitle} selectable>Zgłoś lub zablokuj</Text>
                 <Text style={styles.reportSubtitle} selectable>{profile.name} {profile.surname} - zgłoszenie trafi bezpośrednio do moderacji</Text>
               </View>
               <Pressable accessibilityRole="button" onPress={() => setReportOpen(false)} style={styles.reportCloseButton}>
@@ -4816,6 +4833,26 @@ function DiscoverScreen({
               <MaterialCommunityIcons name="email-edit" size={18} color="#fff" />
               <Text style={styles.reportSendText}>Wyślij zgłoszenie</Text>
             </Pressable>
+            {onBlockProfile && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  const note = reportText.trim();
+                  Alert.alert(
+                    "Zablokuj profil",
+                    "Ta osoba od razu zniknie z Twojego feedu i nie będzie mogła się z Tobą kontaktować. Zgłoszenie trafi do moderacji.",
+                    [
+                      { text: "Anuluj", style: "cancel" },
+                      { text: "Zablokuj", style: "destructive", onPress: () => { setReportOpen(false); setReportText(""); onBlockProfile(note); } }
+                    ]
+                  );
+                }}
+                style={({ pressed }) => [styles.reportBlockButton, pressed && styles.controlPressed]}
+              >
+                <MaterialCommunityIcons name="account-cancel-outline" size={18} color="#ff3b30" />
+                <Text style={styles.reportBlockText}>Zablokuj</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       )}
@@ -5197,7 +5234,7 @@ function ProfileCard({ profile, viewerInterests = [], onReport, compact = false 
       {onReport && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={tr("Zgłoś profil")}
+          accessibilityLabel={tr("Zgłoś lub zablokuj profil")}
           onPress={(event) => {
             event.stopPropagation();
             onReport();
@@ -7723,6 +7760,7 @@ function ProfileScreen({
   openSafety,
   onSave,
   onSignOut,
+  onDeleteAccount,
   onInvite,
   verificationStatus,
   lgbt,
@@ -7783,6 +7821,7 @@ function ProfileScreen({
   openSafety: () => void;
   onSave: () => Promise<boolean>;
   onSignOut: () => void;
+  onDeleteAccount?: () => void;
   onInvite: () => void;
   verificationStatus: ProfileVerificationStatus;
 }) {
@@ -8073,6 +8112,14 @@ function ProfileScreen({
             <Pressable accessibilityRole="button" onPress={onSignOut} style={({ pressed }) => [styles.pfRow, { justifyContent: "center" }, pressed && { backgroundColor: colors.fill }]}>
               <Text style={styles.pfSignOut}>Wyloguj się</Text>
             </Pressable>
+            {onDeleteAccount && (
+              <>
+                <View style={styles.pfDivider} />
+                <Pressable accessibilityRole="button" onPress={onDeleteAccount} style={({ pressed }) => [styles.pfRow, { justifyContent: "center" }, pressed && { backgroundColor: colors.fill }]}>
+                  <Text style={styles.pfDeleteAccount}>Usuń konto</Text>
+                </Pressable>
+              </>
+            )}
           </View>
           <Text style={styles.pfFootnote} numberOfLines={1}>{email}</Text>
         </>
@@ -9108,7 +9155,7 @@ function DevProfilePreview({ themeName }: { themeName: string | null }) {
         profileName={demo.name} socialHandles={socials} setSocialHandles={setSocials}
         premiumPlan="monthly" hasPro={false} profileViewers={[]} profileViewerCount={0} profileViewersLoading={false}
         openPremium={noop} openCustomerCenter={async () => ({ ok: true })} openSafety={noop}
-        onSave={async () => true} onSignOut={noop} onInvite={noop} verificationStatus="verified"
+        onSave={async () => true} onSignOut={noop} onDeleteAccount={noop} onInvite={noop} verificationStatus="verified"
         lgbt={null} lgbtBusy={false} onChangeLgbt={noop}
       />
     </ScrollView>
@@ -9193,6 +9240,7 @@ function DevPreview({ themeName }: { themeName: string | null }) {
           discoverFilters={filters}
           screenMinHeight={screenMinHeight}
           onReportProfile={async () => true}
+          onBlockProfile={() => undefined}
           onRefresh={() => setIndex(0)}
           onSavePreferences={async () => true}
           onOpenEventFriends={() => undefined}
@@ -10815,6 +10863,21 @@ function createStyles(colors: Palette) {
     fontSize: 14,
     fontWeight: "900"
   },
+  reportBlockButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,59,48,0.45)"
+  },
+  reportBlockText: {
+    color: "#ff3b30",
+    fontSize: 14,
+    fontWeight: "900"
+  },
   monetizationStatus: {
     minHeight: 44,
     paddingHorizontal: 14,
@@ -11739,6 +11802,7 @@ function createStyles(colors: Palette) {
   pfProgress: { height: 4, marginTop: 6, borderRadius: 2, overflow: "hidden", backgroundColor: colors.fillStrong },
   pfProgressFill: { height: 4, borderRadius: 2, backgroundColor: colors.primary },
   pfSignOut: { color: "#ff3b30", fontSize: 16, fontWeight: "500" },
+  pfDeleteAccount: { color: "#ff3b30", fontSize: 15, fontWeight: "700" },
   pfFootnote: { textAlign: "center", color: colors.muted, fontSize: 13 },
   stHeader: { flexDirection: "row", alignItems: "center", marginLeft: -8 },
   stBack: { flexDirection: "row", alignItems: "center", paddingVertical: 4, paddingRight: 8 },

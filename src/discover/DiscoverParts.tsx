@@ -271,7 +271,7 @@ export const DeckCard = memo(function DeckCard({ data, mode, onOpenDetails, onRe
       </Pressable>
 
       {onReport && (
-        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zgłoś profil")} onPress={onReport} hitSlop={8} style={styles.reportButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zgłoś lub zablokuj profil")} onPress={onReport} hitSlop={8} style={styles.reportButton}>
           <MaterialCommunityIcons name="flag-outline" size={14} color={palette.inkSoft} />
         </Pressable>
       )}

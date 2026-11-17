@@ -299,6 +299,18 @@
   "uk": "Приймаю правила Spark:",
   "es": "Acepto las normas de Spark:"
  },
+ "Akceptuję Regulamin (EULA), Politykę prywatności i Zasady społeczności": {
+  "en": "I accept the Terms of Use (EULA), Privacy Policy and Community Guidelines",
+  "de": "Ich akzeptiere die Nutzungsbedingungen (EULA), die Datenschutzerklärung und die Community-Richtlinien",
+  "uk": "Я приймаю Умови використання (EULA), Політику конфіденційності та Правила спільноти",
+  "es": "Acepto los Términos de uso (EULA), la Política de privacidad y las Normas de la comunidad"
+ },
+ "Akceptuję:": {
+  "en": "I accept:",
+  "de": "Ich akzeptiere:",
+  "uk": "Я приймаю:",
+  "es": "Acepto:"
+ },
  "Aktor / aktorka": {
   "en": "Actor",
   "de": "Schauspieler/in",
@@ -1318,6 +1330,12 @@
   "de": "Verlauf",
   "uk": "Історія",
   "es": "Historial"
+ },
+ "i": {
+  "en": "and",
+  "de": "und",
+  "uk": "і",
+  "es": "y"
  },
  "i {0} więcej": {
   "en": "and {0} more",
@@ -4367,6 +4385,12 @@
   "uk": "Умови використання",
   "es": "Términos de uso"
  },
+ "Regulamin (EULA)": {
+  "en": "Terms of Use (EULA)",
+  "de": "Nutzungsbedingungen (EULA)",
+  "uk": "Умови використання (EULA)",
+  "es": "Términos de uso (EULA)"
+ },
  "Rejestracja": {
   "en": "Sign up",
   "de": "Registrierung",
@@ -4528,6 +4552,12 @@
   "de": "Spark führt keine Prüfung von Vorstrafen und keine Identitätsprüfung der Mitglieder durch. Lies vor dem ersten Treffen die Sicherheitstipps.",
   "uk": "Spark не перевіряє судимість і особу користувачів. Перед першою зустріччю прочитай поради з безпеки.",
   "es": "Spark no comprueba antecedentes penales ni verifica la identidad de sus miembros. Lee los consejos de seguridad antes de quedar con alguien."
+ },
+ "Spark nie toleruje obraźliwych treści ani nękania. Profile można zgłaszać i blokować.": {
+  "en": "Spark has zero tolerance for objectionable content or abuse. Profiles can be reported and blocked.",
+  "de": "Spark duldet keine anstößigen Inhalte und keine Belästigung. Profile können gemeldet und blockiert werden.",
+  "uk": "Spark не терпить образливого контенту та цькування. Профілі можна скаржитися та блокувати.",
+  "es": "Spark no tolera contenido ofensivo ni acoso. Los perfiles se pueden denunciar y bloquear."
  },
  "Spark Pro aktywny": {
   "en": "Spark Pro active",
@@ -4900,6 +4930,18 @@
   "de": "Diese Person sieht dein Profil nicht und kann dir nicht schreiben.",
   "uk": "Ця людина не бачить твого профілю й не може тобі писати.",
   "es": "Esta persona no ve tu perfil y no puede escribirte."
+ },
+ "Ta osoba od razu zniknie z Twojego feedu i nie będzie mogła się z Tobą kontaktować. Zgłoszenie trafi do moderacji.": {
+  "en": "This person will be removed from your feed right away and won't be able to contact you. A report will be sent to our moderators.",
+  "de": "Diese Person verschwindet sofort aus deinem Feed und kann dich nicht mehr kontaktieren. Eine Meldung geht an die Moderation.",
+  "uk": "Ця людина одразу зникне з твоєї стрічки й не зможе з тобою зв'язатися. Скаргу буде надіслано модерації.",
+  "es": "Esta persona desaparecerá de tu feed al instante y no podrá contactarte. Se enviará una denuncia a moderación."
+ },
+ "Ta osoba zniknęła z Twojego feedu i nie może się z Tobą kontaktować. Zgłoszenie trafiło do moderacji.": {
+  "en": "This person has been removed from your feed and can no longer contact you. Our moderators have been notified.",
+  "de": "Diese Person wurde aus deinem Feed entfernt und kann dich nicht mehr kontaktieren. Die Moderation wurde benachrichtigt.",
+  "uk": "Цю людину прибрано з твоєї стрічки, і вона більше не може з тобою зв'язатися. Модерацію повідомлено.",
+  "es": "Esta persona se ha eliminado de tu feed y ya no puede contactarte. Hemos avisado a moderación."
  },
  "Ta prośba już czeka na akceptację.": {
   "en": "This request is already waiting to be accepted.",
@@ -6335,6 +6377,12 @@
   "uk": "Заблоковані люди не бачать твого профілю й не можуть надсилати тобі повідомлення. Ти й далі можеш на них поскаржитися.",
   "es": "Las personas bloqueadas no ven tu perfil ni pueden enviarte mensajes. Aun así puedes denunciarlas."
  },
+ "Zablokowano": {
+  "en": "Blocked",
+  "de": "Blockiert",
+  "uk": "Заблоковано",
+  "es": "Bloqueado"
+ },
  "Zablokowany": {
   "en": "Blocked",
   "de": "Blockiert",
@@ -6778,6 +6826,18 @@
   "de": "Melden",
   "uk": "Поскаржитися",
   "es": "Denunciar"
+ },
+ "Zgłoś lub zablokuj": {
+  "en": "Report or block",
+  "de": "Melden oder blockieren",
+  "uk": "Поскаржитися або заблокувати",
+  "es": "Denunciar o bloquear"
+ },
+ "Zgłoś lub zablokuj profil": {
+  "en": "Report or block profile",
+  "de": "Profil melden oder blockieren",
+  "uk": "Поскаржитися на профіль або заблокувати",
+  "es": "Denunciar o bloquear perfil"
  },
  "Zgłoś profil": {
   "en": "Report profile",
