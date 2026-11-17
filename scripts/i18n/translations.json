@@ -2328,7 +2328,7 @@
   "es": "Más frecuentes"
  },
  "Najlepszy wybór": {
-  "en": "Best value",
+  "en": "Best choice",
   "de": "Beste Wahl",
   "uk": "Найкращий вибір",
   "es": "La mejor opción"
@@ -2364,7 +2364,7 @@
   "es": "Primero crea tu perfil de Spark."
  },
  "Najtaniej": {
-  "en": "Best value",
+  "en": "Lowest price",
   "de": "Am günstigsten",
   "uk": "Найвигідніше",
   "es": "Mejor precio"
@@ -7072,5 +7072,23 @@
   "de": "Langsamer",
   "uk": "Повільніше",
   "es": "Más despacio"
+ },
+ "/ 7 dni": {
+  "en": "/ 7 days",
+  "de": "/ 7 Tage",
+  "uk": "/ 7 днів",
+  "es": "/ 7 días"
+ },
+ "/ mies.": {
+  "en": "/ month",
+  "de": "/ Monat",
+  "uk": "/ міс.",
+  "es": "/ mes"
+ },
+ "/ rok": {
+  "en": "/ year",
+  "de": "/ Jahr",
+  "uk": "/ рік",
+  "es": "/ año"
  }
 }

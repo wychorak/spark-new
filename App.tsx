@@ -9128,6 +9128,30 @@ function DevSettingsPreview({ themeName }: { themeName: string | null }) {
   );
 }
 
+/** Development only (web, `?preview=premium&theme=dark`): the paywall with the store plans, for App Review screenshots. */
+function DevPremiumPreview({ themeName }: { themeName: string | null }) {
+  const { colors, styles, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const [plan, setPlan] = useState<SparkPlanId>("yearly");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (themeName === "light" || themeName === "dark") theme.setPreference(themeName); }, [themeName]);
+  const done = async () => ({}) as never;
+  const revenueCat = {
+    configured: false, isLoading: false, isPro: false, customerInfo: null,
+    packages: [{} as never], prices: {}, error: null,
+    refreshCustomerInfo: async () => null, refreshOfferings: async () => true, trackPaywallView: async () => undefined,
+    purchasePlan: done, restorePurchases: done, presentPaywallIfNeeded: async () => false, openCustomerCenter: done
+  } as RevenueCatState;
+  return (
+    <LinearGradient colors={colors.backgroundGradient} style={styles.root}>
+      <StatusBar style={colors.statusBar} />
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top + 4, 12), paddingBottom: 40, paddingHorizontal: 16 }]}>
+        <PremiumScreen premiumPlan={plan} setPremiumPlan={setPlan} revenueCat={revenueCat} entrySource="navigation" />
+      </ScrollView>
+    </LinearGradient>
+  );
+}
+
 /** Development only (web, `?preview=profile&theme=dark`): the Profile screen with demo data. */
 function DevProfilePreview({ themeName }: { themeName: string | null }) {
   const { colors, theme } = useAppTheme();
@@ -9305,7 +9329,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <SparkErrorBoundary>
-          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "collab" ? <DevCollabPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "settings" ? <DevSettingsPreview themeName={params.get("theme")} /> : params?.get("preview") === "profile" ? <DevProfilePreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
+          {params?.get("preview") === "discover" ? <DevPreview themeName={params.get("theme")} /> : params?.get("preview") === "events" ? <DevEventPreview themeName={params.get("theme")} /> : params?.get("preview") === "collab" ? <DevCollabPreview themeName={params.get("theme")} /> : params?.get("preview") === "matches" ? <DevMatchesPreview themeName={params.get("theme")} /> : params?.get("preview") === "settings" ? <DevSettingsPreview themeName={params.get("theme")} /> : params?.get("preview") === "profile" ? <DevProfilePreview themeName={params.get("theme")} /> : params?.get("preview") === "premium" ? <DevPremiumPreview themeName={params.get("theme")} /> : params?.get("preview") === "chat" ? <DevChatPreview themeName={params.get("theme")} openFirst={params.get("open") === "1"} /> : <AppContent />}
         </SparkErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
