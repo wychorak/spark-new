@@ -1173,23 +1173,30 @@ function AppContent() {
   const ownerProAccess = isSparkOwnerAccount(appUser?.email, appUser?.emailVerified);
   const revenueCat = useRevenueCat(appUser?.uid ?? null, ownerProAccess);
   const adsReady = useGoogleMobileAds(!revenueCat.isPro);
-  const trackSwipeAd = useSwipeInterstitialAds(
-    !revenueCat.isPro && adsReady && tab === "discover",
+  // Preloaded app-wide; swipe ads are only counted on Discover, break ads at "It's a match" -> chat.
+  const fullScreenAds = useSwipeInterstitialAds(
+    !revenueCat.isPro && adsReady,
     releaseConfig.swipesPerInterstitial,
     releaseConfig.interstitialMinIntervalSeconds,
-    releaseConfig.maxInterstitialsPerSession
+    releaseConfig.maxInterstitialsPerSession,
+    releaseConfig.interstitialSessionGraceSeconds * 1000
   );
+  const trackSwipeAd = fullScreenAds.onSwipe;
   // Calm screens get a banner; Discover gets a sponsored card in the deck.
   const showCurrentBanner = !revenueCat.isPro && adsReady && (tab === "matches" || tab === "profile");
   const sponsoredSwipes = useRef(0);
+  const swipesSinceCard = useRef(99);
   const [sponsoredCard, setSponsoredCard] = useState<"idle" | "loading" | "visible">("idle");
   function noteFeedSwipe() {
+    swipesSinceCard.current += 1;
     // A full-screen ad already interrupted this swipe: no card on top of it.
-    if (trackSwipeAd()) { sponsoredSwipes.current = 0; return; }
+    // Never a video within 3 swipes of a sponsored card (no two ads back to back).
+    if (swipesSinceCard.current > 3 && trackSwipeAd()) { sponsoredSwipes.current = 0; return; }
     if (revenueCat.isPro || !adsReady || sponsoredCard !== "idle") return;
     sponsoredSwipes.current += 1;
     if (sponsoredSwipes.current >= SPONSORED_CARD_EVERY) {
       sponsoredSwipes.current = 0;
+      swipesSinceCard.current = 0;
       setSponsoredCard("loading");
     }
   }
@@ -3851,6 +3858,9 @@ function AppContent() {
           setMatchCelebrationProfile(null);
           setMatchCelebrationKind("mutual");
           setTab("messages");
+          // Video at the natural break between the match and the chat (free plan, same caps as swipe ads).
+          // Wait for the match sheet to close: iOS cannot present the ad over a closing modal.
+          if (!revenueCat.isPro) setTimeout(() => fullScreenAds.showAtBreak("match-chat"), 700);
         }}
       />
       {!bottomNavHidden && (
@@ -6176,7 +6186,8 @@ function EventFriendsManagerModal({
   );
 }
 
-const SPONSORED_CARD_EVERY = 8;
+// Sponsored card every 10 swipes, full-screen video every ~30: swipe 10 card, 20 card, 30 video...
+const SPONSORED_CARD_EVERY = 10;
 
 /** Ad shown as one card in the deck. Hidden until the ad has loaded; the
  *  person can move on after a moment, or turn ads off with Pro. */

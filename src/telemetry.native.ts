@@ -6,14 +6,17 @@ export type SparkReleaseConfig = {
   swipesPerInterstitial: number;
   interstitialMinIntervalSeconds: number;
   maxInterstitialsPerSession: number;
+  interstitialSessionGraceSeconds: number;
   emptyFeedAutoExpand: boolean;
   maintenanceMode: boolean;
 };
 
 export const defaultSparkReleaseConfig: SparkReleaseConfig = {
-  swipesPerInterstitial: 35,
-  interstitialMinIntervalSeconds: 600,
-  maxInterstitialsPerSession: 2,
+  // A full-screen (video) ad about every 30 swipes (sponsored cards at 10 and 20); tune live in Remote Config.
+  swipesPerInterstitial: 30,
+  interstitialMinIntervalSeconds: 90,
+  maxInterstitialsPerSession: 8,
+  interstitialSessionGraceSeconds: 60,
   emptyFeedAutoExpand: true,
   maintenanceMode: false
 };
@@ -35,6 +38,7 @@ export async function initializeSparkTelemetry() {
     swipes_per_interstitial: defaultSparkReleaseConfig.swipesPerInterstitial,
     interstitial_min_interval_seconds: defaultSparkReleaseConfig.interstitialMinIntervalSeconds,
     max_interstitials_per_session: defaultSparkReleaseConfig.maxInterstitialsPerSession,
+    interstitial_session_grace_seconds: defaultSparkReleaseConfig.interstitialSessionGraceSeconds,
     empty_feed_auto_expand: defaultSparkReleaseConfig.emptyFeedAutoExpand,
     maintenance_mode: defaultSparkReleaseConfig.maintenanceMode
   });
@@ -48,7 +52,8 @@ export async function initializeSparkTelemetry() {
   return {
     swipesPerInterstitial: Math.max(10, Math.min(60, Math.round(config.getValue("swipes_per_interstitial").asNumber() || defaultSparkReleaseConfig.swipesPerInterstitial))),
     interstitialMinIntervalSeconds: Math.max(90, Math.min(1800, Math.round(config.getValue("interstitial_min_interval_seconds").asNumber() || defaultSparkReleaseConfig.interstitialMinIntervalSeconds))),
-    maxInterstitialsPerSession: Math.max(1, Math.min(6, Math.round(config.getValue("max_interstitials_per_session").asNumber() || defaultSparkReleaseConfig.maxInterstitialsPerSession))),
+    maxInterstitialsPerSession: Math.max(1, Math.min(10, Math.round(config.getValue("max_interstitials_per_session").asNumber() || defaultSparkReleaseConfig.maxInterstitialsPerSession))),
+    interstitialSessionGraceSeconds: Math.max(0, Math.min(600, Math.round(config.getValue("interstitial_session_grace_seconds").asNumber()))),
     emptyFeedAutoExpand: config.getValue("empty_feed_auto_expand").asBoolean(),
     maintenanceMode: config.getValue("maintenance_mode").asBoolean()
   } satisfies SparkReleaseConfig;

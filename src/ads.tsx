@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { AppState, Platform, StyleSheet, View } from "react-native";
 import { Text } from "./i18n/Text";
 import Purchases from "react-native-purchases";
 import { trackSparkEvent } from "./telemetry";
@@ -181,16 +181,19 @@ function getInterstitialUnitId() {
   return Platform.OS === "ios" ? adUnitIds.iosInterstitial : adUnitIds.androidInterstitial;
 }
 
-export const SWIPES_PER_INTERSTITIAL = 35;
-// No full-screen ad in the first minutes of a session.
-const INTERSTITIAL_SESSION_GRACE_MS = 5 * 60 * 1000;
+export const SWIPES_PER_INTERSTITIAL = 30;
+// No full-screen ad right after opening the app (default 60 s, Remote Config).
+const INTERSTITIAL_SESSION_GRACE_MS = 60 * 1000;
+// Coming back after this long in the background starts a new ad session.
+const INTERSTITIAL_SESSION_RESET_MS = 30 * 60 * 1000;
 const INTERSTITIAL_RETRY_DELAYS_MS = [10_000, 30_000];
 
 export function useSwipeInterstitialAds(
   enabled: boolean,
   swipeThreshold = SWIPES_PER_INTERSTITIAL,
-  minIntervalSeconds = 600,
-  maxPerSession = 2
+  minIntervalSeconds = 90,
+  maxPerSession = 8,
+  sessionGraceMs = INTERSTITIAL_SESSION_GRACE_MS
 ) {
   const swipeCount = useRef(0);
   const enabledRef = useRef(enabled);
@@ -201,10 +204,26 @@ export function useSwipeInterstitialAds(
   const sessionStartedAt = useRef(Date.now());
   const sessionImpressionCount = useRef(0);
   const impressionId = useRef("");
+  const placement = useRef("swipe-feed");
   if (!impressionId.current) impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
   const [isLoaded, setIsLoaded] = useState(false);
+  const isLoadedRef = useRef(false);
+  isLoadedRef.current = isLoaded;
   const adUnitId = getInterstitialUnitId();
   enabledRef.current = enabled;
+
+  useEffect(() => {
+    let backgroundedAt = 0;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "background") backgroundedAt = Date.now();
+      else if (state === "active" && backgroundedAt && Date.now() - backgroundedAt > INTERSTITIAL_SESSION_RESET_MS) {
+        sessionStartedAt.current = Date.now();
+        sessionImpressionCount.current = 0;
+        swipeCount.current = 0;
+      }
+    });
+    return () => subscription.remove();
+  }, []);
   const interstitial = useRef(
     Platform.OS === "web"
       ? null
@@ -221,27 +240,25 @@ export function useSwipeInterstitialAds(
     const loadedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.LOADED, () => {
       isLoading.current = false;
       retryCount.current = 0;
+      isLoadedRef.current = true;
       setIsLoaded(true);
       Purchases.adTracker.trackAdLoaded({
         mediatorName: "AdMob",
         adFormat: "interstitial",
         adUnitId,
         impressionId: impressionId.current,
-        placement: "swipe-feed"
+        placement: placement.current
       }).catch(() => undefined);
     });
 
     const openedUnsubscribe = interstitial.current.addAdEventListener(AdEventType.OPENED, () => {
-      swipeCount.current = 0;
-      lastShownAt.current = Date.now();
-      sessionImpressionCount.current += 1;
-      trackSparkEvent("ad_impression", { format: "interstitial", placement: "swipe-feed" });
+      trackSparkEvent("ad_impression", { format: "interstitial", placement: placement.current });
       Purchases.adTracker.trackAdDisplayed({
         mediatorName: "AdMob",
         adFormat: "interstitial",
         adUnitId,
         impressionId: impressionId.current,
-        placement: "swipe-feed"
+        placement: placement.current
       }).catch(() => undefined);
     });
 
@@ -260,7 +277,7 @@ export function useSwipeInterstitialAds(
         revenueMicros: toRevenueMicros(paidEvent.value),
         currency: paidEvent.currency,
         precision: getRevenueCatAdPrecision(Number(paidEvent.precision)),
-        placement: "swipe-feed"
+        placement: placement.current
       }).catch(() => undefined);
     });
 
@@ -275,12 +292,12 @@ export function useSwipeInterstitialAds(
     const errorUnsubscribe = interstitial.current.addAdEventListener(AdEventType.ERROR, () => {
       setIsLoaded(false);
       isLoading.current = false;
-      trackSparkEvent("ad_load_failed", { format: "interstitial", placement: "swipe-feed" });
+      trackSparkEvent("ad_load_failed", { format: "interstitial", placement: placement.current });
       Purchases.adTracker.trackAdFailedToLoad({
         mediatorName: "AdMob",
         adFormat: "interstitial",
         adUnitId,
-        placement: "swipe-feed"
+        placement: placement.current
       }).catch(() => undefined);
       impressionId.current = createAdImpressionId("swipe-feed", "interstitial");
 
@@ -310,41 +327,55 @@ export function useSwipeInterstitialAds(
     };
   }, [adUnitId, enabled]);
 
-  /** Returns true when a full-screen ad is being shown for this swipe. */
-  return useCallback((): boolean => {
-    if (!enabled || Platform.OS === "web" || !interstitial.current) {
+  const capReached = () =>
+    sessionImpressionCount.current >= Math.max(1, Math.min(10, maxPerSession)) ||
+    Date.now() - lastShownAt.current < Math.max(90, Math.min(1800, minIntervalSeconds)) * 1000;
+
+  // Shows the preloaded ad; counters move at show time so a tab change cannot lose them.
+  const show = (where: string) => {
+    if (!interstitial.current) return false;
+    if (!isLoadedRef.current) {
+      if (!isLoading.current) {
+        isLoading.current = true;
+        interstitial.current.load();
+      }
       return false;
     }
-
-    swipeCount.current += 1;
-
-    if (swipeCount.current < Math.max(5, Math.min(60, swipeThreshold))) {
-      return false;
-    }
-
-    if (
-      sessionImpressionCount.current >= Math.max(1, Math.min(6, maxPerSession)) ||
-      Date.now() - sessionStartedAt.current < INTERSTITIAL_SESSION_GRACE_MS ||
-      Date.now() - lastShownAt.current < Math.max(90, Math.min(1800, minIntervalSeconds)) * 1000
-    ) {
-      return false;
-    }
-
-    if (isLoaded) {
-      setIsLoaded(false);
-      void interstitial.current.show().catch(() => {
-        isLoading.current = false;
-        trackSparkEvent("ad_show_failed", { format: "interstitial", placement: "swipe-feed" });
-      });
-      return true;
-    }
-
-    if (!isLoading.current) {
+    placement.current = where;
+    isLoadedRef.current = false;
+    setIsLoaded(false);
+    swipeCount.current = 0;
+    lastShownAt.current = Date.now();
+    sessionImpressionCount.current += 1;
+    void interstitial.current.show().catch(() => {
+      trackSparkEvent("ad_show_failed", { format: "interstitial", placement: where });
+      // Not shown: give the slot back and fetch a fresh ad.
+      lastShownAt.current = 0;
+      sessionImpressionCount.current = Math.max(0, sessionImpressionCount.current - 1);
       isLoading.current = true;
-      interstitial.current.load();
-    }
-    return false;
-  }, [enabled, isLoaded, maxPerSession, minIntervalSeconds, swipeThreshold]);
+      interstitial.current?.load();
+    });
+    return true;
+  };
+
+  /** Count a feed swipe; returns true when a full-screen ad is shown for it. */
+  const onSwipe = useCallback((): boolean => {
+    if (!enabled || Platform.OS === "web") return false;
+    swipeCount.current += 1;
+    if (swipeCount.current < Math.max(5, Math.min(60, swipeThreshold))) return false;
+    if (capReached() || Date.now() - sessionStartedAt.current < Math.max(0, Math.min(600_000, sessionGraceMs))) return false;
+    return show("swipe-feed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, isLoaded, maxPerSession, minIntervalSeconds, sessionGraceMs, swipeThreshold]);
+
+  /** Natural break (e.g. "It's a match" -> chat): same caps, no swipe count needed. */
+  const showAtBreak = useCallback((where: string): boolean => {
+    if (!enabled || Platform.OS === "web" || capReached()) return false;
+    return show(where);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, isLoaded, maxPerSession, minIntervalSeconds]);
+
+  return { onSwipe, showAtBreak };
 }
 
 export function SparkAdBanner({ enabled, placement, tone = "light", size = "adaptive", onLoaded, onFailed }: {
