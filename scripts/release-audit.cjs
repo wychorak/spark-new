@@ -239,6 +239,9 @@ if (process.env.CM_BUILD_ID) {
   check(read('legal-site/en/privacy/index.html').includes('United States residents'), 'English privacy policy must keep the US state privacy section.');
 }
 
+// One official contact everywhere (app, legal pages, store).
+check(appSource.includes('"officialsparkappcontact@gmail.com"') && ['legal-site/privacy/index.html', 'legal-site/en/privacy/index.html', 'legal-site/terms/index.html', 'legal-site/en/terms/index.html'].every((file) => read(file).includes('officialsparkappcontact@gmail.com') && !read(file).includes('sparkapp@gmail.com')), 'Contact must be officialsparkappcontact@gmail.com everywhere.');
+
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
   failures.forEach((failure) => console.error(`- ${failure}`));

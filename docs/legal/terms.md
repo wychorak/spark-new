@@ -2,7 +2,7 @@
 
 Ostatnia aktualizacja: 13 lipca 2026
 
-Korzystając ze Spark, akceptujesz te warunki. Kontakt: sparkapp@gmail.com.
+Korzystając ze Spark, akceptujesz te warunki. Kontakt: officialsparkappcontact@gmail.com.
 
 ## Konto i wiek
 
@@ -26,4 +26,4 @@ Aplikacja jest rozwijana i może zmieniać funkcje, ceny oraz dostępność. Sta
 
 ## Kontakt
 
-W sprawach konta, płatności lub bezpieczeństwa napisz na sparkapp@gmail.com.
+W sprawach konta, płatności lub bezpieczeństwa napisz na officialsparkappcontact@gmail.com.

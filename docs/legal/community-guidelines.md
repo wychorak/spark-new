@@ -17,4 +17,4 @@ Zgłoszenia trafiają do moderacji. Możemy ograniczyć, ukryć lub usunąć kon
 
 ## Kontakt
 
-Pilne sprawy bezpieczeństwa wyślij na sparkapp@gmail.com.
+Pilne sprawy bezpieczeństwa wyślij na officialsparkappcontact@gmail.com.

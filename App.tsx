@@ -155,7 +155,7 @@ import {
 
 
 
-const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "sparkapp@gmail.com";
+const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || "officialsparkappcontact@gmail.com";
 const appInstallUrl = process.env.EXPO_PUBLIC_APP_INSTALL_URL || "https://apps.apple.com/app/id6785284685";
 const legalLinks = {
   privacy: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL || "https://spark-new-legal.vercel.app/privacy",

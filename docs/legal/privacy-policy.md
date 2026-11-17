@@ -4,7 +4,7 @@ Ostatnia aktualizacja: 9 listopada 2026
 
 Spark pomaga poznawać osoby w okolicy, randkować, szukać znajomych i ekipy na wydarzenia na podstawie profilu, przybliżonej lokalizacji i wspólnych zainteresowań. Aplikacja jest przeznaczona wyłącznie dla osób pełnoletnich (18+).
 
-Administratorem danych jest twórca aplikacji Spark. Kontakt w sprawach prywatności: sparkapp@gmail.com.
+Administratorem danych jest twórca aplikacji Spark. Kontakt w sprawach prywatności: officialsparkappcontact@gmail.com.
 
 ## Jakie dane przetwarzamy
 
@@ -65,4 +65,4 @@ Masz prawo dostępu do swoich danych, ich sprostowania, usunięcia, ograniczenia
 
 ## Kontakt
 
-Pytania, żądania dostępu, poprawienia lub usunięcia danych wyślij na sparkapp@gmail.com.
+Pytania, żądania dostępu, poprawienia lub usunięcia danych wyślij na officialsparkappcontact@gmail.com.
