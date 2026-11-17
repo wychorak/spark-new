@@ -5,6 +5,7 @@ import { Text } from "./i18n/Text";
 import type { LgbtSettings } from "./firestore";
 import { LGBT_LABELS } from "./discover/DiscoverParts";
 import { palettes, useThemeState, type Palette } from "./theme";
+import { tr } from "./i18n";
 
 const IDENTITIES = ["gej", "lesbijka", "bi", "pan", "queer", "trans", "niebinarna", "ace", "aro", "interseks", "szukam"] as const;
 const MAX_IDENTITIES = 5;
@@ -34,7 +35,7 @@ export function LgbtSettingsPanel({ value, onChange, busy }: { value: LgbtSettin
           <Text style={styles.hint}>Pokaż, że należysz do społeczności.</Text>
         </View>
         <Switch
-          accessibilityLabel="Należę do społeczności LGBT+"
+          accessibilityLabel={tr("Należę do społeczności LGBT+")}
           disabled={busy}
           value={current.member}
           onValueChange={(member) => {

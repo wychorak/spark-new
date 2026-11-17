@@ -7,6 +7,8 @@ import { defaultNotificationPreferences, type NotificationPreferences } from "./
 import { setActiveNotificationPreferences } from "./notifications";
 import { recordSparkError, trackSparkEvent } from "./telemetry";
 import { palettes, useThemeState, type Palette } from "./theme";
+import { tr } from "./i18n";
+import { formatDate } from "./i18n/format";
 
 type LocalPalette = { background: string; surface: string; surfaceSoft: string; text: string; muted: string; primary: string; line: string; danger: string; hairline: string; footer: string; name: "light" | "dark" };
 function localPalette(theme: Palette): LocalPalette {
@@ -35,7 +37,7 @@ function ModalHeader({ title, subtitle, onClose }: { title: string; subtitle: st
         <Text style={styles.eyebrow}>{subtitle}</Text>
         <Text style={styles.title}>{title}</Text>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={onClose} style={styles.close}>
+      <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij")} onPress={onClose} style={styles.close}>
         <MaterialCommunityIcons name="close" size={23} color={palette.text} />
       </Pressable>
     </View>
@@ -221,7 +223,7 @@ export function ModerationQueueModal({ visible, onClose }: { visible: boolean; o
               <View style={styles.empty}><MaterialCommunityIcons name="shield-check" size={34} color="#42d982" /><Text style={styles.emptyTitle}>Kolejka jest pusta</Text><Text style={styles.rowHint}>Wszystkie zgłoszenia zostały obsłużone.</Text></View>
             ) : openReports.map((report) => (
               <View key={report.id} style={styles.report}>
-                <View style={styles.reportTop}><Text style={styles.reportReason}>{report.reason}</Text><Text style={styles.reportDate}>{report.createdAtMs ? new Date(report.createdAtMs).toLocaleDateString("pl-PL") : "teraz"}</Text></View>
+                <View style={styles.reportTop}><Text style={styles.reportReason}>{report.reason}</Text><Text style={styles.reportDate}>{report.createdAtMs ? formatDate(report.createdAtMs, { day: "numeric", month: "short", year: "numeric" }) : "teraz"}</Text></View>
                 <Text style={styles.reportId}>Profil: {report.targetUid}</Text>
                 {report.context ? <Text style={styles.reportContext} numberOfLines={4}>{report.context}</Text> : null}
                 <View style={styles.reportActions}>

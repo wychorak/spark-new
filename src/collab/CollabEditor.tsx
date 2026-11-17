@@ -4,6 +4,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Sc
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, TextInput } from "../i18n/Text";
 import { palettes, useThemeState, type Palette } from "../theme";
+import { tr } from "../i18n";
 import {
   collabCategories,
   collabLabel,
@@ -86,7 +87,7 @@ export function CollabEditorModal({ visible, value, onClose, onSave }: {
         {selected.length > 0 && (
           <View style={styles.chips}>
             {selected.map((id) => (
-              <Pressable key={id} accessibilityRole="button" accessibilityLabel={collabLabel(id)} onPress={() => toggle(section, id)} style={[styles.chip, styles.chipActive]}>
+              <Pressable key={id} accessibilityRole="button" accessibilityLabel={tr(collabLabel(id))} onPress={() => toggle(section, id)} style={[styles.chip, styles.chipActive]}>
                 <Text style={[styles.chipText, styles.chipTextActive]}>{collabLabel(id)}</Text>
                 <MaterialCommunityIcons name="close" size={14} color={c.onPrimary} />
               </Pressable>
@@ -142,7 +143,7 @@ export function CollabEditorModal({ visible, value, onClose, onSave }: {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.root, { paddingTop: Platform.OS === "android" ? insets.top : 0 }]}>
         <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={onClose} style={styles.close}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij")} onPress={onClose} style={styles.close}>
             <MaterialCommunityIcons name="close" size={20} color={c.ink} />
           </Pressable>
           <View style={styles.fill}>
@@ -163,7 +164,7 @@ export function CollabEditorModal({ visible, value, onClose, onSave }: {
 
           <Text style={styles.sectionTitle}>Twój projekt w jednym zdaniu</Text>
           <TextInput
-            accessibilityLabel="Opis projektu"
+            accessibilityLabel={tr("Opis projektu")}
             value={draft.pitch}
             onChangeText={(pitch) => setDraft((current) => ({ ...current, pitch: pitch.slice(0, collabPitchMaxLength) }))}
             placeholder="np. Szukam rapera do EP-ki, nagrywamy w Warszawie"
@@ -177,7 +178,7 @@ export function CollabEditorModal({ visible, value, onClose, onSave }: {
           <Text style={styles.sectionTitle}>Portfolio</Text>
           <Text style={styles.hint}>Jeden link, np. SoundCloud, Spotify, YouTube, Behance albo GitHub. Widoczny dopiero po matchu.</Text>
           <TextInput
-            accessibilityLabel="Link do portfolio"
+            accessibilityLabel={tr("Link do portfolio")}
             value={draft.portfolio}
             onChangeText={(portfolio) => setDraft((current) => ({ ...current, portfolio }))}
             placeholder="https://"
@@ -195,7 +196,7 @@ export function CollabEditorModal({ visible, value, onClose, onSave }: {
               <Text style={styles.switchTitle}>Współpraca zdalna</Text>
               <Text style={styles.hint}>Pokażemy Cię także osobom spoza Twojej okolicy.</Text>
             </View>
-            <Switch accessibilityLabel="Współpraca zdalna" value={draft.remote} onValueChange={(remote) => setDraft((current) => ({ ...current, remote }))} trackColor={{ false: c.fillStronger, true: c.collab }} />
+            <Switch accessibilityLabel={tr("Współpraca zdalna")} value={draft.remote} onValueChange={(remote) => setDraft((current) => ({ ...current, remote }))} trackColor={{ false: c.fillStronger, true: c.collab }} />
           </View>
 
           {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}

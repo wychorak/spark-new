@@ -7,6 +7,7 @@ import { ActivityIndicator, Animated, Easing, Platform, Pressable, ScrollView, S
 import { Text } from "../i18n/Text";
 import { formatDate, formatTime } from "../i18n/format";
 import { palettes, useThemeState, type Palette } from "../theme";
+import { tr } from "../i18n";
 /** Discover context used for accents and badges (Romantic / Friends / Event). */
 export type DiscoverMode = "romantic" | "friends" | "event" | "collab";
 export type EventIcon = "music" | "festival" | "party" | "sport" | "culture" | "food" | "outdoor" | "other";
@@ -93,7 +94,7 @@ export const ModeSwitch = memo(function ModeSwitch({ mode, onChange }: { mode: D
             key={item.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={`Tryb ${item.label}`}
+            accessibilityLabel={tr(`Tryb ${item.label}`)}
             onPress={() => onChange(item.id)}
             style={styles.switchItem}
           >
@@ -126,16 +127,16 @@ export function DiscoverHeader({ onFilters, filtersActive, left, actions = [] }:
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         {left && (
-          <Pressable accessibilityRole="button" accessibilityLabel={left.label} onPress={left.onPress} style={styles.roundGlass}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr(left.label)} onPress={left.onPress} style={styles.roundGlass}>
             <MaterialCommunityIcons name={left.icon as any} size={19} color={palette.ink} />
             {left.dot && <View style={styles.roundGlassDot} />}
           </Pressable>
         )}
-        <Image source={wordmark} style={styles.wordmark} contentFit="contain" accessibilityLabel="Spark" />
+        <Image source={wordmark} style={styles.wordmark} contentFit="contain" accessibilityLabel={tr("Spark")} />
       </View>
       <View style={styles.headerRight}>
         {right.map((action) => (
-          <Pressable key={action.label} accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.roundGlass}>
+          <Pressable key={action.label} accessibilityRole="button" accessibilityLabel={tr(action.label)} onPress={action.onPress} style={styles.roundGlass}>
             <MaterialCommunityIcons name={action.icon as any} size={19} color={palette.ink} />
             {action.dot && <View style={styles.roundGlassDot} />}
           </Pressable>
@@ -215,7 +216,7 @@ export const DeckCard = memo(function DeckCard({ data, mode, onOpenDetails, onRe
     <View style={styles.card} onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${data.name}, ${data.age}. Dotknij, aby zobaczyć profil`}
+        accessibilityLabel={tr(`${data.name}, ${data.age}. Dotknij, aby zobaczyć profil`)}
         onPress={(event) => handlePress(event.nativeEvent.locationX)}
         style={StyleSheet.absoluteFill}
       >
@@ -227,7 +228,7 @@ export const DeckCard = memo(function DeckCard({ data, mode, onOpenDetails, onRe
         <View style={styles.cardTitleRow}>
           <Text style={styles.cardName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{data.name}, {data.age}</Text>
           {data.verified && (
-            <View style={[styles.verifiedBadge, { backgroundColor: accent }]} accessibilityLabel="Zweryfikowany profil">
+            <View style={[styles.verifiedBadge, { backgroundColor: accent }]} accessibilityLabel={tr("Zweryfikowany profil")}>
               <MaterialCommunityIcons name="check" size={13} color={palette.onPrimary} />
             </View>
           )}
@@ -270,7 +271,7 @@ export const DeckCard = memo(function DeckCard({ data, mode, onOpenDetails, onRe
       </Pressable>
 
       {onReport && (
-        <Pressable accessibilityRole="button" accessibilityLabel="Zgłoś profil" onPress={onReport} hitSlop={8} style={styles.reportButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zgłoś profil")} onPress={onReport} hitSlop={8} style={styles.reportButton}>
           <MaterialCommunityIcons name="flag-outline" size={14} color={palette.inkSoft} />
         </Pressable>
       )}
@@ -406,7 +407,7 @@ export function GlassActionBar({ items, disabled, mode }: { items: ActionItem[];
             <Pressable
               key={item.key}
               accessibilityRole="button"
-              accessibilityLabel={item.label}
+              accessibilityLabel={tr(item.label)}
               disabled={disabled}
               onPress={item.onPress}
               style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed, disabled && styles.actionButtonDisabled]}

@@ -3983,7 +3983,7 @@ function SparkTitle() {
   const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.024] });
 
   return (
-    <Animated.View accessibilityLabel="Spark" style={[styles.sparkTitleWrap, { transform: [{ translateY }, { scale }, { rotate }] }]}>
+    <Animated.View accessibilityLabel={tr("Spark")} style={[styles.sparkTitleWrap, { transform: [{ translateY }, { scale }, { rotate }] }]}>
       <Animated.Text selectable={false} style={[styles.sparkTitleGlow, { opacity: glowOpacity }]}>Spark</Animated.Text>
       <Animated.Text selectable={false} style={[styles.sparkTitlePink, { opacity: pinkLayerOpacity }]}>Spark</Animated.Text>
       <Text style={styles.sparkTitle} selectable>Spark</Text>
@@ -4127,7 +4127,7 @@ function AuthScreen({
         {appleReady && (
           <View pointerEvents={socialDisabled ? "none" : "auto"} style={socialDisabled && styles.socialLoginButtonDisabled}>
             <AppleAuthentication.AppleAuthenticationButton
-              accessibilityLabel="Kontynuuj z Apple"
+              accessibilityLabel={tr("Kontynuuj z Apple")}
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
               cornerRadius={18}
@@ -4370,7 +4370,7 @@ function OnboardingScreen({
                 {photo && (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Usuń zdjęcie"
+                    accessibilityLabel={tr("Usuń zdjęcie")}
                     onPress={(event) => {
                       event.stopPropagation();
                       removePhoto(index);
@@ -4882,9 +4882,9 @@ function AgeRangeControl({ min, max, onChange }: { min: number; max: number; onC
         <View key={side} style={styles.ageRangeSide}>
           <Text style={styles.fieldLabel}>{label}</Text>
           <View style={styles.ageRangeButtons}>
-            <Pressable accessibilityRole="button" accessibilityLabel={label + " wiek: mniej"} onPress={() => adjust(side, -1)} onLongPress={() => startRepeat(side, -1)} onPressOut={stopRepeat} delayLongPress={300} style={styles.ageRangeButton}><MaterialCommunityIcons name="minus" size={18} color={colors.ink} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr(label + " wiek: mniej")} onPress={() => adjust(side, -1)} onLongPress={() => startRepeat(side, -1)} onPressOut={stopRepeat} delayLongPress={300} style={styles.ageRangeButton}><MaterialCommunityIcons name="minus" size={18} color={colors.ink} /></Pressable>
             <Text style={styles.ageRangeValue}>{value}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={label + " wiek: więcej"} onPress={() => adjust(side, 1)} onLongPress={() => startRepeat(side, 1)} onPressOut={stopRepeat} delayLongPress={300} style={styles.ageRangeButton}><MaterialCommunityIcons name="plus" size={18} color={colors.ink} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr(label + " wiek: więcej")} onPress={() => adjust(side, 1)} onLongPress={() => startRepeat(side, 1)} onPressOut={stopRepeat} delayLongPress={300} style={styles.ageRangeButton}><MaterialCommunityIcons name="plus" size={18} color={colors.ink} /></Pressable>
           </View>
         </View>
       ))}
@@ -4957,7 +4957,7 @@ function DiscoveryMenuModal({
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={onClose}>
       <View style={styles.discoveryModalRoot}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij menu" onPress={onClose} style={styles.discoveryModalBackdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij menu")} onPress={onClose} style={styles.discoveryModalBackdrop} />
         <View style={[styles.discoveryDrawer, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 18) }]}>
           <View style={styles.discoveryDrawerHeader}>
             <View style={styles.discoveryDrawerBrand}>
@@ -4967,7 +4967,7 @@ function DiscoveryMenuModal({
                 <Text style={styles.discoveryDrawerTitle}>Twoje centrum</Text>
               </View>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij menu" onPress={onClose} style={styles.discoveryDrawerClose}>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij menu")} onPress={onClose} style={styles.discoveryDrawerClose}>
               <MaterialCommunityIcons name="close" size={21} color={colors.ink} />
             </Pressable>
           </View>
@@ -4980,7 +4980,7 @@ function DiscoveryMenuModal({
           >
           <View style={styles.discoveryDrawerNav}>
             {menuItems.map((item) => (
-              <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={item.label} onPress={() => run(item.action)} style={({ pressed }) => [styles.discoveryMenuRow, item.active && styles.discoveryMenuRowActive, pressed && styles.controlPressed]}>
+              <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={tr(item.label)} onPress={() => run(item.action)} style={({ pressed }) => [styles.discoveryMenuRow, item.active && styles.discoveryMenuRowActive, pressed && styles.controlPressed]}>
                 <View style={[styles.discoveryMenuIcon, item.active && styles.discoveryMenuIconActive]}>
                   <MaterialCommunityIcons name={item.icon as any} size={21} color={item.active ? "#fff" : colors.primary} />
                 </View>
@@ -5075,7 +5075,7 @@ function DiscoveryPreferencesModal({
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={onClose}>
       <View style={[styles.discoveryModalRoot, styles.discoveryFilterModalRoot, { paddingTop: Math.max(insets.top + 4, 12) }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij filtry" onPress={onClose} style={styles.discoveryModalBackdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij filtry")} onPress={onClose} style={styles.discoveryModalBackdrop} />
         <View style={[styles.fpSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <View style={styles.discoverySheetHandle} />
           <View style={styles.fpHeader}>
@@ -5083,7 +5083,7 @@ function DiscoveryPreferencesModal({
               <Text style={[styles.fpHeaderAction, activeFilters === 0 && { color: colors.muted }]}>Resetuj</Text>
             </Pressable>
             <Text style={styles.fpTitle}>Filtry</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij filtry" onPress={onClose} hitSlop={8} style={[styles.fpHeaderSide, { alignItems: "flex-end" }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij filtry")} onPress={onClose} hitSlop={8} style={[styles.fpHeaderSide, { alignItems: "flex-end" }]}>
               <View style={styles.fpClose}><MaterialCommunityIcons name="close" size={18} color={colors.inkSoft} /></View>
             </Pressable>
           </View>
@@ -5187,7 +5187,7 @@ function ProfileCard({ profile, viewerInterests = [], onReport, compact = false 
       {onReport && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Zgłoś profil"
+          accessibilityLabel={tr("Zgłoś profil")}
           onPress={(event) => {
             event.stopPropagation();
             onReport();
@@ -5217,8 +5217,8 @@ function ProfileCard({ profile, viewerInterests = [], onReport, compact = false 
               <Text style={styles.cardProText} maxFontSizeMultiplier={1.15}>SPARK PRO</Text>
             </View>
           )}
-          {profile.verified && <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} style={styles.cardVerifiedBadge}><MaterialCommunityIcons name="check-decagram" size={13} color="#63d7ff" /><Text style={styles.cardVerifiedText}>ZWERYFIKOWANY</Text></Pressable>}
-          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel={"Zgodność " + compatibility.score + " procent, " + compatibility.label} accessibilityHint="Wyjaśnia sposób obliczania zgodności" onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[styles.matchInlinePill, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}><MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} /><Text style={[styles.matchInlinePillText, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}% · {compatibility.label}</Text></Pressable>}
+          {profile.verified && <Pressable accessibilityRole="button" accessibilityLabel={tr("Profil zweryfikowany")} onPress={showVerifiedProfileInfo} style={styles.cardVerifiedBadge}><MaterialCommunityIcons name="check-decagram" size={13} color="#63d7ff" /><Text style={styles.cardVerifiedText}>ZWERYFIKOWANY</Text></Pressable>}
+          {!sharedEvent && <Pressable accessibilityRole="button" accessibilityLabel={tr("Zgodność " + compatibility.score + " procent, " + compatibility.label)} accessibilityHint={tr("Wyjaśnia sposób obliczania zgodności")} onPress={() => showCompatibilityInfo(compatibility.score, interestMatchPercent, primarySharedInterestInsight)} style={[styles.matchInlinePill, { backgroundColor: compatibility.background, borderColor: compatibility.border }]}><MaterialCommunityIcons name={compatibility.icon} size={13} color={compatibility.color} /><Text style={[styles.matchInlinePillText, { color: compatibility.color }]} maxFontSizeMultiplier={1.15}>{compatibility.score}% · {compatibility.label}</Text></Pressable>}
         </View>
         <Text
           style={styles.cardTitle}
@@ -5410,7 +5410,7 @@ function ProfilePreviewSheet({
     <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <View style={local.root}>
         <StatusBar style={colors.statusBar} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij profil" onPress={onClose} hitSlop={10} style={[local.close, { top: Math.max(insets.top, 10) + 18 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij profil")} onPress={onClose} hitSlop={10} style={[local.close, { top: Math.max(insets.top, 10) + 18 }]}>
           <MaterialCommunityIcons name="chevron-down" size={24} color="#fff" />
         </Pressable>
 
@@ -5430,7 +5430,7 @@ function ProfilePreviewSheet({
               onMomentumScrollEnd={(event) => setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / photoWidth))}
             >
               {photos.map((photo, index) => (
-                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: colors.photoPlaceholder }} contentFit="cover" transition={180} accessibilityLabel={"Zdjęcie " + (index + 1) + " z " + photos.length} />
+                <Image key={index} source={photo} style={{ width: photoWidth, aspectRatio: 4 / 5, backgroundColor: colors.photoPlaceholder }} contentFit="cover" transition={180} accessibilityLabel={tr("Zdjęcie " + (index + 1) + " z " + photos.length)} />
               ))}
             </ScrollView>
             {photos.length > 1 && (
@@ -5445,11 +5445,11 @@ function ProfilePreviewSheet({
             <View style={local.nameRow}>
               <Text style={local.title} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78} maxFontSizeMultiplier={1.15}>{displayName}, {profile.age}</Text>
               {profile.verified && (
-                <Pressable accessibilityRole="button" accessibilityLabel="Profil zweryfikowany" onPress={showVerifiedProfileInfo} hitSlop={8}>
+                <Pressable accessibilityRole="button" accessibilityLabel={tr("Profil zweryfikowany")} onPress={showVerifiedProfileInfo} hitSlop={8}>
                   <MaterialCommunityIcons name="check-decagram" size={22} color="#0a84ff" />
                 </Pressable>
               )}
-              {profile.premium && <MaterialCommunityIcons accessibilityLabel="Spark Pro" name="crown" size={20} color={colors.gold} />}
+              {profile.premium && <MaterialCommunityIcons accessibilityLabel={tr("Spark Pro")} name="crown" size={20} color={colors.gold} />}
             </View>
             <Text style={local.facts} maxFontSizeMultiplier={1.2}>{facts}</Text>
           </View>
@@ -5592,7 +5592,7 @@ function ProfilePreviewSheet({
         {!isOwnProfile && !readOnly && (
           <GlassSurface style={[local.actions, { paddingBottom: Math.max(insets.bottom, 12) }]} intensity={60}>
             {isMatchedRelationship ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="Otwórz chat" onPress={onMessage} style={({ pressed }) => [local.primary, pressed && styles.controlPressed]}>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz chat")} onPress={onMessage} style={({ pressed }) => [local.primary, pressed && styles.controlPressed]}>
                 <MaterialCommunityIcons name="message-text" size={20} color={colors.onPrimary} />
                 <Text style={local.primaryText}>Otwórz chat</Text>
               </Pressable>
@@ -5603,7 +5603,7 @@ function ProfilePreviewSheet({
               </View>
             ) : (
               <>
-                <Pressable accessibilityRole="button" accessibilityLabel={"Wyślij SparkLike" + (superlikeLocked ? ", wymaga Spark Pro" : ", zostało " + superlikesRemaining)} onPress={onSuperlike} style={({ pressed }) => [local.round, pressed && styles.controlPressed]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={tr("Wyślij SparkLike" + (superlikeLocked ? ", wymaga Spark Pro" : ", zostało " + superlikesRemaining))} onPress={onSuperlike} style={({ pressed }) => [local.round, pressed && styles.controlPressed]}>
                   <MaterialCommunityIcons name="fire" size={24} color={colors.primary} />
                   {renderBadge(superlikeLocked, superlikesRemaining)}
                 </Pressable>
@@ -5613,13 +5613,13 @@ function ProfilePreviewSheet({
                     <Text style={local.quietText}>Polubiono</Text>
                   </View>
                 ) : (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Polub profil" onPress={onLike} style={({ pressed }) => [local.primary, pressed && styles.controlPressed]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={tr("Polub profil")} onPress={onLike} style={({ pressed }) => [local.primary, pressed && styles.controlPressed]}>
                     <MaterialCommunityIcons name="heart" size={20} color={colors.onPrimary} />
                     <Text style={local.primaryText}>Polub</Text>
                   </Pressable>
                 )}
                 {onMessage && (
-                  <Pressable accessibilityRole="button" accessibilityLabel={"Napisz pierwszą wiadomość" + (messageLocked ? ", wymaga Spark Pro" : "")} onPress={onMessage} style={({ pressed }) => [local.round, pressed && styles.controlPressed]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={tr("Napisz pierwszą wiadomość" + (messageLocked ? ", wymaga Spark Pro" : ""))} onPress={onMessage} style={({ pressed }) => [local.round, pressed && styles.controlPressed]}>
                     <MaterialCommunityIcons name="message-outline" size={23} color={colors.ink} />
                     {renderBadge(messageLocked)}
                   </Pressable>
@@ -6047,7 +6047,7 @@ function EventFriendsManagerModal({
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij wydarzenia" onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij wydarzenia")} onPress={onClose} style={local.close}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
           <View style={styles.fill}><Text style={local.eyebrow}>Event Friends</Text><Text style={local.title}>Twoje wydarzenia</Text></View>
           <View style={local.counter}><Text style={local.counterText}>{draftEvents.length}/{maxSelectedEvents}</Text></View>
         </View>
@@ -6072,7 +6072,7 @@ function EventFriendsManagerModal({
           ) : (
             <Text style={local.intro}>Pokazujemy wydarzenia z całego kraju. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.</Text>
           ))}
-          <TextInput accessibilityLabel="Szukaj wydarzenia lub miasta" value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
+          <TextInput accessibilityLabel={tr("Szukaj wydarzenia lub miasta")} value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
           {!!query && <Pressable accessibilityRole="button" onPress={() => setQuery("")} style={local.proposalButton}><Text style={local.proposalButtonText}>Wyczyść wyszukiwanie</Text></Pressable>}
           {catalogLoading ? (
             <View style={local.emptyWrap}><ActivityIndicator color={colors.primary} size="large" /><Text style={local.emptyTitle}>Pobieramy wydarzenia</Text></View>
@@ -6104,7 +6104,7 @@ function EventFriendsManagerModal({
                       {eventDetails[event.id]?.description ? <Text style={local.description} numberOfLines={3}>{eventDetails[event.id]?.description}</Text> : null}
                       <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
                     </View>
-                    {canManage && <Pressable accessibilityRole="button" accessibilityLabel={`Usuń wydarzenie ${event.name}`} onPress={(pressEvent) => { pressEvent.stopPropagation(); void deleteCatalogEvent(event); }} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
+                    {canManage && <Pressable accessibilityRole="button" accessibilityLabel={tr(`Usuń wydarzenie ${event.name}`)} onPress={(pressEvent) => { pressEvent.stopPropagation(); void deleteCatalogEvent(event); }} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
                     <View style={[local.participationPill, selected && local.participationPillActive]}><MaterialCommunityIcons name={selected ? "check" : "plus"} size={14} color={selected ? "#062817" : colors.primary} /><Text style={[local.participationText, selected && local.participationTextActive]}>{selected ? "Uczestniczę" : "Dołącz"}</Text></View>
                   </Pressable>
                 );
@@ -6130,9 +6130,9 @@ function EventFriendsManagerModal({
                   : "Znasz koncert, mecz albo wystawę? Wyślij zgłoszenie. Po akceptacji pojawi się w Event Friends, a my damy Ci znać powiadomieniem."}</Text>
               {editingProposal && <Pressable accessibilityRole="button" onPress={cancelEditingProposal} style={local.proposalButton}><MaterialCommunityIcons name="close" size={16} color={colors.ink} /><Text style={local.proposalButtonText}>Przerwij edycję</Text></Pressable>}
               <View pointerEvents={creating ? "none" : "auto"} accessibilityState={{ busy: creating }} style={{ gap: 12 }}>
-              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={item.label} onPress={() => { setCategory(item.id); setSelectedIcon(getEventCategoryDefaultIcon(item.id)); }} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
+              <View style={local.categoryGrid}>{eventCategories.map((item) => { const selected = category === item.id; return <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={tr(item.label)} onPress={() => { setCategory(item.id); setSelectedIcon(getEventCategoryDefaultIcon(item.id)); }} style={({ pressed }) => [local.categoryCard, selected && local.categoryActive, pressed && styles.controlPressed]}><View style={local.categoryIcon}><MaterialCommunityIcons name={item.icon as any} size={19} color={colors.primary} /></View><View style={styles.fill}><Text style={local.categoryTitle}>{item.label}</Text><Text style={local.categoryHint} numberOfLines={1}>{item.hint}</Text></View></Pressable>; })}</View>
               <Text style={local.fieldLabel}>Ikona wydarzenia</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Zmień ikonę wydarzenia" accessibilityState={{ expanded: iconsOpen }} onPress={() => setIconsOpen(!iconsOpen)} style={[local.input, { flexDirection: "row", alignItems: "center", gap: 12 }]}><MaterialCommunityIcons name={selectedIcon as any} size={23} color={colors.primary} /><Text style={{ flex: 1, color: colors.ink }}>{eventIconOptions.find((option) => option.id === selectedIcon)?.label}</Text><MaterialCommunityIcons name={iconsOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} /></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Zmień ikonę wydarzenia")} accessibilityState={{ expanded: iconsOpen }} onPress={() => setIconsOpen(!iconsOpen)} style={[local.input, { flexDirection: "row", alignItems: "center", gap: 12 }]}><MaterialCommunityIcons name={selectedIcon as any} size={23} color={colors.primary} /><Text style={{ flex: 1, color: colors.ink }}>{eventIconOptions.find((option) => option.id === selectedIcon)?.label}</Text><MaterialCommunityIcons name={iconsOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} /></Pressable>
               {iconsOpen && <View style={local.iconPicker}>
                 {eventIconOptions.map((option) => {
                   const selected = selectedIcon === option.id;
@@ -6141,7 +6141,7 @@ function EventFriendsManagerModal({
                       key={option.id}
                       accessibilityRole="radio"
                       accessibilityState={{ selected }}
-                      accessibilityLabel={`Ikona: ${option.label}`}
+                      accessibilityLabel={tr(`Ikona: ${option.label}`)}
                       onPress={() => { setSelectedIcon(option.id); setIconsOpen(false); void Haptics.selectionAsync(); }}
                       style={({ pressed }) => [local.iconChoice, selected && local.iconChoiceActive, pressed && styles.controlPressed]}
                     >
@@ -6154,12 +6154,12 @@ function EventFriendsManagerModal({
                 })}
               </View>}
               <Text style={local.fieldLabel}>Nazwa wydarzenia</Text>
-              <TextInput accessibilityLabel="Nazwa wydarzenia" value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput accessibilityLabel={tr("Nazwa wydarzenia")} value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
               <EventCityField value={city} countryCode={editingProposal?.details.countryCode ?? userCountryCode} extraCities={[userCity, ...availableEvents.filter((item) => (eventDetails[item.id]?.countryCode ?? "PL") === userCountryCode).map((item) => item.city)]} onChange={(value) => { setCity(value); setFormError(null); }} />
               <Text style={local.fieldLabel}>Miejsce (opcjonalnie)</Text>
-              <TextInput accessibilityLabel="Miejsce wydarzenia" value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
+              <TextInput accessibilityLabel={tr("Miejsce wydarzenia")} value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Opis (opcjonalnie)</Text>
-              <TextInput accessibilityLabel="Opis wydarzenia" value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Kilka słów: kto gra, co się dzieje, dla kogo." placeholderTextColor={colors.muted} style={[local.input, local.textArea]} />
+              <TextInput accessibilityLabel={tr("Opis wydarzenia")} value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="Kilka słów: kto gra, co się dzieje, dla kogo." placeholderTextColor={colors.muted} style={[local.input, local.textArea]} />
               <Text style={local.intro}>Godziny są podane w strefie czasowej Twojego telefonu. Zmiana początku przesuwa też koniec wydarzenia.</Text>
               <EventDateField label="Początek" value={startsAtInput} onChange={changeStart} allowPast={!!editingProposal} />
               <EventDateField label="Koniec" value={endsAtInput} onChange={(value) => { setEndsAtInput(value); setFormError(null); }} allowPast={!!editingProposal} />
@@ -6547,7 +6547,7 @@ function MatchesScreen({
         {items.map((profile, index) => (
           <React.Fragment key={getProfileKey(profile)}>
             {index > 0 && <View style={styles.mxDivider} />}
-            <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz profil " + profile.name} onPress={() => setPreviewProfile(profile)} style={({ pressed }) => [styles.mxRow, pressed && { backgroundColor: colors.fill }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz profil " + profile.name)} onPress={() => setPreviewProfile(profile)} style={({ pressed }) => [styles.mxRow, pressed && { backgroundColor: colors.fill }]}>
               <Image source={profile.image} style={styles.mxAvatar} contentFit="cover" />
               <View style={styles.fill}>
                 <View style={styles.mxNameRow}>
@@ -6568,7 +6568,7 @@ function MatchesScreen({
     <View style={styles.gapLg}>
       <View style={styles.mxHeader}>
         <Text style={styles.mxTitle}>Matche</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Otwórz czat" onPress={onOpenMessages} hitSlop={8} style={styles.mxHeaderButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz czat")} onPress={onOpenMessages} hitSlop={8} style={styles.mxHeaderButton}>
           <MaterialCommunityIcons name="message-outline" size={21} color={colors.ink} />
         </Pressable>
       </View>
@@ -6591,8 +6591,8 @@ function MatchesScreen({
               <Pressable
                 key={getProfileKey(profile)}
                 accessibilityRole="button"
-                accessibilityLabel={"Napisz do " + profile.name}
-                accessibilityHint="Przytrzymaj, aby zobaczyć profil"
+                accessibilityLabel={tr("Napisz do " + profile.name)}
+                accessibilityHint={tr("Przytrzymaj, aby zobaczyć profil")}
                 onPress={() => onOpenConversation(getProfileKey(profile))}
                 onLongPress={() => setPreviewProfile(profile)}
                 style={({ pressed }) => [styles.mxMatch, pressed && styles.controlPressed]}
@@ -6616,7 +6616,7 @@ function MatchesScreen({
             (profile) => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={"Polub " + profile.name + " i utwórz match"}
+                accessibilityLabel={tr("Polub " + profile.name + " i utwórz match")}
                 onPress={(event) => { event.stopPropagation(); void onLikeIncomingProfile(getProfileKey(profile)); }}
                 hitSlop={6}
                 style={styles.mxLikeBack}
@@ -6635,7 +6635,7 @@ function MatchesScreen({
             pendingLikes,
             () => "Czeka na wzajemność",
             (profile) => (
-              <Pressable accessibilityRole="button" accessibilityLabel={"Cofnij polubienie profilu " + profile.name} onPress={(event) => { event.stopPropagation(); confirmCancelLike(profile); }} hitSlop={10} style={styles.mxQuiet}>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Cofnij polubienie profilu " + profile.name)} onPress={(event) => { event.stopPropagation(); confirmCancelLike(profile); }} hitSlop={10} style={styles.mxQuiet}>
                 <MaterialCommunityIcons name="close" size={18} color={colors.muted} />
               </Pressable>
             )
@@ -6653,7 +6653,7 @@ function MatchesScreen({
             (profile) => chatThreads[getProfileKey(profile)]?.requestDirection === "incoming"
               ? <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
               : (
-                <Pressable accessibilityRole="button" accessibilityLabel={"Anuluj prośbę do " + profile.name} onPress={(event) => { event.stopPropagation(); confirmCancelRequest(profile); }} hitSlop={10} style={styles.mxQuiet}>
+                <Pressable accessibilityRole="button" accessibilityLabel={tr("Anuluj prośbę do " + profile.name)} onPress={(event) => { event.stopPropagation(); confirmCancelRequest(profile); }} hitSlop={10} style={styles.mxQuiet}>
                   <MaterialCommunityIcons name="close" size={18} color={colors.muted} />
                 </Pressable>
               )
@@ -6803,7 +6803,7 @@ function MessagesScreen({
         {([["chats", "Rozmowy", unreadChatsCount], ["requests", "Prośby", requestConversations.length]] as const).map(([view, label, count]) => {
           const active = messageView === view;
           return (
-            <Pressable key={view} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={label + (count > 0 ? ", " + count : "")} onPress={() => selectMessageView(view)} style={[styles.cxSegmentItem, active && styles.cxSegmentItemActive]}>
+            <Pressable key={view} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={tr(label + (count > 0 ? ", " + count : ""))} onPress={() => selectMessageView(view)} style={[styles.cxSegmentItem, active && styles.cxSegmentItemActive]}>
               <Text style={[styles.cxSegmentText, active && styles.cxSegmentTextActive]}>{label}</Text>
               {count > 0 && <View style={styles.cxSegmentBadge}><Text style={styles.cxSegmentBadgeText}>{formatBadgeCount(count)}</Text></View>}
             </Pressable>
@@ -6821,7 +6821,7 @@ function MessagesScreen({
           style={styles.cxSearchInput}
         />
         {searchQuery.length > 0 && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Wyczyść wyszukiwanie" onPress={() => setSearchQuery("")} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Wyczyść wyszukiwanie")} onPress={() => setSearchQuery("")} hitSlop={8}>
             <MaterialCommunityIcons name="close-circle" size={18} color={colors.muted} />
           </Pressable>
         )}
@@ -6841,7 +6841,7 @@ function MessagesScreen({
               return (
                 <React.Fragment key={conversation.key}>
                   {index > 0 && <View style={styles.cxDivider} />}
-                  <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz rozmowę z " + conversation.name + (unread ? ". Nieprzeczytane: " + conversation.unreadCount : "")} onPress={() => setSelectedChatKey(conversation.key)} style={({ pressed }) => [styles.cxRow, pressed && { backgroundColor: colors.fill }]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz rozmowę z " + conversation.name + (unread ? ". Nieprzeczytane: " + conversation.unreadCount : ""))} onPress={() => setSelectedChatKey(conversation.key)} style={({ pressed }) => [styles.cxRow, pressed && { backgroundColor: colors.fill }]}>
                     <Image source={conversation.profile.image} style={styles.cxAvatar} contentFit="cover" />
                     <View style={styles.fill}>
                       <View style={styles.cxTopLine}>
@@ -7023,17 +7023,17 @@ function ChatConversationModal({
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={local.root}>
         <StatusBar style={colors.statusBar} />
         <View style={[local.header, { paddingTop: Math.max(insets.top, 10) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} hitSlop={6} style={local.iconButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Wróć")} onPress={onClose} hitSlop={6} style={local.iconButton}>
             <MaterialCommunityIcons name="chevron-left" size={28} color={colors.primary} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Otwórz profil ${activeConversation.name}`} onPress={onOpenProfile} style={local.identityButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr(`Otwórz profil ${activeConversation.name}`)} onPress={onOpenProfile} style={local.identityButton}>
             <Image source={activeConversation.profile.image} style={local.avatar} contentFit="cover" />
             <View style={styles.fill}>
               <Text style={local.name} numberOfLines={1}>{activeConversation.name}</Text>
               <Text style={local.status} numberOfLines={1}>{canMessage ? "Zobacz profil" : activeConversation.status === "blocked" ? "Profil zablokowany" : "Oczekuje na akceptację"}</Text>
             </View>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Opcje rozmowy" onPress={openSafetyMenu} hitSlop={6} style={local.iconButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Opcje rozmowy")} onPress={openSafetyMenu} hitSlop={6} style={local.iconButton}>
             <MaterialCommunityIcons name="dots-horizontal-circle-outline" size={24} color={colors.primary} />
           </Pressable>
         </View>
@@ -7074,7 +7074,7 @@ function ChatConversationModal({
                   <Text style={local.starterLead}>Na dobry początek</Text>
                   <View style={local.starterList}>
                     {conversationStarters.map((starter) => (
-                      <Pressable key={starter} accessibilityRole="button" accessibilityHint="Wstawia tekst do pola wiadomości" onPress={() => { void Haptics.selectionAsync(); setDraft(starter); }} style={({ pressed }) => [local.starterChip, pressed && styles.controlPressed]}>
+                      <Pressable key={starter} accessibilityRole="button" accessibilityHint={tr("Wstawia tekst do pola wiadomości")} onPress={() => { void Haptics.selectionAsync(); setDraft(starter); }} style={({ pressed }) => [local.starterChip, pressed && styles.controlPressed]}>
                         <Text style={local.starterChipText} numberOfLines={3}>{starter}</Text>
                       </Pressable>
                     ))}
@@ -7114,11 +7114,11 @@ function ChatConversationModal({
               maxLength={2000}
               placeholder="Wiadomość"
               placeholderTextColor={colors.muted}
-              accessibilityLabel="Treść wiadomości"
+              accessibilityLabel={tr("Treść wiadomości")}
               editable={!sending}
               style={local.input}
             />
-            <Pressable accessibilityRole="button" accessibilityLabel="Wyślij" disabled={!draft.trim() || sending} onPress={() => { void send(); }} style={[local.send, (!draft.trim() || sending) && local.sendDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("Wyślij")} disabled={!draft.trim() || sending} onPress={() => { void send(); }} style={[local.send, (!draft.trim() || sending) && local.sendDisabled]}>
               {sending ? <ActivityIndicator size="small" color={colors.onPrimary} /> : <MaterialCommunityIcons name="arrow-up" size={22} color={colors.onPrimary} />}
             </Pressable>
           </View>
@@ -7510,7 +7510,7 @@ function ProfileViewersScreen({
       <LinearGradient colors={colors.backgroundGradient} style={profileViewerStyles.screen}>
         <StatusBar style={colors.statusBar} />
         <View style={[profileViewerStyles.screenHeader, { paddingTop: Math.max(insets.top, 12) }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Wróć do profilu" onPress={onClose} style={profileViewerStyles.back}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Wróć do profilu")} onPress={onClose} style={profileViewerStyles.back}>
             <MaterialCommunityIcons name="chevron-left" size={25} color={colors.ink} />
           </Pressable>
           <View style={styles.fill}>
@@ -7534,7 +7534,7 @@ function ProfileViewersScreen({
               style={profileViewerStyles.searchInput}
             />
             {query.length > 0 && (
-              <Pressable accessibilityRole="button" accessibilityLabel="Wyczyść wyszukiwanie" onPress={() => setQuery("")}>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Wyczyść wyszukiwanie")} onPress={() => setQuery("")}>
                 <MaterialCommunityIcons name="close-circle" size={20} color={colors.muted} />
               </Pressable>
             )}
@@ -7568,7 +7568,7 @@ function ProfileViewersScreen({
           renderItem={({ item }) => {
             const displayName = [item.name, item.surname].filter(Boolean).join(" ");
             return (
-              <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz profil " + displayName} onPress={() => setPreviewProfile(item)} style={profileViewerStyles.row}>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz profil " + displayName)} onPress={() => setPreviewProfile(item)} style={profileViewerStyles.row}>
                 <Image source={item.image} style={profileViewerStyles.rowAvatar} contentFit="cover" />
                 <View style={styles.fill}>
                   <Text style={profileViewerStyles.rowName} numberOfLines={1}>{displayName}, {item.age}</Text>
@@ -7635,7 +7635,7 @@ function ProfileViewerPanel({ hasPro, viewers, viewerCount, loading, viewerInter
         </View>
       ) : (
         <>
-          <Pressable accessibilityRole="button" accessibilityLabel="Otwórz listę odwiedzających profil" onPress={() => setScreenOpen(true)} style={profileViewerStyles.preview}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz listę odwiedzających profil")} onPress={() => setScreenOpen(true)} style={profileViewerStyles.preview}>
             <View style={profileViewerStyles.avatarStack}>
               {viewers.slice(0, 3).map((viewer, index) => (
                 <Image key={getProfileKey(viewer)} source={viewer.image} style={[profileViewerStyles.stackedAvatar, { left: index * 22, zIndex: 3 - index }]} contentFit="cover" />
@@ -7913,13 +7913,13 @@ function ProfileScreen({
       </View>
 
       <View style={styles.pfIdentity}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Podgląd Twojej karty" onPress={() => setPreviewOpen(true)} style={({ pressed }) => [pressed && styles.controlPressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Podgląd Twojej karty")} onPress={() => setPreviewOpen(true)} style={({ pressed }) => [pressed && styles.controlPressed]}>
           <Image source={previewSource} style={styles.pfAvatar} contentFit="cover" />
         </Pressable>
         <View style={styles.pfNameRow}>
           <Text style={styles.pfName} numberOfLines={1}>{profileName}</Text>
-          {verificationStatus === "verified" && <Pressable accessibilityRole="button" accessibilityLabel="Konto zweryfikowane" onPress={showVerifiedProfileInfo} hitSlop={8}><MaterialCommunityIcons name="check-decagram" size={20} color="#0a84ff" /></Pressable>}
-          {hasPro && <MaterialCommunityIcons accessibilityLabel="Spark Pro" name="crown" size={18} color={colors.gold} />}
+          {verificationStatus === "verified" && <Pressable accessibilityRole="button" accessibilityLabel={tr("Konto zweryfikowane")} onPress={showVerifiedProfileInfo} hitSlop={8}><MaterialCommunityIcons name="check-decagram" size={20} color="#0a84ff" /></Pressable>}
+          {hasPro && <MaterialCommunityIcons accessibilityLabel={tr("Spark Pro")} name="crown" size={18} color={colors.gold} />}
         </View>
         <Text style={styles.pfMeta} numberOfLines={1}>{[userAge + " lat", userCity].filter(Boolean).join(" · ")}</Text>
         <Pressable accessibilityRole="button" onPress={() => setPreviewOpen(true)} hitSlop={8}>
@@ -7942,7 +7942,7 @@ function ProfileScreen({
         <>
           {profileCompletion < profileChecks.length && (
             <View style={styles.mxGroup}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Uzupełnij profil" onPress={() => setProfileSection("edit")} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Uzupełnij profil")} onPress={() => setProfileSection("edit")} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
                 <View style={[styles.pfRowIcon, { backgroundColor: colors.primary }]}><MaterialCommunityIcons name="account-edit" size={17} color="#fff" /></View>
                 <View style={styles.fill}>
                   <Text style={styles.pfRowLabel}>Uzupełnij profil</Text>
@@ -7959,13 +7959,13 @@ function ProfileScreen({
             <View style={styles.mxGroup}>
               {activeEvents.slice(0, 3).map((event) => (
                 <React.Fragment key={event.id}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={"Otwórz feed " + event.name} onPress={onOpenEventFeed} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={tr("Otwórz feed " + event.name)} onPress={onOpenEventFeed} style={({ pressed }) => [styles.pfRow, pressed && { backgroundColor: colors.fill }]}>
                     <View style={[styles.pfRowIcon, { backgroundColor: colors.event }]}><MaterialCommunityIcons name={event.icon as any} size={17} color="#fff" /></View>
                     <View style={styles.fill}>
                       <Text style={styles.pfRowLabel} numberOfLines={1}>{event.name}</Text>
                       <Text style={styles.pfRowSub} numberOfLines={1}>{formatEventDateRange(event)} · {event.city}</Text>
                     </View>
-                    <Pressable accessibilityRole="button" accessibilityLabel={"Zrezygnuj z " + event.name} disabled={leavingEventId === event.id} onPress={(pressEvent) => { pressEvent.stopPropagation(); confirmLeaveEvent(event); }} hitSlop={8} style={styles.mxQuiet}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={tr("Zrezygnuj z " + event.name)} disabled={leavingEventId === event.id} onPress={(pressEvent) => { pressEvent.stopPropagation(); confirmLeaveEvent(event); }} hitSlop={8} style={styles.mxQuiet}>
                       {leavingEventId === event.id ? <ActivityIndicator size="small" color={colors.muted} /> : <MaterialCommunityIcons name="close" size={18} color={colors.muted} />}
                     </Pressable>
                   </Pressable>
@@ -8155,7 +8155,7 @@ function ProfileScreen({
                 {image && (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Usuń zdjęcie"
+                    accessibilityLabel={tr("Usuń zdjęcie")}
                     onPress={(event) => {
                       event.stopPropagation();
                       confirmRemovePhoto(index);
@@ -8285,7 +8285,7 @@ function ShareProfileCardModal({
       <View style={[local.root, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
         <StatusBar style={colors.statusBar} />
         <View style={local.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij kartę" onPress={onClose} style={local.close}>
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij kartę")} onPress={onClose} style={local.close}>
             <MaterialCommunityIcons name="close" size={20} color={colors.ink} />
           </Pressable>
           <Text style={local.headerTitle}>Udostępnij profil</Text>
@@ -8675,7 +8675,7 @@ function BlockedProfilesModal({
         <View style={local.root}>
           <StatusBar style={colors.statusBar} />
           <View style={[local.header, { paddingTop: Math.max(insets.top, 12) }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={onClose} style={local.back}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("Wróć")} onPress={onClose} style={local.back}><MaterialCommunityIcons name="chevron-left" size={24} color={colors.ink} /></Pressable>
             <View style={styles.fill}><Text style={local.title}>Zablokowane osoby</Text><Text style={local.subtitle}>Zarządzaj bezpieczeństwem i widocznością profili.</Text></View>
             <Text style={local.count}>{blockedProfileKeys.length}</Text>
           </View>
@@ -8718,7 +8718,7 @@ function LanguagePickerModal({ visible, onClose }: { visible: boolean; onClose: 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }]} />
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij")} onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }]} />
         <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 14 }}>
           <View style={{ alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: colors.fillStronger }} />
           <Text style={[styles.mxTitle, { fontSize: 28, lineHeight: 34 }]}>Język</Text>
@@ -8747,6 +8747,8 @@ function LanguagePickerModal({ visible, onClose }: { visible: boolean; onClose: 
     </Modal>
   );
 }
+
+const safetyTipsText = "Spark nie sprawdza karalności ani tożsamości użytkowników.\n\n• Na pierwsze spotkanie wybierz miejsce publiczne i własny transport.\n• Powiedz bliskiej osobie, z kim i gdzie się spotykasz.\n• Nie wysyłaj pieniędzy, kodów ani danych logowania osobom poznanym w aplikacji.\n• Zgłaszaj podejrzane profile — moderacja sprawdza zgłoszenia w ciągu 24 godzin.\n• W zagrożeniu dzwoń pod lokalny numer alarmowy (112 w Europie, 911 w USA).";
 
 function SafetyCenter({
   userUid,
@@ -8803,7 +8805,10 @@ function SafetyCenter({
     },
     {
       title: "Pomoc i informacje",
+      // US state online-dating laws (NJ, NY, TX, IL, FL...) require saying whether members are background-checked.
+      footer: "Spark nie sprawdza karalności ani tożsamości użytkowników. Przed pierwszym spotkaniem przeczytaj wskazówki bezpieczeństwa.",
       rows: [
+        { icon: "shield-check-outline", tint: "#30b0c7", label: "Wskazówki bezpieczeństwa", onPress: () => Alert.alert("Bezpieczne spotkania", safetyTipsText) },
         { icon: "email-outline", tint: "#34c759", label: "Napisz do nas", onPress: () => openSupportEmail("Spark - pomoc i bezpieczeństwo") },
         { icon: "account-group-outline", tint: colors.primary, label: "Zasady społeczności", onPress: () => openLegalDocument("Zasady społeczności", legalLinks.community, "EXPO_PUBLIC_COMMUNITY_GUIDELINES_URL") },
         { icon: "file-document-outline", tint: "#5e5ce6", label: "Regulamin", onPress: () => openLegalDocument("Regulamin", legalLinks.terms, "EXPO_PUBLIC_TERMS_URL") }
@@ -8824,7 +8829,7 @@ function SafetyCenter({
   return (
     <View style={styles.gapLg}>
       <View style={styles.stHeader}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Wróć do profilu" onPress={onBack} hitSlop={8} style={styles.stBack}>
+        <Pressable accessibilityRole="button" accessibilityLabel={tr("Wróć do profilu")} onPress={onBack} hitSlop={8} style={styles.stBack}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={colors.primary} />
           <Text style={styles.stBackText}>Profil</Text>
         </Pressable>
@@ -8932,7 +8937,7 @@ function IconButton({ label, onPress }: { label: string; onPress?: () => void })
   }
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={getIconAccessibilityLabel(label)} hitSlop={8} onPress={onPress} style={styles.iconButton}>
+    <Pressable accessibilityRole="button" accessibilityLabel={tr(getIconAccessibilityLabel(label))} hitSlop={8} onPress={onPress} style={styles.iconButton}>
       <MaterialCommunityIcons name={getIconName(label) as any} size={22} color={colors.ink} />
     </Pressable>
   );

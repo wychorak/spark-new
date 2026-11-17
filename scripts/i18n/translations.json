@@ -161,6 +161,18 @@
   "uk": "{0} вподобань чекають на взаємність",
   "es": "{0} likes esperando reciprocidad"
  },
+ "{0} wiek: mniej": {
+  "en": "{0} age: lower",
+  "de": "{0} Alter: weniger",
+  "uk": "{0} вік: менше",
+  "es": "{0} edad: menos"
+ },
+ "{0} wiek: więcej": {
+  "en": "{0} age: higher",
+  "de": "{0} Alter: mehr",
+  "uk": "{0} вік: більше",
+  "es": "{0} edad: más"
+ },
  "{0} wspólne": {
   "en": "{0} in common",
   "de": "{0} gemeinsam",
@@ -190,6 +202,24 @@
   "de": "{0} Zeichen",
   "uk": "{0} символів",
   "es": "{0} caracteres"
+ },
+ "{0}, {1}. Dotknij, aby zobaczyć profil": {
+  "en": "{0}, {1}. Tap to view profile",
+  "de": "{0}, {1}. Tippen, um das Profil zu sehen",
+  "uk": "{0}, {1}. Торкнися, щоб переглянути профіль",
+  "es": "{0}, {1}. Toca para ver el perfil"
+ },
+ "{0}: wybierz datę": {
+  "en": "{0}: choose date",
+  "de": "{0}: Datum wählen",
+  "uk": "{0}: вибери дату",
+  "es": "{0}: elige la fecha"
+ },
+ "{0}: wybierz godzinę": {
+  "en": "{0}: choose time",
+  "de": "{0}: Uhrzeit wählen",
+  "uk": "{0}: вибери час",
+  "es": "{0}: elige la hora"
  },
  "{0}. Wynik uwzględnia wspólne zainteresowania ({1}%), cel poznania, wzajemne preferencje wieku, odległość i kompletność profilu.{2} To podpowiedź Spark, nie gwarancja relacji.": {
   "en": "{0}. The score includes shared interests ({1}%), what you're looking for, mutual age preferences, distance and profile completeness.{2} This is a Spark hint, not a relationship guarantee.",
@@ -311,6 +341,12 @@
   "uk": "Скасувати запит до",
   "es": "Cancelar solicitud a"
  },
+ "Anuluj prośbę do {0}": {
+  "en": "Cancel request to {0}",
+  "de": "Anfrage an {0} zurückziehen",
+  "uk": "Скасувати запит до {0}",
+  "es": "Cancelar solicitud a {0}"
+ },
  "Aplikacje mobilne": {
   "en": "Mobile apps",
   "de": "Mobile Apps",
@@ -394,6 +430,12 @@
   "de": "Sicherheit",
   "uk": "Безпека",
   "es": "Seguridad"
+ },
+ "Bezpieczne spotkania": {
+  "en": "Meeting safely",
+  "de": "Sicher treffen",
+  "uk": "Безпечні зустрічі",
+  "es": "Citas seguras"
  },
  "Bieganie": {
   "en": "Running",
@@ -604,6 +646,12 @@
   "de": "Profil-Like zurücknehmen",
   "uk": "Скасувати вподобання профілю",
   "es": "Deshacer like al perfil"
+ },
+ "Cofnij polubienie profilu {0}": {
+  "en": "Undo like for {0}",
+  "de": "Like für {0} zurücknehmen",
+  "uk": "Скасувати вподобання профілю {0}",
+  "es": "Deshacer me gusta a {0}"
  },
  "Collab": {
   "en": "Collab",
@@ -1115,6 +1163,12 @@
   "uk": "Година",
   "es": "Hora"
  },
+ "Godzina wydarzenia": {
+  "en": "Event hour",
+  "de": "Stunde der Veranstaltung",
+  "uk": "Година події",
+  "es": "Hora del evento"
+ },
  "Godziny są podane w strefie czasowej Twojego telefonu. Zmiana początku przesuwa też koniec wydarzenia.": {
   "en": "Times are shown in your phone's time zone. Changing the start also moves the end of the event.",
   "de": "Die Zeiten werden in der Zeitzone deines Handys angezeigt. Wenn du den Beginn änderst, verschiebt sich auch das Ende.",
@@ -1144,6 +1198,12 @@
   "de": "Bereit für Matches",
   "uk": "Готово до метчів",
   "es": "Listo para matches"
+ },
+ "Gotowe: {0}": {
+  "en": "Done: {0}",
+  "de": "Fertig: {0}",
+  "uk": "Готово: {0}",
+  "es": "Listo: {0}"
  },
  "góry": {
   "en": "mountains",
@@ -1288,6 +1348,12 @@
   "de": "Event-Symbol",
   "uk": "Іконка події",
   "es": "Icono del evento"
+ },
+ "Ikona: {0}": {
+  "en": "Icon: {0}",
+  "de": "Symbol: {0}",
+  "uk": "Іконка: {0}",
+  "es": "Icono: {0}"
  },
  "Ilustrator": {
   "en": "Illustrator",
@@ -1661,11 +1727,23 @@
   "uk": "Акаунт із цим email уже існує.",
   "es": "Ya existe una cuenta con este correo."
  },
+ "Konto zweryfikowane": {
+  "en": "Verified account",
+  "de": "Verifiziertes Konto",
+  "uk": "Підтверджений акаунт",
+  "es": "Cuenta verificada"
+ },
  "Konto, profil, zdjęcia i dane powiązane zostały trwale usunięte.": {
   "en": "Your account, profile, photos and related data have been permanently deleted.",
   "de": "Konto, Profil, Fotos und zugehörige Daten wurden dauerhaft gelöscht.",
   "uk": "Акаунт, профіль, фото й пов'язані дані остаточно видалено.",
   "es": "La cuenta, el perfil, las fotos y los datos relacionados se han eliminado de forma permanente."
+ },
+ "Kontynuuj z Apple": {
+  "en": "Continue with Apple",
+  "de": "Mit Apple fortfahren",
+  "uk": "Продовжити з Apple",
+  "es": "Continuar con Apple"
  },
  "Kontynuuj z Google": {
   "en": "Continue with Google",
@@ -1991,6 +2069,12 @@
   "uk": "Місце (необов'язково)",
   "es": "Lugar (opcional)"
  },
+ "Miejsce wydarzenia": {
+  "en": "Event venue",
+  "de": "Veranstaltungsort",
+  "uk": "Місце події",
+  "es": "Lugar del evento"
+ },
  "Miesiąc": {
   "en": "Month",
   "de": "Monat",
@@ -2038,6 +2122,12 @@
   "de": "Mindestens 20 Zeichen",
   "uk": "Щонайменше 20 символів",
   "es": "Mínimo 20 caracteres"
+ },
+ "Minuty wydarzenia": {
+  "en": "Event minutes",
+  "de": "Minuten der Veranstaltung",
+  "uk": "Хвилини події",
+  "es": "Minutos del evento"
  },
  "Mix i mastering": {
   "en": "Mixing & mastering",
@@ -2243,6 +2333,12 @@
   "uk": "Спершу створи профіль Spark.",
   "es": "Primero crea tu perfil de Spark."
  },
+ "Należę do społeczności LGBT+": {
+  "en": "I'm part of the LGBT+ community",
+  "de": "Ich gehöre zur LGBT+-Community",
+  "uk": "Я належу до спільноти LGBT+",
+  "es": "Formo parte de la comunidad LGBT+"
+ },
  "Napisz": {
   "en": "Message",
   "de": "Schreiben",
@@ -2254,6 +2350,12 @@
   "de": "Schreib an",
   "uk": "Написати",
   "es": "Escribir a"
+ },
+ "Napisz do {0}": {
+  "en": "Message {0}",
+  "de": "{0} schreiben",
+  "uk": "Написати {0}",
+  "es": "Escribir a {0}"
  },
  "Napisz do nas": {
   "en": "Contact us",
@@ -2297,6 +2399,12 @@
   "uk": "Напиши перше повідомлення",
   "es": "Escribe el primer mensaje"
  },
+ "Napisz pierwszą wiadomość, wymaga Spark Pro": {
+  "en": "Write the first message, requires Spark Pro",
+  "de": "Erste Nachricht schreiben, erfordert Spark Pro",
+  "uk": "Написати перше повідомлення, потрібен Spark Pro",
+  "es": "Escribir el primer mensaje, requiere Spark Pro"
+ },
  "Napisz przed matchem": {
   "en": "Message before a match",
   "de": "Vor dem Match schreiben",
@@ -2314,6 +2422,12 @@
   "de": "Das nächste Foto wird dein Hauptfoto.",
   "uk": "Наступне фото стане головним.",
   "es": "La siguiente foto pasará a ser la principal."
+ },
+ "Następny miesiąc": {
+  "en": "Next month",
+  "de": "Nächster Monat",
+  "uk": "Наступний місяць",
+  "es": "Mes siguiente"
  },
  "Natura": {
   "en": "Nature",
@@ -3197,6 +3311,12 @@
   "uk": "Значок означає, що акаунт входу підтверджено Google або Apple. Це не перевірка документа, віку чи відповідності фото людині.",
   "es": "La insignia significa que la cuenta de inicio de sesión fue confirmada por Google o Apple. No verifica documentos, edad ni que las fotos correspondan a la persona."
  },
+ "Opcje rozmowy": {
+  "en": "Conversation options",
+  "de": "Chat-Optionen",
+  "uk": "Параметри розмови",
+  "es": "Opciones de la conversación"
+ },
  "Opcjonalne. Pokażemy tylko osoby z przynajmniej jednym z wybranych tagów.": {
   "en": "Optional. We'll only show people with at least one of the selected tags.",
   "de": "Optional. Wir zeigen nur Personen mit mindestens einem der gewählten Tags.",
@@ -3250,6 +3370,12 @@
   "de": "Projektbeschreibung",
   "uk": "Опис проєкту",
   "es": "Descripción del proyecto"
+ },
+ "Opis wydarzenia": {
+  "en": "Event description",
+  "de": "Beschreibung der Veranstaltung",
+  "uk": "Опис події",
+  "es": "Descripción del evento"
  },
  "Opisz problem trochę dokładniej.": {
   "en": "Describe the problem in a bit more detail.",
@@ -3335,17 +3461,41 @@
   "uk": "Відкрити чат",
   "es": "Abrir chat"
  },
+ "Otwórz czat": {
+  "en": "Open chat",
+  "de": "Chat öffnen",
+  "uk": "Відкрити чат",
+  "es": "Abrir chat"
+ },
  "Otwórz feed": {
   "en": "Open feed",
   "de": "Feed öffnen",
   "uk": "Відкрити стрічку",
   "es": "Abrir feed"
  },
+ "Otwórz feed {0}": {
+  "en": "Open {0} feed",
+  "de": "Feed von {0} öffnen",
+  "uk": "Відкрити стрічку {0}",
+  "es": "Abrir el feed de {0}"
+ },
+ "Otwórz listę odwiedzających profil": {
+  "en": "Open list of profile visitors",
+  "de": "Liste der Profilbesucher öffnen",
+  "uk": "Відкрити список відвідувачів профілю",
+  "es": "Abrir la lista de visitantes del perfil"
+ },
  "Otwórz profil": {
   "en": "Open profile",
   "de": "Profil öffnen",
   "uk": "Відкрити профіль",
   "es": "Abrir perfil"
+ },
+ "Otwórz profil {0}": {
+  "en": "Open {0}'s profile",
+  "de": "Profil von {0} öffnen",
+  "uk": "Відкрити профіль {0}",
+  "es": "Abrir el perfil de {0}"
  },
  "Otwórz profil, aby wysłać SparkLike i od razu utworzyć match.": {
   "en": "Open a profile to send a SparkLike and match instantly.",
@@ -3358,6 +3508,18 @@
   "de": "Chat öffnen mit",
   "uk": "Відкрити розмову з",
   "es": "Abrir conversación con"
+ },
+ "Otwórz rozmowę z {0}": {
+  "en": "Open conversation with {0}",
+  "de": "Unterhaltung mit {0} öffnen",
+  "uk": "Відкрити розмову з {0}",
+  "es": "Abrir conversación con {0}"
+ },
+ "Otwórz rozmowę z {0}. Nieprzeczytane: {1}": {
+  "en": "Open conversation with {0}. Unread: {1}",
+  "de": "Unterhaltung mit {0} öffnen. Ungelesen: {1}",
+  "uk": "Відкрити розмову з {0}. Непрочитані: {1}",
+  "es": "Abrir conversación con {0}. No leídos: {1}"
  },
  "Otwórz szczegóły profilu": {
   "en": "Open profile details",
@@ -3527,6 +3689,12 @@
   "uk": "Подкастер",
   "es": "Podcaster"
  },
+ "Podgląd Twojej karty": {
+  "en": "Preview of your card",
+  "de": "Vorschau deiner Karte",
+  "uk": "Попередній перегляд твоєї картки",
+  "es": "Vista previa de tu tarjeta"
+ },
  "Podróże": {
   "en": "Travel",
   "de": "Reisen",
@@ -3641,6 +3809,12 @@
   "uk": "Вподобати",
   "es": "Me gusta"
  },
+ "Polub {0} i utwórz match": {
+  "en": "Like {0} and create a match",
+  "de": "{0} liken und Match erstellen",
+  "uk": "Вподобати {0} і створити метч",
+  "es": "Dar me gusta a {0} y crear un match"
+ },
  "Polub profil": {
   "en": "Like profile",
   "de": "Profil liken",
@@ -3748,6 +3922,12 @@
   "de": "Korrigiere die Angaben und bestätige. Das Event landet sofort im Katalog und die einreichende Person wird benachrichtigt.",
   "uk": "Виправ дані й затверди. Подія одразу потрапить до каталогу, а автор отримає сповіщення.",
   "es": "Corrige los datos y aprueba. El evento irá directamente al catálogo y su autor recibirá una notificación."
+ },
+ "Poprzedni miesiąc": {
+  "en": "Previous month",
+  "de": "Vorheriger Monat",
+  "uk": "Попередній місяць",
+  "es": "Mes anterior"
  },
  "Popularne": {
   "en": "Popular",
@@ -4337,6 +4517,18 @@
   "uk": "Spark - допомога й безпека",
   "es": "Spark - ayuda y seguridad"
  },
+ "Spark nie sprawdza karalności ani tożsamości użytkowników.\n\n• Na pierwsze spotkanie wybierz miejsce publiczne i własny transport.\n• Powiedz bliskiej osobie, z kim i gdzie się spotykasz.\n• Nie wysyłaj pieniędzy, kodów ani danych logowania osobom poznanym w aplikacji.\n• Zgłaszaj podejrzane profile — moderacja sprawdza zgłoszenia w ciągu 24 godzin.\n• W zagrożeniu dzwoń pod lokalny numer alarmowy (112 w Europie, 911 w USA).": {
+  "en": "Spark does not conduct criminal background checks or verify the identity of its members.\n\n• Meet in a public place the first time and use your own transportation.\n• Tell a friend or family member who you are meeting and where.\n• Never send money, codes or login details to people you met in the app.\n• Report suspicious profiles — our moderators review reports within 24 hours.\n• If you are in danger, call your local emergency number (911 in the US, 112 in Europe).",
+  "de": "Spark führt keine Prüfung von Vorstrafen und keine Identitätsprüfung der Mitglieder durch.\n\n• Triff dich beim ersten Mal an einem öffentlichen Ort und reise selbst an und ab.\n• Sag einer vertrauten Person, mit wem und wo du dich triffst.\n• Schicke Menschen aus der App niemals Geld, Codes oder Zugangsdaten.\n• Melde verdächtige Profile — die Moderation prüft Meldungen innerhalb von 24 Stunden.\n• Bei Gefahr ruf die lokale Notrufnummer an (112 in Europa, 911 in den USA).",
+  "uk": "Spark не перевіряє судимість і особу користувачів.\n\n• Для першої зустрічі обирай публічне місце і власний транспорт.\n• Скажи близькій людині, з ким і де зустрічаєшся.\n• Не надсилай гроші, коди чи дані для входу людям, з якими познайомився в застосунку.\n• Повідомляй про підозрілі профілі — модерація перевіряє скарги протягом 24 годин.\n• У разі небезпеки дзвони на місцевий екстрений номер (112 у Європі, 911 у США).",
+  "es": "Spark no comprueba antecedentes penales ni verifica la identidad de sus miembros.\n\n• La primera vez, queda en un lugar público y usa tu propio transporte.\n• Dile a alguien de confianza con quién y dónde quedas.\n• Nunca envíes dinero, códigos ni datos de acceso a personas que conociste en la app.\n• Denuncia los perfiles sospechosos: la moderación revisa las denuncias en 24 horas.\n• Si estás en peligro, llama al número de emergencias local (112 en Europa, 911 en EE. UU.)."
+ },
+ "Spark nie sprawdza karalności ani tożsamości użytkowników. Przed pierwszym spotkaniem przeczytaj wskazówki bezpieczeństwa.": {
+  "en": "Spark does not conduct criminal background checks or verify the identity of its members. Read the safety tips before meeting anyone in person.",
+  "de": "Spark führt keine Prüfung von Vorstrafen und keine Identitätsprüfung der Mitglieder durch. Lies vor dem ersten Treffen die Sicherheitstipps.",
+  "uk": "Spark не перевіряє судимість і особу користувачів. Перед першою зустріччю прочитай поради з безпеки.",
+  "es": "Spark no comprueba antecedentes penales ni verifica la identidad de sus miembros. Lee los consejos de seguridad antes de quedar con alguien."
+ },
  "Spark Pro aktywny": {
   "en": "Spark Pro active",
   "de": "Spark Pro aktiv",
@@ -4631,11 +4823,23 @@
   "uk": "Шукай за ім'ям, містом або інтересом",
   "es": "Busca por nombre, ciudad o interés"
  },
+ "Szukaj wydarzenia lub miasta": {
+  "en": "Search events or cities",
+  "de": "Veranstaltung oder Stadt suchen",
+  "uk": "Шукати подію або місто",
+  "es": "Buscar evento o ciudad"
+ },
  "Szukaj, np. Łódź lub lodz": {
   "en": "Search, e.g. Łódź or lodz",
   "de": "Suchen, z. B. Łódź oder lodz",
   "uk": "Пошук, напр. Łódź або lodz",
   "es": "Buscar, p. ej. Łódź o lodz"
+ },
+ "Szukam producenta do EP-ki": {
+  "en": "Looking for a producer for my EP",
+  "de": "Suche eine Produzentin oder einen Produzenten für meine EP",
+  "uk": "Шукаю продюсера для EP",
+  "es": "Busco productor para mi EP"
  },
  "Szukam siebie": {
   "en": "Questioning",
@@ -4936,6 +5140,18 @@
   "de": "Content & Medien",
   "uk": "Контент і медіа",
   "es": "Contenido y medios"
+ },
+ "Treść wiadomości": {
+  "en": "Message text",
+  "de": "Nachrichtentext",
+  "uk": "Текст повідомлення",
+  "es": "Texto del mensaje"
+ },
+ "Tryb {0}": {
+  "en": "{0} mode",
+  "de": "Modus {0}",
+  "uk": "Режим {0}",
+  "es": "Modo {0}"
  },
  "TRYB EVENTOWY • TWOJA EKIPA": {
   "en": "EVENT MODE • YOUR CREW",
@@ -5261,6 +5477,12 @@
   "uk": "Видалити подію",
   "es": "Eliminar evento"
  },
+ "Usuń wydarzenie {0}": {
+  "en": "Delete event {0}",
+  "de": "Veranstaltung {0} löschen",
+  "uk": "Видалити подію {0}",
+  "es": "Eliminar evento {0}"
+ },
  "Usuń zdjęcie": {
   "en": "Delete photo",
   "de": "Foto löschen",
@@ -5543,6 +5765,12 @@
   "uk": "Волонтерство",
   "es": "Voluntariado"
  },
+ "Wróć": {
+  "en": "Back",
+  "de": "Zurück",
+  "uk": "Назад",
+  "es": "Atrás"
+ },
  "Wróć do kart": {
   "en": "Back to cards",
   "de": "Zurück zu den Karten",
@@ -5555,6 +5783,12 @@
   "uk": "Назад до людей",
   "es": "Volver a las personas"
  },
+ "Wróć do profilu": {
+  "en": "Back to profile",
+  "de": "Zurück zum Profil",
+  "uk": "Назад до профілю",
+  "es": "Volver al perfil"
+ },
  "Wróć do rozmów i nowych znajomości.": {
   "en": "Get back to your chats and new connections.",
   "de": "Zurück zu deinen Gesprächen und neuen Bekanntschaften.",
@@ -5566,6 +5800,12 @@
   "de": "Zurück zum normalen Feed",
   "uk": "Повернутися до звичайної стрічки",
   "es": "Volver al feed normal"
+ },
+ "Wskazówki bezpieczeństwa": {
+  "en": "Safety tips",
+  "de": "Sicherheitstipps",
+  "uk": "Поради з безпеки",
+  "es": "Consejos de seguridad"
  },
  "Wspinaczka": {
   "en": "Climbing",
@@ -5632,6 +5872,12 @@
   "de": "Remote-Zusammenarbeit",
   "uk": "Дистанційна співпраця",
   "es": "Colaboración en remoto"
+ },
+ "Wstawia tekst do pola wiadomości": {
+  "en": "Inserts the text into the message field",
+  "de": "Fügt den Text in das Nachrichtenfeld ein",
+  "uk": "Вставляє текст у поле повідомлення",
+  "es": "Inserta el texto en el campo del mensaje"
  },
  "Wstecz": {
   "en": "Back",
@@ -5758,6 +6004,12 @@
   "de": "Wähle eine Stadt oder gib einen Ort ein (2–80 Zeichen).",
   "uk": "Вибери місто або введи населений пункт (2–80 символів).",
   "es": "Elige una ciudad o escribe una localidad (2–80 caracteres)."
+ },
+ "Wybierz miejscowość": {
+  "en": "Choose a city",
+  "de": "Ort wählen",
+  "uk": "Вибери місто",
+  "es": "Elige una ciudad"
  },
  "Wybierz nazwę, którą inni zobaczą na Twojej karcie.": {
   "en": "Choose the name others will see on your card.",
@@ -5891,6 +6143,12 @@
   "uk": "Вигляд",
   "es": "Apariencia"
  },
+ "Wyjaśnia sposób obliczania zgodności": {
+  "en": "Explains how the match score is calculated",
+  "de": "Erklärt, wie die Übereinstimmung berechnet wird",
+  "uk": "Пояснює, як рахується сумісність",
+  "es": "Explica cómo se calcula la compatibilidad"
+ },
  "Wyjazd": {
   "en": "Trip",
   "de": "Ausflug",
@@ -5993,6 +6251,12 @@
   "uk": "Запит надіслано до {0}. Залишилося сьогодні: {1}.",
   "es": "Solicitud enviada a {0}. Quedan hoy: {1}."
  },
+ "Wyślij": {
+  "en": "Send",
+  "de": "Senden",
+  "uk": "Надіслати",
+  "es": "Enviar"
+ },
  "Wyślij krótką prośbę o chat i zacznij rozmowę bez czekania na wzajemne polubienie.": {
   "en": "Send a short chat request and start talking without waiting for a mutual like.",
   "de": "Sende eine kurze Chat-Anfrage und beginne das Gespräch, ohne auf ein gegenseitiges Like zu warten.",
@@ -6022,6 +6286,18 @@
   "de": "SparkLike senden",
   "uk": "Надіслати SparkLike",
   "es": "Enviar SparkLike"
+ },
+ "Wyślij SparkLike, wymaga Spark Pro": {
+  "en": "Send SparkLike, requires Spark Pro",
+  "de": "SparkLike senden, erfordert Spark Pro",
+  "uk": "Надіслати SparkLike, потрібен Spark Pro",
+  "es": "Enviar SparkLike, requiere Spark Pro"
+ },
+ "Wyślij SparkLike, zostało {0}": {
+  "en": "Send SparkLike, {0} left",
+  "de": "SparkLike senden, noch {0}",
+  "uk": "Надіслати SparkLike, залишилось {0}",
+  "es": "Enviar SparkLike, quedan {0}"
  },
  "Wyślij zgłoszenie": {
   "en": "Send report",
@@ -6221,11 +6497,41 @@
   "uk": "Закрити",
   "es": "Cerrar"
  },
+ "Zamknij filtry": {
+  "en": "Close filters",
+  "de": "Filter schließen",
+  "uk": "Закрити фільтри",
+  "es": "Cerrar filtros"
+ },
+ "Zamknij kartę": {
+  "en": "Close card",
+  "de": "Karte schließen",
+  "uk": "Закрити картку",
+  "es": "Cerrar tarjeta"
+ },
  "Zamknij listę": {
   "en": "Close list",
   "de": "Liste schließen",
   "uk": "Закрити список",
   "es": "Cerrar lista"
+ },
+ "Zamknij menu": {
+  "en": "Close menu",
+  "de": "Menü schließen",
+  "uk": "Закрити меню",
+  "es": "Cerrar menú"
+ },
+ "Zamknij profil": {
+  "en": "Close profile",
+  "de": "Profil schließen",
+  "uk": "Закрити профіль",
+  "es": "Cerrar perfil"
+ },
+ "Zamknij wydarzenia": {
+  "en": "Close events",
+  "de": "Veranstaltungen schließen",
+  "uk": "Закрити події",
+  "es": "Cerrar eventos"
  },
  "Zapisywanie tagu…": {
   "en": "Saving tag…",
@@ -6395,6 +6701,12 @@
   "uk": "Фото",
   "es": "Foto"
  },
+ "Zdjęcie {0} z {1}": {
+  "en": "Photo {0} of {1}",
+  "de": "Foto {0} von {1}",
+  "uk": "Фото {0} з {1}",
+  "es": "Foto {0} de {1}"
+ },
  "Zdjęcie jest za duże. Wybierz plik poniżej 8 MB.": {
   "en": "The photo is too large. Choose a file under 8 MB.",
   "de": "Das Foto ist zu groß. Wähle eine Datei unter 8 MB.",
@@ -6485,6 +6797,12 @@
   "uk": "Збіг",
   "es": "Compatibilidad"
  },
+ "Zgodność {0} procent, {1}": {
+  "en": "Match {0} percent, {1}",
+  "de": "Übereinstimmung {0} Prozent, {1}",
+  "uk": "Сумісність {0} відсотків, {1}",
+  "es": "Compatibilidad {0} por ciento, {1}"
+ },
  "Zgody reklamowe": {
   "en": "Ad consents",
   "de": "Werbe-Einwilligungen",
@@ -6502,6 +6820,12 @@
   "de": "Ändere den Zeitfilter oder den Suchbegriff.",
   "uk": "Зміни фільтр часу або введену фразу.",
   "es": "Cambia el filtro de tiempo o la búsqueda."
+ },
+ "Zmień ikonę wydarzenia": {
+  "en": "Change event icon",
+  "de": "Symbol der Veranstaltung ändern",
+  "uk": "Змінити іконку події",
+  "es": "Cambiar icono del evento"
  },
  "Zmień wydarzenia": {
   "en": "Change events",
@@ -6611,6 +6935,12 @@
   "uk": "Відмовитися від",
   "es": "Dejar"
  },
+ "Zrezygnuj z {0}": {
+  "en": "Stop attending {0}",
+  "de": "Teilnahme an {0} beenden",
+  "uk": "Відмовитися від {0}",
+  "es": "Dejar de asistir a {0}"
+ },
  "Zweryfikowane": {
   "en": "Verified",
   "de": "Verifiziert",
@@ -6622,6 +6952,12 @@
   "de": "VERIFIZIERT",
   "uk": "ПІДТВЕРДЖЕНО",
   "es": "VERIFICADO"
+ },
+ "Zweryfikowany profil": {
+  "en": "Verified profile",
+  "de": "Verifiziertes Profil",
+  "uk": "Підтверджений профіль",
+  "es": "Perfil verificado"
  },
  "Zwiększ widoczność, odkrywaj zainteresowane osoby i korzystaj ze Spark bez reklam.": {
   "en": "Boost your visibility, discover interested people and use Spark without ads.",

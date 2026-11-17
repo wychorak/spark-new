@@ -223,6 +223,22 @@ if (process.env.CM_BUILD_ID) {
   check(rulesSource.includes('match /collabPortfolios/{uid}') && rulesSource.includes('allow list: if false;'), 'Collab portfolio links must stay readable only after a match.');
 }
 
+// US/world readiness: VoiceOver labels follow the app language, and the US dating-safety disclosure stays.
+{
+  const tsxFiles = ['App.tsx'];
+  (function walk(dir) {
+    for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const rel = dir + '/' + entry.name;
+      if (entry.isDirectory()) walk(rel);
+      else if (entry.name.endsWith('.tsx')) tsxFiles.push(rel);
+    }
+  })('src');
+  const untranslated = tsxFiles.filter((file) => /accessibility(Label|Hint)=(["'`]|\{(?!tr\())/.test(read(file)));
+  check(untranslated.length === 0, 'accessibilityLabel/Hint must be wrapped in tr(...): ' + untranslated.join(', '));
+  check(read('App.tsx').includes('Spark nie sprawdza karalności ani tożsamości użytkowników.') && read('legal-site/en/terms/index.html').includes('does not conduct criminal background checks'), 'In-app and Terms background-check disclosure (US state dating laws) must stay.');
+  check(read('legal-site/en/privacy/index.html').includes('United States residents'), 'English privacy policy must keep the US state privacy section.');
+}
+
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
   failures.forEach((failure) => console.error(`- ${failure}`));
