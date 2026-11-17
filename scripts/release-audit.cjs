@@ -119,7 +119,7 @@ check(appSource.includes('confirmRemovePhoto(index: number)') && appSource.inclu
 check(appSource.includes('getProfileKey(profile) !== appUser?.uid'), 'Discovery feed must exclude the signed-in user.');
 check(appSource.includes('LocationControl') && appSource.includes('Location.getForegroundPermissionsAsync()') && appSource.includes('updateCurrentLocation(true)'), 'Location permission must be contextual and user initiated.');
 check(appSource.includes('openAdsPrivacyOptions'), 'In-app ad privacy settings entry is missing.');
-check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && appSource.includes('zakupem jednorazowym bez automatycznego odnawiania'), 'App Store subscription billing disclosure is missing.');
+check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && read('src/revenuecat.ts').includes('"sparkyearsub"') && !appSource.includes('"lifetime"'), 'App Store subscription billing disclosure is missing, or the paywall still offers the old lifetime plan.');
 check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN'), 'Demo login must be development-only.');
 check(appSource.includes('configuredTestProfileViewerEmails') && appSource.includes('(canViewTestProfiles || item.isTestProfile !== true)'), 'Test profiles must be restricted to configured tester accounts.');
 check(firestoreSource.includes('await runTransaction(currentDb, async (transaction) =>') && firestoreSource.includes('if (existing.status === "matched") return;'), 'Match creation must remain transactional and idempotent.');

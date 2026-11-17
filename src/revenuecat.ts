@@ -17,7 +17,7 @@ export const revenueCatOfferingId = process.env.EXPO_PUBLIC_REVENUECAT_OFFERING_
 export const revenueCatProductIds = {
   weekly: process.env.EXPO_PUBLIC_REVENUECAT_WEEKLY_PRODUCT_ID || "sparkproweek",
   monthly: process.env.EXPO_PUBLIC_REVENUECAT_MONTHLY_PRODUCT_ID || "sparkpromonth",
-  lifetime: process.env.EXPO_PUBLIC_REVENUECAT_LIFETIME_PRODUCT_ID || "sparkprolifetime"
+  yearly: process.env.EXPO_PUBLIC_REVENUECAT_YEARLY_PRODUCT_ID || "sparkyearsub"
 } as const;
 
 export type SparkPlanId = keyof typeof revenueCatProductIds;

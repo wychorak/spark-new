@@ -1445,6 +1445,12 @@
   "uk": "Одне посилання, напр. SoundCloud, Spotify, YouTube, Behance або GitHub. Видно лише після метчу.",
   "es": "Un enlace, p. ej. SoundCloud, Spotify, YouTube, Behance o GitHub. Visible solo después de un match."
  },
+ "Jedna płatność na cały rok": {
+  "en": "One payment for the whole year",
+  "de": "Eine Zahlung für das ganze Jahr",
+  "uk": "Один платіж на весь рік",
+  "es": "Un solo pago para todo el año"
+ },
  "Jedna prośba o chat do": {
   "en": "One chat request to",
   "de": "Eine Chat-Anfrage an",
@@ -2327,6 +2333,12 @@
   "uk": "Найкращий вибір",
   "es": "La mejor opción"
  },
+ "Najniższa cena za miesiąc": {
+  "en": "Lowest price per month",
+  "de": "Niedrigster Preis pro Monat",
+  "uk": "Найнижча ціна за місяць",
+  "es": "El precio mensual más bajo"
+ },
  "Najnowsze": {
   "en": "Newest",
   "de": "Neueste",
@@ -2350,6 +2362,18 @@
   "de": "Erstelle zuerst dein Spark-Profil.",
   "uk": "Спершу створи профіль Spark.",
   "es": "Primero crea tu perfil de Spark."
+ },
+ "Najtaniej": {
+  "en": "Best value",
+  "de": "Am günstigsten",
+  "uk": "Найвигідніше",
+  "es": "Mejor precio"
+ },
+ "Najtaniej w przeliczeniu": {
+  "en": "Lowest price per month",
+  "de": "Günstigster Monatspreis",
+  "uk": "Найнижча ціна за місяць",
+  "es": "El precio más bajo al mes"
  },
  "Należę do społeczności LGBT+": {
   "en": "I'm part of the LGBT+ community",
@@ -3455,6 +3479,12 @@
   "uk": "Попередити",
   "es": "Advertir"
  },
+ "Oszczędzasz": {
+  "en": "Save",
+  "de": "Sparen",
+  "uk": "Економія",
+  "es": "Ahorra"
+ },
  "otwarty profil": {
   "en": "opened profile",
   "de": "Profil geöffnet",
@@ -4415,6 +4445,12 @@
   "uk": "Режисер кліпів",
   "es": "Director de videoclips"
  },
+ "Rok": {
+  "en": "Year",
+  "de": "Jahr",
+  "uk": "Рік",
+  "es": "Año"
+ },
  "Romantic, Friends i Event zmieniasz przełącznikiem na górze Odkrywaj.": {
   "en": "Romantic, Friends and Event are switched at the top of Discover.",
   "de": "Romantic, Friends und Event wechselst du oben in Entdecken.",
@@ -4588,6 +4624,12 @@
   "de": "Spark Pro für einen Monat",
   "uk": "Spark Pro на місяць",
   "es": "Spark Pro por un mes"
+ },
+ "Spark Pro na rok": {
+  "en": "Spark Pro for a year",
+  "de": "Spark Pro für ein Jahr",
+  "uk": "Spark Pro на рік",
+  "es": "Spark Pro por un año"
  },
  "Spark Pro na tydzień": {
   "en": "Spark Pro for a week",

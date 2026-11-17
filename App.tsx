@@ -731,11 +731,11 @@ const premiumPlans = [
     features: ["Zero reklam", "15 zdjęć profilu zamiast 3", "Częstsze pojawianie się na głównej"]
   },
   {
-    id: "lifetime",
-    title: "Spark Pro na zawsze",
+    id: "yearly",
+    title: "Spark Pro na rok",
     price: "199.99 zł",
-    accent: "Bez limitu czasu",
-    features: ["Wszystko z planu miesięcznego", "Spark Pro bez odnawiania", "Premium aktywne na zawsze"]
+    accent: "Najtaniej w przeliczeniu",
+    features: ["Wszystko z planu miesięcznego", "Najniższa cena za miesiąc", "Jedna płatność na cały rok"]
   }
 ] satisfies Array<{ id: SparkPlanId; title: string; price: string; accent: string; features: string[] }>;
 
@@ -7210,7 +7210,7 @@ function PremiumScreen({
   const planCards: Record<SparkPlanId, { label: string; period: string; helper: string; badge?: string }> = {
     weekly: { label: "Tydzień", period: "/ 7 dni", helper: "Na próbę" },
     monthly: { label: "Miesiąc", period: "/ mies.", helper: "Najlepszy wybór", badge: "Popularny" },
-    lifetime: { label: "Na zawsze", period: "jednorazowo", helper: "Zakup jednorazowy" }
+    yearly: { label: "Rok", period: "/ rok", helper: "Najtaniej", badge: "Oszczędzasz" }
   };
   const benefitRows = [
     ["advertisements-off", "Zero reklam", "Przeglądanie profili bez przerw i bez bannerów."],
@@ -7380,9 +7380,7 @@ function PremiumScreen({
 
       {!revenueCat.isPro && (
         <Text style={local.billingText} selectable>
-          {premiumPlan === "lifetime"
-            ? "Plan Lifetime jest zakupem jednorazowym bez automatycznego odnawiania."
-            : "Subskrypcja odnawia si\u0119 automatycznie, je\u015bli nie anulujesz jej co najmniej 24 godziny przed ko\u0144cem okresu. Op\u0142ata zostanie pobrana z konta Apple ID. Subskrypcj\u0105 mo\u017cesz zarz\u0105dza\u0107 w ustawieniach App Store."}
+          {"Subskrypcja odnawia si\u0119 automatycznie, je\u015bli nie anulujesz jej co najmniej 24 godziny przed ko\u0144cem okresu. Op\u0142ata zostanie pobrana z konta Apple ID. Subskrypcj\u0105 mo\u017cesz zarz\u0105dza\u0107 w ustawieniach App Store."}
         </Text>
       )}
 
