@@ -242,6 +242,9 @@ if (process.env.CM_BUILD_ID) {
 // One official contact everywhere (app, legal pages, store).
 check(appSource.includes('"officialsparkappcontact@gmail.com"') && ['legal-site/privacy/index.html', 'legal-site/en/privacy/index.html', 'legal-site/terms/index.html', 'legal-site/en/terms/index.html'].every((file) => read(file).includes('officialsparkappcontact@gmail.com') && !read(file).includes('sparkapp@gmail.com')), 'Contact must be officialsparkappcontact@gmail.com everywhere.');
 
+// Guideline 1.2: every full-screen profile offers report and block (top-right menu and a visible section).
+check(appSource.includes('const ProfileSafetyContext = React.createContext') && appSource.includes('<ProfileSafetyContext.Provider value={profileSafety}>') && appSource.includes('onPress={openSafetyMenu}') && appSource.includes('onPress={blockFromSheet}') && appSource.includes('onPress={reportFromSheet}'), 'Profile preview must keep report and block actions (guideline 1.2).');
+
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
   failures.forEach((failure) => console.error(`- ${failure}`));

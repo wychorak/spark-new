@@ -1182,6 +1182,12 @@ function AppContent() {
     releaseConfig.interstitialSessionGraceSeconds * 1000
   );
   const trackSwipeAd = fullScreenAds.onSwipe;
+  const profileSafetyRef = useRef({ blockProfile, reportProfile });
+  profileSafetyRef.current = { blockProfile, reportProfile };
+  const profileSafety = useMemo<ProfileSafetyActions>(() => ({
+    block: (profileKey) => { void profileSafetyRef.current.blockProfile(profileKey); },
+    report: (profileKey, reason) => profileSafetyRef.current.reportProfile(profileKey, reason)
+  }), []);
   // Calm screens get a banner; Discover gets a sponsored card in the deck.
   const showCurrentBanner = !revenueCat.isPro && adsReady && (tab === "matches" || tab === "profile");
   const sponsoredSwipes = useRef(0);
@@ -3488,6 +3494,7 @@ function AppContent() {
   }
 
   return (
+    <ProfileSafetyContext.Provider value={profileSafety}>
     <LinearGradient colors={colors.backgroundGradient} style={styles.root}>
       <StatusBar style={colors.statusBar} />
       <ScrollView
@@ -3900,6 +3907,7 @@ function AppContent() {
         </GlassSurface>
       )}
     </LinearGradient>
+    </ProfileSafetyContext.Provider>
   );
 }
 
@@ -5306,6 +5314,10 @@ function ProfileCard({ profile, viewerInterests = [], onReport, compact = false 
     </View>
   );
 }
+// Report / block on any profile opened full screen (App Store guideline 1.2); provided once by AppContent.
+type ProfileSafetyActions = { block: (profileKey: string) => void; report: (profileKey: string, reason: string) => Promise<boolean> };
+const ProfileSafetyContext = React.createContext<ProfileSafetyActions | null>(null);
+
 function ProfilePreviewSheet({
   profile,
   viewerInterests,
@@ -5371,6 +5383,42 @@ function ProfilePreviewSheet({
   const isMatchedRelationship = relationshipStatus === "matched";
   const isRequestedRelationship = relationshipStatus === "requested";
   const isLikedRelationship = relationshipStatus === "liked";
+  const safety = React.useContext(ProfileSafetyContext);
+  const canModerate = Boolean(safety) && !isOwnProfile && !blocked;
+
+  function reportFromSheet() {
+    if (!safety) return;
+    const profileKey = getProfileKey(profile);
+    const send = async (reason: string) => {
+      if (await safety.report(profileKey, reason)) {
+        Alert.alert("Zgłoszenie wysłane", "Dziękujemy. Zespół moderacji sprawdzi zgłoszenie w ciągu 24 godzin.");
+      }
+    };
+    Alert.alert("Zgłoś profil", `Co jest nie tak z profilem ${profile.name}?`, [
+      { text: "Spam lub oszustwo", onPress: () => void send("Spam lub oszustwo") },
+      { text: "Obraźliwe treści lub nękanie", onPress: () => void send("Obraźliwe treści lub nękanie") },
+      { text: "Fałszywy profil", onPress: () => void send("Fałszywy profil") },
+      { text: "Anuluj", style: "cancel" }
+    ]);
+  }
+
+  function blockFromSheet() {
+    if (!safety) return;
+    const profileKey = getProfileKey(profile);
+    Alert.alert("Zablokuj profil", "Ta osoba od razu zniknie z Twojego feedu i nie będzie mogła się z Tobą kontaktować. Zgłoszenie trafi do moderacji.", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Zablokuj", style: "destructive", onPress: () => { onClose(); safety.block(profileKey); } }
+    ]);
+  }
+
+  function openSafetyMenu() {
+    // The second alert waits for the first to close (iOS drops alerts presented during a dismissal).
+    Alert.alert(displayName || profile.name, undefined, [
+      { text: "Zgłoś profil", onPress: () => { setTimeout(reportFromSheet, 350); } },
+      { text: "Zablokuj", style: "destructive", onPress: () => { setTimeout(blockFromSheet, 350); } },
+      { text: "Anuluj", style: "cancel" }
+    ]);
+  }
 
   useEffect(() => {
     const profileKey = getProfileKey(profile);
@@ -5410,6 +5458,7 @@ function ProfilePreviewSheet({
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     close: { position: "absolute", left: 26, zIndex: 20, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.38)" },
+    moreButton: { position: "absolute", right: 26, zIndex: 20, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.38)" },
     content: { gap: 28, paddingHorizontal: 12 },
     gallery: { alignSelf: "center", overflow: "hidden", borderRadius: 28, backgroundColor: colors.photoPlaceholder },
     progress: { position: "absolute", left: 14, right: 14, bottom: 12, flexDirection: "row", gap: 4 },
@@ -5460,6 +5509,11 @@ function ProfilePreviewSheet({
         <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij profil")} onPress={onClose} hitSlop={10} style={[local.close, { top: Math.max(insets.top, 10) + 18 }]}>
           <MaterialCommunityIcons name="chevron-down" size={24} color="#fff" />
         </Pressable>
+        {canModerate && (
+          <Pressable accessibilityRole="button" accessibilityLabel={tr("Zgłoś lub zablokuj profil")} onPress={openSafetyMenu} hitSlop={10} style={[local.moreButton, { top: Math.max(insets.top, 10) + 18 }]}>
+            <MaterialCommunityIcons name="dots-horizontal" size={24} color="#fff" />
+          </Pressable>
+        )}
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -5631,6 +5685,29 @@ function ProfilePreviewSheet({
                     </React.Fragment>
                   );
                 })}
+              </View>
+            </View>
+          )}
+          {canModerate && (
+            <View style={local.section}>
+              <Text style={local.sectionTitle}>Bezpieczeństwo</Text>
+              <View style={local.group}>
+                <Pressable accessibilityRole="button" onPress={reportFromSheet} style={({ pressed }) => [local.row, pressed && { backgroundColor: colors.fill }]}>
+                  <View style={local.rowIcon}><MaterialCommunityIcons name="flag-outline" size={17} color={colors.primary} /></View>
+                  <View style={styles.fill}>
+                    <Text style={local.rowLabel}>Zgłoś profil</Text>
+                    <Text style={local.rowSub}>Zgłoszenie trafi do moderacji</Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={colors.muted} />
+                </Pressable>
+                <View style={local.divider} />
+                <Pressable accessibilityRole="button" onPress={blockFromSheet} style={({ pressed }) => [local.row, pressed && { backgroundColor: colors.fill }]}>
+                  <View style={[local.rowIcon, { backgroundColor: "rgba(255,59,48,0.14)" }]}><MaterialCommunityIcons name="account-cancel-outline" size={17} color="#ff3b30" /></View>
+                  <View style={styles.fill}>
+                    <Text style={[local.rowLabel, { color: "#ff3b30" }]}>Zablokuj</Text>
+                    <Text style={local.rowSub}>Zniknie z feedu i czatu, a moderacja dostanie zgłoszenie</Text>
+                  </View>
+                </Pressable>
               </View>
             </View>
           )}
@@ -9236,6 +9313,7 @@ function DevPreview({ themeName }: { themeName: string | null }) {
     <LinearGradient colors={colors.backgroundGradient} style={styles.root}>
       <StatusBar style={colors.statusBar} />
       <ScrollView contentContainerStyle={[styles.scroll, styles.discoverScroll, { paddingTop: Math.max(insets.top + 4, 12), paddingBottom: Math.max(insets.bottom + 94, 106), paddingHorizontal: 16 }]}>
+        <ProfileSafetyContext.Provider value={devProfileSafety}>
         <DiscoverScreen
           modeSwitch={<ModeSwitch mode={previewMode} onChange={setPreviewMode} />}
           deckMode={previewMode}
@@ -9269,10 +9347,13 @@ function DevPreview({ themeName }: { themeName: string | null }) {
           onBackToPeople={() => undefined}
           onManageEvents={() => undefined}
         />
+        </ProfileSafetyContext.Provider>
       </ScrollView>
     </LinearGradient>
   );
 }
+
+const devProfileSafety: ProfileSafetyActions = { block: () => undefined, report: async () => true };
 
 function DevCollabPreview({ themeName }: { themeName: string | null }) {
   const theme = useThemeState();

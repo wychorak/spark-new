@@ -7090,5 +7090,35 @@
   "de": "/ Jahr",
   "uk": "/ рік",
   "es": "/ año"
+ },
+ "Dziękujemy. Zespół moderacji sprawdzi zgłoszenie w ciągu 24 godzin.": {
+  "en": "Thank you. Our moderation team will review the report within 24 hours.",
+  "de": "Danke. Unser Moderationsteam prüft die Meldung innerhalb von 24 Stunden.",
+  "uk": "Дякуємо. Команда модерації перевірить скаргу протягом 24 годин.",
+  "es": "Gracias. Nuestro equipo de moderación revisará el reporte en un plazo de 24 horas."
+ },
+ "Spam lub oszustwo": {
+  "en": "Spam or scam",
+  "de": "Spam oder Betrug",
+  "uk": "Спам або шахрайство",
+  "es": "Spam o estafa"
+ },
+ "Obraźliwe treści lub nękanie": {
+  "en": "Offensive content or harassment",
+  "de": "Anstößige Inhalte oder Belästigung",
+  "uk": "Образливий вміст або переслідування",
+  "es": "Contenido ofensivo o acoso"
+ },
+ "Zgłoszenie trafi do moderacji": {
+  "en": "The report goes to our moderators",
+  "de": "Die Meldung geht an unsere Moderation",
+  "uk": "Скарга надійде до модерації",
+  "es": "El reporte llega a moderación"
+ },
+ "Zniknie z feedu i czatu, a moderacja dostanie zgłoszenie": {
+  "en": "They disappear from your feed and chats, and moderators are notified",
+  "de": "Verschwindet aus Feed und Chats, die Moderation wird informiert",
+  "uk": "Зникне зі стрічки й чатів, а модерація отримає скаргу",
+  "es": "Desaparece de tu feed y chats, y moderación recibe un aviso"
  }
 }
