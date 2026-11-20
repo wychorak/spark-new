@@ -123,7 +123,7 @@ check(appSource.includes('Subskrypcja odnawia si\\u0119 automatycznie') && read(
 check(appSource.includes('__DEV__ && process.env.EXPO_PUBLIC_SHOW_DEMO_LOGIN'), 'Demo login must be development-only.');
 check(appSource.includes('configuredTestProfileViewerEmails') && appSource.includes('(canViewTestProfiles || item.isTestProfile !== true)'), 'Test profiles must be restricted to configured tester accounts.');
 check(firestoreSource.includes('await runTransaction(currentDb, async (transaction) =>') && firestoreSource.includes('if (existing.status === "matched") return;'), 'Match creation must remain transactional and idempotent.');
-check(firestoreSource.includes('orderBy("updatedAt", "desc")') && firestoreSource.includes('startAfter(cursor)') && appSource.includes('profilesHaveMore'), 'Discovery pagination and freshness ordering are missing.');
+check(firestoreSource.includes('orderBy("updatedAt", "desc")') && firestoreSource.includes('startAfter(cursor.global)') && firestoreSource.includes('startAfter(cursor.local)') && appSource.includes('profilesHaveMore'), 'Discovery pagination and freshness ordering are missing.');
 check(appSource.includes('userIntents: intents') && appSource.includes('sharedIntentCount') && appSource.includes('recommendationTier') && appSource.includes('targetIntents') && appSource.includes('rotationScore') && appSource.includes('sameCity') && firestoreSource.includes('const pageSize = 24'), 'Tiered multi-intent discovery ranking, local fallback, or bounded pagination is missing.');
 check(appSource.includes('includeProfilesWithoutLocation') && appSource.includes('Uwzględniaj profile bez lokalizacji'), 'Unknown-location discovery behavior must be explicit.');
 check(functionsSource.includes('sendChatMessage = onCall') && functionsSource.includes('maxMessagesPerMinute = 20') && functionsSource.includes('minMessageIntervalMs = 700') && firestoreSource.includes('"sendChatMessage"') && rulesSource.includes('allow create: if false;'), 'Chat must use trusted server timestamps and server-side burst limits.');
@@ -247,6 +247,9 @@ check(appSource.includes('const ProfileSafetyContext = React.createContext') && 
 
 // Moderation: every report pings the owner; event pushes read only the event's country.
 check(functionsSource.includes('export const notifyNewReport = onDocumentCreated') && functionsSource.includes('.where("countryCode", "==", eventCountryCode)'), 'Owner report push and per-country event fan-out must stay.');
+
+// Discover asks the server for nearby people first (geoCell), not the newest profiles worldwide.
+check(read('src/firestore.ts').includes('where("geoCell", "in", cells)') && read('src/firestore.ts').includes('geoCell: profileGeoCell(') && read('firestore.rules').includes("'geoCell'") && read('firestore.indexes.json').includes('"geoCell"') && appSource.includes('userCity, userLocation)'), 'Location-first Discover (geoCell) must stay wired: profile write, query, rules and index.');
 
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);

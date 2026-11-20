@@ -125,6 +125,7 @@ import {
   type EventIconId,
   type SparkEvent
 } from "./src/events";
+import { profileGeoCell } from "./src/geo-cells";
 import { googleClientIds, isGoogleSignInConfigured } from "./src/google-sign-in";
 import { openAdsPrivacyOptions, SparkAdBanner, useGoogleMobileAds, useSwipeInterstitialAds } from "./src/ads";
 import { hasSparknewPro, revenueCatEntitlementId, useRevenueCat, type RevenueCatState, type SparkPlanId } from "./src/revenuecat";
@@ -1278,7 +1279,8 @@ function AppContent() {
   const deckMode: DeckMode = discoverMode === "events" ? "event" : discoverMode === "collab" ? "collab" : discoverLens;
   const collabReady = isCollabReady(collabProfile);
   const collabLookingKey = collabProfile.looking.join("|");
-  const profileQueryKey = [...profileLookupInterests, ...activeLensIntents, userCity.trim().toLocaleLowerCase("pl-PL")].slice().sort().join("|");
+  const userGeoCell = profileGeoCell(userLocation) ?? "";
+  const profileQueryKey = [...profileLookupInterests, ...activeLensIntents, userCity.trim().toLocaleLowerCase("pl-PL"), "geo:" + userGeoCell].slice().sort().join("|");
   const activeEventIdsKey = activeEvents.map((event) => event.id).sort().join("|");
   const availableProfiles = useMemo(
     () => (remoteProfiles.length > 0 ? remoteProfiles : __DEV__ ? matchProfiles : []),
@@ -1870,7 +1872,7 @@ function AppContent() {
     setProfileFeedError(null);
 
     Promise.allSettled([
-      findProfilesByInterest(profileLookupInterests, null, activeLensIntents, userCity),
+      findProfilesByInterest(profileLookupInterests, null, activeLensIntents, userCity, userLocation),
       canViewTestProfiles ? findTestProfiles() : Promise.resolve([]),
       findOutgoingProfileSwipes(appUser.uid),
       canViewTestProfiles ? findMatchThreadsForUser(appUser.uid) : Promise.resolve([])
@@ -2048,7 +2050,7 @@ function AppContent() {
     if (!appUser || !authDone || !onboarded || !profilesHaveMore || !profileCursor || profilesLoading || profilesLoadingMore || discoverProfiles.length > 6) return;
     let mounted = true;
     setProfilesLoadingMore(true);
-    void findProfilesByInterest(profileLookupInterests, profileCursor, activeLensIntents, userCity)
+    void findProfilesByInterest(profileLookupInterests, profileCursor, activeLensIntents, userCity, userLocation)
       .then((page) => {
         if (!mounted) return;
         const nextProfiles = page.profiles

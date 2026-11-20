@@ -35,9 +35,10 @@ function cleanEventDetails(value: unknown): EventDetails {
   const countryCode = typeof source.countryCode === "string" && /^[A-Z]{2}$/.test(source.countryCode) ? source.countryCode : "";
   return { ...(venue ? { venue } : {}), ...(description ? { description } : {}), ...(countryCode ? { countryCode } : {}) };
 }
-import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
+import type { DocumentData, QueryDocumentSnapshot, QuerySnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, cloudFunctions, db, isFirebaseConfigured } from "./firebase";
+import { nearbyGeoCells, profileGeoCell } from "./geo-cells";
 import { isSparkOwnerAccount } from "./access";
 import { getLanguage } from "./i18n";
 import { getDeviceCountryCode } from "./i18n/region";
@@ -340,6 +341,8 @@ export async function syncPublicUserProfile(uid: string, verifiedIsPro?: boolean
     city: profile.city ?? "",
     country: profile.country ?? "",
     location: getApproximatePublicLocation(profile.location),
+    // Coarse area cell: Discover asks for nearby people first.
+    ...(profileGeoCell(getApproximatePublicLocation(profile.location)) ? { geoCell: profileGeoCell(getApproximatePublicLocation(profile.location)) } : {}),
     socials: sanitizePublicSocials(profile.socials),
     isPro: claimIsPro,
     isTestProfile: existingData.isTestProfile === true,
@@ -693,19 +696,41 @@ export async function findTestProfiles() {
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as UserProfileDocument) }));
 }
 
-export type DiscoveryCursor = QueryDocumentSnapshot<DocumentData>;
+/** Nearby pages come first; the worldwide feed starts once the area runs out. */
+export type DiscoveryCursor = {
+  local: QueryDocumentSnapshot<DocumentData> | null;
+  localDone: boolean;
+  global: QueryDocumentSnapshot<DocumentData> | null;
+};
 
-export async function findProfilesByInterest(interests: string[], cursor: DiscoveryCursor | null = null, intents: string[] = [], city = "") {
+export async function findProfilesByInterest(
+  interests: string[],
+  cursor: DiscoveryCursor | null = null,
+  intents: string[] = [],
+  city = "",
+  location: { latitude: number; longitude: number } | null = null
+) {
   const currentDb = requireDb();
   const publicProfiles = collection(currentDb, "publicProfiles");
   const pageSize = 24;
-  const pageQuery = cursor
-    ? query(publicProfiles, orderBy("updatedAt", "desc"), startAfter(cursor), limit(pageSize))
+  const cells = nearbyGeoCells(location);
+  let localDone = cells.length === 0 || cursor?.localDone === true;
+  let localSnapshot: QuerySnapshot<DocumentData> | null = null;
+  if (!localDone) {
+    const localQuery = cursor?.local
+      ? query(publicProfiles, where("geoCell", "in", cells), orderBy("updatedAt", "desc"), startAfter(cursor.local), limit(pageSize))
+      : query(publicProfiles, where("geoCell", "in", cells), orderBy("updatedAt", "desc"), limit(pageSize));
+    // A missing index or an offline read must never empty the feed: fall back to the worldwide pages.
+    localSnapshot = await getDocs(localQuery).catch(() => null);
+    localDone = !localSnapshot || localSnapshot.size < pageSize;
+  }
+  const pageQuery = cursor?.global
+    ? query(publicProfiles, orderBy("updatedAt", "desc"), startAfter(cursor.global), limit(pageSize))
     : query(publicProfiles, orderBy("updatedAt", "desc"), limit(pageSize));
   const normalizedIntents = Array.from(new Set(intents.filter((value) => sparkIntentLabels.includes(value as typeof sparkIntentLabels[number])))).slice(0, 3);
   void city;
   const [pageSnapshot, interestSnapshot, intentSnapshot] = await Promise.all([
-    getDocs(pageQuery),
+    localDone ? getDocs(pageQuery) : Promise.resolve(null),
     !cursor && interests.length > 0
       ? getDocs(query(publicProfiles, where("interests", "array-contains-any", interests.slice(0, 10)), limit(20)))
       : Promise.resolve(null),
@@ -714,13 +739,18 @@ export async function findProfilesByInterest(interests: string[], cursor: Discov
       : Promise.resolve(null)
   ]);
   const profiles = new Map<string, { id: string; [key: string]: unknown }>();
-  [interestSnapshot, intentSnapshot, pageSnapshot].forEach((snapshot) => {
+  [interestSnapshot, intentSnapshot, pageSnapshot, localSnapshot].forEach((snapshot) => {
     snapshot?.docs.forEach((item) => profiles.set(item.id, { id: item.id, ...item.data() }));
   });
+  const nextCursor: DiscoveryCursor = {
+    local: localSnapshot?.docs.at(-1) ?? cursor?.local ?? null,
+    localDone,
+    global: pageSnapshot ? pageSnapshot.docs.at(-1) ?? cursor?.global ?? null : cursor?.global ?? null
+  };
   return {
     profiles: Array.from(profiles.values()),
-    nextCursor: pageSnapshot.docs.at(-1) ?? null,
-    hasMore: pageSnapshot.size === pageSize
+    nextCursor,
+    hasMore: pageSnapshot ? pageSnapshot.size === pageSize : true
   };
 }
 

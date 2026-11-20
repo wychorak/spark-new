@@ -298,8 +298,9 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'uid', 'firstName', 'lastName', 'profileNameMode', 'nickname', 'gender', 'intent', 'intents', 'desiredGendersByIntent', 'bio',
           'ageBand', 'age', 'desiredAgeMin', 'desiredAgeMax', 'interests', 'activeEvents', 'activeEventIds', 'photoUrls', 'mainPhotoUrl',
-          'city', 'country', 'location', 'socials', 'isPro', 'isVerified', 'isTestProfile', 'moderationStatus', 'lgbtTag', 'createdAt', 'updatedAt'
+          'city', 'country', 'location', 'geoCell', 'socials', 'isPro', 'isVerified', 'isTestProfile', 'moderationStatus', 'lgbtTag', 'createdAt', 'updatedAt'
         ])
+        && (!('geoCell' in data) || (data.geoCell is string && data.geoCell.matches('^[0-9b-hjkmnp-z]{3}$') && data.location != null))
         && (!('lgbtTag' in data) || (validLgbtIdentityList(data.lgbtTag) && data.lgbtTag.size() >= 1))
         && data.uid == uid
         && data.profileNameMode in ['realName', 'nickname']
