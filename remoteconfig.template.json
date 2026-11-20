@@ -1,0 +1,34 @@
+{
+  "parameters": {
+    "swipes_per_interstitial": {
+      "defaultValue": { "value": "30" },
+      "description": "Reklama pełnoekranowa co tyle przesunięć (aplikacja ogranicza do 10–60). Karty sponsorowane są osobno, co 10.",
+      "valueType": "NUMBER"
+    },
+    "interstitial_min_interval_seconds": {
+      "defaultValue": { "value": "90" },
+      "description": "Minimalna przerwa między reklamami pełnoekranowymi w sekundach (90–1800).",
+      "valueType": "NUMBER"
+    },
+    "max_interstitials_per_session": {
+      "defaultValue": { "value": "8" },
+      "description": "Maksymalnie tyle reklam pełnoekranowych na sesję (1–10).",
+      "valueType": "NUMBER"
+    },
+    "interstitial_session_grace_seconds": {
+      "defaultValue": { "value": "60" },
+      "description": "Brak reklamy pełnoekranowej przez tyle sekund po otwarciu aplikacji (0–600).",
+      "valueType": "NUMBER"
+    },
+    "empty_feed_auto_expand": {
+      "defaultValue": { "value": "true" },
+      "description": "Gdy w okolicy brak profili, Discover sam poszerza zasięg.",
+      "valueType": "BOOLEAN"
+    },
+    "maintenance_mode": {
+      "defaultValue": { "value": "false" },
+      "description": "Awaryjnie: true pokazuje ekran przerwy technicznej wszystkim użytkownikom.",
+      "valueType": "BOOLEAN"
+    }
+  }
+}
