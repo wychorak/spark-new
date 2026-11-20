@@ -16,7 +16,7 @@ initializeApp();
 const db = getFirestore();
 const region = "europe-west1";
 
-type NotificationCategory = "messages" | "matches" | "requests" | "events";
+type NotificationCategory = "messages" | "matches" | "requests" | "events" | "moderation";
 
 type NotificationPayload = {
   text: PushTextKey;
@@ -214,6 +214,23 @@ function eventSelectionFromSnapshot(snapshot: FirebaseFirestore.DocumentSnapshot
   if (!event.category || !event.name || !event.city || !event.date || !event.icon || !event.startsAt) return null;
   return event;
 }
+
+// Every report (blocks file one too) pings the owner's devices, so it is reviewed within 24 hours.
+export const notifyNewReport = onDocumentCreated(
+  { document: "reports/{reportId}", region },
+  async (event) => {
+    if (!event.data || !(await claimEvent(event.id))) return;
+    const owner = await getAuth().getUserByEmail(sparkOwnerEmail).catch(() => null);
+    if (!owner) return;
+    const reason = stringValue(event.data.data().reason).slice(0, 120);
+    await sendPush(owner.uid, {
+      category: "moderation",
+      text: "newReport",
+      vars: { text: reason },
+      data: { route: "moderation", reportId: event.params.reportId }
+    });
+  }
+);
 
 export const listModerationReports = onCall(
   { region, timeoutSeconds: 20 },
@@ -958,7 +975,9 @@ export const notifyNewSparkEvent = onDocumentCreated(
 
     try {
       while (true) {
+        // Only devices registered in the event's country are read (not every device in the world).
         let devicesQuery = db.collectionGroup("devices")
+          .where("countryCode", "==", eventCountryCode)
           .orderBy(FieldPath.documentId())
           .limit(500);
         if (cursor) devicesQuery = devicesQuery.startAfter(cursor);

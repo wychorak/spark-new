@@ -245,6 +245,9 @@ check(appSource.includes('"officialsparkappcontact@gmail.com"') && ['legal-site/
 // Guideline 1.2: every full-screen profile offers report and block (top-right menu and a visible section).
 check(appSource.includes('const ProfileSafetyContext = React.createContext') && appSource.includes('<ProfileSafetyContext.Provider value={profileSafety}>') && appSource.includes('onPress={openSafetyMenu}') && appSource.includes('onPress={blockFromSheet}') && appSource.includes('onPress={reportFromSheet}'), 'Profile preview must keep report and block actions (guideline 1.2).');
 
+// Moderation: every report pings the owner; event pushes read only the event's country.
+check(functionsSource.includes('export const notifyNewReport = onDocumentCreated') && functionsSource.includes('.where("countryCode", "==", eventCountryCode)'), 'Owner report push and per-country event fan-out must stay.');
+
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
   failures.forEach((failure) => console.error(`- ${failure}`));

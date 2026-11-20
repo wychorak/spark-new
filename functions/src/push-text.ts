@@ -21,6 +21,13 @@ const templates: Record<string, Record<PushLanguage, Template>> = {
     uk: () => ({ title: "Повідомлення від команди Spark", body: "Ми отримали скаргу щодо твого акаунта. Ознайомся з правилами спільноти." }),
     es: () => ({ title: "Mensaje del equipo de Spark", body: "Hemos recibido una denuncia sobre tu cuenta. Revisa las normas de la comunidad." })
   },
+  newReport: {
+    pl: (v) => ({ title: "Nowe zgłoszenie w Spark", body: (v.text || "Zgłoszenie profilu") + " – sprawdź moderację." }),
+    en: (v) => ({ title: "New report on Spark", body: (v.text || "Profile report") + " – check moderation." }),
+    de: (v) => ({ title: "Neue Meldung bei Spark", body: (v.text || "Profilmeldung") + " – prüfe die Moderation." }),
+    uk: (v) => ({ title: "Нова скарга в Spark", body: (v.text || "Скарга на профіль") + " – перевір модерацію." }),
+    es: (v) => ({ title: "Nueva denuncia en Spark", body: (v.text || "Denuncia de perfil") + " – revisa la moderación." })
+  },
   chatRequest: {
     pl: (v) => ({ title: "Nowa prośba o rozmowę", body: who("pl", v) + " chce rozpocząć rozmowę." }),
     en: (v) => ({ title: "New chat request", body: who("en", v) + " wants to start a conversation." }),
