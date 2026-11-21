@@ -26,14 +26,16 @@ export type MatchModeContext = "romantic" | "friends" | "event" | "collab";
 const matchModeContexts: MatchModeContext[] = ["romantic", "friends", "event", "collab"];
 
 /** Optional catalog extras: where exactly and a few words about it. */
-export type EventDetails = { venue?: string; description?: string; countryCode?: string };
+/** scope: reach of the event; missing means local (events from before reach existed). */
+export type EventDetails = { venue?: string; description?: string; countryCode?: string; scope?: "local" | "national" | "global" };
 
 function cleanEventDetails(value: unknown): EventDetails {
   const source = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
   const venue = typeof source.venue === "string" ? source.venue.replace(/\s+/g, " ").trim().slice(0, 120) : "";
   const description = typeof source.description === "string" ? source.description.trim().slice(0, 500) : "";
   const countryCode = typeof source.countryCode === "string" && /^[A-Z]{2}$/.test(source.countryCode) ? source.countryCode : "";
-  return { ...(venue ? { venue } : {}), ...(description ? { description } : {}), ...(countryCode ? { countryCode } : {}) };
+  const scope = source.scope === "local" || source.scope === "national" || source.scope === "global" ? source.scope : null;
+  return { ...(venue ? { venue } : {}), ...(description ? { description } : {}), ...(countryCode ? { countryCode } : {}), ...(scope ? { scope } : {}) };
 }
 import type { DocumentData, QueryDocumentSnapshot, QuerySnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";

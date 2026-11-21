@@ -251,6 +251,9 @@ check(functionsSource.includes('export const notifyNewReport = onDocumentCreated
 // Discover asks the server for nearby people first (geoCell), not the newest profiles worldwide.
 check(read('src/firestore.ts').includes('where("geoCell", "in", cells)') && read('src/firestore.ts').includes('geoCell: profileGeoCell(') && read('firestore.rules').includes("'geoCell'") && read('firestore.indexes.json').includes('"geoCell"') && appSource.includes('userCity, userLocation)'), 'Location-first Discover (geoCell) must stay wired: profile write, query, rules and index.');
 
+// Event Friends: reach (local / national / global) is stored, allowed by the rules and filterable; the list opens details.
+check(read('src/firestore.ts').includes('scope?: "local" | "national" | "global"') && read('firestore.rules').includes("details.scope in ['local', 'national', 'global']") && read('firestore.rules').includes("request.resource.data.scope in ['local', 'national', 'global']") && appSource.includes('filterAndSortEvents(availableEvents, eventDetails') && appSource.includes('onPress={() => setDetailsEvent(event)}'), 'Event reach, filters and the details sheet must stay wired.');
+
 if (failures.length) {
   console.error(`Release audit failed (${failures.length}/${checks}):`);
   failures.forEach((failure) => console.error(`- ${failure}`));

@@ -7120,5 +7120,413 @@
   "de": "Verschwindet aus Feed und Chats, die Moderation wird informiert",
   "uk": "Зникне зі стрічки й чатів, а модерація отримає скаргу",
   "es": "Desaparece de tu feed y chats, y moderación recibe un aviso"
+ },
+ "Lokalne": {
+  "en": "Local",
+  "de": "Lokal",
+  "uk": "Місцеві",
+  "es": "Locales"
+ },
+ "W jednym mieście": {
+  "en": "In one city",
+  "de": "In einer Stadt",
+  "uk": "В одному місті",
+  "es": "En una ciudad"
+ },
+ "Krajowe": {
+  "en": "National",
+  "de": "Landesweit",
+  "uk": "Національні",
+  "es": "Nacionales"
+ },
+ "Dla całego kraju": {
+  "en": "For the whole country",
+  "de": "Für das ganze Land",
+  "uk": "Для всієї країни",
+  "es": "Para todo el país"
+ },
+ "Globalne": {
+  "en": "Global",
+  "de": "Global",
+  "uk": "Глобальні",
+  "es": "Globales"
+ },
+ "Dla wszystkich": {
+  "en": "For everyone",
+  "de": "Für alle",
+  "uk": "Для всіх",
+  "es": "Para todos"
+ },
+ "Najbliżej mnie": {
+  "en": "Near me",
+  "de": "In meiner Nähe",
+  "uk": "Поруч зі мною",
+  "es": "Cerca de mí"
+ },
+ "Najwcześniej": {
+  "en": "Soonest",
+  "de": "Am frühesten",
+  "uk": "Найближчі за датою",
+  "es": "Más próximos"
+ },
+ "Nazwa A–Z": {
+  "en": "Name A–Z",
+  "de": "Name A–Z",
+  "uk": "Назва А–Я",
+  "es": "Nombre A–Z"
+ },
+ "Wszystkie kategorie": {
+  "en": "All categories",
+  "de": "Alle Kategorien",
+  "uk": "Усі категорії",
+  "es": "Todas las categorías"
+ },
+ "Sortuj:": {
+  "en": "Sort:",
+  "de": "Sortieren:",
+  "uk": "Сортувати:",
+  "es": "Ordenar:"
+ },
+ "Brak wydarzeń dla tych filtrów": {
+  "en": "No events match these filters",
+  "de": "Keine Events für diese Filter",
+  "uk": "Немає подій за цими фільтрами",
+  "es": "No hay eventos con estos filtros"
+ },
+ "Zmień filtry albo dodaj własne wydarzenie.": {
+  "en": "Change the filters or add your own event.",
+  "de": "Ändere die Filter oder füge ein eigenes Event hinzu.",
+  "uk": "Зміни фільтри або додай власну подію.",
+  "es": "Cambia los filtros o añade tu propio evento."
+ },
+ "Pokaż wszystkie": {
+  "en": "Show all",
+  "de": "Alle anzeigen",
+  "uk": "Показати всі",
+  "es": "Mostrar todos"
+ },
+ "Szczegóły wydarzenia: {0}": {
+  "en": "Event details: {0}",
+  "de": "Event-Details: {0}",
+  "uk": "Деталі події: {0}",
+  "es": "Detalles del evento: {0}"
+ },
+ "Uczestniczę: {0}": {
+  "en": "Going: {0}",
+  "de": "Ich bin dabei: {0}",
+  "uk": "Я йду: {0}",
+  "es": "Voy: {0}"
+ },
+ "Dołącz: {0}": {
+  "en": "Join: {0}",
+  "de": "Beitreten: {0}",
+  "uk": "Приєднатися: {0}",
+  "es": "Unirme: {0}"
+ },
+ "Zasięg wydarzenia": {
+  "en": "Event reach",
+  "de": "Reichweite des Events",
+  "uk": "Охоплення події",
+  "es": "Alcance del evento"
+ },
+ "Wydarzenie w jednym mieście: zobaczą je osoby z Twojego kraju, najwyżej te z tego miasta.": {
+  "en": "An event in one city: people in your country will see it, those in that city first.",
+  "de": "Ein Event in einer Stadt: Leute in deinem Land sehen es, die aus dieser Stadt zuerst.",
+  "uk": "Подія в одному місті: її побачать люди з твоєї країни, насамперед із цього міста.",
+  "es": "Un evento en una ciudad: lo verá la gente de tu país, primero la de esa ciudad."
+ },
+ "Wydarzenie dla całego kraju: zobaczą je wszyscy w wybranym kraju.": {
+  "en": "An event for the whole country: everyone in the chosen country will see it.",
+  "de": "Ein Event für das ganze Land: alle im gewählten Land sehen es.",
+  "uk": "Подія для всієї країни: її побачать усі у вибраній країні.",
+  "es": "Un evento para todo el país: lo verá todo el mundo en el país elegido."
+ },
+ "Wydarzenie dla wszystkich: zobaczą je użytkownicy Spark na całym świecie.": {
+  "en": "An event for everyone: Spark users all over the world will see it.",
+  "de": "Ein Event für alle: Spark-Nutzer auf der ganzen Welt sehen es.",
+  "uk": "Подія для всіх: її побачать користувачі Spark у всьому світі.",
+  "es": "Un evento para todos: lo verán los usuarios de Spark de todo el mundo."
+ },
+ "Kraj": {
+  "en": "Country",
+  "de": "Land",
+  "uk": "Країна",
+  "es": "País"
+ },
+ "Wybierz kraj wydarzenia": {
+  "en": "Choose the event country",
+  "de": "Land des Events wählen",
+  "uk": "Вибери країну події",
+  "es": "Elige el país del evento"
+ },
+ "Miejsce": {
+  "en": "Place",
+  "de": "Ort",
+  "uk": "Місце",
+  "es": "Lugar"
+ },
+ "Miasto wydarzenia": {
+  "en": "Event city",
+  "de": "Stadt des Events",
+  "uk": "Місто події",
+  "es": "Ciudad del evento"
+ },
+ "np. Online albo Londyn": {
+  "en": "e.g. Online or London",
+  "de": "z. B. Online oder London",
+  "uk": "напр. Онлайн або Лондон",
+  "es": "p. ej. Online o Londres"
+ },
+ "Wpisz miasto": {
+  "en": "Enter a city",
+  "de": "Stadt eingeben",
+  "uk": "Введи місто",
+  "es": "Escribe una ciudad"
+ },
+ "Zamknij szczegóły wydarzenia": {
+  "en": "Close event details",
+  "de": "Event-Details schließen",
+  "uk": "Закрити деталі події",
+  "es": "Cerrar detalles del evento"
+ },
+ "Organizator nie dodał opisu.": {
+  "en": "The organizer didn't add a description.",
+  "de": "Der Veranstalter hat keine Beschreibung hinzugefügt.",
+  "uk": "Організатор не додав опису.",
+  "es": "El organizador no añadió una descripción."
+ },
+ "Uczestniczę – dotknij, aby zrezygnować": {
+  "en": "Going – tap to leave",
+  "de": "Ich bin dabei – tippen zum Absagen",
+  "uk": "Я йду – торкнися, щоб скасувати",
+  "es": "Voy – toca para dejarlo"
+ },
+ "Dołącz do wydarzenia": {
+  "en": "Join the event",
+  "de": "Dem Event beitreten",
+  "uk": "Приєднатися до події",
+  "es": "Unirme al evento"
+ },
+ "Stany Zjednoczone": {
+  "en": "United States",
+  "de": "Vereinigte Staaten",
+  "uk": "Сполучені Штати",
+  "es": "Estados Unidos"
+ },
+ "Wielka Brytania": {
+  "en": "United Kingdom",
+  "de": "Vereinigtes Königreich",
+  "uk": "Велика Британія",
+  "es": "Reino Unido"
+ },
+ "Niemcy": {
+  "en": "Germany",
+  "de": "Deutschland",
+  "uk": "Німеччина",
+  "es": "Alemania"
+ },
+ "Hiszpania": {
+  "en": "Spain",
+  "de": "Spanien",
+  "uk": "Іспанія",
+  "es": "España"
+ },
+ "Ukraina": {
+  "en": "Ukraine",
+  "de": "Ukraine",
+  "uk": "Україна",
+  "es": "Ucrania"
+ },
+ "Francja": {
+  "en": "France",
+  "de": "Frankreich",
+  "uk": "Франція",
+  "es": "Francia"
+ },
+ "Włochy": {
+  "en": "Italy",
+  "de": "Italien",
+  "uk": "Італія",
+  "es": "Italia"
+ },
+ "Holandia": {
+  "en": "Netherlands",
+  "de": "Niederlande",
+  "uk": "Нідерланди",
+  "es": "Países Bajos"
+ },
+ "Belgia": {
+  "en": "Belgium",
+  "de": "Belgien",
+  "uk": "Бельгія",
+  "es": "Bélgica"
+ },
+ "Czechy": {
+  "en": "Czechia",
+  "de": "Tschechien",
+  "uk": "Чехія",
+  "es": "Chequia"
+ },
+ "Słowacja": {
+  "en": "Slovakia",
+  "de": "Slowakei",
+  "uk": "Словаччина",
+  "es": "Eslovaquia"
+ },
+ "Austria": {
+  "en": "Austria",
+  "de": "Österreich",
+  "uk": "Австрія",
+  "es": "Austria"
+ },
+ "Szwajcaria": {
+  "en": "Switzerland",
+  "de": "Schweiz",
+  "uk": "Швейцарія",
+  "es": "Suiza"
+ },
+ "Irlandia": {
+  "en": "Ireland",
+  "de": "Irland",
+  "uk": "Ірландія",
+  "es": "Irlanda"
+ },
+ "Portugalia": {
+  "en": "Portugal",
+  "de": "Portugal",
+  "uk": "Португалія",
+  "es": "Portugal"
+ },
+ "Szwecja": {
+  "en": "Sweden",
+  "de": "Schweden",
+  "uk": "Швеція",
+  "es": "Suecia"
+ },
+ "Norwegia": {
+  "en": "Norway",
+  "de": "Norwegen",
+  "uk": "Норвегія",
+  "es": "Noruega"
+ },
+ "Dania": {
+  "en": "Denmark",
+  "de": "Dänemark",
+  "uk": "Данія",
+  "es": "Dinamarca"
+ },
+ "Finlandia": {
+  "en": "Finland",
+  "de": "Finnland",
+  "uk": "Фінляндія",
+  "es": "Finlandia"
+ },
+ "Litwa": {
+  "en": "Lithuania",
+  "de": "Litauen",
+  "uk": "Литва",
+  "es": "Lituania"
+ },
+ "Łotwa": {
+  "en": "Latvia",
+  "de": "Lettland",
+  "uk": "Латвія",
+  "es": "Letonia"
+ },
+ "Estonia": {
+  "en": "Estonia",
+  "de": "Estland",
+  "uk": "Естонія",
+  "es": "Estonia"
+ },
+ "Węgry": {
+  "en": "Hungary",
+  "de": "Ungarn",
+  "uk": "Угорщина",
+  "es": "Hungría"
+ },
+ "Rumunia": {
+  "en": "Romania",
+  "de": "Rumänien",
+  "uk": "Румунія",
+  "es": "Rumanía"
+ },
+ "Bułgaria": {
+  "en": "Bulgaria",
+  "de": "Bulgarien",
+  "uk": "Болгарія",
+  "es": "Bulgaria"
+ },
+ "Chorwacja": {
+  "en": "Croatia",
+  "de": "Kroatien",
+  "uk": "Хорватія",
+  "es": "Croacia"
+ },
+ "Słowenia": {
+  "en": "Slovenia",
+  "de": "Slowenien",
+  "uk": "Словенія",
+  "es": "Eslovenia"
+ },
+ "Grecja": {
+  "en": "Greece",
+  "de": "Griechenland",
+  "uk": "Греція",
+  "es": "Grecia"
+ },
+ "Kanada": {
+  "en": "Canada",
+  "de": "Kanada",
+  "uk": "Канада",
+  "es": "Canadá"
+ },
+ "Meksyk": {
+  "en": "Mexico",
+  "de": "Mexiko",
+  "uk": "Мексика",
+  "es": "México"
+ },
+ "Brazylia": {
+  "en": "Brazil",
+  "de": "Brasilien",
+  "uk": "Бразилія",
+  "es": "Brasil"
+ },
+ "Argentyna": {
+  "en": "Argentina",
+  "de": "Argentinien",
+  "uk": "Аргентина",
+  "es": "Argentina"
+ },
+ "Australia": {
+  "en": "Australia",
+  "de": "Australien",
+  "uk": "Австралія",
+  "es": "Australia"
+ },
+ "Japonia": {
+  "en": "Japan",
+  "de": "Japan",
+  "uk": "Японія",
+  "es": "Japón"
+ },
+ "Korea Południowa": {
+  "en": "South Korea",
+  "de": "Südkorea",
+  "uk": "Південна Корея",
+  "es": "Corea del Sur"
+ },
+ "Turcja": {
+  "en": "Türkiye",
+  "de": "Türkei",
+  "uk": "Туреччина",
+  "es": "Turquía"
+ },
+ "Zjednoczone Emiraty Arabskie": {
+  "en": "United Arab Emirates",
+  "de": "Vereinigte Arabische Emirate",
+  "uk": "Обʼєднані Арабські Емірати",
+  "es": "Emiratos Árabes Unidos"
  }
 }

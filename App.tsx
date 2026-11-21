@@ -1,5 +1,6 @@
 import { EventDateField, EventCityField } from "./src/events/EventFields";
 import { searchKey, validateEventFields } from "./src/events/event-form-model";
+import { countByScale, eventCountries, eventCountryName, eventCountryOf, eventScopeOf, eventScopes, eventSorts, filterAndSortEvents, type EventScaleFilter, type EventScope, type EventSort } from "./src/events/event-scope";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -5906,28 +5907,32 @@ function EventFriendsManagerModal({
   const [view, setView] = useState<"discover" | "mine" | "add">("discover");
   const [query, setQuery] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  // Reach of a new event; national events pick a country (default: the person's own).
+  const [eventScope, setEventScope] = useState<EventScope>("local");
+  const [eventCountry, setEventCountry] = useState(userCountryCode);
+  const [countriesOpen, setCountriesOpen] = useState(false);
+  // Catalog filters and the event opened for details.
+  const [scale, setScale] = useState<EventScaleFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | EventCategoryId>("all");
+  const [sort, setSort] = useState<EventSort>("nearby");
+  const [detailsEvent, setDetailsEvent] = useState<SparkEvent | null>(null);
   const createInFlight = useRef(false);
   const saveInFlight = useRef(false);
   const wasVisible = useRef(false);
-  // Odkrywaj shows the user's city first; the country scope widens it to every
-  // event in the user's country. Events from before country codes are Polish.
+  // Odkrywaj: global events reach everyone; local and national ones the people in
+  // their country. Filters: reach, category and sorting. Old events are local and Polish.
   const cityKey = searchKey(userCity.trim());
-  const [scope, setScope] = useState<"city" | "country">("city");
-  const effectiveScope = cityKey ? scope : "country";
-  const inUserCountry = (event: SparkEvent) => (eventDetails[event.id]?.countryCode ?? "PL") === userCountryCode;
-  const countryEvents = availableEvents.filter(inUserCountry);
-  const countryLabel = userCountry.trim() || "Cały kraj";
-  const inUserCity = (event: SparkEvent) => {
-    const eventCityKey = searchKey(event.city);
-    if (!cityKey || !eventCityKey) return false;
-    return eventCityKey === cityKey || (Math.min(eventCityKey.length, cityKey.length) >= 4 && (eventCityKey.includes(cityKey) || cityKey.includes(eventCityKey)));
-  };
-  const cityEventCount = countryEvents.filter(inUserCity).length;
-  const visibleEvents = availableEvents
-    .filter((event) => (view !== "mine" || draftEvents.some((item) => item.id === event.id))
-      && (view !== "discover" || (inUserCountry(event) && (effectiveScope === "country" || inUserCity(event))))
-      && searchKey(`${event.name} ${event.city} ${eventDetails[event.id]?.venue ?? ""}`).includes(searchKey(query)))
-    .sort((a, b) => Number(inUserCity(b)) - Number(inUserCity(a)));
+  void userCountry;
+  const catalogOptions = { userCountryCode, userCity, category: categoryFilter, query, detailsText: (event: SparkEvent) => eventDetails[event.id]?.venue ?? "" };
+  const scaleCounts = countByScale(availableEvents, eventDetails, catalogOptions);
+  const filtersActive = scale !== "all" || categoryFilter !== "all";
+  const visibleEvents = view === "mine"
+    ? availableEvents
+      .filter((event) => draftEvents.some((item) => item.id === event.id) && searchKey(`${event.name} ${event.city} ${eventDetails[event.id]?.venue ?? ""}`).includes(searchKey(query)))
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))
+    : filterAndSortEvents(availableEvents, eventDetails, { ...catalogOptions, scale, sort });
+  useEffect(() => { if (!editingProposal) setEventCountry(userCountryCode); }, [editingProposal, userCountryCode]);
+  const scopeLabel = (event: SparkEvent) => eventScopes.find((item) => item.id === eventScopeOf(eventDetails[event.id]))?.label ?? "Lokalne";
   const local = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
@@ -5999,6 +6004,35 @@ function EventFriendsManagerModal({
     footerText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
     saveText: { color: "#fff" },
     description: { marginTop: 4, color: colors.inkSoft, fontSize: 11, lineHeight: 16, fontWeight: "600" },
+    chipRow: { gap: 8, paddingRight: 4 },
+    chip: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.fillStronger },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { color: colors.inkSoft, fontSize: 12, fontWeight: "800" },
+    chipTextActive: { color: "#fff" },
+    chipCount: { color: colors.muted, fontSize: 11, fontWeight: "800" },
+    sortRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
+    sortLabel: { color: colors.muted, fontSize: 11, fontWeight: "800" },
+    sortChip: { minHeight: 34, justifyContent: "center", paddingHorizontal: 11, borderRadius: 999, backgroundColor: colors.fill },
+    sortChipActive: { backgroundColor: colors.primarySoft },
+    sortText: { color: colors.muted, fontSize: 11, fontWeight: "800" },
+    sortTextActive: { color: colors.primaryDeep },
+    pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+    scopePill: { alignSelf: "flex-start", marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.fillStrong },
+    scopePillText: { color: colors.inkSoft, fontSize: 9, fontWeight: "900" },
+    cardMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 11 },
+    sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
+    sheet: { maxHeight: "85%", gap: 14, paddingHorizontal: 18, paddingTop: 18, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.fillStronger },
+    sheetHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+    sheetTitle: { color: colors.ink, fontSize: 21, lineHeight: 26, fontWeight: "900" },
+    sheetRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    sheetRowText: { flex: 1, color: colors.inkSoft, fontSize: 14, lineHeight: 20, fontWeight: "700" },
+    sheetDescription: { color: colors.ink, fontSize: 14, lineHeight: 21, fontWeight: "500" },
+    sheetJoin: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, backgroundColor: colors.primary },
+    sheetJoinActive: { backgroundColor: colors.green },
+    sheetJoinText: { color: "#fff", fontSize: 14, fontWeight: "900" },
+    countryList: { maxHeight: 280, borderRadius: 16, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.fillStronger },
+    countryRow: { minHeight: 46, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.fill },
+    countryText: { flex: 1, color: colors.ink, fontSize: 14, fontWeight: "700" },
     textArea: { minHeight: 92, paddingTop: 13, textAlignVertical: "top" },
     proposalList: { gap: 8 },
     proposalRow: { gap: 10, padding: 13, borderRadius: 18, backgroundColor: colors.fill, borderWidth: 1, borderColor: colors.fillStrong },
@@ -6055,9 +6089,10 @@ function EventFriendsManagerModal({
     }
     createInFlight.current = true; setCreating(true); setFormError(null);
     try {
-      // New events belong to the author's country; the catalog and push
-      // announcements are scoped by it.
-      const details: EventDetails = { venue, description, countryCode: editingProposal?.details.countryCode ?? userCountryCode };
+      // Local and global events belong to the author's country (push announcements go
+      // there); a national event to the country picked in the form.
+      const countryCode = eventScope === "national" ? eventCountry : editingProposal?.details.countryCode ?? userCountryCode;
+      const details: EventDetails = { venue, description, countryCode, scope: eventScope };
       const created = editingProposal
         ? await onReviewProposal(editingProposal, "approved", event, details)
         : canManage ? await onCreate(event, details) : await onPropose(event, details);
@@ -6087,6 +6122,8 @@ function EventFriendsManagerModal({
     setEndsAtInput(formatEventDateTimeInput(proposal.event.endsAt));
     setVenue(proposal.details.venue ?? "");
     setDescription(proposal.details.description ?? "");
+    setEventScope(eventScopeOf(proposal.details));
+    setEventCountry(eventCountryOf(proposal.details));
     revealEventDateInput();
   }
 
@@ -6094,6 +6131,9 @@ function EventFriendsManagerModal({
     const nextDefaults = getDefaultEventDateTimes();
     setEditingProposal(null);
     setFormError(null);
+    setEventScope("local");
+    setEventCountry(userCountryCode);
+    setCountriesOpen(false);
     setName("");
     setVenue("");
     setDescription("");
@@ -6124,7 +6164,7 @@ function EventFriendsManagerModal({
           <View style={local.activeIcon}><MaterialCommunityIcons name={proposal.event.icon as any} size={21} color={colors.primary} /></View>
           <View style={styles.fill}>
             <Text style={local.activeTitle} numberOfLines={2}>{proposal.event.name}</Text>
-            <Text style={local.meta} numberOfLines={1}>{proposal.details.venue ? proposal.details.venue + " · " : ""}{proposal.event.city} · {meta?.label ?? "Wydarzenie"}</Text>
+            <Text style={local.meta} numberOfLines={1}>{eventScopes.find((item) => item.id === eventScopeOf(proposal.details))?.label}{" · "}{eventScopeOf(proposal.details) === "national" ? eventCountryName(eventCountryOf(proposal.details)) : null}{eventScopeOf(proposal.details) === "national" ? " · " : null}{proposal.details.venue ? proposal.details.venue + " · " : ""}{proposal.event.city} · {meta?.label ?? "Wydarzenie"}</Text>
             <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(proposal.event)}</Text></View>
           </View>
           {busy && <ActivityIndicator color={colors.primary} />}
@@ -6187,17 +6227,36 @@ function EventFriendsManagerModal({
           </View>
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
           <Text style={local.sectionTitle}>{view === "mine" ? "Twój udział" : "Aktualne wydarzenia"}</Text>
-          {view === "discover" && (cityKey ? (
-            <View style={local.segment}>
-              {([["city", `${userCity.trim()} (${cityEventCount})`], ["country", `${countryLabel} (${countryEvents.length})`]] as const).map(([key, label]) => (
-                <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: effectiveScope === key }} onPress={() => setScope(key)} style={[local.segmentButton, effectiveScope === key && local.segmentActive]}>
-                  <Text style={[local.segmentText, effectiveScope === key && local.segmentTextActive]} numberOfLines={1}>{label}</Text>
-                </Pressable>
-              ))}
+          {view === "discover" && (
+            <View style={{ gap: 10 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={local.chipRow}>
+                {([["all", "Wszystkie", "calendar-multiple"], ...eventScopes.map((item) => [item.id, item.id === "local" && cityKey ? userCity.trim() : item.label, item.icon])] as Array<[EventScaleFilter, string, string]>).map(([key, label, icon]) => (
+                  <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: scale === key }} onPress={() => setScale(key)} style={[local.chip, scale === key && local.chipActive]}>
+                    <MaterialCommunityIcons name={icon as any} size={15} color={scale === key ? "#fff" : colors.muted} />
+                    <Text style={[local.chipText, scale === key && local.chipTextActive]} numberOfLines={1}>{label}</Text>
+                    <Text style={[local.chipCount, scale === key && local.chipTextActive]}>{scaleCounts[key]}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={local.chipRow}>
+                {([["all", "Wszystkie kategorie", "shape-outline"], ...eventCategories.map((item) => [item.id, item.label, item.icon])] as Array<["all" | EventCategoryId, string, string]>).map(([key, label, icon]) => (
+                  <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: categoryFilter === key }} onPress={() => setCategoryFilter(key)} style={[local.chip, categoryFilter === key && local.chipActive]}>
+                    <MaterialCommunityIcons name={icon as any} size={15} color={categoryFilter === key ? "#fff" : colors.muted} />
+                    <Text style={[local.chipText, categoryFilter === key && local.chipTextActive]} numberOfLines={1}>{label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={local.sortRow}>
+                <MaterialCommunityIcons name="sort" size={16} color={colors.muted} />
+                <Text style={local.sortLabel}>Sortuj:</Text>
+                {eventSorts.map((item) => (
+                  <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected: sort === item.id }} onPress={() => setSort(item.id)} style={[local.sortChip, sort === item.id && local.sortChipActive]}>
+                    <Text style={[local.sortText, sort === item.id && local.sortTextActive]}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          ) : (
-            <Text style={local.intro}>Pokazujemy wydarzenia z całego kraju. Dodaj miasto w profilu, aby najpierw widzieć te w Twojej okolicy.</Text>
-          ))}
+          )}
           <TextInput accessibilityLabel={tr("Szukaj wydarzenia lub miasta")} value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
           {!!query && <Pressable accessibilityRole="button" onPress={() => setQuery("")} style={local.proposalButton}><Text style={local.proposalButtonText}>Wyczyść wyszukiwanie</Text></Pressable>}
           {catalogLoading ? (
@@ -6207,12 +6266,12 @@ function EventFriendsManagerModal({
           ) : visibleEvents.length === 0 ? (
             <View style={local.emptyWrap}>
               <EventEmptyAnimation />
-              <Text style={local.emptyTitle}>{query ? "Nie ma takich wydarzeń" : view === "mine" ? "Jeszcze bez planów?" : effectiveScope === "city" ? `Brak wydarzeń: ${userCity.trim()}` : "Brak aktualnych wydarzeń"}</Text>
-              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : effectiveScope === "city" ? "Zobacz wydarzenia w całym kraju albo dodaj własne." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
-              {view === "discover" && effectiveScope === "city" && countryEvents.length > 0 && (
-                <Pressable accessibilityRole="button" onPress={() => setScope("country")} style={[local.proposalButton, { paddingHorizontal: 16, marginTop: 12, flex: 0, minHeight: 44 }]}>
-                  <MaterialCommunityIcons name="map-outline" size={17} color={colors.ink} />
-                  <Text style={local.proposalButtonText}>Pokaż cały kraj</Text>
+              <Text style={local.emptyTitle}>{query ? "Nie ma takich wydarzeń" : view === "mine" ? "Jeszcze bez planów?" : filtersActive ? "Brak wydarzeń dla tych filtrów" : "Brak aktualnych wydarzeń"}</Text>
+              <Text style={local.emptyText}>{query ? "Spróbuj innej nazwy lub miasta, także bez polskich znaków." : view === "mine" ? "Wybierz Odkrywaj i dołącz do wydarzenia." : filtersActive ? "Zmień filtry albo dodaj własne wydarzenie." : "Dodaj wydarzenie, na które warto się wybrać."}</Text>
+              {view === "discover" && filtersActive && scaleCounts.all > 0 && (
+                <Pressable accessibilityRole="button" onPress={() => { setScale("all"); setCategoryFilter("all"); }} style={[local.proposalButton, { paddingHorizontal: 16, marginTop: 12, flex: 0, minHeight: 44 }]}>
+                  <MaterialCommunityIcons name="filter-remove-outline" size={17} color={colors.ink} />
+                  <Text style={local.proposalButtonText}>Pokaż wszystkie</Text>
                 </Pressable>
               )}
             </View>
@@ -6221,18 +6280,23 @@ function EventFriendsManagerModal({
               {visibleEvents.map((event) => {
                 const selected = draftEvents.some((item) => item.id === event.id);
                 const meta = eventCategories.find((item) => item.id === event.category);
+                const scope = eventScopeOf(eventDetails[event.id]);
                 return (
-                  <Pressable key={event.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => addEvent(event)} style={({ pressed }) => [local.suggestion, selected && local.suggestionActive, pressed && styles.controlPressed]}>
-                    <View style={local.activeIcon}><MaterialCommunityIcons name={event.icon as any} size={21} color={selected ? colors.green : colors.primary} /></View>
-                    <View style={styles.fill}>
-                      <Text style={local.activeTitle} numberOfLines={2}>{event.name}</Text>
-                      <Text style={local.meta} numberOfLines={1}>{eventDetails[event.id]?.venue ? eventDetails[event.id]?.venue + " · " : ""}{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
-                      {eventDetails[event.id]?.description ? <Text style={local.description} numberOfLines={3}>{eventDetails[event.id]?.description}</Text> : null}
-                      <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
-                    </View>
-                    {canManage && <Pressable accessibilityRole="button" accessibilityLabel={tr(`Usuń wydarzenie ${event.name}`)} onPress={(pressEvent) => { pressEvent.stopPropagation(); void deleteCatalogEvent(event); }} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
-                    <View style={[local.participationPill, selected && local.participationPillActive]}><MaterialCommunityIcons name={selected ? "check" : "plus"} size={14} color={selected ? "#062817" : colors.primary} /><Text style={[local.participationText, selected && local.participationTextActive]}>{selected ? "Uczestniczę" : "Dołącz"}</Text></View>
-                  </Pressable>
+                  <View key={event.id} style={[local.suggestion, selected && local.suggestionActive]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={tr(`Szczegóły wydarzenia: ${event.name}`)} onPress={() => setDetailsEvent(event)} style={({ pressed }) => [local.cardMain, pressed && styles.controlPressed]}>
+                      <View style={local.activeIcon}><MaterialCommunityIcons name={event.icon as any} size={21} color={selected ? colors.green : colors.primary} /></View>
+                      <View style={styles.fill}>
+                        <Text style={local.activeTitle} numberOfLines={2}>{event.name}</Text>
+                        <Text style={local.meta} numberOfLines={1}>{scope === "national" ? eventCountryName(eventCountryOf(eventDetails[event.id])) : null}{scope === "national" ? " · " : null}{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
+                        <View style={local.pillRow}>
+                          <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
+                          {scope !== "local" && <View style={local.scopePill}><Text style={local.scopePillText}>{scopeLabel(event)}</Text></View>}
+                        </View>
+                      </View>
+                    </Pressable>
+                    {canManage && <Pressable accessibilityRole="button" accessibilityLabel={tr(`Usuń wydarzenie ${event.name}`)} onPress={() => void deleteCatalogEvent(event)} style={local.adminDelete}>{deletingId === event.id ? <ActivityIndicator color="#ff6b85" size="small" /> : <MaterialCommunityIcons name="trash-can-outline" size={17} color="#ff6b85" />}</Pressable>}
+                    <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={tr(selected ? `Uczestniczę: ${event.name}` : `Dołącz: ${event.name}`)} hitSlop={6} onPress={() => addEvent(event)} style={({ pressed }) => [local.participationPill, selected && local.participationPillActive, pressed && styles.controlPressed]}><MaterialCommunityIcons name={selected ? "check" : "plus"} size={14} color={selected ? "#062817" : colors.primary} /><Text style={[local.participationText, selected && local.participationTextActive]}>{selected ? "Uczestniczę" : "Dołącz"}</Text></Pressable>
+                  </View>
                 );
               })}
             </View>
@@ -6281,7 +6345,47 @@ function EventFriendsManagerModal({
               </View>}
               <Text style={local.fieldLabel}>Nazwa wydarzenia</Text>
               <TextInput accessibilityLabel={tr("Nazwa wydarzenia")} value={name} onChangeText={setName} maxLength={80} placeholder="np. Open'er Festival" placeholderTextColor={colors.muted} style={local.input} />
-              <EventCityField value={city} countryCode={editingProposal?.details.countryCode ?? userCountryCode} extraCities={[userCity, ...availableEvents.filter((item) => (eventDetails[item.id]?.countryCode ?? "PL") === userCountryCode).map((item) => item.city)]} onChange={(value) => { setCity(value); setFormError(null); }} />
+              <Text style={local.fieldLabel}>Zasięg wydarzenia</Text>
+              <View style={local.segment}>
+                {eventScopes.map((item) => (
+                  <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected: eventScope === item.id }} onPress={() => { setEventScope(item.id); setFormError(null); }} style={[local.segmentButton, eventScope === item.id && local.segmentActive]}>
+                    <Text style={[local.segmentText, eventScope === item.id && local.segmentTextActive]}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={local.intro}>{eventScope === "local"
+                ? "Wydarzenie w jednym mieście: zobaczą je osoby z Twojego kraju, najwyżej te z tego miasta."
+                : eventScope === "national"
+                  ? "Wydarzenie dla całego kraju: zobaczą je wszyscy w wybranym kraju."
+                  : "Wydarzenie dla wszystkich: zobaczą je użytkownicy Spark na całym świecie."}</Text>
+              {eventScope === "local" ? (
+                <EventCityField value={city} countryCode={editingProposal?.details.countryCode ?? userCountryCode} extraCities={[userCity, ...availableEvents.filter((item) => eventCountryOf(eventDetails[item.id]) === userCountryCode).map((item) => item.city)]} onChange={(value) => { setCity(value); setFormError(null); }} />
+              ) : (
+                <>
+                  {eventScope === "national" && (
+                    <>
+                      <Text style={local.fieldLabel}>Kraj</Text>
+                      <Pressable accessibilityRole="button" accessibilityLabel={tr("Wybierz kraj wydarzenia")} accessibilityState={{ expanded: countriesOpen }} onPress={() => setCountriesOpen(!countriesOpen)} style={[local.input, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
+                        <MaterialCommunityIcons name="flag-outline" size={20} color={colors.primary} />
+                        <Text style={{ flex: 1, color: colors.ink }}>{eventCountryName(eventCountry)}</Text>
+                        <MaterialCommunityIcons name={countriesOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} />
+                      </Pressable>
+                      {countriesOpen && (
+                        <ScrollView nestedScrollEnabled style={local.countryList} keyboardShouldPersistTaps="handled">
+                          {eventCountries.map((item) => (
+                            <Pressable key={item.code} accessibilityRole="radio" accessibilityState={{ selected: eventCountry === item.code }} onPress={() => { setEventCountry(item.code); setCountriesOpen(false); setFormError(null); }} style={local.countryRow}>
+                              <Text style={local.countryText}>{item.name}</Text>
+                              {eventCountry === item.code && <MaterialCommunityIcons name="check" size={18} color={colors.primary} />}
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      )}
+                    </>
+                  )}
+                  <Text style={local.fieldLabel}>{eventScope === "global" ? "Miejsce" : "Miasto"}</Text>
+                  <TextInput accessibilityLabel={tr(eventScope === "global" ? "Miejsce wydarzenia" : "Miasto wydarzenia")} value={city} onChangeText={(value) => { setCity(value); setFormError(null); }} maxLength={80} placeholder={eventScope === "global" ? "np. Online albo Londyn" : "Wpisz miasto"} placeholderTextColor={colors.muted} style={local.input} />
+                </>
+              )}
               <Text style={local.fieldLabel}>Miejsce (opcjonalnie)</Text>
               <TextInput accessibilityLabel={tr("Miejsce wydarzenia")} value={venue} onChangeText={setVenue} maxLength={120} placeholder="np. Tauron Arena, ul. Lema 7" placeholderTextColor={colors.muted} style={local.input} />
               <Text style={local.fieldLabel}>Opis (opcjonalnie)</Text>
@@ -6291,11 +6395,49 @@ function EventFriendsManagerModal({
               <EventDateField label="Koniec" value={endsAtInput} onChange={(value) => { setEndsAtInput(value); setFormError(null); }} allowPast={!!editingProposal} />
               {formError && <Text accessibilityRole="alert" selectable style={{ color: colors.name === "light" ? "#b72543" : "#ff8fa4", fontSize: 14, lineHeight: 21 }}>{formError}</Text>}
               <Text style={local.intro}>Szkic zostaje zachowany po zamknięciu okna i zmianie zakładki, do czasu wylogowania lub zamknięcia aplikacji.</Text>
-              <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>{editingProposal ? "Zatwierdź po zmianach" : canManage ? "Opublikuj wydarzenie" : "Wyślij zgłoszenie"}</Text></Pressable>
+              <Pressable accessibilityRole="button" disabled={creating} onPress={() => void addCustomEvent()} style={({ pressed }) => [local.add, pressed && styles.controlPressed, creating && styles.primaryButtonDisabled]}>{creating ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="calendar-plus" size={19} color="#fff" />}<Text style={local.addText}>{editingProposal ? "Zatwierdź po zmianach" : canManage ? "Opublikuj wydarzenie" : "Zgłoś wydarzenie"}</Text></Pressable>
               </View>
             </View>
           )}
         </ScrollView>
+        {detailsEvent && (() => {
+          const event = detailsEvent;
+          const details = eventDetails[event.id] ?? {};
+          const scope = eventScopeOf(details);
+          const meta = eventCategories.find((item) => item.id === event.category);
+          const selected = draftEvents.some((item) => item.id === event.id);
+          return (
+            <Modal visible transparent animationType="slide" onRequestClose={() => setDetailsEvent(null)}>
+              <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij szczegóły wydarzenia")} onPress={() => setDetailsEvent(null)} style={local.sheetBackdrop} />
+              <View style={[local.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+                <View style={local.sheetHeader}>
+                  <View style={local.activeIcon}><MaterialCommunityIcons name={event.icon as any} size={21} color={selected ? colors.green : colors.primary} /></View>
+                  <View style={styles.fill}>
+                    <Text style={local.sheetTitle} selectable>{event.name}</Text>
+                    <View style={local.pillRow}>
+                      <View style={local.scopePill}><Text style={local.scopePillText}>{meta?.label ?? "Wydarzenie"}</Text></View>
+                      <View style={local.scopePill}><Text style={local.scopePillText}>{scopeLabel(event)}</Text></View>
+                    </View>
+                  </View>
+                  <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij szczegóły wydarzenia")} onPress={() => setDetailsEvent(null)} style={local.close}><MaterialCommunityIcons name="close" size={20} color={colors.ink} /></Pressable>
+                </View>
+                <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 12 }}>
+                  <View style={local.sheetRow}><MaterialCommunityIcons name="calendar-clock" size={20} color={colors.primary} /><Text style={local.sheetRowText}>{formatEventDateRange(event)}</Text></View>
+                  <View style={local.sheetRow}>
+                    <MaterialCommunityIcons name="map-marker-outline" size={20} color={colors.primary} />
+                    <Text style={local.sheetRowText} selectable>{details.venue ? details.venue + ", " : ""}{event.city}{scope !== "global" ? ", " : null}{scope !== "global" ? eventCountryName(eventCountryOf(details)) : null}</Text>
+                  </View>
+                  {details.description ? <Text style={local.sheetDescription} selectable>{details.description}</Text> : <Text style={local.intro}>Organizator nie dodał opisu.</Text>}
+                </ScrollView>
+                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => addEvent(event)} style={({ pressed }) => [local.sheetJoin, selected && local.sheetJoinActive, pressed && styles.controlPressed]}>
+                  <MaterialCommunityIcons name={selected ? "check" : "plus"} size={19} color={selected ? "#062817" : "#fff"} />
+                  <Text style={[local.sheetJoinText, selected && { color: "#062817" }]}>{selected ? "Uczestniczę – dotknij, aby zrezygnować" : "Dołącz do wydarzenia"}</Text>
+                </Pressable>
+                {canManage && <Pressable accessibilityRole="button" onPress={() => { setDetailsEvent(null); void deleteCatalogEvent(event); }} style={local.proposalButton}><MaterialCommunityIcons name="trash-can-outline" size={16} color="#ff6b85" /><Text style={[local.proposalButtonText, { color: "#ff6b85" }]}>Usuń wydarzenie</Text></Pressable>}
+              </View>
+            </Modal>
+          );
+        })()}
         {view !== "add" && <View style={[local.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><Pressable accessibilityRole="button" onPress={onClose} style={local.footerButton}><Text style={local.footerText}>Anuluj</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} style={[local.footerButton, local.saveButton, saving && styles.primaryButtonDisabled]}>{saving ? <ActivityIndicator color="#fff" /> : <MaterialCommunityIcons name="check" size={20} color="#fff" />}<Text style={[local.footerText, local.saveText]}>{draftEvents.length ? `Zapisz udział (${draftEvents.length})` : "Zapisz udział"}</Text></Pressable></View>}
       </KeyboardAvoidingView>
     </Modal>
@@ -9380,6 +9522,8 @@ function DevEventPreview({ themeName }: { themeName: string | null }) {
     const make = (id: string, name: string, city: string, category: EventCategoryId, icon: EventIconId): SparkEvent => ({ id, name, city, category, icon, kind: "specific", date: start.toISOString().slice(0, 10), startsAt: start.toISOString(), endsAt: end.toISOString() });
     return [
       make("dev-mata", "Koncert Maty", "Warszawa", "music", "microphone-variant"),
+      make("dev-opener", "Open'er Festival", "Gdynia", "music", "guitar-electric"),
+      make("dev-global", "Premiera nowej gry", "Online", "games", "controller-classic-outline"),
       make("dev-kino", "Maraton filmowy", "Kraków", "cinema", "movie-open-outline"),
       make("dev-plansz", "Planszówki w Hali Koszyki", "Warszawa", "games", "dice-multiple"),
       make("dev-mecz", "Lech – Legia", "Poznań", "sport", "soccer"),
@@ -9389,7 +9533,7 @@ function DevEventPreview({ themeName }: { themeName: string | null }) {
     ];
   });
   const previewCountryCode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("country") ?? "PL" : "PL";
-  const previewDetails: Record<string, EventDetails> = { "dev-nyc-show": { countryCode: "US", venue: "Williamsburg" }, "dev-nyc-game": { countryCode: "US" }, "dev-la-film": { countryCode: "US" } };
+  const previewDetails: Record<string, EventDetails> = { "dev-opener": { scope: "national", countryCode: "PL", venue: "Lotnisko Gdynia-Kosakowo", description: "Największy festiwal muzyczny w Polsce: cztery dni koncertów nad morzem." }, "dev-global": { scope: "global", countryCode: "PL" }, "dev-nyc-show": { countryCode: "US", venue: "Williamsburg" }, "dev-nyc-game": { countryCode: "US" }, "dev-la-film": { countryCode: "US" } };
   const [selected, setSelected] = useState<SparkEvent[]>([]);
   const [proposals, setProposals] = useState<EventProposal[]>([]);
   const failNextSave = useRef(typeof window !== "undefined" && new URLSearchParams(window.location.search).has("failOnce"));
