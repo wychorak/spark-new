@@ -6010,7 +6010,7 @@ function EventFriendsManagerModal({
     chipText: { color: colors.inkSoft, fontSize: 12, fontWeight: "800" },
     chipTextActive: { color: "#fff" },
     chipCount: { color: colors.muted, fontSize: 11, fontWeight: "800" },
-    sortRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
+    sortRow: { alignItems: "center", gap: 6 },
     sortLabel: { color: colors.muted, fontSize: 11, fontWeight: "800" },
     sortChip: { minHeight: 34, justifyContent: "center", paddingHorizontal: 11, borderRadius: 999, backgroundColor: colors.fill },
     sortChipActive: { backgroundColor: colors.primarySoft },
@@ -6220,11 +6220,11 @@ function EventFriendsManagerModal({
         <View style={[local.segment, { marginHorizontal: 16, marginTop: 10 }]}>{([["discover", "Odkrywaj"], ["mine", "Moje"], ["add", "Dodaj"]] as const).map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: view === key }} onPress={() => { setView(key); setQuery(""); }} style={[local.segmentButton, view === key && local.segmentActive]}><Text style={[local.segmentText, view === key && local.segmentTextActive]}>{label}</Text></Pressable>)}</View>
         <ScrollView ref={eventFormScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={local.scroll}>
           {view !== "add" && <>
-          <View style={local.hero}>
+          {draftEvents.length === 0 && <View style={local.hero}>
             <Text style={local.heroEyebrow}>TYMCZASOWE BADGE I FILTRY</Text>
             <Text style={local.heroTitle}>Wybierz wydarzenia, na które idziesz</Text>
             <Text style={local.heroText}>Na profilu pojawi się tymczasowe oznaczenie, a specjalny feed pokaże osoby z tego samego wydarzenia i pasującego wieku. Wybór znika godzinę po zakończeniu.</Text>
-          </View>
+          </View>}
           {expiredCount > 0 && <View style={local.expiry}><MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.gold} /><Text style={local.expiryText}>Usunęliśmy {expiredCount} wygasłe wydarzenie{expiredCount === 1 ? "" : "a"}.</Text></View>}
           <Text style={local.sectionTitle}>{view === "mine" ? "Twój udział" : "Aktualne wydarzenia"}</Text>
           {view === "discover" && (
@@ -6246,7 +6246,7 @@ function EventFriendsManagerModal({
                   </Pressable>
                 ))}
               </ScrollView>
-              <View style={local.sortRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[local.chipRow, local.sortRow]}>
                 <MaterialCommunityIcons name="sort" size={16} color={colors.muted} />
                 <Text style={local.sortLabel}>Sortuj:</Text>
                 {eventSorts.map((item) => (
@@ -6254,7 +6254,7 @@ function EventFriendsManagerModal({
                     <Text style={[local.sortText, sort === item.id && local.sortTextActive]}>{item.label}</Text>
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
             </View>
           )}
           <TextInput accessibilityLabel={tr("Szukaj wydarzenia lub miasta")} value={query} onChangeText={setQuery} placeholder="Wydarzenie, miasto, miejsce…" placeholderTextColor={colors.muted} style={local.input} />
