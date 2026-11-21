@@ -1,6 +1,6 @@
 import { EventDateField, EventCityField } from "./src/events/EventFields";
 import { searchKey, validateEventFields } from "./src/events/event-form-model";
-import { countByScale, eventCountries, eventCountryName, eventCountryOf, eventScopeOf, eventScopes, eventSorts, filterAndSortEvents, type EventScaleFilter, type EventScope, type EventSort } from "./src/events/event-scope";
+import { countByScale, eventCountries, eventCountryName, eventCountryOf, eventScopeOf, eventScopes, eventSorts, filterAndSortEvents, isInCity, type EventScaleFilter, type EventScope, type EventSort } from "./src/events/event-scope";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -6019,6 +6019,9 @@ function EventFriendsManagerModal({
     pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
     scopePill: { alignSelf: "flex-start", marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.fillStrong },
     scopePillText: { color: colors.inkSoft, fontSize: 9, fontWeight: "900" },
+    myCityPill: { alignSelf: "flex-start", marginTop: 6, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.primary },
+    myCityPillText: { color: colors.onPrimary, fontSize: 9, fontWeight: "900" },
+    suggestionMyCity: { borderColor: "rgba(255,45,141,0.45)" },
     cardMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 11 },
     sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
     sheet: { maxHeight: "85%", gap: 14, paddingHorizontal: 18, paddingTop: 18, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.fillStronger },
@@ -6230,7 +6233,7 @@ function EventFriendsManagerModal({
           {view === "discover" && (
             <View style={{ gap: 10 }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={local.chipRow}>
-                {([["all", "Wszystkie", "calendar-multiple"], ...eventScopes.map((item) => [item.id, item.id === "local" && cityKey ? userCity.trim() : item.label, item.icon])] as Array<[EventScaleFilter, string, string]>).map(([key, label, icon]) => (
+                {([["all", "Wszystkie", "calendar-multiple"], ...eventScopes.map((item) => [item.id, item.id === "local" && cityKey ? "W Twoim mieście" : item.label, item.icon])] as Array<[EventScaleFilter, string, string]>).map(([key, label, icon]) => (
                   <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: scale === key }} onPress={() => setScale(key)} style={[local.chip, scale === key && local.chipActive]}>
                     <MaterialCommunityIcons name={icon as any} size={15} color={scale === key ? "#fff" : colors.muted} />
                     <Text style={[local.chipText, scale === key && local.chipTextActive]} numberOfLines={1}>{label}</Text>
@@ -6281,8 +6284,9 @@ function EventFriendsManagerModal({
                 const selected = draftEvents.some((item) => item.id === event.id);
                 const meta = eventCategories.find((item) => item.id === event.category);
                 const scope = eventScopeOf(eventDetails[event.id]);
+                const inMyCity = isInCity(event.city, userCity);
                 return (
-                  <View key={event.id} style={[local.suggestion, selected && local.suggestionActive]}>
+                  <View key={event.id} style={[local.suggestion, inMyCity && local.suggestionMyCity, selected && local.suggestionActive]}>
                     <Pressable accessibilityRole="button" accessibilityLabel={tr(`Szczegóły wydarzenia: ${event.name}`)} onPress={() => setDetailsEvent(event)} style={({ pressed }) => [local.cardMain, pressed && styles.controlPressed]}>
                       <View style={local.activeIcon}><MaterialCommunityIcons name={event.icon as any} size={21} color={selected ? colors.green : colors.primary} /></View>
                       <View style={styles.fill}>
@@ -6290,6 +6294,7 @@ function EventFriendsManagerModal({
                         <Text style={local.meta} numberOfLines={1}>{scope === "national" ? eventCountryName(eventCountryOf(eventDetails[event.id])) : null}{scope === "national" ? " · " : null}{event.city} · {meta?.label ?? "Wydarzenie"}</Text>
                         <View style={local.pillRow}>
                           <View style={local.datePill}><Text style={local.datePillText}>{formatEventDateRange(event)}</Text></View>
+                          {inMyCity && <View style={local.myCityPill}><MaterialCommunityIcons name="map-marker" size={10} color={colors.onPrimary} /><Text style={local.myCityPillText}>W Twoim mieście</Text></View>}
                           {scope !== "local" && <View style={local.scopePill}><Text style={local.scopePillText}>{scopeLabel(event)}</Text></View>}
                         </View>
                       </View>
@@ -6417,6 +6422,7 @@ function EventFriendsManagerModal({
                     <View style={local.pillRow}>
                       <View style={local.scopePill}><Text style={local.scopePillText}>{meta?.label ?? "Wydarzenie"}</Text></View>
                       <View style={local.scopePill}><Text style={local.scopePillText}>{scopeLabel(event)}</Text></View>
+                      {isInCity(event.city, userCity) && <View style={local.myCityPill}><MaterialCommunityIcons name="map-marker" size={10} color={colors.onPrimary} /><Text style={local.myCityPillText}>W Twoim mieście</Text></View>}
                     </View>
                   </View>
                   <Pressable accessibilityRole="button" accessibilityLabel={tr("Zamknij szczegóły wydarzenia")} onPress={() => setDetailsEvent(null)} style={local.close}><MaterialCommunityIcons name="close" size={20} color={colors.ink} /></Pressable>
